@@ -28,6 +28,24 @@ export const config = [
     rules: {
       ...pluginReactHooks.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
+      "padding-line-between-statements": [
+        "error",
+        { blankLine: "always", prev: "import", next: "*" },
+        { blankLine: "any", prev: "import", next: "import" },
+        { blankLine: "always", prev: "*", next: "return" },
+        {
+          blankLine: "always",
+          prev: ["multiline-const", "multiline-let", "multiline-var"],
+          next: "*",
+        },
+        { blankLine: "always", prev: "*", next: "block-like" },
+        { blankLine: "always", prev: "block-like", next: "*" },
+      ],
+      "lines-between-class-members": [
+        "error",
+        "always",
+        { exceptAfterSingleLine: true },
+      ],
     },
   },
 ];
