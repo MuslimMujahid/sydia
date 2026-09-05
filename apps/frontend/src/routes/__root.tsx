@@ -18,11 +18,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         { name: "theme-color", content: "#181a1c" },
-        { title: "Sydia · Personal operations, clearly indexed" },
+        { title: "Sydia · Aktivitas pribadi tertata jelas" },
         {
           name: "description",
           content:
-            "A calm web control center for your Sydia account and personal context.",
+            "Pusat kendali yang tenang untuk akun dan konteks pribadi Anda di Sydia.",
         },
       ],
     }),
@@ -42,7 +42,7 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="id">
       <head>
         <HeadContent />
       </head>
@@ -51,9 +51,11 @@ function RootDocument({ children }: { children: ReactNode }) {
           href="#main-content"
           className="sr-only fixed top-2 left-2 z-50 bg-brand px-4 py-2 text-ink focus:not-sr-only"
         >
-          Skip to content
+          Lewati ke konten
         </a>
-        <div id="main-content">{children}</div>
+        <div id="main-content" tabIndex={-1}>
+          {children}
+        </div>
         <Scripts />
       </body>
     </html>

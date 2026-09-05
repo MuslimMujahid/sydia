@@ -32,7 +32,7 @@ function CodeBlock({ className, code, children, ...props }: CodeBlockProps) {
       <button
         type="button"
         onClick={copy}
-        aria-label={copied ? "Copied" : "Copy code"}
+        aria-label={copied ? "Tersalin" : "Salin kode"}
         className="absolute top-3 right-3 rounded-sm p-1 text-canvas/60 transition-colors hover:text-canvas focus-visible:ring-3 focus-visible:ring-brand/40 focus-visible:outline-none"
       >
         {copied ? (

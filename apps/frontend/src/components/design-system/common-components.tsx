@@ -25,8 +25,8 @@ function CommonComponentsSection() {
   return (
     <ShowcaseSection
       number="06"
-      title="Common Components"
-      tagline="Build faster. Stay consistent."
+      title="Komponen Umum"
+      tagline="Bangun lebih cepat. Tetap konsisten."
     >
       <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ButtonSpecimen />

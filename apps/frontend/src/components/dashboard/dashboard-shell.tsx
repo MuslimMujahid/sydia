@@ -30,8 +30,8 @@ import { SESSION_EXPIRED_EVENT } from "@/lib/services/api/api";
 import { cn } from "@/lib/utils/cn";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Today", icon: Home },
-  { to: "/settings/profile", label: "Profile & preferences", icon: Settings },
+  { to: "/", label: "Hari ini", icon: Home },
+  { to: "/settings/profile", label: "Profil & preferensi", icon: Settings },
 ] as const;
 
 function initialsFor(name: string): string {
@@ -90,7 +90,7 @@ export function DashboardShell({
   }
 
   const navigation = (
-    <nav aria-label="Product" className="space-y-2">
+    <nav aria-label="Navigasi utama" className="space-y-2">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active =
@@ -128,69 +128,65 @@ export function DashboardShell({
           Sydia
         </Link>
         <div className="mt-12 flex-1">{navigation}</div>
-        <p className="border-t border-canvas/10 px-3 pt-5 font-mono text-[10px] leading-4 tracking-widest text-canvas/40 uppercase">
-          Control center
-          <br />
-          Inspect · correct · continue
-        </p>
       </aside>
       <div className="lg:col-start-2">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-surface-1 bg-canvas/95 px-4 backdrop-blur sm:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center border-b border-surface-1 bg-canvas/95 px-4 backdrop-blur sm:px-8">
           <Button
             variant="ghost"
             size="icon"
             className="lg:hidden"
-            aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+            aria-label={mobileOpen ? "Tutup navigasi" : "Buka navigasi"}
+            aria-controls="mobile-navigation"
+            aria-expanded={mobileOpen}
             onClick={() => setMobileOpen((open) => !open)}
           >
             {mobileOpen ? <X /> : <Menu />}
           </Button>
-          <p className="hidden font-mono text-xs tracking-widest text-ink-weak uppercase lg:block">
-            Personal operations desk
-          </p>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  className="h-auto gap-3 px-2 py-1"
-                  aria-label="Open account menu"
-                />
-              }
-            >
-              <Avatar initials={initialsFor(user.name)} />
-              <span className="hidden text-left sm:block">
-                <span className="block text-sm text-ink">{user.name}</span>
-                <span className="block text-xs font-normal text-ink-muted">
-                  {user.email}
-                </span>
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem render={<Link to="/settings/profile" />}>
-                <UserRound />
-                Profile & preferences
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                destructive
-                disabled={signOutMutation.isPending}
-                onClick={() => void handleSignOut()}
+          <div className="ml-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    className="h-auto gap-3 px-2 py-1"
+                    aria-label="Buka menu akun"
+                  />
+                }
               >
-                <LogOut />
-                {signOutMutation.isPending ? "Signing out…" : "Sign out"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <Avatar initials={initialsFor(user.name)} />
+                <span className="hidden text-left sm:block">
+                  <span className="block text-sm text-ink">{user.name}</span>
+                  <span className="block text-xs font-normal text-ink-muted">
+                    {user.email}
+                  </span>
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem render={<Link to="/settings/profile" />}>
+                  <UserRound />
+                  Profil & preferensi
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  destructive
+                  disabled={signOutMutation.isPending}
+                  onClick={() => void handleSignOut()}
+                >
+                  <LogOut />
+                  {signOutMutation.isPending ? "Sedang keluar…" : "Keluar"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
         {mobileOpen ? (
-          <div className="fixed inset-x-0 top-16 z-20 bg-canvas-dark p-4 text-canvas shadow-sm lg:hidden">
+          <div
+            id="mobile-navigation"
+            className="fixed inset-x-0 top-16 z-20 bg-canvas-dark p-4 text-canvas shadow-sm lg:hidden"
+          >
             {navigation}
           </div>
         ) : null}
-        <main
-          id="main-content"
-          className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14"
-        >
+        <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
           {children}
         </main>
       </div>

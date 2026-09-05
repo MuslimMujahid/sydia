@@ -18,8 +18,8 @@ const searchSchema = z.object({
 });
 
 const signInSchema = z.object({
-  email: z.email("Enter a valid email address."),
-  password: z.string().min(1, "Enter your password."),
+  email: z.email("Masukkan alamat email yang valid."),
+  password: z.string().min(1, "Masukkan kata sandi Anda."),
 });
 
 export const Route = createFileRoute("/sign-in")({
@@ -27,8 +27,8 @@ export const Route = createFileRoute("/sign-in")({
   beforeLoad: ({ context }) => redirectAuthenticatedUser(context.queryClient),
   head: () => ({
     meta: [
-      { title: "Sign in · Sydia" },
-      { name: "description", content: "Sign in to your Sydia control center." },
+      { title: "Masuk · Sydia" },
+      { name: "description", content: "Masuk ke pusat kendali Sydia Anda." },
     ],
   }),
   component: SignInPage,
@@ -58,27 +58,27 @@ function SignInPage() {
 
   const notice =
     search.reason === "expired"
-      ? "Your session expired. Sign in again to continue where you left off."
+      ? "Sesi Anda telah berakhir. Masuk kembali untuk melanjutkan."
       : search.reason === "required"
-        ? "Sign in to open that page."
+        ? "Masuk untuk membuka halaman tersebut."
         : search.reason === "signed-out"
-          ? "You’re signed out."
+          ? "Anda telah keluar."
           : null;
 
   return (
     <AuthShell
-      eyebrow="Welcome back"
-      title="Return to your desk."
-      description="Sign in to inspect your saved account state and preferences."
+      eyebrow="Selamat datang kembali"
+      title="Kembali ke ruang kerja Anda."
+      description="Masuk untuk meninjau status akun dan preferensi yang tersimpan."
       footer={
         <>
-          New to Sydia?{" "}
+          Baru menggunakan Sydia?{" "}
           <Link
             to="/sign-up"
             search={{ redirect: search.redirect }}
             className="font-semibold text-link underline underline-offset-4"
           >
-            Create an account
+            Buat akun
           </Link>
         </>
       }
@@ -123,7 +123,7 @@ function SignInPage() {
           {(field) => (
             <FieldShell
               id="sign-in-password"
-              label="Password"
+              label="Kata sandi"
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (
@@ -152,7 +152,7 @@ function SignInPage() {
               type="submit"
               disabled={!canSubmit || isSubmitting}
             >
-              {isSubmitting ? "Signing in…" : "Sign in"}
+              {isSubmitting ? "Sedang masuk…" : "Masuk"}
             </Button>
           )}
         </form.Subscribe>

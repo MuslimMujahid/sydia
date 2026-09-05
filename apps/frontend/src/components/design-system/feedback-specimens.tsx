@@ -34,31 +34,32 @@ import { Specimen } from "./section";
 
 function TabsSpecimen() {
   return (
-    <Specimen number="10" title="Tabs" description="Organize related content.">
+    <Specimen number="10" title="Tab" description="Atur konten terkait.">
       <Tabs defaultValue="chat">
         <TabsList>
-          <TabsTab value="chat">Chat</TabsTab>
-          <TabsTab value="knowledge">Knowledge</TabsTab>
-          <TabsTab value="settings">Settings</TabsTab>
+          <TabsTab value="chat">Obrolan</TabsTab>
+          <TabsTab value="knowledge">Pengetahuan</TabsTab>
+          <TabsTab value="settings">Pengaturan</TabsTab>
         </TabsList>
         <TabsPanel value="chat">
           <div className="rounded-md bg-surface-1/50 p-4">
             <p className="font-display text-lg font-bold text-ink">
-              Start a conversation
+              Mulai percakapan
             </p>
             <p className="font-sans text-sm leading-[21px] text-ink-muted">
-              Ask Sydia anything, from quick questions to complex projects.
+              Tanyakan apa saja kepada Sydia, dari pertanyaan singkat hingga
+              proyek kompleks.
             </p>
           </div>
         </TabsPanel>
         <TabsPanel value="knowledge">
           <p className="font-sans text-sm leading-[21px] text-ink-muted">
-            Your saved sources and memories live here.
+            Sumber dan memori Anda yang tersimpan ada di sini.
           </p>
         </TabsPanel>
         <TabsPanel value="settings">
           <p className="font-sans text-sm leading-[21px] text-ink-muted">
-            Tune Sydia to the way you work.
+            Sesuaikan Sydia dengan cara kerja Anda.
           </p>
         </TabsPanel>
       </Tabs>
@@ -70,18 +71,14 @@ const PAGES = [1, 2, 3, 4];
 
 function PaginationSpecimen() {
   return (
-    <Specimen
-      number="11"
-      title="Pagination"
-      description="Navigate through content."
-    >
+    <Specimen number="11" title="Paginasi" description="Jelajahi konten.">
       <nav
-        aria-label="Pagination"
+        aria-label="Paginasi"
         className="flex items-center justify-center gap-1"
       >
         <button
           type="button"
-          aria-label="Previous page"
+          aria-label="Halaman sebelumnya"
           className="rounded-sm p-2 text-ink-weak hover:bg-surface-1"
         >
           <ChevronLeft className="size-4" />
@@ -91,11 +88,7 @@ function PaginationSpecimen() {
             key={page}
             type="button"
             aria-current={page === 1 ? "page" : undefined}
-            className={`size-8 rounded-sm font-sans text-sm ${
-              page === 1
-                ? "bg-brand font-semibold text-ink"
-                : "text-ink-soft hover:bg-surface-1"
-            }`}
+            className={`size-8 rounded-sm font-sans text-sm ${page === 1 ? "bg-brand font-semibold text-ink" : "text-ink-soft hover:bg-surface-1"}`}
           >
             {page}
           </button>
@@ -109,14 +102,14 @@ function PaginationSpecimen() {
         </button>
         <button
           type="button"
-          aria-label="Next page"
+          aria-label="Halaman berikutnya"
           className="rounded-sm p-2 text-ink-weak hover:bg-surface-1"
         >
           <ChevronRight className="size-4" />
         </button>
       </nav>
       <p className="text-center font-sans text-sm text-ink-muted">
-        Showing 1–10 of 94 results
+        Menampilkan 1–10 dari 94 hasil
       </p>
     </Specimen>
   );
@@ -124,17 +117,13 @@ function PaginationSpecimen() {
 
 function DropdownSpecimen() {
   return (
-    <Specimen
-      number="12"
-      title="Dropdown Menu"
-      description="Contextual actions."
-    >
+    <Specimen number="12" title="Menu Dropdown" description="Aksi kontekstual.">
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button variant="secondary" size="sm">
               <MoreVertical />
-              More actions
+              Aksi lainnya
             </Button>
           }
         />
@@ -143,16 +132,16 @@ function DropdownSpecimen() {
             <Pencil /> Edit
           </DropdownMenuItem>
           <DropdownMenuItem>
-            <Copy /> Duplicate
+            <Copy /> Duplikat
           </DropdownMenuItem>
           <DropdownMenuItem>
-            <Share2 /> Share
+            <Share2 /> Bagikan
           </DropdownMenuItem>
           <DropdownMenuItem destructive>
-            <Trash2 /> Delete
+            <Trash2 /> Hapus
           </DropdownMenuItem>
           <DropdownMenuItem>
-            <Archive /> Move to archive
+            <Archive /> Pindahkan ke arsip
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -160,37 +149,26 @@ function DropdownSpecimen() {
   );
 }
 
-type ToastItem = {
-  title: string;
-  body: string;
-  icon: "success" | "info" | "warn";
-  dark?: boolean;
-};
-
-const TOASTS: ToastItem[] = [
+const TOASTS = [
   {
-    title: "New memory added",
-    body: "Sydia will remember this.",
+    title: "Memori baru ditambahkan",
+    body: "Sydia akan mengingat ini.",
     icon: "success",
     dark: true,
   },
   {
-    title: "Report generated",
-    body: "Your report is ready to view.",
+    title: "Laporan dibuat",
+    body: "Laporan Anda siap dilihat.",
     icon: "info",
+    dark: false,
   },
   {
-    title: "You're offline",
-    body: "Some features may be limited.",
+    title: "Anda sedang offline",
+    body: "Beberapa fitur mungkin terbatas.",
     icon: "warn",
+    dark: false,
   },
-];
-
-const toastIconClasses: Record<ToastItem["icon"], string> = {
-  success: "bg-brand text-ink",
-  info: "bg-link text-canvas",
-  warn: "bg-warn text-canvas",
-};
+] as const;
 
 const toastIcon = { success: CheckCircle2, info: Info, warn: AlertTriangle };
 
@@ -199,7 +177,7 @@ function ToastSpecimen() {
     <Specimen
       number="13"
       title="Toast"
-      description="Brief, temporary feedback."
+      description="Umpan balik singkat dan sementara."
     >
       <div className="space-y-2">
         {TOASTS.map((toast) => {
@@ -209,14 +187,10 @@ function ToastSpecimen() {
             <div
               key={toast.title}
               role="status"
-              className={`flex items-start gap-3 rounded-md border p-3 ${
-                toast.dark
-                  ? "border-editorial bg-editorial text-canvas"
-                  : "border-surface-1 bg-canvas text-ink"
-              }`}
+              className={`flex items-start gap-3 rounded-md border p-3 ${toast.dark ? "border-editorial bg-editorial text-canvas" : "border-surface-1 bg-canvas text-ink"}`}
             >
               <span
-                className={`flex size-6 shrink-0 items-center justify-center rounded-full ${toastIconClasses[toast.icon]}`}
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full ${toast.icon === "success" ? "bg-brand text-ink" : toast.icon === "info" ? "bg-link text-canvas" : "bg-warn text-canvas"}`}
               >
                 <Icon className="size-3.5" />
               </span>
@@ -228,10 +202,7 @@ function ToastSpecimen() {
                   {toast.body}
                 </p>
               </div>
-              <X
-                className={`size-3.5 ${toast.dark ? "text-canvas/60" : "text-ink-weak"}`}
-                aria-hidden="true"
-              />
+              <X className="size-3.5" aria-hidden="true" />
             </div>
           );
         })}
@@ -240,64 +211,40 @@ function ToastSpecimen() {
   );
 }
 
-type AlertItem = {
-  title: string;
-  body: string;
-  tone: "info" | "warn" | "error";
-};
-
-const ALERTS: AlertItem[] = [
+const ALERTS = [
+  { title: "Perhatian", body: "Sydia terus berkembang. Lihat hal-hal baru." },
   {
-    title: "Heads up",
-    body: "Sydia is constantly improving. Check out what's new.",
-    tone: "info",
+    title: "Tindakan diperlukan",
+    body: "Verifikasi alamat email Anda untuk melanjutkan.",
   },
   {
-    title: "Action required",
-    body: "Please verify your email address to continue.",
-    tone: "warn",
-  },
-  {
-    title: "Something went wrong",
-    body: "We couldn't process your request. Please try again.",
-    tone: "error",
+    title: "Terjadi kesalahan",
+    body: "Kami tidak dapat memproses permintaan Anda. Coba lagi.",
   },
 ];
-
-const alertToneClasses: Record<AlertItem["tone"], string> = {
-  info: "border-link/30 bg-link/5 text-link",
-  warn: "border-warn/40 bg-warn/10 text-warn",
-  error: "border-destructive/40 bg-destructive/10 text-destructive",
-};
-
-const alertIcon = { info: Info, warn: AlertTriangle, error: X };
 
 function AlertSpecimen() {
   return (
     <Specimen
       number="14"
-      title="Alert"
-      description="Important, persistent messages."
+      title="Peringatan"
+      description="Pesan penting yang menetap."
     >
       <div className="space-y-2">
-        {ALERTS.map((alert) => {
-          const Icon = alertIcon[alert.tone];
-
-          return (
-            <div
-              key={alert.title}
-              role="alert"
-              className={`flex items-start gap-3 rounded-md border p-3 ${alertToneClasses[alert.tone]}`}
-            >
-              <Icon className="mt-0.5 size-4 shrink-0" />
-              <div className="flex-1">
-                <p className="font-sans text-sm font-medium">{alert.title}</p>
-                <p className="font-sans text-xs text-ink-soft">{alert.body}</p>
-              </div>
-              <X className="size-3.5 text-ink-weak" aria-hidden="true" />
+        {ALERTS.map((alert, index) => (
+          <div
+            key={alert.title}
+            role="alert"
+            className={`flex items-start gap-3 rounded-md border p-3 ${index === 0 ? "border-link/30 bg-link/5 text-link" : index === 1 ? "border-warn/40 bg-warn/10 text-warn" : "border-destructive/40 bg-destructive/10 text-destructive"}`}
+          >
+            <Info className="mt-0.5 size-4 shrink-0" />
+            <div className="flex-1">
+              <p className="font-sans text-sm font-medium">{alert.title}</p>
+              <p className="font-sans text-xs text-ink-soft">{alert.body}</p>
             </div>
-          );
-        })}
+            <X className="size-3.5 text-ink-weak" aria-hidden="true" />
+          </div>
+        ))}
       </div>
     </Specimen>
   );
@@ -308,18 +255,18 @@ function ModalSpecimen() {
     <Specimen
       number="15"
       title="Modal"
-      description="Focused tasks or workflows."
+      description="Tugas atau alur kerja yang membutuhkan fokus."
     >
       <Dialog>
         <DialogTrigger
-          render={<Button variant="dark">Create a new project</Button>}
+          render={<Button variant="dark">Buat proyek baru</Button>}
         />
         <DialogContent>
           <div className="space-y-4">
             <div className="space-y-1">
-              <DialogTitle>Create a new project</DialogTitle>
+              <DialogTitle>Buat proyek baru</DialogTitle>
               <DialogDescription>
-                Turn your ideas into action with Sydia.
+                Ubah ide Anda menjadi tindakan bersama Sydia.
               </DialogDescription>
             </div>
             <div className="space-y-1.5">
@@ -327,22 +274,22 @@ function ModalSpecimen() {
                 htmlFor="project-name"
                 className="font-sans text-sm text-ink-soft"
               >
-                Project name
+                Nama proyek
               </label>
-              <Input id="project-name" placeholder="e.g. Q2 Planning" />
+              <Input id="project-name" placeholder="mis. Perencanaan Q2" />
             </div>
             <div className="flex justify-end gap-2">
               <DialogClose
                 render={
                   <Button variant="secondary" size="sm">
-                    Cancel
+                    Batal
                   </Button>
                 }
               />
               <DialogClose
                 render={
                   <Button variant="primary" size="sm">
-                    Create
+                    Buat
                   </Button>
                 }
               />
@@ -359,13 +306,13 @@ function ConfirmDialogSpecimen() {
     <Specimen
       number="16"
       title="Dialog"
-      description="Confirmation or critical decisions."
+      description="Konfirmasi atau keputusan penting."
     >
       <Dialog>
         <DialogTrigger
           render={
             <Button variant="destructive" size="sm">
-              Delete this item?
+              Hapus item ini?
             </Button>
           }
         />
@@ -375,23 +322,23 @@ function ConfirmDialogSpecimen() {
               <Trash2 className="size-4 text-destructive" />
             </span>
             <div className="space-y-1">
-              <DialogTitle>Delete this item?</DialogTitle>
+              <DialogTitle>Hapus item ini?</DialogTitle>
               <DialogDescription>
-                This action cannot be undone.
+                Tindakan ini tidak dapat dibatalkan.
               </DialogDescription>
             </div>
             <div className="flex justify-center gap-2">
               <DialogClose
                 render={
                   <Button variant="secondary" size="sm">
-                    Cancel
+                    Batal
                   </Button>
                 }
               />
               <DialogClose
                 render={
                   <Button variant="destructive" size="sm">
-                    Delete
+                    Hapus
                   </Button>
                 }
               />
@@ -407,8 +354,8 @@ function LoadingSpecimen() {
   return (
     <Specimen
       number="17"
-      title="Loading Indicator"
-      description="Show progress and activity."
+      title="Indikator Pemuatan"
+      description="Tampilkan kemajuan dan aktivitas."
     >
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -416,22 +363,22 @@ function LoadingSpecimen() {
             className="size-6 animate-spin text-brand-deep"
             aria-hidden="true"
           />
-          <span className="font-sans text-sm text-ink-muted">Loading…</span>
+          <span className="font-sans text-sm text-ink-muted">Memuat…</span>
           <span className="sr-only" role="status">
-            Loading
+            Memuat
           </span>
         </div>
         <div
           className="flex items-center gap-2"
           role="status"
-          aria-label="Thinking"
+          aria-label="Berpikir"
         >
           <span className="flex gap-1" aria-hidden="true">
             <span className="size-2 animate-pulse rounded-full bg-brand-deep" />
             <span className="size-2 animate-pulse rounded-full bg-brand-deep [animation-delay:150ms]" />
             <span className="size-2 animate-pulse rounded-full bg-brand-deep [animation-delay:300ms]" />
           </span>
-          <span className="font-sans text-sm text-ink-muted">Thinking…</span>
+          <span className="font-sans text-sm text-ink-muted">Berpikir…</span>
         </div>
         <div>
           <div
@@ -439,13 +386,13 @@ function LoadingSpecimen() {
             aria-valuenow={68}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Generating response"
+            aria-label="Membuat respons"
             className="h-1.5 w-full overflow-hidden rounded-pill bg-surface-1"
           >
             <div className="h-full w-[68%] rounded-pill bg-brand" />
           </div>
           <div className="mt-1 flex justify-between font-sans text-xs text-ink-muted">
-            <span>Generating response…</span>
+            <span>Membuat respons…</span>
             <span>68%</span>
           </div>
         </div>

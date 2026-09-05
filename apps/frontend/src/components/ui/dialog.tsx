@@ -28,7 +28,7 @@ function DialogContent({
         {children}
         {showClose ? (
           <DialogPrimitive.Close
-            aria-label="Close"
+            aria-label="Tutup"
             className="absolute top-4 right-4 rounded-sm p-1 text-ink-weak transition-colors outline-none hover:text-ink focus-visible:ring-3 focus-visible:ring-brand/40"
           >
             <X className="size-4" />

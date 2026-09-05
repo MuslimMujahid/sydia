@@ -42,7 +42,7 @@ const getCurrentUserServer = createServerFn({ method: "GET" }).handler(
 
       return response.data.data;
     } catch (error) {
-      throw toApiError(error, "We could not load your profile.");
+      throw toApiError(error, "Profil Anda tidak dapat dimuat.");
     }
   }
 );
@@ -55,7 +55,7 @@ async function getCurrentUser(): Promise<UserProfile> {
 
     return response.data.data;
   } catch (error) {
-    throw toApiError(error, "We could not load your profile.");
+    throw toApiError(error, "Profil Anda tidak dapat dimuat.");
   }
 }
 
@@ -70,7 +70,7 @@ export async function updateCurrentUser(
 
     return response.data.data;
   } catch (error) {
-    throw toApiError(error, "We could not save your profile.");
+    throw toApiError(error, "Profil Anda tidak dapat disimpan.");
   }
 }
 

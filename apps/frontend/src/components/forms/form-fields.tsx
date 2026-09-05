@@ -25,7 +25,7 @@ export function FieldShell({
       ? error
       : error instanceof Error
         ? error.message
-        : "Check this value."
+        : "Periksa nilai ini."
   );
 
   const invalid = messages.length > 0;

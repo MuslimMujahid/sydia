@@ -12,23 +12,23 @@ const RADII: { name: string; px: number; className: string }[] = [
 ];
 
 const NOTES: { title: string; body: string }[] = [
-  { title: "Borders", body: "1px hairline borders using #D1D5DA." },
+  { title: "Batas", body: "Batas garis tipis 1px menggunakan #D1D5DA." },
   {
-    title: "Elevation",
-    body: "Mostly flat surfaces. Use tonal lift over shadows.",
+    title: "Elevasi",
+    body: "Sebagian besar permukaan datar. Gunakan peningkatan tonal, bukan bayangan.",
   },
-  { title: "Surfaces", body: "Editorial dark cards on light canvas." },
+  { title: "Permukaan", body: "Kartu gelap editorial di atas kanvas terang." },
 ];
 
 function ShapeSection() {
   return (
     <ShowcaseSection
       number="04"
-      title="Shape"
-      tagline="Subtle details. Lasting impression."
+      title="Bentuk"
+      tagline="Detail halus. Kesan yang bertahan lama."
     >
       <h3 className="mb-4 font-mono text-xs leading-[18px] text-ink-soft uppercase">
-        Border radius (px)
+        Radius batas (px)
       </h3>
       <ul className="mb-8 flex flex-wrap items-end gap-6">
         {RADII.map((radius) => (

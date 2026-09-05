@@ -21,22 +21,22 @@ function ButtonSpecimen() {
   return (
     <Specimen
       number="01"
-      title="Button"
-      description="Actions that move ideas forward."
+      title="Tombol"
+      description="Aksi untuk mendorong ide maju."
     >
       <div className="space-y-3">
         <Button variant="primary" className="w-full">
           <Sparkles />
-          Ask Sydia
+          Tanya Sydia
         </Button>
         <Button variant="dark" className="w-full">
-          Create
+          Ciptakan
         </Button>
         <Button variant="secondary" className="w-full">
-          Learn more
+          Pelajari lebih lanjut
         </Button>
         <Button variant="primary" disabled className="w-full">
-          Disabled
+          Dinonaktifkan
         </Button>
       </div>
     </Specimen>
@@ -47,8 +47,8 @@ function TextInputSpecimen() {
   return (
     <Specimen
       number="02"
-      title="Text Input"
-      description="Simple, clear input fields."
+      title="Input Teks"
+      description="Kolom input sederhana dan jelas."
     >
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -56,20 +56,20 @@ function TextInputSpecimen() {
             htmlFor="input-default"
             className="font-sans text-sm text-ink-soft"
           >
-            Default
+            Bawaan
           </label>
-          <Input id="input-default" placeholder="Enter your message…" />
+          <Input id="input-default" placeholder="Masukkan pesan Anda…" />
         </div>
         <div className="space-y-1.5">
           <label
             htmlFor="input-focused"
             className="font-sans text-sm text-ink-soft"
           >
-            Focused
+            Terfokus
           </label>
           <Input
             id="input-focused"
-            defaultValue="Plan my next project"
+            defaultValue="Rencanakan proyek berikutnya"
             className="border-brand ring-3 ring-brand/30"
             readOnly
           />
@@ -79,13 +79,13 @@ function TextInputSpecimen() {
             htmlFor="input-icon"
             className="font-sans text-sm text-ink-soft"
           >
-            With icon
+            Dengan ikon
           </label>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-weak" />
             <Input
               id="input-icon"
-              placeholder="Search anything…"
+              placeholder="Cari apa saja…"
               className="pl-9"
             />
           </div>
@@ -95,11 +95,11 @@ function TextInputSpecimen() {
             htmlFor="input-error"
             className="font-sans text-sm text-ink-soft"
           >
-            Error
+            Kesalahan
           </label>
           <Input
             id="input-error"
-            defaultValue="Please enter a value"
+            defaultValue="Masukkan nilai"
             aria-invalid
             aria-describedby="input-error-message"
           />
@@ -109,7 +109,7 @@ function TextInputSpecimen() {
             className="flex items-center gap-1 font-sans text-xs text-destructive"
           >
             <CircleAlert className="size-3.5" />
-            This field is required.
+            Kolom ini wajib diisi.
           </p>
         </div>
       </div>
@@ -121,8 +121,8 @@ function TextareaSpecimen() {
   return (
     <Specimen
       number="03"
-      title="Textarea"
-      description="For longer, richer input."
+      title="Area Teks"
+      description="Untuk input yang lebih panjang dan kaya."
     >
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -130,11 +130,11 @@ function TextareaSpecimen() {
             htmlFor="textarea-default"
             className="font-sans text-sm text-ink-soft"
           >
-            Default
+            Bawaan
           </label>
           <Textarea
             id="textarea-default"
-            placeholder="Share more details…"
+            placeholder="Bagikan detail selengkapnya…"
             rows={3}
           />
         </div>
@@ -143,11 +143,11 @@ function TextareaSpecimen() {
             htmlFor="textarea-focused"
             className="font-sans text-sm text-ink-soft"
           >
-            Focused
+            Terfokus
           </label>
           <Textarea
             id="textarea-focused"
-            defaultValue="Outline my goals for next quarter…"
+            defaultValue="Uraikan tujuan Anda untuk kuartal berikutnya…"
             rows={3}
             readOnly
             aria-describedby="textarea-count"
@@ -166,7 +166,7 @@ function TextareaSpecimen() {
 }
 
 const MODELS = [
-  "Sydia (Default)",
+  "Sydia (Bawaan)",
   "Sydia Pro",
   "Sydia Vision",
   "Sydia Research",
@@ -174,23 +174,19 @@ const MODELS = [
 
 function SelectSpecimen() {
   return (
-    <Specimen
-      number="04"
-      title="Select"
-      description="Pick from a list of options."
-    >
+    <Specimen number="04" title="Pilihan" description="Pilih dari daftar opsi.">
       <div className="space-y-2">
         <button
           type="button"
           aria-haspopup="listbox"
           className="flex h-[38px] w-full items-center justify-between rounded-sm border border-hairline bg-canvas px-3 font-sans text-base text-ink-muted"
         >
-          Choose a model
+          Pilih model
           <ChevronDown className="size-4 text-ink-weak" />
         </button>
         <div
           role="listbox"
-          aria-label="Models"
+          aria-label="Model"
           className="space-y-0.5 rounded-md border border-surface-1 bg-canvas p-1.5 shadow-sm"
         >
           {MODELS.map((model, index) => (
@@ -198,9 +194,7 @@ function SelectSpecimen() {
               key={model}
               role="option"
               aria-selected={index === 0}
-              className={`flex items-center justify-between rounded-sm px-2.5 py-2 font-sans text-sm ${
-                index === 0 ? "bg-surface-1 text-ink" : "text-ink-soft"
-              }`}
+              className={`flex items-center justify-between rounded-sm px-2.5 py-2 font-sans text-sm ${index === 0 ? "bg-surface-1 text-ink" : "text-ink-soft"}`}
             >
               {model}
               {index === 0 ? (
@@ -216,19 +210,24 @@ function SelectSpecimen() {
 
 function CheckboxSpecimen() {
   return (
-    <Specimen number="05" title="Checkbox" description="Multi-select options.">
+    <Specimen
+      number="05"
+      title="Kotak Centang"
+      description="Opsi multi-pilihan."
+    >
       <div className="space-y-3">
         <label className="flex items-center gap-3 font-sans text-base text-ink">
-          <Checkbox name="remember" /> Remember this device
+          <Checkbox name="remember" /> Ingat perangkat ini
         </label>
         <label className="flex items-center gap-3 font-sans text-base text-ink">
-          <Checkbox name="updates" defaultChecked /> Send me updates
+          <Checkbox name="updates" defaultChecked /> Kirim pembaruan
         </label>
         <label className="flex items-center gap-3 font-sans text-base text-ink">
-          <Checkbox name="beta" /> Enable beta features
+          <Checkbox name="beta" /> Aktifkan fitur beta
         </label>
         <label className="flex items-center gap-3 font-sans text-base text-ink-weak">
-          <Checkbox name="disabled" defaultChecked disabled /> Disabled option
+          <Checkbox name="disabled" defaultChecked disabled /> Opsi
+          dinonaktifkan
         </label>
       </div>
     </Specimen>
@@ -237,10 +236,10 @@ function CheckboxSpecimen() {
 
 function RadioSpecimen() {
   return (
-    <Specimen number="06" title="Radio" description="Single-select options.">
+    <Specimen number="06" title="Radio" description="Opsi pilihan tunggal.">
       <RadioGroup
         defaultValue="default"
-        aria-label="Choose a model"
+        aria-label="Pilih model"
         className="space-y-3"
       >
         {MODELS.map((model) => (
@@ -252,7 +251,7 @@ function RadioSpecimen() {
           </label>
         ))}
         <label className="flex items-center gap-3 font-sans text-base text-ink-weak">
-          <Radio value="disabled" disabled /> Disabled option
+          <Radio value="disabled" disabled /> Opsi dinonaktifkan
         </label>
       </RadioGroup>
     </Specimen>
@@ -265,21 +264,28 @@ const SWITCHES: {
   defaultChecked?: boolean;
 }[] = [
   {
-    label: "Enable personal memory",
-    description: "Helps Sydia remember what matters.",
+    label: "Aktifkan memori pribadi",
+    description: "Membantu Sydia mengingat hal penting.",
     defaultChecked: true,
   },
-  { label: "Offline mode", description: "Process locally on this device." },
   {
-    label: "Usage analytics",
-    description: "Help improve Sydia for everyone.",
+    label: "Mode offline",
+    description: "Memproses secara lokal di perangkat ini.",
+  },
+  {
+    label: "Analitik penggunaan",
+    description: "Bantu meningkatkan Sydia untuk semua orang.",
     defaultChecked: true,
   },
 ];
 
 function SwitchSpecimen() {
   return (
-    <Specimen number="07" title="Switch" description="Toggle a single setting.">
+    <Specimen
+      number="07"
+      title="Sakelar"
+      description="Alihkan satu pengaturan."
+    >
       <div className="space-y-5">
         {SWITCHES.map((item) => (
           <label key={item.label} className="flex items-start gap-3">
@@ -307,14 +313,14 @@ const CALENDAR_WEEKS: (number | null)[][] = [
   [27, 28, 29, 30, null, null, null],
 ];
 
-const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const WEEKDAYS = ["Mg", "Sn", "Sl", "Rb", "Km", "Jm", "Sb"];
 
 function DatePickerSpecimen() {
   return (
     <Specimen
       number="08"
-      title="Date Picker"
-      description="Select dates and schedule."
+      title="Pemilih Tanggal"
+      description="Pilih tanggal dan jadwalkan."
     >
       <div className="space-y-2">
         <button
@@ -322,12 +328,12 @@ function DatePickerSpecimen() {
           className="flex h-[38px] w-full items-center gap-2 rounded-sm border border-hairline bg-canvas px-3 font-sans text-base text-ink"
         >
           <Calendar className="size-4 text-ink-weak" />
-          Apr 24, 2025
+          24 Apr 2025
         </button>
         <div
           className="rounded-md border border-surface-1 bg-canvas p-3"
           role="group"
-          aria-label="April 2025 calendar"
+          aria-label="Kalender April 2025"
         >
           <div className="mb-2 flex items-center justify-between">
             <ChevronLeft className="size-4 text-ink-weak" aria-hidden="true" />
@@ -349,11 +355,7 @@ function DatePickerSpecimen() {
                 <span
                   key={day}
                   aria-current={day === 24 ? "date" : undefined}
-                  className={`rounded-full py-1 ${
-                    day === 24
-                      ? "bg-brand font-semibold text-ink"
-                      : "text-ink-soft hover:bg-surface-1"
-                  }`}
+                  className={`rounded-full py-1 ${day === 24 ? "bg-brand font-semibold text-ink" : "text-ink-soft hover:bg-surface-1"}`}
                 >
                   {day}
                 </span>
@@ -370,22 +372,22 @@ function FileUploadSpecimen() {
   return (
     <Specimen
       number="09"
-      title="File Upload"
-      description="Drag, drop, or browse files."
+      title="Unggah Berkas"
+      description="Seret, jatuhkan, atau telusuri berkas."
     >
       <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-hairline bg-surface-1/40 px-4 py-8 text-center">
         <span className="flex size-10 items-center justify-center rounded-full bg-canvas">
           <Upload className="size-4 text-ink-soft" />
         </span>
         <p className="font-sans text-base font-medium text-ink">
-          Upload source files
+          Unggah berkas sumber
         </p>
         <p className="font-sans text-sm leading-[21px] text-ink-muted">
-          Drag and drop files here, or click to browse
+          Seret dan jatuhkan berkas di sini, atau klik untuk menelusuri
         </p>
       </div>
       <p className="font-sans text-xs text-ink-weak">
-        Supports PDF, doc, txt, md, csv (max 10MB)
+        Mendukung PDF, doc, txt, md, csv (maks. 10MB)
       </p>
     </Specimen>
   );

@@ -2,8 +2,8 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 
-const NAV_WORDS = ["Think", "Plan", "Create", "Together"];
-const SIDE_WORDS = ["Ideas", "Actions", "Progress"];
+const NAV_WORDS = ["Pikirkan", "Rencanakan", "Ciptakan", "Bersama"];
+const SIDE_WORDS = ["Ide", "Tindakan", "Kemajuan"];
 
 function HeroBand() {
   return (
@@ -18,7 +18,7 @@ function HeroBand() {
         }}
       />
       <nav
-        aria-label="Design system"
+        aria-label="Sistem desain"
         className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10"
       >
         <span className="font-mono text-base leading-6 tracking-widest uppercase">
@@ -38,21 +38,21 @@ function HeroBand() {
       <div className="relative mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-10 px-6 pt-16 pb-20 lg:px-10 lg:pt-24">
         <div className="max-w-2xl space-y-6">
           <h1 className="font-display text-5xl leading-[1.1] font-extrabold lg:text-[64px] lg:leading-[70.4px]">
-            Sydia Design System
+            Sistem Desain Sydia
           </h1>
           <p className="font-sans text-2xl leading-8 text-canvas/90">
-            Personal AI Assistant Platform
+            Platform Asisten AI Pribadi
           </p>
           <p className="font-sans text-lg leading-[27px] text-canvas/60">
-            Split-canvas interface, teal-cyan brand voltage, editorial dark
-            surfaces, and a calm technical voice.
+            Antarmuka kanvas terbagi, nuansa merek teal-sian, permukaan gelap
+            editorial, dan suara teknis yang tenang.
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button variant="primary">
               <Sparkles />
-              Ask Sydia
+              Tanya Sydia
             </Button>
-            <Button variant="dark-outline">View Guidelines</Button>
+            <Button variant="dark-outline">Lihat Panduan</Button>
           </div>
         </div>
         <div className="hidden flex-col items-end gap-6 lg:flex">
@@ -60,7 +60,7 @@ function HeroBand() {
             variant="muted"
             className="max-w-24 text-right text-canvas/50"
           >
-            A more capable you
+            Anda yang lebih mampu
           </Eyebrow>
           <ul className="space-y-1 text-right">
             {SIDE_WORDS.map((word) => (

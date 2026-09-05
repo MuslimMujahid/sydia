@@ -13,11 +13,11 @@ import {
 export const Route = createFileRoute("/design-system")({
   head: () => ({
     meta: [
-      { title: "Sydia Design System" },
+      { title: "Sistem Desain Sydia" },
       {
         name: "description",
         content:
-          "Colors, typography, spacing, shape, and components for the Sydia personal AI assistant platform.",
+          "Warna, tipografi, spasi, bentuk, dan komponen untuk platform asisten AI pribadi Sydia.",
       },
     ],
   }),

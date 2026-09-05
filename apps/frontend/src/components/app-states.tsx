@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export function LoadingState({
-  label = "Loading your workspace…",
+  label = "Memuat ruang kerja Anda…",
 }: {
   label?: string;
 }) {
@@ -32,7 +32,7 @@ export function LoadingState({
 }
 
 export function ErrorState({
-  title = "Something interrupted the page",
+  title = "Terjadi gangguan pada halaman",
   message,
   onRetry,
 }: {
@@ -49,7 +49,7 @@ export function ErrorState({
         {onRetry ? (
           <Button onClick={onRetry}>
             <RotateCcw />
-            Try again
+            Coba lagi
           </Button>
         ) : null}
         <Button
@@ -58,7 +58,7 @@ export function ErrorState({
           render={<Link to="/" />}
         >
           <ArrowLeft />
-          Return home
+          Kembali ke beranda
         </Button>
       </div>
     </Card>
@@ -89,16 +89,17 @@ export function AppNotFound() {
     <main className="grid min-h-screen place-items-center bg-canvas px-6 py-16">
       <section className="max-w-xl border-l-4 border-brand pl-6">
         <p className="font-mono text-xs tracking-widest text-link uppercase">
-          404 / Not in the index
+          404 / Tidak ditemukan
         </p>
         <h1 className="mt-4 font-display text-5xl font-extrabold text-ink">
-          This page isn’t here.
+          Halaman ini tidak tersedia.
         </h1>
         <p className="mt-4 text-lg text-ink-muted">
-          Return to your Sydia control center and continue from a known place.
+          Kembali ke pusat kendali Sydia untuk melanjutkan dari tempat yang Anda
+          kenali.
         </p>
         <Button className="mt-8" nativeButton={false} render={<Link to="/" />}>
-          Return home
+          Kembali ke beranda
         </Button>
       </section>
     </main>

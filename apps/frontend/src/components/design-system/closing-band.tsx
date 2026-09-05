@@ -12,16 +12,16 @@ function ClosingBand() {
       <div className="relative flex flex-wrap items-end justify-between gap-6">
         <div className="space-y-2">
           <p className="font-mono text-xs leading-[18px] text-ink-weak uppercase">
-            Same building blocks. Brighter possibilities.
+            Blok pembangun yang sama. Kemungkinan yang lebih cerah.
           </p>
           <p className="font-display text-4xl leading-10 font-extrabold text-ink">
-            A more
+            Lebih
             <br />
-            capable you
+            mampu bersama Anda
           </p>
         </div>
         <ul className="space-y-1 text-right">
-          {["Plan", "Create", "Achieve", "Together"].map((word) => (
+          {["Rencanakan", "Ciptakan", "Capai", "Bersama"].map((word) => (
             <li
               key={word}
               className="font-mono text-xs leading-[18px] tracking-widest text-ink-weak uppercase"

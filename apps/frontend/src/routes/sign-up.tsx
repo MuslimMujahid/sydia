@@ -14,14 +14,14 @@ import { useSignUp } from "@/lib/services/api/auth/auth.queries";
 const searchSchema = z.object({ redirect: z.string().optional() });
 const signUpSchema = z
   .object({
-    name: z.string().trim().min(2, "Enter at least 2 characters."),
-    email: z.email("Enter a valid email address."),
-    password: z.string().min(8, "Use at least 8 characters."),
+    name: z.string().trim().min(2, "Masukkan minimal 2 karakter."),
+    email: z.email("Masukkan alamat email yang valid."),
+    password: z.string().min(8, "Gunakan minimal 8 karakter."),
     confirmPassword: z.string(),
   })
   .refine((value) => value.password === value.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Passwords must match.",
+    message: "Kata sandi harus sama.",
   });
 
 export const Route = createFileRoute("/sign-up")({
@@ -29,8 +29,8 @@ export const Route = createFileRoute("/sign-up")({
   beforeLoad: ({ context }) => redirectAuthenticatedUser(context.queryClient),
   head: () => ({
     meta: [
-      { title: "Create account · Sydia" },
-      { name: "description", content: "Create your Sydia account." },
+      { title: "Buat akun · Sydia" },
+      { name: "description", content: "Buat akun Sydia Anda." },
     ],
   }),
   component: SignUpPage,
@@ -55,18 +55,18 @@ function SignUpPage() {
 
   return (
     <AuthShell
-      eyebrow="Create your account"
-      title="Give Sydia a reliable home base."
-      description="Your account keeps structured actions and preferences tied to you—not to a browser."
+      eyebrow="Buat akun Anda"
+      title="Jadikan Sydia pusat aktivitas Anda."
+      description="Akun Anda menyimpan tindakan terstruktur dan preferensi untuk Anda, bukan hanya di satu peramban."
       footer={
         <>
-          Already have an account?{" "}
+          Sudah memiliki akun?{" "}
           <Link
             to="/sign-in"
             search={{ redirect: search.redirect, reason: undefined }}
             className="font-semibold text-link underline underline-offset-4"
           >
-            Sign in
+            Masuk
           </Link>
         </>
       }
@@ -83,7 +83,7 @@ function SignUpPage() {
           {(field) => (
             <FieldShell
               id="sign-up-name"
-              label="Name"
+              label="Nama"
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (
@@ -128,8 +128,8 @@ function SignUpPage() {
           {(field) => (
             <FieldShell
               id="sign-up-password"
-              label="Password"
-              description="At least 8 characters."
+              label="Kata sandi"
+              description="Minimal 8 karakter."
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (
@@ -152,7 +152,7 @@ function SignUpPage() {
           {(field) => (
             <FieldShell
               id="sign-up-confirm-password"
-              label="Confirm password"
+              label="Konfirmasi kata sandi"
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (
@@ -181,7 +181,7 @@ function SignUpPage() {
               type="submit"
               disabled={!canSubmit || isSubmitting}
             >
-              {isSubmitting ? "Creating account…" : "Create account"}
+              {isSubmitting ? "Membuat akun…" : "Buat akun"}
             </Button>
           )}
         </form.Subscribe>

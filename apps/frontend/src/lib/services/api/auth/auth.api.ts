@@ -47,7 +47,7 @@ export async function signUpWithEmail(
   } catch (error) {
     throw toApiError(
       error,
-      "We could not create your account. Check your details and try again."
+      "Akun Anda tidak dapat dibuat. Periksa data Anda, lalu coba lagi."
     );
   }
 }
@@ -65,7 +65,7 @@ export async function signInWithEmail(
   } catch (error) {
     throw toApiError(
       error,
-      "We could not sign you in. Check your email and password."
+      "Anda tidak dapat masuk. Periksa email dan kata sandi Anda."
     );
   }
 }
@@ -74,6 +74,6 @@ export async function signOut(): Promise<void> {
   try {
     await api.post("/api/auth/sign-out");
   } catch (error) {
-    throw toApiError(error, "We could not sign you out. Please try again.");
+    throw toApiError(error, "Anda tidak dapat keluar. Silakan coba lagi.");
   }
 }

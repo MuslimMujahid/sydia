@@ -18,7 +18,7 @@ export function AuthShell({
     <main className="grid min-h-screen bg-canvas lg:grid-cols-[minmax(20rem,0.8fr)_minmax(32rem,1.2fr)]">
       <section
         className="relative hidden overflow-hidden bg-canvas-dark p-12 text-canvas lg:flex lg:flex-col lg:justify-between"
-        aria-label="About Sydia"
+        aria-label="Tentang Sydia"
       >
         <div className="flex items-center gap-3 font-mono text-sm tracking-widest uppercase">
           <Sparkles className="size-5 text-brand" />
@@ -26,18 +26,18 @@ export function AuthShell({
         </div>
         <div className="max-w-lg space-y-6">
           <p className="font-mono text-xs tracking-widest text-brand uppercase">
-            Personal operations, clearly indexed
+            Aktivitas pribadi, tertata jelas
           </p>
           <p className="font-display text-5xl leading-[1.06] font-extrabold">
-            Capture in conversation. Correct in one calm place.
+            Catat lewat percakapan. Kelola dengan tenang di satu tempat.
           </p>
           <p className="text-lg text-canvas/70">
-            Sydia turns messages into inspectable state, while you stay in
-            control of what is remembered and changed.
+            Sydia mengubah pesan menjadi informasi yang dapat Anda tinjau,
+            sementara Anda tetap mengendalikan apa yang disimpan dan diubah.
           </p>
         </div>
         <p className="font-mono text-xs text-canvas/50 uppercase">
-          WhatsApp first · Web control center
+          Utamakan WhatsApp · Pusat kendali web
         </p>
       </section>
       <section className="flex items-center justify-center px-6 py-12 sm:px-10">

@@ -1,7 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { z } from "zod";
-import { CheckCircle2, Clock3, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -18,7 +17,7 @@ import {
 } from "@/lib/services/api/users/users.queries";
 
 const onboardingSchema = z.object({
-  timezone: z.string().min(1, "Choose a timezone."),
+  timezone: z.string().min(1, "Pilih zona waktu."),
   locale: z.enum(["en", "id"]),
 });
 
@@ -45,14 +44,14 @@ export const Route = createFileRoute("/onboarding")({
   },
   head: () => ({
     meta: [
-      { title: "Set your context · Sydia" },
+      { title: "Atur konteks Anda · Sydia" },
       {
         name: "description",
-        content: "Set timezone and language preferences for Sydia.",
+        content: "Atur preferensi zona waktu dan bahasa untuk Sydia.",
       },
     ],
   }),
-  pendingComponent: () => <LoadingState label="Preparing your account…" />,
+  pendingComponent: () => <LoadingState label="Menyiapkan akun Anda…" />,
   errorComponent: ({ error, reset }) => (
     <main className="grid min-h-screen place-items-center px-6">
       <ErrorState message={error.message} onRetry={reset} />
@@ -97,14 +96,14 @@ function OnboardingPage() {
       <div className="mx-auto max-w-3xl">
         <header className="mb-10 max-w-2xl space-y-4">
           <p className="font-mono text-xs tracking-widest text-link uppercase">
-            Account setup · 01
+            Pengaturan akun
           </p>
           <h1 className="font-display text-4xl leading-tight font-extrabold sm:text-5xl">
-            Set the context behind every time.
+            Atur zona waktu dan bahasa Anda.
           </h1>
           <p className="text-lg text-ink-muted">
-            Sydia uses these choices when interpreting phrases like “tomorrow
-            morning” and formatting responses. You can change them later.
+            Sydia menggunakan pilihan ini untuk memahami frasa seperti “besok
+            pagi” dan memformat respons. Anda dapat mengubahnya nanti.
           </p>
         </header>
         <Card className="p-6 sm:p-8">
@@ -120,33 +119,29 @@ function OnboardingPage() {
               {(field) => (
                 <FieldShell
                   id="onboarding-timezone"
-                  label="Timezone"
-                  description="Controls reminder, event, and briefing times."
+                  label="Zona waktu"
+                  description="Menentukan waktu pengingat, acara, dan ringkasan."
                   errors={field.state.meta.errors}
                 >
                   {({ describedBy, invalid }) => (
-                    <div className="relative">
-                      <Clock3 className="pointer-events-none absolute top-3 left-3 size-4 text-ink-weak" />
-                      <SelectField
-                        className="pl-10"
-                        id="onboarding-timezone"
-                        value={field.state.value}
-                        aria-describedby={describedBy}
-                        aria-invalid={invalid}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                      >
-                        {Array.from(new Set([field.state.value, ...TIMEZONES]))
-                          .filter(Boolean)
-                          .map((zone) => (
-                            <option key={zone} value={zone}>
-                              {zone.replaceAll("_", " ")}
-                            </option>
-                          ))}
-                      </SelectField>
-                    </div>
+                    <SelectField
+                      id="onboarding-timezone"
+                      value={field.state.value}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                    >
+                      {Array.from(new Set([field.state.value, ...TIMEZONES]))
+                        .filter(Boolean)
+                        .map((zone) => (
+                          <option key={zone} value={zone}>
+                            {zone.replaceAll("_", " ")}
+                          </option>
+                        ))}
+                    </SelectField>
                   )}
                 </FieldShell>
               )}
@@ -155,28 +150,24 @@ function OnboardingPage() {
               {(field) => (
                 <FieldShell
                   id="onboarding-locale"
-                  label="Language"
-                  description="Controls dashboard language and number/date formatting as translations roll out."
+                  label="Bahasa"
+                  description="Menentukan bahasa dasbor serta format angka dan tanggal."
                   errors={field.state.meta.errors}
                 >
                   {({ describedBy, invalid }) => (
-                    <div className="relative">
-                      <Languages className="pointer-events-none absolute top-3 left-3 size-4 text-ink-weak" />
-                      <SelectField
-                        className="pl-10"
-                        id="onboarding-locale"
-                        value={field.state.value}
-                        aria-describedby={describedBy}
-                        aria-invalid={invalid}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value as "en" | "id")
-                        }
-                      >
-                        <option value="id">Bahasa Indonesia</option>
-                        <option value="en">English</option>
-                      </SelectField>
-                    </div>
+                    <SelectField
+                      id="onboarding-locale"
+                      value={field.state.value}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value as "en" | "id")
+                      }
+                    >
+                      <option value="id">Bahasa Indonesia</option>
+                      <option value="en">Bahasa Inggris</option>
+                    </SelectField>
                   )}
                 </FieldShell>
               )}
@@ -187,8 +178,9 @@ function OnboardingPage() {
             >
               {([canSubmit, isSubmitting]) => (
                 <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                  <CheckCircle2 />
-                  {isSubmitting ? "Saving context…" : "Save and continue"}
+                  {isSubmitting
+                    ? "Menyimpan pengaturan…"
+                    : "Simpan dan lanjutkan"}
                 </Button>
               )}
             </form.Subscribe>

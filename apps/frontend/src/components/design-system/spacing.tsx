@@ -18,13 +18,13 @@ function SpacingSection() {
   return (
     <ShowcaseSection
       number="03"
-      title="Spacing & Layout"
-      tagline="Structured for clarity."
+      title="Spasi & Tata Letak"
+      tagline="Tersusun demi kejelasan."
     >
       <div className="grid gap-10 lg:grid-cols-2">
         <div>
           <h3 className="mb-4 font-mono text-xs leading-[18px] text-ink-soft uppercase">
-            Spacing scale (px)
+            Skala spasi (px)
           </h3>
           <ul className="space-y-2">
             {SCALE.map((step) => (
@@ -49,7 +49,7 @@ function SpacingSection() {
         </div>
         <div>
           <h3 className="mb-4 font-mono text-xs leading-[18px] text-ink-soft uppercase">
-            12-column desktop layout
+            Tata letak desktop 12 kolom
           </h3>
           <div className="rounded-md border border-surface-1 bg-surface-1/40 p-4">
             <div className="grid grid-cols-12 gap-2" aria-hidden="true">
@@ -58,12 +58,12 @@ function SpacingSection() {
               ))}
             </div>
             <p className="mt-3 font-sans text-sm leading-[21px] text-ink-muted">
-              12 columns | 24px gutters | 1280px container
+              12 kolom | gutter 24px | kontainer 1280px
             </p>
           </div>
           <p className="mt-4 rounded-md bg-surface-1/60 p-4 font-sans text-sm leading-[21px] text-ink-muted">
-            Use a consistent spacing scale for a clean, comfortable rhythm
-            across all layouts.
+            Gunakan skala spasi yang konsisten untuk ritme yang rapi dan nyaman
+            di semua tata letak.
           </p>
         </div>
       </div>

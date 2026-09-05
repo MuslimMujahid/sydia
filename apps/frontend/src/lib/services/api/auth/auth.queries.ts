@@ -34,7 +34,7 @@ const getSessionServer = createServerFn({ method: "GET" }).handler(async () => {
     return response.data;
   } catch (error) {
     if (isUnauthorizedError(error)) return null;
-    throw toApiError(error, "We could not verify your session.");
+    throw toApiError(error, "Sesi Anda tidak dapat diverifikasi.");
   }
 });
 
@@ -49,7 +49,7 @@ async function getSession(): Promise<SessionResponse | null> {
     return response.data;
   } catch (error) {
     if (isUnauthorizedError(error)) return null;
-    throw toApiError(error, "We could not verify your session.");
+    throw toApiError(error, "Sesi Anda tidak dapat diverifikasi.");
   }
 }
 

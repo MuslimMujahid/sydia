@@ -9,7 +9,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     meta: "Figtree · 64 / 70.4 — 800",
     sample: (
       <span className="font-display text-[64px] leading-[70.4px] font-extrabold">
-        A more capable you
+        Anda yang lebih mampu
       </span>
     ),
   },
@@ -18,7 +18,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     meta: "Figtree · 48 / 52.8 — 700",
     sample: (
       <span className="font-display text-5xl leading-[52.8px] font-bold">
-        Turn ideas into progress
+        Ubah ide menjadi kemajuan
       </span>
     ),
   },
@@ -27,7 +27,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     meta: "Figtree · 36.8 / 40.48 — 800",
     sample: (
       <span className="font-display text-4xl leading-10 font-extrabold">
-        Your AI companion
+        Pendamping AI Anda
       </span>
     ),
   },
@@ -36,7 +36,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     meta: "Figtree · 32 / 35.2 — 700",
     sample: (
       <span className="font-display text-[32px] leading-[35.2px] font-bold">
-        Plan, create, and achieve
+        Rencanakan, ciptakan, dan capai
       </span>
     ),
   },
@@ -45,7 +45,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     meta: "Figtree · 24 / 26.4 — 700",
     sample: (
       <span className="font-display text-2xl leading-[26.4px] font-bold">
-        Smarter together
+        Lebih cerdas bersama
       </span>
     ),
   },
@@ -57,7 +57,8 @@ const BODY_ROWS: TypeRow[] = [
     meta: "Instrument Sans · 18 / 27 — 400",
     sample: (
       <span className="font-sans text-lg leading-[27px]">
-        Sydia helps you think clearly, move faster, and do more.
+        Sydia membantu Anda berpikir jernih, bergerak cepat, dan melakukan lebih
+        banyak.
       </span>
     ),
   },
@@ -66,7 +67,7 @@ const BODY_ROWS: TypeRow[] = [
     meta: "Instrument Sans · 16 / 24 — 400",
     sample: (
       <span className="font-sans text-base leading-6">
-        A personal AI assistant for work and life.
+        Asisten AI pribadi untuk pekerjaan dan kehidupan.
       </span>
     ),
   },
@@ -75,7 +76,7 @@ const BODY_ROWS: TypeRow[] = [
     meta: "Instrument Sans · 14 / 21 — 400",
     sample: (
       <span className="font-sans text-sm leading-[21px]">
-        Small details. Big progress.
+        Detail kecil. Kemajuan besar.
       </span>
     ),
   },
@@ -84,7 +85,7 @@ const BODY_ROWS: TypeRow[] = [
     meta: "Martian Mono · 16 / 24 — 400",
     sample: (
       <span className="font-mono text-base leading-6 uppercase">
-        Built for humans
+        Dibuat untuk manusia
       </span>
     ),
   },
@@ -117,8 +118,8 @@ function TypographySection() {
   return (
     <ShowcaseSection
       number="02"
-      title="Typography"
-      tagline="Clear hierarchy. A calm, technical voice."
+      title="Tipografi"
+      tagline="Hierarki jelas. Suara teknis yang tenang."
     >
       <div className="space-y-2">
         {DISPLAY_ROWS.map((row) => (

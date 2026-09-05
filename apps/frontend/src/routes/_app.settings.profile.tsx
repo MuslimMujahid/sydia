@@ -13,8 +13,8 @@ import { useAppForm } from "@/lib/hooks/forms";
 import { useUpdateCurrentUser } from "@/lib/services/api/users/users.queries";
 
 const profileSchema = z.object({
-  name: z.string().trim().min(2, "Enter at least 2 characters."),
-  timezone: z.string().min(1, "Choose a timezone."),
+  name: z.string().trim().min(2, "Masukkan minimal 2 karakter."),
+  timezone: z.string().min(1, "Pilih zona waktu."),
   locale: z.enum(["en", "id"]),
 });
 
@@ -30,10 +30,10 @@ const TIMEZONES = [
 export const Route = createFileRoute("/_app/settings/profile")({
   head: () => ({
     meta: [
-      { title: "Profile & preferences · Sydia" },
+      { title: "Profil & preferensi · Sydia" },
       {
         name: "description",
-        content: "Manage your Sydia profile, timezone, and language.",
+        content: "Kelola profil, zona waktu, dan bahasa Anda di Sydia.",
       },
     ],
   }),
@@ -67,14 +67,14 @@ function ProfileSettingsPage() {
     <div className="max-w-3xl space-y-10">
       <header className="space-y-4">
         <p className="font-mono text-xs tracking-widest text-link uppercase">
-          Settings / Identity & interpretation
+          Pengaturan / Identitas & interpretasi
         </p>
         <h1 className="font-display text-4xl font-extrabold sm:text-5xl">
-          Profile & preferences
+          Profil & preferensi
         </h1>
         <p className="max-w-2xl text-lg text-ink-muted">
-          Keep the human details Sydia uses to address you and interpret time.
-          Changes are saved to your account.
+          Kelola informasi yang digunakan Sydia untuk menyapa Anda dan memahami
+          waktu. Perubahan disimpan ke akun Anda.
         </p>
       </header>
       <Card className="p-6 sm:p-8">
@@ -91,7 +91,7 @@ function ProfileSettingsPage() {
             {(field) => (
               <FieldShell
                 id="profile-name"
-                label="Name"
+                label="Nama"
                 errors={field.state.meta.errors}
               >
                 {({ describedBy, invalid }) => (
@@ -111,7 +111,7 @@ function ProfileSettingsPage() {
           <FieldShell
             id="profile-email"
             label="Email"
-            description="Email changes are managed by your authentication account."
+            description="Perubahan email dikelola melalui akun autentikasi Anda."
           >
             {() => <TextField id="profile-email" value={user.email} disabled />}
           </FieldShell>
@@ -119,8 +119,8 @@ function ProfileSettingsPage() {
             {(field) => (
               <FieldShell
                 id="profile-timezone"
-                label="Timezone"
-                description="Used to interpret relative time and schedule future actions."
+                label="Zona waktu"
+                description="Digunakan untuk memahami waktu relatif dan menjadwalkan tindakan berikutnya."
                 errors={field.state.meta.errors}
               >
                 {({ describedBy, invalid }) => (
@@ -146,8 +146,8 @@ function ProfileSettingsPage() {
             {(field) => (
               <FieldShell
                 id="profile-locale"
-                label="Language"
-                description="Keeps Bahasa Indonesia structurally supported as the interface expands."
+                label="Bahasa"
+                description="Menentukan bahasa antarmuka Sydia."
                 errors={field.state.meta.errors}
               >
                 {({ describedBy, invalid }) => (
@@ -162,7 +162,7 @@ function ProfileSettingsPage() {
                     }
                   >
                     <option value="id">Bahasa Indonesia</option>
-                    <option value="en">English</option>
+                    <option value="en">Bahasa Inggris</option>
                   </SelectField>
                 )}
               </FieldShell>
@@ -175,7 +175,7 @@ function ProfileSettingsPage() {
               role="status"
             >
               <CheckCircle2 className="size-4" />
-              Profile and preferences saved.
+              Profil dan preferensi berhasil disimpan.
             </p>
           ) : null}
           <form.Subscribe
@@ -184,7 +184,7 @@ function ProfileSettingsPage() {
             {([canSubmit, isSubmitting]) => (
               <Button type="submit" disabled={!canSubmit || isSubmitting}>
                 <Save />
-                {isSubmitting ? "Saving changes…" : "Save changes"}
+                {isSubmitting ? "Menyimpan perubahan…" : "Simpan perubahan"}
               </Button>
             )}
           </form.Subscribe>

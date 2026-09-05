@@ -11,47 +11,51 @@ type SwatchGroup = { label: string; swatches: Swatch[] };
 
 const GROUPS: SwatchGroup[] = [
   {
-    label: "Brand",
+    label: "Merek",
     swatches: [
-      { name: "Primary", hex: "#32E6E2", className: "bg-brand" },
-      { name: "Primary Hover", hex: "#8EFBF7", className: "bg-brand-hover" },
-      { name: "Primary Deep", hex: "#05BDBA", className: "bg-brand-deep" },
+      { name: "Utama", hex: "#32E6E2", className: "bg-brand" },
+      {
+        name: "Utama Saat Diarahkan",
+        hex: "#8EFBF7",
+        className: "bg-brand-hover",
+      },
+      { name: "Utama Dalam", hex: "#05BDBA", className: "bg-brand-deep" },
     ],
   },
   {
-    label: "Surface",
+    label: "Permukaan",
     swatches: [
       {
-        name: "Canvas",
+        name: "Kanvas",
         hex: "#FFFFFF",
         className: "bg-canvas",
         bordered: true,
       },
-      { name: "Surface 1", hex: "#E4F0FB", className: "bg-surface-1" },
-      { name: "Surface 2", hex: "#D0FFFE", className: "bg-surface-2" },
-      { name: "Hairline", hex: "#D1D5DA", className: "bg-hairline" },
+      { name: "Permukaan 1", hex: "#E4F0FB", className: "bg-surface-1" },
+      { name: "Permukaan 2", hex: "#D0FFFE", className: "bg-surface-2" },
+      { name: "Garis Tipis", hex: "#D1D5DA", className: "bg-hairline" },
     ],
   },
   {
-    label: "Text",
+    label: "Teks",
     swatches: [
-      { name: "Ink", hex: "#181A1C", className: "bg-ink" },
-      { name: "Ink Soft", hex: "#353A3E", className: "bg-ink-soft" },
-      { name: "Ink Muted", hex: "#545A61", className: "bg-ink-muted" },
-      { name: "Ink Weak", hex: "#778089", className: "bg-ink-weak" },
+      { name: "Tinta", hex: "#181A1C", className: "bg-ink" },
+      { name: "Tinta Lembut", hex: "#353A3E", className: "bg-ink-soft" },
+      { name: "Tinta Redup", hex: "#545A61", className: "bg-ink-muted" },
+      { name: "Tinta Tipis", hex: "#778089", className: "bg-ink-weak" },
     ],
   },
   {
-    label: "Accent / Status",
+    label: "Aksen / Status",
     swatches: [
-      { name: "Secondary", hex: "#0C2A2A", className: "bg-editorial" },
+      { name: "Sekunder", hex: "#0C2A2A", className: "bg-editorial" },
       {
-        name: "Secondary Deep",
+        name: "Sekunder Dalam",
         hex: "#014847",
         className: "bg-editorial-deep",
       },
-      { name: "Link", hex: "#2E51ED", className: "bg-link" },
-      { name: "Warn", hex: "#F98E21", className: "bg-warn" },
+      { name: "Tautan", hex: "#2E51ED", className: "bg-link" },
+      { name: "Peringatan", hex: "#F98E21", className: "bg-warn" },
     ],
   },
 ];
@@ -77,8 +81,8 @@ function ColorSystemSection() {
   return (
     <ShowcaseSection
       number="01"
-      title="Color System"
-      tagline="Tokens for a brighter, more capable tomorrow"
+      title="Sistem Warna"
+      tagline="Token untuk masa depan yang lebih cerah dan mampu"
     >
       <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
         {GROUPS.map((group) => (

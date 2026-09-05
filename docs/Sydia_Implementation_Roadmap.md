@@ -9,30 +9,30 @@
 
 ## Backend
 
-- [ ] BE-0001 Initialize NestJS backend
-- [ ] BE-0002 Set up PostgreSQL and Prisma
-- [ ] BE-0003 Establish API application structure
-- [ ] BE-0004 Set up environment configuration
-- [ ] BE-0005 Set up logging baseline
-- [ ] BE-0006 Set up CI/CD
-- [ ] BE-0007 Set up staging environment
+- [x] BE-0001 Initialize NestJS backend
+- [x] BE-0002 Set up PostgreSQL and Prisma
+- [x] BE-0003 Establish API application structure
+- [x] BE-0004 Set up environment configuration
+- [x] BE-0005 Set up logging baseline
+- [x] BE-0006 Set up CI/CD
+- [x] BE-0007 Set up staging environment
 
 ## Frontend
 
-- [ ] FE-0001 Initialize TanStack Start frontend
-- [ ] FE-0002 Set up application routing
-- [ ] FE-0003 Set up API client layer
-- [ ] FE-0004 Create dashboard shell
-- [ ] FE-0005 Create shared UI foundation
-- [ ] FE-0006 Set up loading, error, and empty states
-- [ ] FE-0007 Set up frontend CI/CD
+- [x] FE-0001 Initialize TanStack Start frontend
+- [x] FE-0002 Set up application routing
+- [x] FE-0003 Set up API client layer
+- [x] FE-0004 Create dashboard shell
+- [x] FE-0005 Create shared UI foundation
+- [x] FE-0006 Set up loading, error, and empty states
+- [x] FE-0007 Set up frontend CI/CD
 
 ## Phase Exit
 
-- [ ] API deploys successfully
-- [ ] Frontend deploys successfully
-- [ ] PostgreSQL is connected
-- [ ] Staging environment is usable
+- [x] API deploys successfully
+- [x] Frontend deploys successfully
+- [x] PostgreSQL is connected
+- [x] Staging environment is usable
 
 ---
 
@@ -40,32 +40,32 @@
 
 ## Backend
 
-- [ ] BE-0101 Create User domain
-- [ ] BE-0102 Implement authentication
-- [ ] BE-0103 Implement user sessions
-- [ ] BE-0104 Create External Identity domain
-- [ ] BE-0105 Implement user preferences
-- [ ] BE-0106 Implement timezone and locale settings
-- [ ] BE-0107 Add account audit events
-- [ ] BE-0108 Add authorization guards
+- [x] BE-0101 Create User domain
+- [x] BE-0102 Implement authentication
+- [x] BE-0103 Implement user sessions
+- [x] BE-0104 Create External Identity domain
+- [x] BE-0105 Implement user preferences
+- [x] BE-0106 Implement timezone and locale settings
+- [x] BE-0107 Add account audit events
+- [x] BE-0108 Add authorization guards
 
 ## Frontend
 
-- [ ] FE-0101 Create sign-up page
-- [ ] FE-0102 Create sign-in page
-- [ ] FE-0103 Implement sign-out flow
-- [ ] FE-0104 Create onboarding flow
-- [ ] FE-0105 Create profile settings
-- [ ] FE-0106 Create timezone and locale settings
-- [ ] FE-0107 Protect authenticated routes
-- [ ] FE-0108 Handle expired sessions
+- [x] FE-0101 Create sign-up page
+- [x] FE-0102 Create sign-in page
+- [x] FE-0103 Implement sign-out flow
+- [x] FE-0104 Create onboarding flow
+- [x] FE-0105 Create profile settings
+- [x] FE-0106 Create timezone and locale settings
+- [x] FE-0107 Protect authenticated routes
+- [x] FE-0108 Handle expired sessions
 
 ## Phase Exit
 
-- [ ] User can register
-- [ ] User can sign in and sign out
-- [ ] User profile and preferences are persisted
-- [ ] Protected routes are enforced
+- [x] User can register
+- [x] User can sign in and sign out
+- [x] User profile and preferences are persisted
+- [x] Protected routes are enforced
 
 ---
 

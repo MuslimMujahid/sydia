@@ -17,78 +17,78 @@ test("registers, configures, persists, and recovers an account session", async (
   await expect(page).toHaveURL(/\/sign-in\?/);
   const signInRedirect = new URL(page.url()).searchParams.get("redirect");
   expect(signInRedirect).toContain("/settings/profile");
-  await expect(page.getByText("Sign in to open that page.")).toBeVisible();
+  await expect(
+    page.getByText("Masuk untuk membuka halaman tersebut.")
+  ).toBeVisible();
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").pressSequentially(initialName, { delay: 10 });
-  await page.getByLabel("Name").press("Tab");
+  await page.getByLabel("Nama").pressSequentially(initialName, { delay: 10 });
+  await page.getByLabel("Nama").press("Tab");
   await page.getByLabel("Email").pressSequentially(email, { delay: 10 });
   await page.getByLabel("Email").press("Tab");
   await page
-    .getByLabel("Password", { exact: true })
+    .getByLabel("Kata sandi", { exact: true })
     .pressSequentially(password, { delay: 10 });
-  await page.getByLabel("Password", { exact: true }).press("Tab");
+  await page.getByLabel("Kata sandi", { exact: true }).press("Tab");
   await page
-    .getByLabel("Confirm password")
+    .getByLabel("Konfirmasi kata sandi")
     .pressSequentially(password, { delay: 10 });
-  await page.getByLabel("Confirm password").press("Tab");
-  await expect(page.getByLabel("Confirm password")).toHaveValue(password);
-  await expect(
-    page.getByRole("button", { name: "Create account" })
-  ).toBeEnabled();
-  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("Konfirmasi kata sandi").press("Tab");
+  await expect(page.getByLabel("Konfirmasi kata sandi")).toHaveValue(password);
+  await expect(page.getByRole("button", { name: "Buat akun" })).toBeEnabled();
+  await page.getByRole("button", { name: "Buat akun" }).click();
 
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByLabel("Timezone").selectOption("Asia/Makassar");
-  await page.getByLabel("Language").selectOption("en");
-  await page.getByRole("button", { name: "Save and continue" }).click();
+  await page.getByLabel("Zona waktu").selectOption("Asia/Makassar");
+  await page.getByLabel("Bahasa").selectOption("en");
+  await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
 
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: `Good to have you here, ${initialName.split(" ")[0]}.`,
+      name: `Selamat datang, ${initialName.split(" ")[0]}.`,
     })
   ).toBeVisible();
   await expect(
-    page.getByText("Your interpretation context is set.")
+    page.getByRole("heading", { name: "Preferensi yang digunakan Sydia" })
   ).toBeVisible();
 
   await page
-    .getByRole("navigation", { name: "Product" })
-    .getByRole("link", { name: "Profile & preferences" })
+    .getByRole("navigation", { name: "Navigasi utama" })
+    .getByRole("link", { name: "Profil & preferensi" })
     .click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
-  await page.getByLabel("Name").fill("");
-  await page.getByLabel("Name").pressSequentially(updatedName);
-  await page.getByLabel("Timezone").selectOption("Asia/Jayapura");
-  await page.getByLabel("Language").selectOption("id");
-  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.getByLabel("Nama").fill("");
+  await page.getByLabel("Nama").pressSequentially(updatedName);
+  await page.getByLabel("Zona waktu").selectOption("Asia/Jayapura");
+  await page.getByLabel("Bahasa").selectOption("id");
+  await page.getByRole("button", { name: "Simpan perubahan" }).click();
   await expect(page.getByRole("status")).toContainText(
-    "Profile and preferences saved."
+    "Profil dan preferensi berhasil disimpan."
   );
 
-  await page.getByRole("button", { name: "Open account menu" }).click();
-  await page.getByRole("menuitem", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Buka menu akun" }).click();
+  await page.getByRole("menuitem", { name: "Keluar" }).click();
   await expect(page).toHaveURL(/\/sign-in\?reason=signed-out/);
   await page.getByLabel("Email").pressSequentially(email);
   await page
-    .getByLabel("Password", { exact: true })
+    .getByLabel("Kata sandi", { exact: true })
     .pressSequentially(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: `Good to have you here, ${updatedName.split(" ")[0]}.`,
+      name: `Selamat datang, ${updatedName.split(" ")[0]}.`,
     })
   ).toBeVisible();
 
   await page
-    .getByRole("navigation", { name: "Product" })
-    .getByRole("link", { name: "Profile & preferences" })
+    .getByRole("navigation", { name: "Navigasi utama" })
+    .getByRole("link", { name: "Profil & preferensi" })
     .click();
-  await expect(page.getByLabel("Name")).toHaveValue(updatedName);
-  await expect(page.getByLabel("Timezone")).toHaveValue("Asia/Jayapura");
-  await expect(page.getByLabel("Language")).toHaveValue("id");
+  await expect(page.getByLabel("Nama")).toHaveValue(updatedName);
+  await expect(page.getByLabel("Zona waktu")).toHaveValue("Asia/Jayapura");
+  await expect(page.getByLabel("Bahasa")).toHaveValue("id");
 
   // Remove the browser's session credential, then use a fresh document
   // navigation so the protected route must verify the real backend session.
@@ -96,6 +96,8 @@ test("registers, configures, persists, and recovers an account session", async (
   await page.goto("/settings/profile");
   await expect(page).toHaveURL(/\/sign-in\?/);
   await expect(
-    page.getByText(/Your session expired|Sign in to open that page\./)
+    page.getByText(
+      /Sesi Anda telah berakhir|Masuk untuk membuka halaman tersebut\./
+    )
   ).toBeVisible();
 });
