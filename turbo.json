@@ -1,6 +1,17 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "BACKEND_AUTH_SECRET",
+    "BACKEND_DB_HOST",
+    "BACKEND_DB_NAME",
+    "BACKEND_DB_PASSWORD",
+    "BACKEND_DB_PORT",
+    "BACKEND_DB_USER",
+    "CI",
+    "PLAYWRIGHT_BACKEND_URL",
+    "PLAYWRIGHT_BASE_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

@@ -1,5 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import type { CreateAuditEvent } from '../../database/entities';
+import type { IAuditEventRepository } from '../../database/interfaces';
 import type { PrismaService } from '../prisma';
 
 export type AuthOptions = {
@@ -9,6 +11,8 @@ export type AuthOptions = {
   baseURL: string;
   /** Origins allowed to call auth endpoints with credentials. */
   trustedOrigins: string[];
+  /** Durable sink for identity lifecycle audit events. */
+  auditEventRepository: Pick<IAuditEventRepository, 'record'>;
 };
 
 /**
@@ -20,8 +24,49 @@ export type AuthOptions = {
  * `@thallesp/nestjs-better-auth`'s generic `AuthModuleOptions<A>`.
  */
 export function createAuth(prisma: PrismaService, options: AuthOptions) {
+  const recordAuditEvent = async (
+    eventType: string,
+    userId: string | undefined,
+  ): Promise<void> => {
+    const event: CreateAuditEvent = {
+      userId,
+      eventType,
+      metadata: {},
+    };
+
+    await options.auditEventRepository.record(event);
+  };
+
   return betterAuth({
-    database: prismaAdapter(prisma, { provider: 'postgresql' }),
+    database: prismaAdapter(prisma, {
+      provider: 'postgresql',
+      // Sign-up wraps user, account, and session creation in a transaction.
+      // Better Auth runs create.after hooks after that transaction commits;
+      // without this flag the adapter exposes no transaction implementation,
+      // so the sign-up endpoint fails before creating a valid identity.
+      transaction: true,
+    }),
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            await recordAuditEvent('account.created', user.id);
+          },
+        },
+      },
+      session: {
+        create: {
+          after: async (session) => {
+            await recordAuditEvent('session.created', session.userId);
+          },
+        },
+        delete: {
+          after: async (session) => {
+            await recordAuditEvent('session.deleted', session.userId);
+          },
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
     },

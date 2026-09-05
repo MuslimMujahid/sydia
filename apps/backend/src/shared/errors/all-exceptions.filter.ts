@@ -4,22 +4,41 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Request, Response } from 'express';
 import { ApiException } from './api-exception';
 import { ErrorCode, ErrorCodes } from './error-codes';
 
+type ResponseLocals = {
+  requestId?: string;
+};
+
+type RequestErrorContext = {
+  requestId?: string;
+  method: string;
+  path: string;
+  statusCode: number;
+};
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
-
     const { status, code, message, details } =
       this.resolveErrorPayload(exception);
 
-    if (status === Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
-      this.logError(exception);
+    if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
+      this.logError(exception, {
+        requestId: (response.locals as ResponseLocals).requestId,
+        method: request.method,
+        path: request.path,
+        statusCode: status,
+      });
     }
 
     response.status(status).json({
@@ -45,6 +64,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           details: Record<string, unknown>;
         };
       };
+
       return {
         status: exception.getStatus(),
         code: response.error.code,
@@ -91,17 +111,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       [HttpStatus.NOT_FOUND]: ErrorCodes.NOT_FOUND,
       [HttpStatus.TOO_MANY_REQUESTS]: ErrorCodes.TOO_MANY_REQUEST,
     };
+
     return mapping[status] ?? ErrorCodes.UNKNOWN;
   }
 
-  private logError(exception: unknown, requestId?: string): void {
-    if (exception instanceof Error) {
-      console.error(
-        `[${requestId}] Unhandled exception: ${exception.message}`,
-        exception.stack,
-      );
-    } else {
-      console.error(`[${requestId}] Unhandled non-error exception:`, exception);
-    }
+  private logError(exception: unknown, context: RequestErrorContext): void {
+    const errorMessage =
+      exception instanceof Error ? exception.message : 'Non-error exception';
+
+    const stack = exception instanceof Error ? exception.stack : undefined;
+    const serializedContext = JSON.stringify({
+      event: 'request.failed',
+      ...context,
+      error: errorMessage,
+    });
+
+    this.logger.error(serializedContext, stack);
   }
 }

@@ -9,12 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesignSystemRoute = DesignSystemRouteImport.update({
@@ -22,40 +26,101 @@ const DesignSystemRoute = DesignSystemRouteImport.update({
   path: '/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
+  id: '/settings/profile',
+  path: '/settings/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
   '/design-system': typeof DesignSystemRoute
+  '/onboarding': typeof OnboardingRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/settings/profile': typeof AppSettingsProfileRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/design-system': typeof DesignSystemRoute
+  '/onboarding': typeof OnboardingRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/': typeof AppIndexRoute
+  '/settings/profile': typeof AppSettingsProfileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
   '/design-system': typeof DesignSystemRoute
+  '/onboarding': typeof OnboardingRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/settings/profile': typeof AppSettingsProfileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/design-system'
+  fullPaths:
+    | '/'
+    | '/design-system'
+    | '/onboarding'
+    | '/sign-in'
+    | '/sign-up'
+    | '/settings/profile'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/design-system'
-  id: '__root__' | '/' | '/design-system'
+  to:
+    | '/design-system'
+    | '/onboarding'
+    | '/sign-in'
+    | '/sign-up'
+    | '/'
+    | '/settings/profile'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/design-system'
+    | '/onboarding'
+    | '/sign-in'
+    | '/sign-up'
+    | '/_app/'
+    | '/_app/settings/profile'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
   DesignSystemRoute: typeof DesignSystemRoute
+  OnboardingRoute: typeof OnboardingRoute
+  SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/design-system': {
@@ -65,12 +130,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/profile': {
+      id: '/_app/settings/profile'
+      path: '/settings/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof AppSettingsProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppIndexRoute: typeof AppIndexRoute
+  AppSettingsProfileRoute: typeof AppSettingsProfileRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppIndexRoute: AppIndexRoute,
+  AppSettingsProfileRoute: AppSettingsProfileRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
   DesignSystemRoute: DesignSystemRoute,
+  OnboardingRoute: OnboardingRoute,
+  SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,0 +1,70 @@
+# Provider-neutral staging stack for the production application images.
+# The PostgreSQL database is external: set BACKEND_DB_* to its reachable
+# hostname, port, database, and credentials in .env.staging.
+# Run from the repository root:
+#   docker compose --env-file .env.staging -f docker/docker-compose.staging.yml up -d --build
+
+name: sydia-staging
+services:
+  backend:
+    image: sydia-backend:staging
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      NODE_ENV: production
+      BACKEND_PORT: ${BACKEND_PORT:?BACKEND_PORT is required}
+      FRONTEND_PORT: ${FRONTEND_PORT:?FRONTEND_PORT is required}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+      BACKEND_DB_HOST: ${BACKEND_DB_HOST:?BACKEND_DB_HOST is required}
+      BACKEND_DB_PORT: ${BACKEND_DB_PORT:?BACKEND_DB_PORT is required}
+      BACKEND_DB_USER: ${BACKEND_DB_USER:?BACKEND_DB_USER is required}
+      BACKEND_DB_PASSWORD: ${BACKEND_DB_PASSWORD:?BACKEND_DB_PASSWORD is required}
+      BACKEND_DB_NAME: ${BACKEND_DB_NAME:?BACKEND_DB_NAME is required}
+      BACKEND_AUTH_SECRET: ${BACKEND_AUTH_SECRET:?BACKEND_AUTH_SECRET is required}
+      BACKEND_AUTH_URL: ${BACKEND_AUTH_URL:?BACKEND_AUTH_URL is required}
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    healthcheck:
+      # The anonymous root route is the existing public application probe.
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          require('http').get('http://127.0.0.1:' + process.env.BACKEND_PORT + '/',
+          response => process.exit(response.statusCode === 200 ? 0 : 1))
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    image: sydia-frontend:staging
+    build:
+      context: ..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/').then(response =>
+          process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped

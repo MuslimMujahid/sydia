@@ -20,8 +20,10 @@
     "test:cov": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --coverage",
     "test:debug": "node --inspect-brk --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --runInBand",
     "db:generate": "prisma generate",
+    "db:seed": "prisma db seed",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:reset": "prisma migrate reset",
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.config.mjs"
   },
   "dependencies": {

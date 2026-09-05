@@ -1,6 +1,6 @@
 # API requests and TanStack Query
 
-Keep browser API access in `apps/frontend/src/lib/services/api`. The shared `api` client in `api.client.ts` is the single Axios instance for backend requests; use it rather than calling `axios` directly or using ad-hoc `fetch` calls.
+Keep API access in `apps/frontend/src/lib/services/api`. The shared `api` client in `api.ts` is the single Axios instance for backend requests; use it rather than calling `axios` directly or using ad-hoc `fetch` calls.
 
 ## Layout and naming
 
@@ -11,10 +11,10 @@ Keep browser API access in `apps/frontend/src/lib/services/api`. The shared `api
 
 ## Client and environment
 
-`api.client.ts` reads the public Vite variable `import.meta.env.VITE_API_URL`, sets JSON headers, and enables `withCredentials: true`. Keep that credential behavior for Better Auth's cookie-based session. Browser code must use `VITE_*` variables only; never read `BACKEND_AUTH_SECRET` or other `BACKEND_*` secrets in the client bundle.
+`api.ts` reads the public Vite variable `import.meta.env.VITE_API_URL`, sets JSON headers, and enables `withCredentials: true`. Keep that credential behavior for Better Auth's cookie-based session. Browser code must use `VITE_*` variables only; never read `BACKEND_AUTH_SECRET` or other `BACKEND_*` secrets in the client bundle.
 
 ```ts
-import { api } from "@/lib/services/api/api.client";
+import { api } from "@/lib/services/api/api";
 import type { ApiResponse } from "@/lib/services/api/api.types";
 
 type User = { id: string; name: string; email: string };
@@ -34,7 +34,7 @@ Use a query-key factory per resource. Keep keys serializable, stable, and specif
 
 ```ts
 import { queryOptions } from "@tanstack/react-query";
-import { api } from "@/lib/services/api/api.client";
+import { api } from "@/lib/services/api/api";
 
 type User = { id: string; name: string; email: string };
 type UserResponse = { data: User; message?: string };
@@ -62,7 +62,8 @@ import { currentUserQueryOptions } from "@/lib/services/api/users/users.queries"
 export function CurrentUserName() {
   const userQuery = useQuery(currentUserQueryOptions());
   if (userQuery.isPending) return <span aria-busy="true">Loading…</span>;
-  if (userQuery.isError) return <span role="alert">Unable to load your profile.</span>;
+  if (userQuery.isError)
+    return <span role="alert">Unable to load your profile.</span>;
   return <span>{userQuery.data.data.name}</span>;
 }
 ```
@@ -75,7 +76,7 @@ Use `useMutation` for writes. The project's `MutationCache` reads `context.meta.
 
 ```ts
 import { useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/services/api/api.client";
+import { api } from "@/lib/services/api/api";
 
 const userQueryKeys = {
   current: () => ["users", "current"] as const,
@@ -84,7 +85,9 @@ const userQueryKeys = {
 type UpdateUserVariables = { name: string };
 type UserResponse = { data: { id: string; name: string; email: string } };
 
-async function updateCurrentUser(values: UpdateUserVariables): Promise<UserResponse> {
+async function updateCurrentUser(
+  values: UpdateUserVariables
+): Promise<UserResponse> {
   const response = await api.patch<UserResponse>("/users/me", values);
   return response.data;
 }

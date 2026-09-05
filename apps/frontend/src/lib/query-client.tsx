@@ -1,7 +1,13 @@
-import { MutationCache, QueryClient, type QueryKey } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 declare module "@tanstack/react-query" {
-  interface Register { mutationMeta: { invalidateQueries: QueryKey[] } }
+  interface Register {
+    mutationMeta: { invalidateQueries: QueryKey[] };
+  }
 }
 
 export function createQueryClient() {
@@ -14,5 +20,6 @@ export function createQueryClient() {
       },
     }),
   });
+
   return queryClient;
 }

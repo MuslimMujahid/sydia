@@ -63,7 +63,11 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
                 onBlur={field.handleBlur}
                 onChange={(event) => field.handleChange(event.target.value)}
               />
-              {hasError ? <p id={errorId} role="alert">{field.state.meta.errors.join(", ")}</p> : null}
+              {hasError ? (
+                <p id={errorId} role="alert">
+                  {field.state.meta.errors.join(", ")}
+                </p>
+              ) : null}
             </div>
           );
         }}
@@ -100,7 +104,9 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
         )}
       </form.Field>
 
-      <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+      <form.Subscribe
+        selector={(state) => [state.canSubmit, state.isSubmitting]}
+      >
         {([canSubmit, isSubmitting]) => (
           <Button type="submit" disabled={!canSubmit}>
             {isSubmitting ? "Sending…" : "Send"}

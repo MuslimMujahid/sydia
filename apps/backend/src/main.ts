@@ -14,7 +14,7 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService);
 
   app.enableCors({
-    origin: `http://localhost:${configService.get<number>('FRONTEND_PORT', 3000)}`,
+    origin: configService.getOrThrow<string>('FRONTEND_URL'),
     credentials: true,
   });
   app.use(helmet());

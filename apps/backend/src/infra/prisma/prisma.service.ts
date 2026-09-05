@@ -21,6 +21,7 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
       password: config.getOrThrow<string>('BACKEND_DB_PASSWORD'),
       database: config.getOrThrow<string>('BACKEND_DB_NAME'),
     });
+
     super({ adapter: new PrismaPg(pool) });
   }
 

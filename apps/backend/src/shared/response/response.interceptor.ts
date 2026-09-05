@@ -63,6 +63,7 @@ export class ResponseInterceptor implements NestInterceptor {
             data: value.data,
             pagination: value.pagination,
           };
+
           return response;
         }
 
@@ -70,12 +71,14 @@ export class ResponseInterceptor implements NestInterceptor {
           const response: WrappedResponse<unknown[]> = {
             data: value,
           };
+
           return response;
         }
 
         const response: WrappedResponse<unknown> = {
           data: value,
         };
+
         return response;
       }),
     );
