@@ -69,7 +69,7 @@
 
 ---
 
-# Phase 2 — Conversational Core and WhatsApp
+# Phase 2 — Conversational Core and Web Chat
 
 ## Backend
 
@@ -83,11 +83,8 @@
 - [ ] BE-0208 Implement Context Builder
 - [ ] BE-0209 Implement conversation summarization
 - [ ] BE-0210 Create web chat API
-- [ ] BE-0211 Integrate WhatsApp webhook
-- [ ] BE-0212 Implement WhatsApp identity linking
-- [ ] BE-0213 Implement WhatsApp outbound messaging
-- [ ] BE-0214 Implement inbound message idempotency
-- [ ] BE-0215 Implement assistant tool execution safeguards
+- [ ] BE-0211 Implement message idempotency
+- [ ] BE-0212 Implement assistant tool execution safeguards
 
 ## Frontend
 
@@ -97,18 +94,14 @@
 - [ ] FE-0204 Create chat composer
 - [ ] FE-0205 Add assistant loading state
 - [ ] FE-0206 Add assistant error and retry state
-- [ ] FE-0207 Create WhatsApp connection page
-- [ ] FE-0208 Create WhatsApp account-linking flow
-- [ ] FE-0209 Show WhatsApp connection status
-- [ ] FE-0210 Create assistant activity/history view
+- [ ] FE-0207 Create assistant activity/history view
 
 ## Phase Exit
 
 - [ ] User can chat with Sydia from the web
-- [ ] User can link WhatsApp
-- [ ] User can chat with Sydia from WhatsApp
-- [ ] Web and WhatsApp use the same assistant runtime
+- [ ] Conversations are persisted
 - [ ] Conversation summaries are generated when needed
+- [ ] Web chat is sufficient for developing and testing assistant features
 
 ---
 
@@ -129,8 +122,7 @@
 - [ ] BE-0311 Create Task domain
 - [ ] BE-0312 Implement task assistant tools
 - [ ] BE-0313 Implement task/reminder reference resolution
-- [ ] BE-0314 Implement WhatsApp proactive reminder delivery
-- [ ] BE-0315 Add reminder and task audit events
+- [ ] BE-0314 Add reminder and task audit events
 
 ## Frontend
 
@@ -147,7 +139,7 @@
 
 ## Phase Exit
 
-- [ ] User can create reminders via chat
+- [ ] User can create reminders via web chat
 - [ ] User can create recurring reminders
 - [ ] User can reschedule, snooze, and cancel reminders
 - [ ] User can create, update, and complete tasks
@@ -195,7 +187,7 @@
 
 ---
 
-# Phase 5 — Documents, Images, and Voice
+# Phase 5 — Documents, Images, and Audio
 
 ## Backend
 
@@ -211,8 +203,8 @@
 - [ ] BE-0510 Implement document provenance
 - [ ] BE-0511 Implement structured document extraction
 - [ ] BE-0512 Implement image understanding
-- [ ] BE-0513 Implement voice-note transcription
-- [ ] BE-0514 Route voice transcripts to assistant
+- [ ] BE-0513 Implement audio transcription
+- [ ] BE-0514 Route transcripts to assistant
 - [ ] BE-0515 Implement document deletion cleanup
 
 ## Frontend
@@ -225,15 +217,16 @@
 - [ ] FE-0506 Add document source references
 - [ ] FE-0507 Add chat file attachments
 - [ ] FE-0508 Add chat image attachments
-- [ ] FE-0509 Show voice-note transcripts
-- [ ] FE-0510 Add file deletion flow
+- [ ] FE-0509 Add audio upload/attachment support
+- [ ] FE-0510 Show audio transcripts
+- [ ] FE-0511 Add file deletion flow
 
 ## Phase Exit
 
-- [ ] User can upload/send a document
+- [ ] User can upload a document
 - [ ] User can ask questions about documents
-- [ ] User can send an image for understanding
-- [ ] User can send a voice note
+- [ ] User can upload an image for understanding
+- [ ] User can upload audio for transcription and assistant processing
 - [ ] Document answers show provenance
 - [ ] Deleted files no longer appear in retrieval
 
@@ -278,36 +271,76 @@
 
 ---
 
-# Phase 7 — Proactive Assistant, Settings, and Privacy
+# Phase 7 — WhatsApp Integration
 
 ## Backend
 
-- [ ] BE-0701 Create notification abstraction
-- [ ] BE-0702 Implement daily briefing
-- [ ] BE-0703 Implement proactive follow-ups
-- [ ] BE-0704 Implement WhatsApp proactive message templates
-- [ ] BE-0705 Implement notification preferences
-- [ ] BE-0706 Implement global proactive pause
-- [ ] BE-0707 Implement data export
-- [ ] BE-0708 Implement conversation deletion
-- [ ] BE-0709 Implement account deletion
-- [ ] BE-0710 Implement integration revocation
-- [ ] BE-0711 Implement data retention jobs
-- [ ] BE-0712 Expand assistant preferences
+- [ ] BE-0701 Integrate WhatsApp webhook
+- [ ] BE-0702 Implement WhatsApp identity linking
+- [ ] BE-0703 Implement WhatsApp inbound text handling
+- [ ] BE-0704 Implement WhatsApp outbound messaging
+- [ ] BE-0705 Implement WhatsApp inbound message idempotency
+- [ ] BE-0706 Implement WhatsApp media ingestion
+- [ ] BE-0707 Implement WhatsApp image handling
+- [ ] BE-0708 Implement WhatsApp document handling
+- [ ] BE-0709 Implement WhatsApp voice-note handling
+- [ ] BE-0710 Implement WhatsApp conversation-window handling
+- [ ] BE-0711 Implement WhatsApp template-message support
+- [ ] BE-0712 Implement proactive reminder delivery over WhatsApp
+- [ ] BE-0713 Add WhatsApp delivery-state tracking
+- [ ] BE-0714 Add WhatsApp integration audit events
 
 ## Frontend
 
-- [ ] FE-0701 Create Assistant settings
-- [ ] FE-0702 Create Notification settings
-- [ ] FE-0703 Create Integrations settings
-- [ ] FE-0704 Create Memory & Privacy settings
-- [ ] FE-0705 Create Data settings
-- [ ] FE-0706 Add daily briefing controls
-- [ ] FE-0707 Add proactive messaging pause
-- [ ] FE-0708 Add data export flow
-- [ ] FE-0709 Add conversation deletion flow
-- [ ] FE-0710 Add account deletion flow
-- [ ] FE-0711 Refine Today/Home page
+- [ ] FE-0701 Create WhatsApp connection page
+- [ ] FE-0702 Create WhatsApp account-linking flow
+- [ ] FE-0703 Show WhatsApp connection status
+- [ ] FE-0704 Add WhatsApp unlink flow
+- [ ] FE-0705 Show WhatsApp identity details
+- [ ] FE-0706 Add WhatsApp connection errors and recovery states
+
+## Phase Exit
+
+- [ ] User can link WhatsApp to an existing Sydia account
+- [ ] User can use core Sydia features from WhatsApp
+- [ ] Text messages work
+- [ ] Images work
+- [ ] Documents work
+- [ ] Voice notes work
+- [ ] Reminder delivery works over WhatsApp
+- [ ] Web chat and WhatsApp use the same assistant runtime
+
+---
+
+# Phase 8 — Proactive Assistant, Settings, and Privacy
+
+## Backend
+
+- [ ] BE-0801 Create notification abstraction
+- [ ] BE-0802 Implement daily briefing
+- [ ] BE-0803 Implement proactive follow-ups
+- [ ] BE-0804 Implement notification preferences
+- [ ] BE-0805 Implement global proactive pause
+- [ ] BE-0806 Implement data export
+- [ ] BE-0807 Implement conversation deletion
+- [ ] BE-0808 Implement account deletion
+- [ ] BE-0809 Implement integration revocation
+- [ ] BE-0810 Implement data retention jobs
+- [ ] BE-0811 Expand assistant preferences
+
+## Frontend
+
+- [ ] FE-0801 Create Assistant settings
+- [ ] FE-0802 Create Notification settings
+- [ ] FE-0803 Create Integrations settings
+- [ ] FE-0804 Create Memory & Privacy settings
+- [ ] FE-0805 Create Data settings
+- [ ] FE-0806 Add daily briefing controls
+- [ ] FE-0807 Add proactive messaging pause
+- [ ] FE-0808 Add data export flow
+- [ ] FE-0809 Add conversation deletion flow
+- [ ] FE-0810 Add account deletion flow
+- [ ] FE-0811 Refine Today/Home page
 
 ## Phase Exit
 
@@ -319,43 +352,43 @@
 
 ---
 
-# Phase 8 — Entitlements, Reliability, and Beta Hardening
+# Phase 9 — Entitlements, Reliability, and Beta Hardening
 
 ## Backend
 
-- [ ] BE-0801 Implement usage metering
-- [ ] BE-0802 Implement entitlement service
-- [ ] BE-0803 Add billing integration boundary
-- [ ] BE-0804 Implement rate limiting
-- [ ] BE-0805 Implement AI usage limits
-- [ ] BE-0806 Implement file-processing limits
-- [ ] BE-0807 Build AI regression test suite
-- [ ] BE-0808 Build integration test suite
-- [ ] BE-0809 Run authorization/security tests
-- [ ] BE-0810 Run retrieval isolation tests
-- [ ] BE-0811 Harden queue failure handling
-- [ ] BE-0812 Harden provider failure handling
-- [ ] BE-0813 Add operational dashboards
-- [ ] BE-0814 Add operational alerts
-- [ ] BE-0815 Configure database backups
-- [ ] BE-0816 Perform restore test
-- [ ] BE-0817 Finalize retention policy
-- [ ] BE-0818 Finalize audit coverage
+- [ ] BE-0901 Implement usage metering
+- [ ] BE-0902 Implement entitlement service
+- [ ] BE-0903 Add billing integration boundary
+- [ ] BE-0904 Implement rate limiting
+- [ ] BE-0905 Implement AI usage limits
+- [ ] BE-0906 Implement file-processing limits
+- [ ] BE-0907 Build AI regression test suite
+- [ ] BE-0908 Build integration test suite
+- [ ] BE-0909 Run authorization/security tests
+- [ ] BE-0910 Run retrieval isolation tests
+- [ ] BE-0911 Harden queue failure handling
+- [ ] BE-0912 Harden provider failure handling
+- [ ] BE-0913 Add operational dashboards
+- [ ] BE-0914 Add operational alerts
+- [ ] BE-0915 Configure database backups
+- [ ] BE-0916 Perform restore test
+- [ ] BE-0917 Finalize retention policy
+- [ ] BE-0918 Finalize audit coverage
 
 ## Frontend
 
-- [ ] FE-0801 Create Usage page
-- [ ] FE-0802 Create Subscription page
-- [ ] FE-0803 Add quota/limit states
-- [ ] FE-0804 Add provider-disconnected states
-- [ ] FE-0805 Standardize destructive confirmations
-- [ ] FE-0806 Complete accessibility review
-- [ ] FE-0807 Complete responsive review
-- [ ] FE-0808 Add product telemetry
-- [ ] FE-0809 Add assistant response feedback
-- [ ] FE-0810 Add failed-action feedback
-- [ ] FE-0811 Add support/contact entry
-- [ ] FE-0812 Complete closed-beta UI polish
+- [ ] FE-0901 Create Usage page
+- [ ] FE-0902 Create Subscription page
+- [ ] FE-0903 Add quota/limit states
+- [ ] FE-0904 Add provider-disconnected states
+- [ ] FE-0905 Standardize destructive confirmations
+- [ ] FE-0906 Complete accessibility review
+- [ ] FE-0907 Complete responsive review
+- [ ] FE-0908 Add product telemetry
+- [ ] FE-0909 Add assistant response feedback
+- [ ] FE-0910 Add failed-action feedback
+- [ ] FE-0911 Add support/contact entry
+- [ ] FE-0912 Complete closed-beta UI polish
 
 ## Phase Exit
 
@@ -371,40 +404,33 @@
 
 # Release Milestones
 
-## Milestone A — Internal Vertical Slice
+## Milestone A — Internal Web Prototype
 
 - [ ] Phase 0 complete
 - [ ] Phase 1 complete
 - [ ] Phase 2 complete
 - [ ] Account creation works
 - [ ] Web chat works
-- [ ] WhatsApp linking works
-- [ ] WhatsApp assistant works
+- [ ] Assistant context lifecycle works
 
 ---
 
-## Milestone B — Useful Personal Assistant
+## Milestone B — Core Personal Assistant
 
 - [ ] Phase 3 complete
 - [ ] Phase 4 complete
+- [ ] Phase 5 complete
 - [ ] Tasks work reliably
 - [ ] Reminders work reliably
 - [ ] Persistent memory works
 - [ ] Semantic memory retrieval works
-
----
-
-## Milestone C — Multimodal Assistant
-
-- [ ] Phase 5 complete
-- [ ] Document understanding works
-- [ ] Document retrieval works
+- [ ] Documents work
 - [ ] Image understanding works
-- [ ] Voice-note transcription works
+- [ ] Audio transcription works
 
 ---
 
-## Milestone D — Connected Assistant
+## Milestone C — Connected Assistant
 
 - [ ] Phase 6 complete
 - [ ] Contacts work
@@ -413,11 +439,21 @@
 
 ---
 
-## Milestone E — Private Alpha
+## Milestone D — WhatsApp Assistant
 
 - [ ] Phase 7 complete
-- [ ] Critical Phase 8 security tasks complete
-- [ ] Critical Phase 8 observability tasks complete
+- [ ] Account linking works
+- [ ] Core features work through WhatsApp
+- [ ] WhatsApp media handling works
+- [ ] WhatsApp reminder delivery works
+
+---
+
+## Milestone E — Private Alpha
+
+- [ ] Phase 8 complete
+- [ ] Critical Phase 9 security tasks complete
+- [ ] Critical Phase 9 observability tasks complete
 - [ ] Privacy and deletion flows verified
 - [ ] Proactive messaging verified
 
@@ -425,7 +461,7 @@
 
 ## Milestone F — Closed Beta
 
-- [ ] Phase 8 complete
+- [ ] Phase 9 complete
 - [ ] AI regression suite passes target thresholds
 - [ ] Security review complete
 - [ ] Restore test complete
