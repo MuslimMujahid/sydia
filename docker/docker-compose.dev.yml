@@ -1,0 +1,25 @@
+# Development-only services. Run from the repository root:
+#   docker compose --env-file .env -f docker/docker-compose.dev.yml up -d
+# The shared root .env supplies the BACKEND_DB_* values below.
+
+name: sydia
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${BACKEND_DB_USER}
+      POSTGRES_PASSWORD: ${BACKEND_DB_PASSWORD}
+      POSTGRES_DB: ${BACKEND_DB_NAME}
+    ports:
+      - "${BACKEND_DB_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:

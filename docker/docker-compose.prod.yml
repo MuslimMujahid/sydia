@@ -1,0 +1,32 @@
+# Production images for the apps only. The database is intentionally not
+# part of this stack — point BACKEND_DB_* at an external database.
+# Run from the repository root:
+#   docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --build
+
+name: sydia
+services:
+  backend:
+    image: monorepo-backend:prod
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    env_file: ../.env
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    restart: unless-stopped
+
+  frontend:
+    image: monorepo-frontend:prod
+    build:
+      context: ..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    env_file: ../.env
+    environment:
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped

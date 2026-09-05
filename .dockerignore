@@ -1,0 +1,27 @@
+# Build context for the per-app Dockerfiles (repo root).
+
+# Version control
+.git
+
+# Dependencies (installed inside the image)
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+
+# Caches and test artifacts
+.turbo
+coverage
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Docker configuration (not needed inside images)
+docker
+
+# Logs
+*.log
