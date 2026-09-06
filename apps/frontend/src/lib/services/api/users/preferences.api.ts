@@ -3,8 +3,21 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
+export const ASSISTANT_PERSONAS = [
+  "professional",
+  "casual",
+  "supportive",
+  "firm",
+  "motivator",
+] as const;
+
+export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
+
+export const DEFAULT_ASSISTANT_PERSONA: AssistantPersona = "supportive";
+
 export type UserPreferences = {
   automaticMemoryEnabled: boolean;
+  persona: AssistantPersona;
 };
 
 export type UpdateUserPreferencesInput = Partial<UserPreferences>;

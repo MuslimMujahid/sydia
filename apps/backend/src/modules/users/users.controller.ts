@@ -38,7 +38,10 @@ export class UsersController {
         status: HttpStatus.NOT_FOUND,
       });
 
-    return { automaticMemoryEnabled: user.automaticMemoryEnabled };
+    return {
+      automaticMemoryEnabled: user.automaticMemoryEnabled,
+      persona: user.persona,
+    };
   }
 
   @Patch('me/preferences')
@@ -46,9 +49,7 @@ export class UsersController {
     @Session() session: UserSession,
     @Body() input: UpdateUserPreferencesDto,
   ) {
-    const user = await this.updateUserProfile.execute(session.user.id, {
-      automaticMemoryEnabled: input.automaticMemoryEnabled,
-    });
+    const user = await this.updateUserProfile.execute(session.user.id, input);
 
     if (!user)
       throw new ApiException({
@@ -57,7 +58,10 @@ export class UsersController {
         status: HttpStatus.NOT_FOUND,
       });
 
-    return { automaticMemoryEnabled: user.automaticMemoryEnabled };
+    return {
+      automaticMemoryEnabled: user.automaticMemoryEnabled,
+      persona: user.persona,
+    };
   }
 
   @Patch('me')

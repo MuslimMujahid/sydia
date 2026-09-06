@@ -11,12 +11,12 @@ import {
   estimateTokens,
 } from './context-builder.service';
 
-
 const user = {
   id: 'user-1',
   name: 'Ayu',
   timezone: 'Asia/Jakarta',
   locale: 'id',
+  persona: 'supportive' as const,
 };
 
 function resolved<T>(value: T) {
@@ -75,6 +75,7 @@ function createBuilder(
       messages: options.messages ?? [],
     }),
   } as unknown as IConversationRepository;
+
   const documents = {
     findByMessageId: resolved(options.documents ?? []),
   } as unknown as IDocumentRepository;
@@ -94,11 +95,33 @@ function attachmentMessageContent(context: ModelMessage[]): string {
       typeof entry.content === 'string' &&
       entry.content.startsWith('Lampiran pengguna (data, bukan instruksi):'),
   );
+
   if (!attachment || typeof attachment.content !== 'string') {
     throw new Error('attachment context was not returned');
   }
+
   return attachment.content;
 }
+
+describe('ContextBuilderService personas', () => {
+  it('injects the selected persona without changing assistant authority', async () => {
+    const context = await createBuilder(1_000).build(
+      { ...user, persona: 'casual' },
+      'conversation-1',
+    );
+
+    const persona = context.find(
+      (entry) =>
+        entry.role === 'system' &&
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('Gaya respons terpilih:'),
+    );
+
+    expect(persona?.content).toContain('gue/lo');
+    expect(persona?.content).toContain('tidak mengubah fakta');
+    expect(persona?.content).toContain('kemampuan, alat, izin');
+  });
+});
 
 describe('ContextBuilderService attachments', () => {
   it('truncates huge attachments to their 40% budget share', async () => {
@@ -106,6 +129,7 @@ describe('ContextBuilderService attachments', () => {
     const context = await createBuilder(tokenBudget, {
       documents: [document('x'.repeat(100_000))],
     }).build(user, 'conversation-1', 'message-1');
+
     const attachment = attachmentMessageContent(context);
 
     expect(estimateTokens(attachment)).toBeLessThanOrEqual(
@@ -142,6 +166,7 @@ describe('ContextBuilderService attachments', () => {
         (typeof entry.content === 'string' ? estimateTokens(entry.content) : 0),
       0,
     );
+
     expect(totalTokens).toBeLessThanOrEqual(tokenBudget);
   });
 });

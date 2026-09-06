@@ -38,7 +38,7 @@ function toolConfirmation(invocations: ToolInvocation[]): string | null {
     .join(' ');
 }
 
-type TurnUser = Pick<User, 'id' | 'name' | 'timezone' | 'locale'>;
+type TurnUser = Pick<User, 'id' | 'name' | 'timezone' | 'locale' | 'persona'>;
 type GenerationUsage = {
   inputTokens?: number;
   outputTokens?: number;
@@ -104,7 +104,12 @@ export class AssistantOrchestratorService {
 
   async send(
     user: TurnUser,
-    input: { conversationId?: string; content: string; idempotencyKey: string; attachmentIds?: string[] },
+    input: {
+      conversationId?: string;
+      content: string;
+      idempotencyKey: string;
+      attachmentIds?: string[];
+    },
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
     const write = await this.conversations.writeUserMessage({
       userId: user.id,

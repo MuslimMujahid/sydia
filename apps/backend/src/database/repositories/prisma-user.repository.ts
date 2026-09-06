@@ -13,6 +13,7 @@ const userSelect = {
   locale: true,
   onboardingCompleted: true,
   automaticMemoryEnabled: true,
+  persona: true,
   createdAt: true,
   updatedAt: true,
 } as const;

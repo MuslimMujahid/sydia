@@ -13,6 +13,14 @@ datasource db {
 // Better Auth core schema (user/session/account/verification).
 // better-auth owns these tables and generates record IDs itself.
 
+enum AssistantPersona {
+  professional
+  casual
+  supportive
+  firm
+  motivator
+}
+
 model User {
   id                     String                @id
   name                   String
@@ -23,6 +31,7 @@ model User {
   locale                 String                @default("id")
   onboardingCompleted    Boolean               @default(false)
   automaticMemoryEnabled Boolean               @default(false)
+  persona                AssistantPersona      @default(supportive)
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @default(now()) @updatedAt
   sessions               Session[]

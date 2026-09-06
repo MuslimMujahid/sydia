@@ -34,7 +34,13 @@ describe('conversation context lifecycle', () => {
     const builder = new ContextBuilderService(repository, config);
 
     const context = await builder.build(
-      { id: 'user-1', name: 'Ayu', timezone: 'Asia/Jakarta', locale: 'id' },
+      {
+        id: 'user-1',
+        name: 'Ayu',
+        timezone: 'Asia/Jakarta',
+        locale: 'id',
+        persona: 'supportive',
+      },
       'conversation-1',
     );
 

@@ -3,6 +3,15 @@ import type { User as PrismaUser } from '../../generated/prisma/client';
 export const SUPPORTED_LOCALES = ['id', 'en'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
+export const ASSISTANT_PERSONAS = [
+  'professional',
+  'casual',
+  'supportive',
+  'firm',
+  'motivator',
+] as const;
+export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
+
 // Derived from the Prisma model: if the schema drops or renames one of
 // these fields, this file fails to compile — drift surfaces immediately.
 export type User = Pick<
@@ -16,6 +25,7 @@ export type User = Pick<
   | 'locale'
   | 'onboardingCompleted'
   | 'automaticMemoryEnabled'
+  | 'persona'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -28,5 +38,6 @@ export type UserProfileUpdate = Partial<
     | 'locale'
     | 'onboardingCompleted'
     | 'automaticMemoryEnabled'
+    | 'persona'
   >
 >;
