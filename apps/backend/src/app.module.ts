@@ -149,6 +149,11 @@ export function validateEnvironment(
       config.BACKEND_EMBEDDING_MODEL.trim() !== ''
         ? config.BACKEND_EMBEDDING_MODEL.trim()
         : 'openai/text-embedding-3-small',
+    BACKEND_STT_MODEL:
+      typeof config.BACKEND_STT_MODEL === 'string' &&
+      config.BACKEND_STT_MODEL.trim() !== ''
+        ? config.BACKEND_STT_MODEL.trim()
+        : 'openai/whisper-large-v3-turbo',
     BACKEND_ASSISTANT_CONTEXT_TOKENS: parsePositiveInteger(
       config,
       'BACKEND_ASSISTANT_CONTEXT_TOKENS',

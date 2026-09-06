@@ -33,4 +33,26 @@ describe('OpenRouterMediaService', () => {
       'openai/whisper-large-v3-turbo',
     );
   });
+
+  it('honors a custom BACKEND_STT_MODEL value', async () => {
+    const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ text: 'Halo kembali.' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await new OpenRouterMediaService(
+      new ConfigService({
+        BACKEND_MODEL_API_KEY: 'test-key',
+        BACKEND_STT_MODEL: 'openai/whisper-large-v3',
+      }),
+    ).transcribe(Buffer.from('audio'), 'clip.webm', 'audio/webm');
+
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect(url).toBe('https://openrouter.ai/api/v1/audio/transcriptions');
+    expect((init?.body as FormData).get('model')).toBe(
+      'openai/whisper-large-v3',
+    );
+  });
 });
