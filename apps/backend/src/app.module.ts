@@ -11,6 +11,7 @@ import { ConversationsModule } from './modules/conversations/conversations.modul
 import { MemoriesModule } from './modules/memories/memories.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 import { TodayModule } from './modules/today/today.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
@@ -180,6 +181,7 @@ export function validateEnvironment(
     }),
     PrismaModule,
     QueueModule,
+    CategoriesModule,
     AuthModule,
     UsersModule,
     ConversationsModule,

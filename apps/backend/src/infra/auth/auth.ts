@@ -13,6 +13,7 @@ export type AuthOptions = {
   trustedOrigins: string[];
   /** Durable sink for identity lifecycle audit events. */
   auditEventRepository: Pick<IAuditEventRepository, 'record'>;
+  provisionDefaultCategories: (userId: string) => Promise<void>;
 };
 
 /**
@@ -50,6 +51,7 @@ export function createAuth(prisma: PrismaService, options: AuthOptions) {
       user: {
         create: {
           after: async (user) => {
+            await options.provisionDefaultCategories(user.id);
             await recordAuditEvent('account.created', user.id);
           },
         },

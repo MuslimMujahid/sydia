@@ -33,7 +33,7 @@ export class CreateTaskDto {
   @IsDateString()
   dueAt?: string | null;
 
-  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) categoryIds?: string[];
 }
 export class UpdateTaskDto {
   @IsOptional()
@@ -63,7 +63,7 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  tags?: string[];
+  categoryIds?: string[];
 
   @IsOptional()
   @IsIn(TASK_STATUSES)
@@ -75,4 +75,12 @@ export class TaskFiltersDto {
     'today' | 'upcoming' | 'overdue' | 'none';
 
   @IsOptional() @IsString() search?: string;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean) : value,
+  )
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 }

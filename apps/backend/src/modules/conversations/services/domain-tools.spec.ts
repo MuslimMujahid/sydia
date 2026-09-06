@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type {
+  ICategoryRepository,
   IMemoryRepository,
   IReminderRepository,
   ITaskRepository,
@@ -15,7 +16,13 @@ function resolved<T>(value: T) {
 
 describe('domain assistant tools', () => {
   test('creates and updates a task without duplicating it', async () => {
-    const created = { id: 'task-1', title: 'Kirim invoice', status: 'inbox' };
+    const created = {
+      id: 'task-1',
+      title: 'Kirim invoice',
+      status: 'inbox',
+      categories: [],
+    };
+
     const updated = { ...created, title: 'Kirim invoice revisi' };
     const createTask = resolved(created);
     const findTask = resolved(created);
@@ -28,6 +35,9 @@ describe('domain assistant tools', () => {
 
     const tools = createDomainTools({
       tasks,
+      categories: {
+        findByNames: resolved([]),
+      } as unknown as ICategoryRepository,
       reminders: {} as IReminderRepository,
       memories: {} as IMemoryRepository,
       memoryService: {} as MemoryService,
@@ -60,6 +70,35 @@ describe('domain assistant tools', () => {
     expect(result).toEqual(expect.objectContaining({ objectType: 'task' }));
   });
 
+  test('assigns matching categories when creating a task', async () => {
+    const createTask = resolved({ id: 'task-1', title: 'Bayar invoice' });
+    const findByNames = resolved([{ id: 'finance-1', name: 'Keuangan' }]);
+    const tools = createDomainTools({
+      tasks: { create: createTask } as unknown as ITaskRepository,
+      categories: { findByNames } as unknown as ICategoryRepository,
+      reminders: {} as IReminderRepository,
+      memories: {} as IMemoryRepository,
+      memoryService: {} as MemoryService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {} as IUserRepository,
+    });
+
+    const create = tools.find((tool) => tool.definition.name === 'create_task');
+
+    await create?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      arguments: { title: 'Bayar invoice', categoryNames: ['Keuangan'] },
+      idempotencyKey: 'category-task',
+    });
+
+    expect(findByNames.mock.calls[0]).toEqual(['user-1', ['Keuangan']]);
+    expect(createTask.mock.calls[0]).toEqual([
+      'user-1',
+      expect.objectContaining({ categoryIds: ['finance-1'] }),
+    ]);
+  });
+
   test('retrieves durable memory independently of a conversation', async () => {
     const search = resolved([
       { id: 'memory-1', content: 'Bayar vendor dengan BCA' },
@@ -67,6 +106,7 @@ describe('domain assistant tools', () => {
 
     const tools = createDomainTools({
       tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
       reminders: {} as IReminderRepository,
       memories: {} as IMemoryRepository,
       memoryService: { search } as unknown as MemoryService,

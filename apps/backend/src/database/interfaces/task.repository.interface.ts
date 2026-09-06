@@ -4,6 +4,7 @@ export type TaskFilters = {
   status?: TaskStatus | TaskStatus[];
   due?: 'today' | 'upcoming' | 'overdue' | 'none';
   search?: string;
+  categoryIds?: string[];
   now?: Date;
   timezone?: string;
 };

@@ -52,6 +52,8 @@ const toolInvocationSelect = {
   label: true,
   status: true,
   result: true,
+  arguments: true,
+  idempotencyKey: true,
   errorMessage: true,
   startedAt: true,
   createdAt: true,
@@ -65,6 +67,8 @@ type InvocationRow = {
   label: string;
   status: string;
   result: Prisma.JsonValue | null;
+  arguments: Prisma.JsonValue;
+  idempotencyKey: string;
   errorMessage: string | null;
   startedAt: Date | null;
   createdAt: Date;
@@ -86,13 +90,18 @@ function presentInvocation(invocation: InvocationRow): ToolInvocationRecord {
   const state = nested ?? record;
   const objectId = state && typeof state.id === 'string' ? state.id : null;
   const objectType =
-    record?.objectType === 'task' || record?.objectType === 'reminder'
+    record?.objectType === 'task' ||
+    record?.objectType === 'reminder' ||
+    record?.objectType === 'category' ||
+    record?.objectType === 'category_confirmation'
       ? record.objectType
       : invocation.name.includes('task')
         ? 'task'
-        : invocation.name.includes('reminder')
-          ? 'reminder'
-          : null;
+        : invocation.name.includes('category')
+          ? 'category'
+          : invocation.name.includes('reminder')
+            ? 'reminder'
+            : null;
 
   return { ...invocation, objectId, objectType, state, output };
 }
@@ -264,7 +273,9 @@ export class PrismaConversationRepository implements IConversationRepository {
               ? {
                   attachments: {
                     createMany: {
-                      data: attachmentAssets.map(({ id: fileAssetId }) => ({ fileAssetId })),
+                      data: attachmentAssets.map(({ id: fileAssetId }) => ({
+                        fileAssetId,
+                      })),
                     },
                   },
                 }
@@ -517,6 +528,27 @@ export class PrismaConversationRepository implements IConversationRepository {
     });
 
     return presentInvocation(invocation);
+  }
+
+  async findToolInvocation(
+    userId: string,
+    id: string,
+  ): Promise<ToolInvocationRecord | null> {
+    const invocation = await this.prisma.toolInvocation.findFirst({
+      where: { id, assistantRun: { conversation: { userId } } },
+      select: toolInvocationSelect,
+    });
+
+    return invocation ? presentInvocation(invocation) : null;
+  }
+
+  async claimToolConfirmation(id: string): Promise<boolean> {
+    const result = await this.prisma.toolInvocation.updateMany({
+      where: { id, status: 'awaiting_confirmation' },
+      data: { status: 'running', startedAt: new Date() },
+    });
+
+    return result.count === 1;
   }
 
   async replaceSummary(

@@ -22,6 +22,7 @@ const RUN_LABELS: Record<AssistantRun["status"], string> = {
 const TOOL_LABELS: Record<ToolInvocation["status"], string> = {
   pending: "Menunggu",
   running: "Sedang berjalan",
+  awaiting_confirmation: "Menunggu persetujuan",
   completed: "Selesai",
   failed: "Gagal",
   rejected: "Tidak dijalankan",

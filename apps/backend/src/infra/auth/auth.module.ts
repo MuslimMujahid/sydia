@@ -3,9 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import {
   AUDIT_EVENT_REPOSITORY,
+  CATEGORY_REPOSITORY,
   type IAuditEventRepository,
+  type ICategoryRepository,
 } from '../../database/interfaces';
 import { AuditModule } from '../../database/audit.module';
+import { CategoriesModule } from '../../modules/categories/categories.module';
 import { PrismaService } from '../prisma';
 import { createAuth } from './auth';
 
@@ -17,18 +20,27 @@ import { createAuth } from './auth';
 @Module({
   imports: [
     AuditModule,
+    CategoriesModule,
     BetterAuthModule.forRootAsync({
-      inject: [ConfigService, PrismaService, AUDIT_EVENT_REPOSITORY],
+      inject: [
+        ConfigService,
+        PrismaService,
+        AUDIT_EVENT_REPOSITORY,
+        CATEGORY_REPOSITORY,
+      ],
       useFactory: (
         config: ConfigService,
         prisma: PrismaService,
         auditEventRepository: IAuditEventRepository,
+        categoryRepository: ICategoryRepository,
       ) => ({
         auth: createAuth(prisma, {
           secret: config.getOrThrow<string>('BACKEND_AUTH_SECRET'),
           baseURL: config.getOrThrow<string>('BACKEND_AUTH_URL'),
           trustedOrigins: [config.getOrThrow<string>('FRONTEND_URL')],
           auditEventRepository,
+          provisionDefaultCategories: (userId) =>
+            categoryRepository.provisionDefaults(userId),
         }),
       }),
     }),

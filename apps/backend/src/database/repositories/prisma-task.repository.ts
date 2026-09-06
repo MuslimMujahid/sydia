@@ -1,9 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import type { Task as PrismaTask } from '../../generated/prisma/client';
+import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
 import { dayWindow } from '../../shared/date-time';
 import type { Task, TaskWrite } from '../entities';
 import type { ITaskRepository, TaskFilters } from '../interfaces';
+
+const categorySelect = {
+  id: true,
+  name: true,
+  color: true,
+  iconKey: true,
+  createdAt: true,
+  updatedAt: true,
+  _count: { select: { tasks: true } },
+} as const;
 
 const taskSelect = {
   id: true,
@@ -12,39 +22,54 @@ const taskSelect = {
   status: true,
   priority: true,
   dueAt: true,
-  tags: true,
   sourceType: true,
   sourceMessageId: true,
   completedAt: true,
   createdAt: true,
   updatedAt: true,
+  categories: { select: { category: { select: categorySelect } } },
 } as const;
 
-type TaskRow = Pick<PrismaTask, keyof typeof taskSelect>;
+type TaskRow = Prisma.TaskGetPayload<{ select: typeof taskSelect }>;
 
-function present(row: TaskRow): Task {
+function present(value: TaskRow): Task {
   return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    status: row.status as Task['status'],
-    priority: row.priority as Task['priority'],
-    dueAt: row.dueAt,
-    tags: row.tags,
-    completedAt: row.completedAt,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    id: value.id,
+    title: value.title,
+    description: value.description,
+    status: value.status as Task['status'],
+    priority: value.priority as Task['priority'],
+    dueAt: value.dueAt,
+    categories: value.categories.map(({ category }) => ({
+      ...category,
+      color: category.color as Task['categories'][number]['color'],
+      iconKey: category.iconKey as Task['categories'][number]['iconKey'],
+      taskCount: category._count.tasks,
+    })),
+    completedAt: value.completedAt,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
     source: {
-      type: row.sourceType as Task['source']['type'],
-      label: row.sourceMessageId ? 'Dibuat lewat chat' : 'Dibuat di dasbor',
-      messageId: row.sourceMessageId,
+      type: value.sourceType as Task['source']['type'],
+      label: value.sourceMessageId ? 'Dibuat lewat chat' : 'Dibuat di dasbor',
+      messageId: value.sourceMessageId,
     },
   };
+}
+
+function categoryLinks(categoryIds: string[] | undefined) {
+  return categoryIds === undefined
+    ? undefined
+    : {
+        deleteMany: {},
+        create: categoryIds.map((categoryId) => ({ categoryId })),
+      };
 }
 
 @Injectable()
 export class PrismaTaskRepository implements ITaskRepository {
   constructor(private readonly prisma: PrismaService) {}
+
   async list(userId: string, filters: TaskFilters = {}): Promise<Task[]> {
     const now = filters.now ?? new Date();
     const { start, end } = dayWindow(now, filters.timezone ?? 'UTC');
@@ -66,6 +91,14 @@ export class PrismaTaskRepository implements ITaskRepository {
           ? { in: filters.status }
           : filters.status,
         dueAt,
+        categories: filters.categoryIds?.length
+          ? {
+              some: {
+                categoryId: { in: filters.categoryIds },
+                category: { userId },
+              },
+            }
+          : undefined,
         OR: filters.search
           ? [
               { title: { contains: filters.search, mode: 'insensitive' } },
@@ -111,12 +144,28 @@ export class PrismaTaskRepository implements ITaskRepository {
   }
 
   async create(userId: string, input: TaskWrite): Promise<Task> {
+    const { categoryIds, ...data } = input;
+    const ids = [...new Set(categoryIds ?? [])];
+    if (ids.length > 5)
+      throw new Error('Satu tugas maksimal memiliki 5 kategori.');
+
+    if (ids.length) {
+      const count = await this.prisma.category.count({
+        where: { id: { in: ids }, userId },
+      });
+
+      if (count !== ids.length) throw new Error('Kategori tidak valid.');
+    }
+
     const row = await this.prisma.task.create({
       data: {
         userId,
-        ...input,
+        ...data,
         status: input.status ?? 'inbox',
         completedAt: input.status === 'done' ? new Date() : null,
+        categories: ids.length
+          ? { create: ids.map((categoryId) => ({ categoryId })) }
+          : undefined,
       },
       select: taskSelect,
     });
@@ -136,10 +185,26 @@ export class PrismaTaskRepository implements ITaskRepository {
       }))
     )
       return null;
+    const { categoryIds, ...data } = input;
+    const ids =
+      categoryIds === undefined ? undefined : [...new Set(categoryIds)];
+
+    if (ids && ids.length > 5)
+      throw new Error('Satu tugas maksimal memiliki 5 kategori.');
+
+    if (ids?.length) {
+      const count = await this.prisma.category.count({
+        where: { id: { in: ids }, userId },
+      });
+
+      if (count !== ids.length) throw new Error('Kategori tidak valid.');
+    }
+
     const row = await this.prisma.task.update({
       where: { id },
       data: {
-        ...input,
+        ...data,
+        categories: categoryLinks(ids),
         completedAt:
           input.status === 'done'
             ? new Date()

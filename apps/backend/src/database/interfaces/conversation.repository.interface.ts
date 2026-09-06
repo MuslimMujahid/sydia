@@ -82,6 +82,11 @@ export interface IConversationRepository {
       completedAt?: Date;
     },
   ): Promise<ToolInvocationRecord>;
+  findToolInvocation(
+    userId: string,
+    id: string,
+  ): Promise<ToolInvocationRecord | null>;
+  claimToolConfirmation(id: string): Promise<boolean>;
   replaceSummary(
     userId: string,
     conversationId: string,

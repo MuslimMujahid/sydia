@@ -37,6 +37,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
 import {
+  categoriesQueryOptions,
+  useCreateCategory,
+  useDeleteCategory,
+  useUpdateCategory,
+} from "@/lib/services/api/categories/categories.queries";
+import type {
+  Category,
+  CategoryColor,
+  CategoryIconKey,
+} from "@/lib/services/api/categories/categories.api";
+import { CategoryIcon } from "./category-icon";
+import {
   taskQueryOptions,
   tasksQueryOptions,
   useCreateTask,
@@ -66,7 +78,7 @@ const taskSchema = z.object({
   status: z.enum(["inbox", "doing", "done", "cancelled"]),
   priority: z.enum(["low", "medium", "high"]),
   dueAt: z.string(),
-  tags: z.string(),
+  categoryIds: z.array(z.string()).max(5, "Pilih maksimal 5 kategori."),
 });
 
 const PRIORITY_LABELS: Record<TaskPriority, string> = {
@@ -97,14 +109,366 @@ function taskValues(task?: Task) {
     status: task?.status ?? ("inbox" as const),
     priority: task?.priority ?? ("medium" as const),
     dueAt: toDateTimeLocal(task?.dueAt ?? null),
-    tags: task?.tags.join(", ") ?? "",
+    categoryIds: task?.categories.map((category) => category.id) ?? [],
   };
+}
+
+const CATEGORY_COLORS: CategoryColor[] = [
+  "blue",
+  "violet",
+  "emerald",
+  "amber",
+  "rose",
+  "cyan",
+  "orange",
+];
+
+const CATEGORY_COLOR_CLASS: Record<CategoryColor, string> = {
+  blue: "bg-blue-500",
+  violet: "bg-violet-500",
+  emerald: "bg-emerald-500",
+  amber: "bg-amber-500",
+  rose: "bg-rose-500",
+  cyan: "bg-cyan-500",
+  orange: "bg-orange-500",
+};
+
+const CATEGORY_ICONS: CategoryIconKey[] = [
+  "briefcase",
+  "heart",
+  "wallet",
+  "book",
+  "health",
+  "family",
+  "shopping",
+  "star",
+  "home",
+  "travel",
+];
+
+function CategoryPicker({
+  categories,
+  selected,
+  loading,
+  onChange,
+}: {
+  categories: Category[];
+  selected: string[];
+  loading: boolean;
+  onChange: (value: string[]) => void;
+}) {
+  return (
+    <fieldset className="space-y-3">
+      <legend className="font-display text-sm font-semibold text-ink">
+        Kategori
+      </legend>
+      <p className="text-xs text-ink-muted">Pilih maksimal 5.</p>
+      <div className="flex flex-wrap gap-2" aria-busy={loading}>
+        {categories.map((category) => {
+          const checked = selected.includes(category.id);
+
+          return (
+            <label
+              key={category.id}
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-surface-1 bg-canvas px-3 py-2 text-sm"
+            >
+              <input
+                type="checkbox"
+                className="accent-brand-deep"
+                checked={checked}
+                disabled={!checked && selected.length >= 5}
+                onChange={() =>
+                  onChange(
+                    checked
+                      ? selected.filter((id) => id !== category.id)
+                      : [...selected, category.id]
+                  )
+                }
+              />
+              <CategoryIcon iconKey={category.iconKey} color={category.color} />
+              {category.name}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+type CategoryManagerView =
+  { mode: "list" } | { mode: "add" } | { mode: "edit"; category: Category };
+
+function CategoryManager({
+  onDeleted,
+}: {
+  onDeleted: (categoryId: string) => void;
+}) {
+  const categoriesQuery = useQuery(categoriesQueryOptions());
+  const createMutation = useCreateCategory();
+  const updateMutation = useUpdateCategory();
+  const deleteMutation = useDeleteCategory();
+  const [view, setView] = useState<CategoryManagerView>({ mode: "list" });
+  const [name, setName] = useState("");
+  const [color, setColor] = useState<CategoryColor>("blue");
+  const [iconKey, setIconKey] = useState<CategoryIconKey>("star");
+
+  const categories = categoriesQuery.data ?? [];
+  const atLimit = categories.length >= 25;
+
+  function openAdd() {
+    createMutation.reset();
+    deleteMutation.reset();
+    setName("");
+    setColor("blue");
+    setIconKey("star");
+    setView({ mode: "add" });
+  }
+
+  function openEdit(category: Category) {
+    updateMutation.reset();
+    deleteMutation.reset();
+    setName(category.name);
+    setColor(category.color);
+    setIconKey(category.iconKey);
+    setView({ mode: "edit", category });
+  }
+
+  function cancelForm() {
+    createMutation.reset();
+    updateMutation.reset();
+    setView({ mode: "list" });
+  }
+
+  async function submitForm(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    if (view.mode === "edit") {
+      if (updateMutation.isPending) return;
+      await updateMutation.mutateAsync({
+        categoryId: view.category.id,
+        values: { name: trimmed, color, iconKey },
+      });
+    } else if (view.mode === "add") {
+      if (createMutation.isPending || atLimit) return;
+      await createMutation.mutateAsync({ name: trimmed, color, iconKey });
+    } else {
+      return;
+    }
+
+    setView({ mode: "list" });
+  }
+
+  async function remove(category: Category) {
+    if (
+      !window.confirm(
+        `Hapus kategori “${category.name}”? Kategori akan dilepas dari ${category.taskCount} tugas.`
+      )
+    )
+      return;
+    await deleteMutation.mutateAsync(category.id);
+    onDeleted(category.id);
+  }
+
+  if (view.mode !== "list") {
+    const editing = view.mode === "edit" ? view.category : undefined;
+    const mutation = editing ? updateMutation : createMutation;
+
+    return (
+      <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+        <DialogTitle>
+          {editing ? "Ubah kategori" : "Tambah kategori"}
+        </DialogTitle>
+        <DialogDescription className="mt-2">
+          {editing
+            ? `Perbarui nama, warna, dan ikon kategori “${editing.name}”.`
+            : "Buat kategori baru untuk mengelompokkan tugasmu."}
+        </DialogDescription>
+        <form
+          className="mt-7 space-y-4"
+          onSubmit={(event) => void submitForm(event)}
+        >
+          <Input
+            value={name}
+            maxLength={40}
+            placeholder="Nama kategori"
+            aria-label="Nama kategori"
+            autoFocus
+            onChange={(event) => setName(event.target.value)}
+          />
+          <div className="space-y-3">
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold text-ink">
+                Ikon
+              </legend>
+              <div className="flex flex-wrap gap-1" aria-label="Warna kategori">
+                {CATEGORY_COLORS.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={cn(
+                      "grid size-10 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
+                      color === value &&
+                        "ring-2 ring-ink ring-offset-2 ring-offset-canvas"
+                    )}
+                    aria-label={`Pilih warna ${value}`}
+                    aria-pressed={color === value}
+                    onClick={() => setColor(value)}
+                  >
+                    <span
+                      className={cn(
+                        "size-6 rounded-full",
+                        CATEGORY_COLOR_CLASS[value]
+                      )}
+                    />
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div className="flex flex-wrap gap-1" aria-label="Ikon kategori">
+              {CATEGORY_ICONS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={cn(
+                    "rounded-lg p-1",
+                    iconKey === value && "ring-2 ring-brand-deep"
+                  )}
+                  aria-label={`Pilih ikon ${value}`}
+                  aria-pressed={iconKey === value}
+                  onClick={() => setIconKey(value)}
+                >
+                  <CategoryIcon iconKey={value} color={color} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <FormError message={mutation.error?.message} />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={mutation.isPending}
+              onClick={cancelForm}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              disabled={!name.trim() || mutation.isPending}
+            >
+              {mutation.isPending
+                ? "Menyimpan…"
+                : editing
+                  ? "Simpan"
+                  : "Tambah"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    );
+  }
+
+  return (
+    <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+      <DialogTitle>Kelola kategori</DialogTitle>
+      <DialogDescription className="mt-2">
+        Buat, ubah, atau hapus kategori. Perubahan berlaku untuk semua tugas.
+      </DialogDescription>
+      {categoriesQuery.isPending ? (
+        <DomainListSkeleton label="Memuat kategori" />
+      ) : categoriesQuery.isError ? (
+        <DomainInlineError
+          title="Kategori tidak dapat dimuat"
+          message={categoriesQuery.error.message}
+          onRetry={() => void categoriesQuery.refetch()}
+        />
+      ) : (
+        <>
+          {categories.length ? (
+            <ul className="mt-7 flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <li
+                  key={category.id}
+                  className="flex items-center gap-1 rounded-full border border-surface-1 bg-canvas py-1 pl-2.5 pr-1"
+                >
+                  <span className="flex min-w-0 items-center gap-1.5 text-sm">
+                    <CategoryIcon
+                      iconKey={category.iconKey}
+                      color={category.color}
+                    />
+                    <span className="truncate">{category.name}</span>
+                    <span className="shrink-0 text-xs text-ink-muted">
+                      {category.taskCount}
+                    </span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-7 rounded-full p-0"
+                    disabled={
+                      updateMutation.isPending || deleteMutation.isPending
+                    }
+                    aria-label={`Ubah ${category.name}`}
+                    title={`Ubah ${category.name}`}
+                    onClick={() => openEdit(category)}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-7 rounded-full p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={deleteMutation.isPending}
+                    aria-label={`Hapus ${category.name}`}
+                    title={`Hapus ${category.name}`}
+                    onClick={() => void remove(category)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-7 text-sm text-ink-muted">
+              Belum ada kategori. Tambahkan yang pertama dengan tombol &ldquo;+
+              Tambah&rdquo; di bawah.
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={atLimit}
+              onClick={openAdd}
+            >
+              <Plus /> Tambah
+            </Button>
+            {atLimit ? (
+              <p className="text-xs text-ink-muted">
+                Batas maksimal 25 kategori tercapai.
+              </p>
+            ) : null}
+          </div>
+          <FormError message={deleteMutation.error?.message} />
+        </>
+      )}
+    </DialogContent>
+  );
 }
 
 function TaskEditor({ task, onClose }: { task?: Task; onClose: () => void }) {
   const createMutation = useCreateTask();
   const updateMutation = useUpdateTask();
   const deleteMutation = useDeleteTask();
+  const categoriesQuery = useQuery(categoriesQueryOptions());
   const mutation = task ? updateMutation : createMutation;
   const form = useAppForm({
     defaultValues: taskValues(task),
@@ -115,10 +479,7 @@ function TaskEditor({ task, onClose }: { task?: Task; onClose: () => void }) {
         description: value.description.trim() || null,
         priority: value.priority,
         dueAt: fromDateTimeLocal(value.dueAt),
-        tags: value.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
+        categoryIds: value.categoryIds,
       };
 
       if (task) {
@@ -269,23 +630,14 @@ function TaskEditor({ task, onClose }: { task?: Task; onClose: () => void }) {
             )}
           </form.Field>
         ) : null}
-        <form.Field name="tags">
+        <form.Field name="categoryIds">
           {(field) => (
-            <FieldShell
-              id="task-tags"
-              label="Tag"
-              description="Pisahkan beberapa tag dengan koma."
-            >
-              {({ describedBy }) => (
-                <TextField
-                  id="task-tags"
-                  value={field.state.value}
-                  aria-describedby={describedBy}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-              )}
-            </FieldShell>
+            <CategoryPicker
+              categories={categoriesQuery.data ?? []}
+              selected={field.state.value}
+              loading={categoriesQuery.isPending}
+              onChange={field.handleChange}
+            />
           )}
         </form.Field>
         <FormError
@@ -444,10 +796,22 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
             <CalendarClock className="size-4" />
             {task.dueAt ? formatRelativeDay(task.dueAt) : "Tanpa tenggat"}
           </span>
-          {task.tags.length ? (
-            <p className="line-clamp-2">
-              {task.tags.map((tag) => `#${tag}`).join(" · ")}
-            </p>
+          {task.categories.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {task.categories.map((category) => (
+                <span
+                  key={category.id}
+                  className="inline-flex items-center gap-1 rounded-pill bg-surface-1 py-1 pr-2 pl-1 text-xs text-ink-soft"
+                >
+                  <CategoryIcon
+                    iconKey={category.iconKey}
+                    color={category.color}
+                    className="size-5 rounded-md [&_svg]:size-3.5"
+                  />
+                  {category.name}
+                </span>
+              ))}
+            </div>
           ) : null}
         </div>
         <div className="mt-5 border-t border-surface-1 pt-4">
@@ -570,10 +934,20 @@ export function TaskPage() {
   const [due, setDue] = useState<TaskDueFilter | "all">("all");
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [editor, setEditor] = useState<Task | "new" | null>(null);
-  const filters: TaskFilters = { due, search };
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const categoriesQuery = useQuery(categoriesQueryOptions());
+  const filters: TaskFilters = {
+    due,
+    search,
+    categoryIds: selectedCategoryIds,
+  };
+
   const query = useQuery(tasksQueryOptions(filters));
-  const filtered = Boolean(search || due !== "all");
+  const filtered = Boolean(
+    search || due !== "all" || selectedCategoryIds.length
+  );
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -631,6 +1005,52 @@ export function TaskPage() {
           </SelectField>
         </label>
       </section>
+      <fieldset>
+        <legend className="sr-only">Filter kategori</legend>
+        <div className="flex flex-wrap items-center gap-2">
+          {(categoriesQuery.data ?? []).map((category) => {
+            const active = selectedCategoryIds.includes(category.id);
+
+            return (
+              <button
+                key={category.id}
+                type="button"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1.5 text-sm",
+                  active
+                    ? "border-brand-deep bg-brand-deep text-white"
+                    : "border-surface-1 bg-canvas text-ink-soft"
+                )}
+                aria-pressed={active}
+                onClick={() =>
+                  setSelectedCategoryIds(
+                    active
+                      ? selectedCategoryIds.filter((id) => id !== category.id)
+                      : [...selectedCategoryIds, category.id]
+                  )
+                }
+              >
+                <CategoryIcon
+                  iconKey={category.iconKey}
+                  color={category.color}
+                  className="size-5 rounded-md [&_svg]:size-3.5"
+                />
+                {category.name}
+              </button>
+            );
+          })}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Kelola kategori"
+            title="Kelola kategori"
+            onClick={() => setCategoryManagerOpen(true)}
+          >
+            <Pencil />
+          </Button>
+        </div>
+      </fieldset>
       {query.isPending ? (
         <DomainListSkeleton label="Memuat papan tugas" />
       ) : null}
@@ -678,6 +1098,22 @@ export function TaskPage() {
               onClose={() => setEditor(null)}
             />
           )
+        ) : null}
+      </Dialog>
+      <Dialog
+        open={categoryManagerOpen}
+        onOpenChange={(open) => {
+          if (!open) setCategoryManagerOpen(false);
+        }}
+      >
+        {categoryManagerOpen ? (
+          <CategoryManager
+            onDeleted={(categoryId) =>
+              setSelectedCategoryIds((ids) =>
+                ids.filter((id) => id !== categoryId)
+              )
+            }
+          />
         ) : null}
       </Dialog>
     </div>

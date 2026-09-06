@@ -9,7 +9,8 @@ const buttonVariants = cva(
       variant: {
         primary:
           "aurora-gradient border-0 font-bold text-canvas shadow-button hover:brightness-[0.97]",
-        secondary: "bg-ink text-background hover:brightness-[0.97]",
+        secondary:
+          "bg-brand text-canvas shadow-button hover:brightness-[0.97] focus-visible:outline-brand/50",
         dark: "bg-ink text-background hover:brightness-[0.97]",
         "dark-outline": "border-ink/16 bg-transparent text-ink hover:text-ink",
         ghost:

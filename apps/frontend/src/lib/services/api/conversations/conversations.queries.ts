@@ -16,6 +16,7 @@ import {
   type SendMessageResult,
   type ToolInvocation,
 } from "./conversations.api";
+import { resolveToolConfirmation } from "./confirmations.api";
 
 export const conversationQueryKeys = {
   all: ["conversations"] as const,
@@ -120,6 +121,19 @@ export function useRetryAssistantRun() {
     mutationFn: retryAssistantRun,
     onSuccess: (result) => cacheRetryResult(queryClient, result),
     meta: { invalidateQueries: [conversationQueryKeys.all] },
+  });
+}
+
+export function useResolveToolConfirmation() {
+  return useMutation({
+    mutationFn: resolveToolConfirmation,
+    meta: {
+      invalidateQueries: [
+        conversationQueryKeys.all,
+        ["categories"] as const,
+        ["tasks"] as const,
+      ],
+    },
   });
 }
 

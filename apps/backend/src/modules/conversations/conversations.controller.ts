@@ -16,8 +16,13 @@ import {
   type IUserRepository,
 } from '../../database/interfaces';
 import { ApiException, ErrorCodes } from '../../shared/errors';
+import { IsBoolean } from 'class-validator';
 import { SendMessageDto } from './dto';
-import { AssistantOrchestratorService } from './services';
+import { AssistantOrchestratorService, ToolExecutorService } from './services';
+
+class ResolveConfirmationDto {
+  @IsBoolean() approved!: boolean;
+}
 
 @Controller('conversations')
 export class ConversationsController {
@@ -26,6 +31,7 @@ export class ConversationsController {
     private readonly conversations: IConversationRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
     private readonly orchestrator: AssistantOrchestratorService,
+    private readonly toolExecutor: ToolExecutorService,
   ) {}
 
   @Get()
@@ -74,6 +80,23 @@ export class ConversationsController {
     if (!result) throw this.notFound();
 
     return result;
+  }
+
+  @Post('tool-invocations/:invocationId/confirmation')
+  async resolveConfirmation(
+    @Session() session: UserSession,
+    @Param('invocationId') invocationId: string,
+    @Body() input: ResolveConfirmationDto,
+  ) {
+    const result = await this.toolExecutor.resolveConfirmation(
+      session.user.id,
+      invocationId,
+      input.approved,
+    );
+
+    if (!result) throw this.notFound();
+
+    return result.invocation;
   }
 
   private notFound(): ApiException {

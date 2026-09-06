@@ -1,6 +1,7 @@
 import type { JSONSchema7 } from 'ai';
 import type { Prisma } from '../../../generated/prisma/client';
 import type {
+  ICategoryRepository,
   IMemoryRepository,
   IReminderRepository,
   ITaskRepository,
@@ -54,8 +55,29 @@ function schema(
 const string = { type: 'string' } as const;
 const nullableString: JSONSchema7 = { type: ['string', 'null'] };
 
+function texts(
+  record: Record<string, unknown>,
+  key: string,
+): string[] | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value))
+    throw new Error(`${key} wajib berupa daftar teks.`);
+  const result: string[] = [];
+
+  for (const item of value as unknown[]) {
+    if (typeof item !== 'string')
+      throw new Error(`${key} wajib berupa daftar teks.`);
+    const trimmed = item.trim();
+    if (trimmed) result.push(trimmed);
+  }
+
+  return result;
+}
+
 export function createDomainTools(deps: {
   tasks: ITaskRepository;
+  categories: ICategoryRepository;
   reminders: IReminderRepository;
   memories: IMemoryRepository;
   memoryService: MemoryService;
@@ -66,14 +88,15 @@ export function createDomainTools(deps: {
     definition: {
       name: 'create_task',
       label: 'Membuat tugas',
-      description: 'Buat tugas baru. Gunakan dueAt ISO bila ada tenggat.',
+      description:
+        'Buat tugas baru. Gunakan dueAt ISO bila ada tenggat. Pilih otomatis hingga 5 categoryNames yang paling relevan dari kategori pengguna walaupun pengguna tidak menyebut kategori.',
       parameters: schema(
         {
           title: string,
           description: nullableString,
           priority: { type: 'string', enum: ['low', 'medium', 'high'] },
           dueAt: nullableString,
-          tags: { type: 'array', items: string },
+          categoryNames: { type: 'array', items: string, maxItems: 5 },
         },
         ['title'],
       ),
@@ -81,15 +104,15 @@ export function createDomainTools(deps: {
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, sourceMessageId, arguments: raw }) => {
       const a = object(raw);
+      const requestedNames = texts(a, 'categoryNames') ?? [];
+      const matched = await deps.categories.findByNames(userId, requestedNames);
       const task = await deps.tasks.create(userId, {
         title: text(a, 'title')!,
         description: text(a, 'description', false) ?? null,
         priority:
           (a.priority as 'low' | 'medium' | 'high' | undefined) ?? 'medium',
         dueAt: optionalDate(a, 'dueAt') ?? null,
-        tags: Array.isArray(a.tags)
-          ? a.tags.filter((v): v is string => typeof v === 'string')
-          : [],
+        categoryIds: matched.map((category) => category.id),
         sourceType: 'chat',
         sourceMessageId,
       });
@@ -106,7 +129,7 @@ export function createDomainTools(deps: {
       name: 'update_task',
       label: 'Memperbarui tugas',
       description:
-        'Perbarui tugas yang ada, termasuk memindahkan status ke inbox, doing, done, atau cancelled. Gunakan id jika diketahui, atau query untuk merujuk tugas aktif terakhir/judul.',
+        'Perbarui tugas yang ada. Untuk permintaan kategori eksplisit, isi categoryNames dan categoryMode add/remove/set; add/remove mempertahankan kategori lainnya.',
       parameters: schema(
         {
           id: string,
@@ -119,6 +142,8 @@ export function createDomainTools(deps: {
             type: 'string',
             enum: ['inbox', 'doing', 'done', 'cancelled'],
           },
+          categoryNames: { type: 'array', items: string, maxItems: 5 },
+          categoryMode: { type: 'string', enum: ['add', 'remove', 'set'] },
         },
         [],
       ),
@@ -133,6 +158,24 @@ export function createDomainTools(deps: {
       );
 
       if (!current) throw new Error('Tugas yang dimaksud tidak ditemukan.');
+      const categoryNames = texts(a, 'categoryNames');
+      const matched = categoryNames
+        ? await deps.categories.findByNames(userId, categoryNames)
+        : undefined;
+
+      const categoryMode = a.categoryMode as
+        'add' | 'remove' | 'set' | undefined;
+
+      const currentIds = current.categories.map((category) => category.id);
+      const matchedIds = matched?.map((category) => category.id);
+      const categoryIds = !matchedIds
+        ? undefined
+        : categoryMode === 'add'
+          ? [...new Set([...currentIds, ...matchedIds])]
+          : categoryMode === 'remove'
+            ? currentIds.filter((id) => !matchedIds.includes(id))
+            : matchedIds;
+
       const task = await deps.tasks.update(userId, current.id, {
         title: text(a, 'title', false),
         description:
@@ -140,6 +183,7 @@ export function createDomainTools(deps: {
         priority: a.priority as 'low' | 'medium' | 'high' | undefined,
         dueAt: optionalDate(a, 'dueAt'),
         status: a.status as TaskStatus | undefined,
+        categoryIds,
       });
 
       return {
@@ -162,17 +206,26 @@ export function createDomainTools(deps: {
           enum: ['inbox', 'doing', 'done', 'cancelled'],
         },
         due: { type: 'string', enum: ['today', 'upcoming', 'overdue', 'none'] },
+        categoryNames: { type: 'array', items: string },
       }),
     },
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
       const timezone = (await deps.users.findById(userId))?.timezone ?? 'UTC';
+      const categoryNames = texts(a, 'categoryNames');
+      const categories = categoryNames
+        ? await deps.categories.findByNames(userId, categoryNames)
+        : undefined;
+
+      if (categoryNames?.length && categories?.length === 0)
+        return { tasks: [] };
       const tasks = await deps.tasks.list(userId, {
         search: text(a, 'query', false),
         status: a.status as TaskStatus | undefined,
         due: a.due as 'today' | 'upcoming' | 'overdue' | 'none' | undefined,
         timezone,
+        categoryIds: categories?.map((category) => category.id),
       });
 
       return { tasks };
@@ -366,10 +419,168 @@ export function createDomainTools(deps: {
     }),
   };
 
+  const listCategories: AssistantTool = {
+    definition: {
+      name: 'list_categories',
+      label: 'Melihat kategori',
+      description:
+        'Lihat kategori pengguna sebelum memilih kategori untuk tugas atau menjawab pertanyaan kategori.',
+      parameters: schema({}),
+    },
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId }) => ({
+      categories: await deps.categories.list(userId),
+    }),
+  };
+
+  const createCategory: AssistantTool = {
+    definition: {
+      name: 'create_category',
+      label: 'Membuat kategori',
+      description:
+        'Usulkan kategori baru hanya ketika pengguna secara eksplisit meminta kategori dibuat. Perlu persetujuan pengguna.',
+      parameters: schema(
+        {
+          name: string,
+          color: {
+            type: 'string',
+            enum: [
+              'blue',
+              'violet',
+              'emerald',
+              'amber',
+              'rose',
+              'cyan',
+              'orange',
+            ],
+          },
+          iconKey: {
+            type: 'string',
+            enum: [
+              'briefcase',
+              'heart',
+              'wallet',
+              'book',
+              'health',
+              'family',
+              'shopping',
+              'star',
+              'home',
+              'travel',
+            ],
+          },
+        },
+        ['name', 'color', 'iconKey'],
+      ),
+    },
+    requiresConfirmation: true,
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, arguments: raw }) => {
+      const a = object(raw);
+      const category = await deps.categories.create(userId, {
+        name: text(a, 'name')!,
+        color: a.color as never,
+        iconKey: a.iconKey as never,
+      });
+
+      return { objectType: 'category', object: category };
+    },
+  };
+
+  const updateCategory: AssistantTool = {
+    definition: {
+      name: 'update_category',
+      label: 'Memperbarui kategori',
+      description:
+        'Usulkan perubahan nama, warna, atau ikon kategori hanya jika diminta eksplisit. Perlu persetujuan pengguna.',
+      parameters: schema(
+        {
+          categoryName: string,
+          newName: string,
+          color: {
+            type: 'string',
+            enum: [
+              'blue',
+              'violet',
+              'emerald',
+              'amber',
+              'rose',
+              'cyan',
+              'orange',
+            ],
+          },
+          iconKey: {
+            type: 'string',
+            enum: [
+              'briefcase',
+              'heart',
+              'wallet',
+              'book',
+              'health',
+              'family',
+              'shopping',
+              'star',
+              'home',
+              'travel',
+            ],
+          },
+        },
+        ['categoryName'],
+      ),
+    },
+    requiresConfirmation: true,
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, arguments: raw }) => {
+      const a = object(raw);
+      const current = (
+        await deps.categories.findByNames(userId, [text(a, 'categoryName')!])
+      )[0];
+
+      if (!current) throw new Error('Kategori tidak ditemukan.');
+      const category = await deps.categories.update(userId, current.id, {
+        name: text(a, 'newName', false),
+        color: a.color as never,
+        iconKey: a.iconKey as never,
+      });
+
+      return { objectType: 'category', object: category };
+    },
+  };
+
+  const deleteCategory: AssistantTool = {
+    definition: {
+      name: 'delete_category',
+      label: 'Menghapus kategori',
+      description:
+        'Usulkan penghapusan kategori hanya jika diminta eksplisit. Penghapusan melepas kategori dari semua tugas dan perlu persetujuan pengguna.',
+      parameters: schema(
+        { name: string, taskCount: { type: 'integer', minimum: 0 } },
+        ['name'],
+      ),
+    },
+    requiresConfirmation: true,
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, arguments: raw }) => {
+      const a = object(raw);
+      const current = (
+        await deps.categories.findByNames(userId, [text(a, 'name')!])
+      )[0];
+
+      if (!current) throw new Error('Kategori tidak ditemukan.');
+      const category = await deps.categories.delete(userId, current.id);
+
+      return { objectType: 'category', object: category };
+    },
+  };
+
   return [
     createTask,
     updateTask,
     listTasks,
+    listCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
     createReminder,
     updateReminder,
     createMemory,

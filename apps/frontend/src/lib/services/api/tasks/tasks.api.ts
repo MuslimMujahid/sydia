@@ -3,6 +3,7 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
+import type { Category } from "../categories/categories.api";
 
 export type TaskStatus = "inbox" | "doing" | "done" | "cancelled";
 export type TaskPriority = "low" | "medium" | "high";
@@ -22,7 +23,7 @@ export type Task = {
   status: TaskStatus;
   priority: TaskPriority;
   dueAt: string | null;
-  tags: string[];
+  categories: Category[];
   source: TaskSource | null;
   completedAt: string | null;
   createdAt: string;
@@ -32,6 +33,7 @@ export type Task = {
 export type TaskFilters = {
   due?: TaskDueFilter | "all";
   search?: string;
+  categoryIds?: string[];
 };
 
 export type CreateTaskInput = {
@@ -39,7 +41,7 @@ export type CreateTaskInput = {
   description?: string | null;
   priority: TaskPriority;
   dueAt?: string | null;
-  tags?: string[];
+  categoryIds?: string[];
 };
 
 export type UpdateTaskInput = Partial<CreateTaskInput> & {
@@ -48,6 +50,7 @@ export type UpdateTaskInput = Partial<CreateTaskInput> & {
 
 const taskFiltersSchema = z.object({
   due: z.enum(["today", "upcoming", "overdue", "none", "all"]).optional(),
+  categoryIds: z.array(z.string()).optional(),
   search: z.string().optional(),
 });
 
@@ -57,6 +60,7 @@ function taskParams(filters: TaskFilters) {
   return {
     due: filters.due === "all" ? undefined : filters.due,
     search: filters.search?.trim() || undefined,
+    categoryIds: filters.categoryIds?.join(",") || undefined,
   };
 }
 

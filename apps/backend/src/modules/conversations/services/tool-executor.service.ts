@@ -28,7 +28,9 @@ export type AssistantTool = {
     sourceMessageId: string;
     arguments: Prisma.InputJsonValue;
     idempotencyKey: string;
+    deferConfirmation?: boolean;
   }): Promise<Prisma.InputJsonValue>;
+  requiresConfirmation?: boolean;
 };
 
 export const ASSISTANT_TOOLS = Symbol('AssistantTools');
@@ -94,6 +96,74 @@ export class ToolExecutorService {
         return [definition.name, wrapped];
       }),
     );
+  }
+
+  async resolveConfirmation(
+    userId: string,
+    invocationId: string,
+    approved: boolean,
+  ): Promise<ToolExecutionResult | null> {
+    const invocation = await this.conversations.findToolInvocation(
+      userId,
+      invocationId,
+    );
+
+    if (!invocation || invocation.status !== 'awaiting_confirmation')
+      return null;
+    if (!(await this.conversations.claimToolConfirmation(invocation.id)))
+      return null;
+
+    if (!approved) {
+      const rejected = await this.conversations.updateToolInvocation(
+        invocation.id,
+        {
+          status: 'rejected',
+          errorMessage: 'Dibatalkan oleh pengguna.',
+          completedAt: new Date(),
+        },
+      );
+
+      return {
+        invocation: rejected,
+        content: 'Perubahan kategori dibatalkan.',
+      };
+    }
+
+    const assistantTool = this.toolsByName[invocation.name];
+    if (!assistantTool) return null;
+
+    try {
+      const result = await assistantTool.execute({
+        userId,
+        sourceMessageId: invocation.id,
+        arguments: assistantTool.parseArguments(invocation.arguments),
+        idempotencyKey: invocation.idempotencyKey,
+        deferConfirmation: false,
+      });
+
+      const completed = await this.conversations.updateToolInvocation(
+        invocation.id,
+        {
+          status: 'completed',
+          result,
+          completedAt: new Date(),
+        },
+      );
+
+      return { invocation: completed, content: JSON.stringify(result) };
+    } catch (error) {
+      const failed = await this.conversations.updateToolInvocation(
+        invocation.id,
+        {
+          status: 'failed',
+          errorMessage:
+            error instanceof Error ? error.message : 'Eksekusi alat gagal.',
+          completedAt: new Date(),
+        },
+      );
+
+      return { invocation: failed, content: 'Alat gagal dijalankan.' };
+    }
   }
 
   async execute(
@@ -170,6 +240,26 @@ export class ToolExecutorService {
       arguments: argumentsValue,
       idempotencyKey,
     });
+
+    if (assistantTool.requiresConfirmation) {
+      const awaiting = await this.conversations.updateToolInvocation(
+        invocation.id,
+        {
+          status: 'awaiting_confirmation',
+          result: {
+            objectType: 'category_confirmation',
+            action: call.name,
+            arguments: argumentsValue,
+            label: assistantTool.definition.label,
+          },
+        },
+      );
+
+      return {
+        invocation: awaiting,
+        content: 'Perubahan kategori menunggu persetujuan pengguna.',
+      };
+    }
 
     const staleBefore = new Date(Date.now() - TOOL_STALE_AFTER_MS);
     const claimed = await this.conversations.claimToolInvocation(

@@ -1,4 +1,5 @@
 import type { Task as PrismaTask } from '../../generated/prisma/client';
+import type { Category } from './category.entity';
 
 export const TASK_STATUSES = ['inbox', 'doing', 'done', 'cancelled'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -11,13 +12,13 @@ export type Task = Pick<
   | 'title'
   | 'description'
   | 'dueAt'
-  | 'tags'
   | 'completedAt'
   | 'createdAt'
   | 'updatedAt'
 > & {
   status: TaskStatus;
   priority: TaskPriority;
+  categories: Category[];
   source: {
     type: 'dashboard' | 'chat' | 'whatsapp';
     label: string | null;
@@ -31,7 +32,7 @@ export type TaskWrite = {
   status?: TaskStatus;
   priority?: TaskPriority;
   dueAt?: Date | null;
-  tags?: string[];
+  categoryIds?: string[];
   sourceType?: 'dashboard' | 'chat' | 'whatsapp';
   sourceMessageId?: string | null;
 };

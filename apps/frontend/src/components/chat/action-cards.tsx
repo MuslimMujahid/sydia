@@ -16,6 +16,7 @@ import {
   useSnoozeReminder,
 } from "@/lib/services/api/reminders/reminders.queries";
 import { useSetTaskStatus } from "@/lib/services/api/tasks/tasks.queries";
+import { useResolveToolConfirmation } from "@/lib/services/api/conversations/conversations.queries";
 import type { TaskStatus } from "@/lib/services/api/tasks/tasks.api";
 import { formatDateTime } from "@/lib/utils/date-time";
 
@@ -293,6 +294,71 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
   );
 }
 
+function CategoryConfirmationCard({
+  invocation,
+}: {
+  invocation: ToolInvocation;
+}) {
+  const mutation = useResolveToolConfirmation();
+  const output = asRecord(invocation.output);
+  const args = asRecord(output?.arguments);
+  const categoryName =
+    stringValue(args, "name") ??
+    stringValue(args, "categoryName") ??
+    "kategori ini";
+
+  const action =
+    invocation.name === "delete_category"
+      ? "menghapus"
+      : invocation.name === "update_category"
+        ? "memperbarui"
+        : "membuat";
+
+  const taskCount = typeof args?.taskCount === "number" ? args.taskCount : null;
+
+  return (
+    <section
+      className="rounded-lg border border-warn/35 bg-warn/5 p-5"
+      aria-label={`Konfirmasi ${invocation.label}`}
+    >
+      <p className="text-xs font-semibold tracking-wide text-warn uppercase">
+        Perlu persetujuan
+      </p>
+      <h3 className="mt-1 font-display font-bold text-ink">
+        Sydia akan {action} kategori “{categoryName}”
+      </h3>
+      <p className="mt-1 text-sm text-ink-muted">
+        Perubahan ini berlaku di seluruh tugas yang menggunakan kategori
+        tersebut.
+        {invocation.name === "delete_category" && taskCount !== null
+          ? ` Kategori akan dilepas dari ${taskCount} tugas.`
+          : ""}
+      </p>
+      <div className="mt-4 flex gap-2">
+        <Button
+          size="sm"
+          disabled={mutation.isPending}
+          onClick={() =>
+            mutation.mutate({ invocationId: invocation.id, approved: true })
+          }
+        >
+          Setujui
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={mutation.isPending}
+          onClick={() =>
+            mutation.mutate({ invocationId: invocation.id, approved: false })
+          }
+        >
+          Tolak
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export function ChatActionCards({
   invocations,
 }: {
@@ -302,8 +368,9 @@ export function ChatActionCards({
     () =>
       invocations.filter(
         (invocation) =>
-          invocation.status === "completed" &&
-          invocationKind(invocation) !== null
+          invocation.status === "awaiting_confirmation" ||
+          (invocation.status === "completed" &&
+            invocationKind(invocation) !== null)
       ),
     [invocations]
   );
@@ -313,11 +380,16 @@ export function ChatActionCards({
   return (
     <div className="mt-4 max-w-xl space-y-3">
       {actions.map((invocation) =>
-        invocationKind(invocation) === "task" ? (
+        invocation.status === "awaiting_confirmation" ? (
+          <CategoryConfirmationCard
+            key={invocation.id}
+            invocation={invocation}
+          />
+        ) : invocationKind(invocation) === "task" ? (
           <TaskActionCard key={invocation.id} invocation={invocation} />
-        ) : (
+        ) : invocationKind(invocation) === "reminder" ? (
           <ReminderActionCard key={invocation.id} invocation={invocation} />
-        )
+        ) : null
       )}
     </div>
   );

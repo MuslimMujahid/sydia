@@ -39,9 +39,15 @@ export type AssistantRun = {
 };
 
 export type ToolInvocationStatus =
-  "pending" | "running" | "completed" | "failed" | "rejected";
+  | "pending"
+  | "running"
+  | "awaiting_confirmation"
+  | "completed"
+  | "failed"
+  | "rejected";
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export type ToolInvocation = {
   id: string;
@@ -50,7 +56,7 @@ export type ToolInvocation = {
   label: string;
   status: ToolInvocationStatus;
   objectId: string | null;
-  objectType: "task" | "reminder" | "contact" | "calendar_event" | null;
+  objectType: "task" | "reminder" | "category" | "category_confirmation" | null;
   state: Record<string, string | number | boolean | null> | null;
   output: JsonValue;
   createdAt: string;

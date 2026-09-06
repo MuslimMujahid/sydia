@@ -12,7 +12,7 @@ function taskRow(status: string, completedAt: Date | null = null) {
     status,
     priority: 'medium',
     dueAt: null,
-    tags: [],
+    categories: [],
     sourceType: 'dashboard',
     sourceMessageId: null,
     completedAt,
@@ -81,6 +81,29 @@ describe('PrismaTaskRepository status transitions', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           status: { in: ['inbox', 'doing'] },
+        }),
+      }),
+    );
+  });
+
+  test('matches any selected category owned by the user', async () => {
+    const findMany = jest.fn<(input: unknown) => Promise<never[]>>();
+    findMany.mockResolvedValue([]);
+    const repository = new PrismaTaskRepository({
+      task: { findMany },
+    } as unknown as PrismaService);
+
+    await repository.list('user-1', { categoryIds: ['cat-1', 'cat-2'] });
+
+    expect(findMany.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categories: {
+            some: {
+              categoryId: { in: ['cat-1', 'cat-2'] },
+              category: { userId: 'user-1' },
+            },
+          },
         }),
       }),
     );

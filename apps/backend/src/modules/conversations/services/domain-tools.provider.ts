@@ -1,12 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   CALENDAR_REPOSITORY,
+  CATEGORY_REPOSITORY,
   CONTACT_REPOSITORY,
-  DOCUMENT_REPOSITORY,
   MEMORY_REPOSITORY,
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
+  type ICategoryRepository,
   type IMemoryRepository,
   type IReminderRepository,
   type ITaskRepository,
@@ -27,6 +28,7 @@ export class DomainToolsProvider {
   readonly tools: AssistantTool[];
   constructor(
     @Inject(TASK_REPOSITORY) tasks: ITaskRepository,
+    @Inject(CATEGORY_REPOSITORY) categories: ICategoryRepository,
     @Inject(REMINDER_REPOSITORY) reminders: IReminderRepository,
     @Inject(MEMORY_REPOSITORY) memories: IMemoryRepository,
     memoryService: MemoryService,
@@ -40,13 +42,20 @@ export class DomainToolsProvider {
     this.tools = [
       ...createDomainTools({
         tasks,
+        categories,
         reminders,
         memories,
         memoryService,
         scheduler,
         users,
       }),
-      ...createPhaseTools({ contacts, documents, calendars, calendarService, users }),
+      ...createPhaseTools({
+        contacts,
+        documents,
+        calendars,
+        calendarService,
+        users,
+      }),
     ];
   }
 }

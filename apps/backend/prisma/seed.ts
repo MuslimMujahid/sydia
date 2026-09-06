@@ -4,6 +4,10 @@ import { createLocalAccountIssuer } from 'better-auth/db';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { Pool } from 'pg';
+import {
+  DEFAULT_CATEGORIES,
+  normalizeCategoryName,
+} from '../src/database/entities/category.entity';
 
 const DEMO_USER_ID = 'demo-user-seed';
 const DEMO_USER_EMAIL = 'demo.user@example.test';
@@ -68,6 +72,15 @@ async function seed(): Promise<void> {
       locale: DEMO_LOCALE,
       onboardingCompleted: false,
     },
+  });
+
+  await prisma.category.createMany({
+    data: DEFAULT_CATEGORIES.map((category) => ({
+      userId: DEMO_USER_ID,
+      ...category,
+      normalizedName: normalizeCategoryName(category.name),
+    })),
+    skipDuplicates: true,
   });
 
   await prisma.account.upsert({

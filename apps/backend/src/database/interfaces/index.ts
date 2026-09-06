@@ -5,6 +5,7 @@ export * from './user.repository.interface';
 export * from './memory.repository.interface';
 export * from './reminder.repository.interface';
 export * from './task.repository.interface';
+export * from './category.repository.interface';
 export * from './document.repository.interface';
 export * from './contact.repository.interface';
 export * from './calendar.repository.interface';
