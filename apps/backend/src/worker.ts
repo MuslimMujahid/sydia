@@ -7,14 +7,25 @@ import {
   REMINDER_REPOSITORY,
   type IReminderRepository,
 } from './database/interfaces';
-import { QueueService, type ReminderJob } from './infra/queue';
+import {
+  QueueService,
+  type DocumentJob,
+  type ReminderJob,
+} from './infra/queue';
+import { DocumentService } from './modules/documents/document.service';
 
 async function bootstrap(): Promise<void> {
   const context = await NestFactory.createApplicationContext(AppModule);
   const config = context.get(ConfigService);
   const reminders = context.get<IReminderRepository>(REMINDER_REPOSITORY);
   const queues = context.get(QueueService);
-  const worker = new Worker<ReminderJob>(
+  const documents = context.get(DocumentService);
+  const connection = {
+    host: config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
+    port: config.get<number>('BACKEND_REDIS_PORT', 6379),
+  };
+
+  const reminderWorker = new Worker<ReminderJob>(
     'reminders',
     async (job) => {
       await reminders.markOccurrenceDelivered(job.data.idempotencyKey);
@@ -55,16 +66,19 @@ async function bootstrap(): Promise<void> {
         );
       }
     },
-    {
-      connection: {
-        host: config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
-        port: config.get<number>('BACKEND_REDIS_PORT', 6379),
-      },
+    { connection },
+  );
+
+  const documentWorker = new Worker<DocumentJob>(
+    'documents',
+    async (job) => {
+      await documents.processDocument(job.data.documentId, job.data.userId);
     },
+    { connection },
   );
 
   const close = async () => {
-    await worker.close();
+    await Promise.all([reminderWorker.close(), documentWorker.close()]);
     await context.close();
   };
 

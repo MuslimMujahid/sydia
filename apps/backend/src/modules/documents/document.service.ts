@@ -3,9 +3,10 @@ import { Inject, Injectable } from '@nestjs/common';
 type UploadedFile = { originalname: string; mimetype: string; size: number; buffer: Buffer };
 import { DOCUMENT_REPOSITORY, type IDocumentRepository } from '../../database/interfaces';
 import { PDFParse } from 'pdf-parse';
-import type { Document, FileAsset, FileKind } from '../../database/entities';
+import type { Document, FileKind } from '../../database/entities';
 import { EmbeddingsService } from '../../infra/embeddings';
 import { OpenRouterMediaService } from '../../infra/model-gateway';
+import { QueueService } from '../../infra/queue';
 import { StorageService } from '../../infra/storage';
 
 const CHUNK_SIZE = 1400;
@@ -29,21 +30,41 @@ export class DocumentService {
     private readonly storage: StorageService,
     private readonly embeddings: EmbeddingsService,
     private readonly media: OpenRouterMediaService,
+    private readonly queue: QueueService,
   ) {}
   async ingest(userId: string, file: UploadedFile): Promise<Document> {
     const kind = kindFor(file.mimetype);
     const storageKey = `${userId}/${randomUUID()}`;
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
     await this.storage.put(storageKey, file.buffer, file.mimetype);
-    let asset: FileAsset;
     let document: Document;
     try {
-      asset = await this.documents.createFile(userId, { originalName: file.originalname, mimeType: file.mimetype, size: file.size, checksum, storageKey, kind });
+      const asset = await this.documents.createFile(userId, { originalName: file.originalname, mimeType: file.mimetype, size: file.size, checksum, storageKey, kind });
       document = await this.documents.create(userId, { fileAssetId: asset.id, title: file.originalname });
     } catch (error: unknown) {
       await this.storage.delete(storageKey).catch(() => {});
       throw error;
     }
+    try {
+      await this.queue.documents.add('ingest', { documentId: document.id, userId }, { jobId: document.id });
+    } catch (error: unknown) {
+      await this.storage.delete(storageKey).catch(() => {});
+      await this.documents.delete(userId, document.id).catch(() => {});
+      throw error;
+    }
+    return document;
+  }
+  async processDocument(documentId: string, userId: string): Promise<void> {
+    const record = await this.documents.findById(userId, documentId);
+    if (!record || record.status !== 'processing') return;
+    const storageKey = await this.documents.storageKey(userId, documentId);
+    if (!storageKey) {
+      await this.documents.fail(documentId, 'Berkas tidak ditemukan di penyimpanan.');
+      return;
+    }
+    const buffer = await this.storage.get(storageKey);
+    const file = { originalname: record.file.originalName, mimetype: record.file.mimeType, size: record.file.size, buffer };
+    const kind = record.file.kind;
     try {
       let textContent: string | null = null;
       let transcript: string | null = null;
@@ -52,15 +73,14 @@ export class DocumentService {
       else if (kind === 'image') imageDescription = await this.media.describeImage(file.buffer, file.mimetype);
       else textContent = await this.parseDocument(file);
       const searchable = textContent ?? transcript ?? imageDescription ?? '';
-      const chunks = await this.documents.replaceChunks(document.id, userId, chunkText(searchable).map((content, chunkIndex) => ({ chunkIndex, content })));
+      const chunks = await this.documents.replaceChunks(documentId, userId, chunkText(searchable).map((content, chunkIndex) => ({ chunkIndex, content })));
       await Promise.all(chunks.map(async (chunk) => { const embedding = await this.embeddings.embed(chunk.content); if (embedding) await this.documents.setChunkEmbedding(chunk.id, embedding, this.embeddings.modelName(), this.embeddings.version); }));
       const structuredData = this.extractStructured(searchable);
-      await this.documents.complete(document.id, { textContent, transcript, imageDescription, structuredData });
+      await this.documents.complete(documentId, { textContent, transcript, imageDescription, structuredData });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Pemrosesan file gagal.';
-      await this.documents.fail(document.id, message);
+      await this.documents.fail(documentId, message);
     }
-    return (await this.documents.findById(userId, document.id, true))!;
   }
   async search(userId: string, query: string, limit = 6) {
     const keyword = await this.documents.searchKeyword(userId, query, limit);
