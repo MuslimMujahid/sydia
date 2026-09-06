@@ -26,6 +26,18 @@ export function formatDay(value: string): string {
   return Number.isNaN(date.getTime()) ? value : DATE_FORMAT.format(date);
 }
 
+export function formatDateTimeInZone(value: string, timeZone: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone }).format(date);
+}
+
+export function formatDayInZone(value: string, timeZone: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", timeZone }).format(date);
+}
+
 export function formatRelativeDay(value: string, now = new Date()): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;

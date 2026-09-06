@@ -3,6 +3,9 @@ import { ModelGatewayModule } from '../../infra/model-gateway';
 import { MemoriesModule } from '../memories/memories.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { DocumentsModule } from '../documents/documents.module';
+import { ContactsModule } from '../contacts/contacts.module';
+import { CalendarModule } from '../calendar/calendar.module';
 import {
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
@@ -22,7 +25,7 @@ import {
 } from './services';
 
 @Module({
-  imports: [ModelGatewayModule, TasksModule, RemindersModule, MemoriesModule],
+  imports: [ModelGatewayModule, TasksModule, RemindersModule, MemoriesModule, DocumentsModule, ContactsModule, CalendarModule],
   controllers: [ConversationsController],
   providers: [
     {

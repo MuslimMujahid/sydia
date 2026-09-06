@@ -1,5 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -19,6 +21,12 @@ export class SendMessageDto {
   @IsNotEmpty()
   @MaxLength(20_000)
   content!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  attachmentIds?: string[];
 
   @IsString()
   @IsUUID()

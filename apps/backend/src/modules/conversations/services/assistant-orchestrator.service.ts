@@ -104,13 +104,14 @@ export class AssistantOrchestratorService {
 
   async send(
     user: TurnUser,
-    input: { conversationId?: string; content: string; idempotencyKey: string },
+    input: { conversationId?: string; content: string; idempotencyKey: string; attachmentIds?: string[] },
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
     const write = await this.conversations.writeUserMessage({
       userId: user.id,
       conversationId: input.conversationId,
       content: input.content,
       idempotencyKey: input.idempotencyKey,
+      attachmentIds: input.attachmentIds,
     });
 
     const existingRun = await this.conversations.findLatestRunForMessage(
@@ -235,6 +236,7 @@ export class AssistantOrchestratorService {
             context: await this.contextBuilder.build(
               state.user,
               state.conversation.id,
+              state.inputMessage.id,
             ),
           };
         } catch {

@@ -19,6 +19,7 @@ export type UserMessageWrite = {
   conversationId?: string;
   content: string;
   idempotencyKey: string;
+  attachmentIds?: string[];
 };
 
 export type UserMessageWriteResult = {

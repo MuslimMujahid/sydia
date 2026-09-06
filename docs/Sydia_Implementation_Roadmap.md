@@ -191,44 +191,44 @@
 
 ## Backend
 
-- [ ] BE-0501 Set up object storage
-- [ ] BE-0502 Create File Asset domain
-- [ ] BE-0503 Create Document domain
-- [ ] BE-0504 Create Document Chunk domain
-- [ ] BE-0505 Implement file ingestion
-- [ ] BE-0506 Implement document parsing
-- [ ] BE-0507 Implement document chunking
-- [ ] BE-0508 Implement document embeddings
-- [ ] BE-0509 Implement document retrieval
-- [ ] BE-0510 Implement document provenance
-- [ ] BE-0511 Implement structured document extraction
-- [ ] BE-0512 Implement image understanding
-- [ ] BE-0513 Implement audio transcription
-- [ ] BE-0514 Route transcripts to assistant
-- [ ] BE-0515 Implement document deletion cleanup
+- [x] BE-0501 Set up object storage
+- [x] BE-0502 Create File Asset domain
+- [x] BE-0503 Create Document domain
+- [x] BE-0504 Create Document Chunk domain
+- [x] BE-0505 Implement file ingestion
+- [x] BE-0506 Implement document parsing
+- [x] BE-0507 Implement document chunking
+- [x] BE-0508 Implement document embeddings
+- [x] BE-0509 Implement document retrieval
+- [x] BE-0510 Implement document provenance
+- [x] BE-0511 Implement structured document extraction
+- [x] BE-0512 Implement image understanding
+- [x] BE-0513 Implement audio transcription
+- [x] BE-0514 Route transcripts to assistant
+- [x] BE-0515 Implement document deletion cleanup
 
 ## Frontend
 
-- [ ] FE-0501 Create Files page
-- [ ] FE-0502 Create file upload flow
-- [ ] FE-0503 Show file processing state
-- [ ] FE-0504 Create file detail view
-- [ ] FE-0505 Add ask-a-file interaction
-- [ ] FE-0506 Add document source references
-- [ ] FE-0507 Add chat file attachments
-- [ ] FE-0508 Add chat image attachments
-- [ ] FE-0509 Add audio upload/attachment support
-- [ ] FE-0510 Show audio transcripts
-- [ ] FE-0511 Add file deletion flow
+- [x] FE-0501 Create Files page
+- [x] FE-0502 Create file upload flow
+- [x] FE-0503 Show file processing state
+- [x] FE-0504 Create file detail view
+- [x] FE-0505 Add ask-a-file interaction
+- [x] FE-0506 Add document source references
+- [x] FE-0507 Add chat file attachments
+- [x] FE-0508 Add chat image attachments
+- [x] FE-0509 Add audio upload/attachment support
+- [x] FE-0510 Show audio transcripts
+- [x] FE-0511 Add file deletion flow
 
 ## Phase Exit
 
-- [ ] User can upload a document
-- [ ] User can ask questions about documents
-- [ ] User can upload an image for understanding
-- [ ] User can upload audio for transcription and assistant processing
-- [ ] Document answers show provenance
-- [ ] Deleted files no longer appear in retrieval
+- [x] User can upload a document
+- [x] User can ask questions about documents
+- [x] User can upload an image for understanding
+- [x] User can upload audio for transcription and assistant processing
+- [x] Document answers show provenance
+- [x] Deleted files no longer appear in retrieval
 
 ---
 
@@ -236,38 +236,38 @@
 
 ## Backend
 
-- [ ] BE-0601 Create Contact domain
-- [ ] BE-0602 Implement contact assistant tools
-- [ ] BE-0603 Implement contact aliases
-- [ ] BE-0604 Implement contact resolution
-- [ ] BE-0605 Implement Google OAuth
-- [ ] BE-0606 Create Calendar integration domain
-- [ ] BE-0607 Implement calendar provider adapter
-- [ ] BE-0608 Implement calendar read operations
-- [ ] BE-0609 Implement calendar create operations
-- [ ] BE-0610 Implement calendar update operations
-- [ ] BE-0611 Implement calendar cancel operations
-- [ ] BE-0612 Implement calendar assistant tools
-- [ ] BE-0613 Implement calendar disconnect/revoke flow
+- [x] BE-0601 Create Contact domain
+- [x] BE-0602 Implement contact assistant tools
+- [x] BE-0603 Implement contact aliases
+- [x] BE-0604 Implement contact resolution
+- [x] BE-0605 Implement Google OAuth
+- [x] BE-0606 Create Calendar integration domain
+- [x] BE-0607 Implement calendar provider adapter
+- [x] BE-0608 Implement calendar read operations
+- [x] BE-0609 Implement calendar create operations
+- [x] BE-0610 Implement calendar update operations
+- [x] BE-0611 Implement calendar cancel operations
+- [x] BE-0612 Implement calendar assistant tools
+- [x] BE-0613 Implement calendar disconnect/revoke flow
 
 ## Frontend
 
-- [ ] FE-0601 Create Contacts page
-- [ ] FE-0602 Create contact detail/edit flow
-- [ ] FE-0603 Add contact search
-- [ ] FE-0604 Create Calendar page
-- [ ] FE-0605 Create Google Calendar connect flow
-- [ ] FE-0606 Show calendar connection status
-- [ ] FE-0607 Add calendar disconnect flow
-- [ ] FE-0608 Add calendar events to Today page
+- [x] FE-0601 Create Contacts page
+- [x] FE-0602 Create contact detail/edit flow
+- [x] FE-0603 Add contact search
+- [x] FE-0604 Create Calendar page
+- [x] FE-0605 Create Google Calendar connect flow
+- [x] FE-0606 Show calendar connection status
+- [x] FE-0607 Add calendar disconnect flow
+- [x] FE-0608 Add calendar events to Today page
 
 ## Phase Exit
 
-- [ ] User can save and retrieve contacts
-- [ ] Sydia can resolve contacts conversationally
-- [ ] User can connect Google Calendar
-- [ ] User can view calendar events
-- [ ] User can create, update, and cancel events through Sydia
+- [x] User can save and retrieve contacts
+- [x] Sydia can resolve contacts conversationally
+- [x] User can connect Google Calendar
+- [x] User can view calendar events
+- [x] User can create, update, and cancel events through Sydia
 
 ---
 
@@ -419,23 +419,23 @@
 
 - [ ] Phase 3 complete
 - [ ] Phase 4 complete
-- [ ] Phase 5 complete
+- [x] Phase 5 complete
 - [ ] Tasks work reliably
 - [ ] Reminders work reliably
 - [ ] Persistent memory works
 - [ ] Semantic memory retrieval works
-- [ ] Documents work
-- [ ] Image understanding works
-- [ ] Audio transcription works
+- [x] Documents work
+- [x] Image understanding works
+- [x] Audio transcription works
 
 ---
 
 ## Milestone C — Connected Assistant
 
-- [ ] Phase 6 complete
-- [ ] Contacts work
-- [ ] Google Calendar connection works
-- [ ] Calendar actions work from chat
+- [x] Phase 6 complete
+- [x] Contacts work
+- [x] Google Calendar connection works
+- [x] Calendar actions work from chat
 
 ---
 

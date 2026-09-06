@@ -80,7 +80,7 @@ function EmptyConversationState() {
   );
 }
 
-export function ChatPage() {
+export function ChatPage({ initialAttachmentId }: { initialAttachmentId?: string }) {
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null | undefined
   >(undefined);
@@ -187,7 +187,10 @@ export function ChatPage() {
         : undefined;
 
   const optimisticMessage = sendMutation.isPending
-    ? { content: sendMutation.variables.content }
+    ? {
+        content: sendMutation.variables.content,
+        attachmentCount: sendMutation.variables.attachmentIds?.length ?? 0,
+      }
     : undefined;
 
   const retryingRunId = retryMutation.isPending
@@ -329,6 +332,7 @@ export function ChatPage() {
         <ChatComposer
           key={activeConversationId ?? "new"}
           conversationId={activeConversationId ?? undefined}
+          initialAttachmentId={initialAttachmentId}
           disabled={composerDisabled}
           disabledReason={composerDisabledReason}
           isSending={sendMutation.isPending}

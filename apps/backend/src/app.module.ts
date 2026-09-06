@@ -12,6 +12,11 @@ import { MemoriesModule } from './modules/memories/memories.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { TodayModule } from './modules/today/today.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { ContactsModule } from './modules/contacts/contacts.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
+import { StorageModule } from './infra/storage';
+import { CryptoModule } from './infra/crypto';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -177,6 +182,11 @@ export function validateEnvironment(
     RemindersModule,
     MemoriesModule,
     TodayModule,
+    CryptoModule,
+    StorageModule,
+    DocumentsModule,
+    ContactsModule,
+    CalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter, ResponseInterceptor],

@@ -5,3 +5,6 @@ export * from './prisma-user.repository';
 export * from './prisma-memory.repository';
 export * from './prisma-reminder.repository';
 export * from './prisma-task.repository';
+export * from './prisma-document.repository';
+export * from './prisma-contact.repository';
+export * from './prisma-calendar.repository';

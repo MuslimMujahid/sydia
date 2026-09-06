@@ -1,7 +1,10 @@
 import {
   Bell,
   Brain,
+  CalendarDays,
   CheckSquare2,
+  ContactRound,
+  Files,
   Home,
   LogOut,
   MessageSquareText,
@@ -39,6 +42,9 @@ const NAV_ITEMS = [
   { to: "/tasks", label: "Tugas", icon: CheckSquare2 },
   { to: "/reminders", label: "Pengingat", icon: Bell },
   { to: "/memory", label: "Memori", icon: Brain },
+  { to: "/files", label: "File", icon: Files },
+  { to: "/contacts", label: "Kontak", icon: ContactRound },
+  { to: "/calendar", label: "Kalender", icon: CalendarDays },
   { to: "/settings/profile", label: "Profil & preferensi", icon: Settings },
 ] as const;
 

@@ -14,40 +14,44 @@ datasource db {
 // better-auth owns these tables and generates record IDs itself.
 
 model User {
-  id                  String             @id
-  name                String
-  email               String             @unique
-  emailVerified       Boolean            @default(false)
-  image               String?
-  timezone            String             @default("Asia/Jakarta")
-  locale              String             @default("id")
-  onboardingCompleted Boolean            @default(false)
-  automaticMemoryEnabled Boolean            @default(false)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @default(now()) @updatedAt
-  sessions            Session[]
-  accounts            Account[]
-  externalIdentities  ExternalIdentity[]
-  auditEvents         AuditEvent[]
-  conversations       Conversation[]
-  messages            Message[]
-  tasks                 Task[]
-  reminders             Reminder[]
-  memories              Memory[]
-
+  id                     String                @id
+  name                   String
+  email                  String                @unique
+  emailVerified          Boolean               @default(false)
+  image                  String?
+  timezone               String                @default("Asia/Jakarta")
+  locale                 String                @default("id")
+  onboardingCompleted    Boolean               @default(false)
+  automaticMemoryEnabled Boolean               @default(false)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @default(now()) @updatedAt
+  sessions               Session[]
+  accounts               Account[]
+  externalIdentities     ExternalIdentity[]
+  auditEvents            AuditEvent[]
+  conversations          Conversation[]
+  messages               Message[]
+  tasks                  Task[]
+  reminders              Reminder[]
+  memories               Memory[]
+  fileAssets             FileAsset[]
+  documents              Document[]
+  contacts               Contact[]
+  calendarIntegrations   CalendarIntegration[]
+  calendarEvents         CalendarEvent[]
 
   @@map("user")
 }
 
 model ExternalIdentity {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   provider   String
   externalId String
   verifiedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, externalId])
   @@index([userId])
@@ -133,18 +137,19 @@ model Conversation {
 }
 
 model Message {
-  id                String         @id @default(cuid())
+  id                String              @id @default(cuid())
   conversationId    String
   userId            String
   role              String
-  type              String         @default("text")
+  type              String              @default("text")
   content           String
   providerMessageId String?
+  attachments       MessageAttachment[]
   idempotencyKey    String?
-  createdAt         DateTime       @default(now())
-  conversation      Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inputForRuns      AssistantRun[] @relation("AssistantRunInput")
+  createdAt         DateTime            @default(now())
+  conversation      Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inputForRuns      AssistantRun[]      @relation("AssistantRunInput")
 
   @@unique([conversationId, providerMessageId])
   @@unique([userId, idempotencyKey])
@@ -276,27 +281,153 @@ model ReminderOccurrence {
 }
 
 model Memory {
-  id                String    @id @default(cuid())
-  userId            String
-  content           String
-  category          String?
-  status            String    @default("active")
-  pinned            Boolean   @default(false)
-  confidence        Float?
-  sourceType        String    @default("dashboard")
-  sourceMessageId   String?
-  sourceDocumentId  String?
-  extractorVersion  String?
-  supersedesId      String?
-  supersededById    String?
-  embedding         Unsupported("vector(1536)")?
-  embeddingModel    String?
-  embeddingVersion  String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String                       @id @default(cuid())
+  userId           String
+  content          String
+  category         String?
+  status           String                       @default("active")
+  pinned           Boolean                      @default(false)
+  confidence       Float?
+  sourceType       String                       @default("dashboard")
+  sourceMessageId  String?
+  sourceDocumentId String?
+  extractorVersion String?
+  supersedesId     String?
+  supersededById   String?
+  embedding        Unsupported("vector(1536)")?
+  embeddingModel   String?
+  embeddingVersion String?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @default(now()) @updatedAt
+  user             User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status, pinned])
   @@index([userId, updatedAt])
   @@map("memory")
+}
+
+model FileAsset {
+  id           String              @id @default(cuid())
+  userId       String
+  originalName String
+  mimeType     String
+  size         Int
+  checksum     String
+  storageKey   String              @unique
+  kind         String
+  createdAt    DateTime            @default(now())
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document     Document?
+  messages     MessageAttachment[]
+
+  @@index([userId, createdAt])
+  @@map("file_asset")
+}
+
+model MessageAttachment {
+  messageId   String
+  fileAssetId String
+  message     Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileAsset   FileAsset @relation(fields: [fileAssetId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, fileAssetId])
+  @@map("message_attachment")
+}
+
+model Document {
+  id               String          @id @default(cuid())
+  userId           String
+  fileAssetId      String          @unique
+  status           String          @default("processing")
+  title            String
+  textContent      String?
+  transcript       String?
+  imageDescription String?
+  structuredData   Json?
+  errorMessage     String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @default(now()) @updatedAt
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileAsset        FileAsset       @relation(fields: [fileAssetId], references: [id], onDelete: Cascade)
+  chunks           DocumentChunk[]
+
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@map("document")
+}
+
+model DocumentChunk {
+  id               String                       @id @default(cuid())
+  documentId       String
+  userId           String
+  chunkIndex       Int
+  pageNumber       Int?
+  content          String
+  embedding        Unsupported("vector(1536)")?
+  embeddingModel   String?
+  embeddingVersion String?
+  createdAt        DateTime                     @default(now())
+  document         Document                     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([userId, documentId])
+  @@map("document_chunk")
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  normalizedName String
+  aliases        String[] @default([])
+  email          String?
+  phone          String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, normalizedName])
+  @@index([userId, updatedAt])
+  @@map("contact")
+}
+
+model CalendarIntegration {
+  id                   String    @id @default(cuid())
+  userId               String
+  provider             String    @default("google")
+  status               String    @default("disconnected")
+  accessToken          String?
+  refreshToken         String?
+  accessTokenExpiresAt DateTime?
+  scope                String?
+  calendarId           String?   @default("primary")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @default(now()) @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@map("calendar_integration")
+}
+
+model CalendarEvent {
+  id              String   @id @default(cuid())
+  userId          String
+  provider        String   @default("local")
+  providerEventId String?
+  title           String
+  description     String?
+  location        String?
+  startAt         DateTime
+  endAt           DateTime
+  timezone        String
+  attendees       String[] @default([])
+  status          String   @default("confirmed")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, providerEventId])
+  @@index([userId, startAt, status])
+  @@map("calendar_event")
 }

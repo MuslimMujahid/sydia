@@ -39,3 +39,7 @@ yarn-error.log*
 
 # Local orchestration state
 .slim/deepwork/
+
+# QA screenshots and local file storage
+.qa/
+apps/backend/.data/

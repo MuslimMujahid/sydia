@@ -41,6 +41,8 @@ export type AssistantRun = {
 export type ToolInvocationStatus =
   "pending" | "running" | "completed" | "failed" | "rejected";
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export type ToolInvocation = {
   id: string;
   assistantRunId: string;
@@ -48,14 +50,9 @@ export type ToolInvocation = {
   label: string;
   status: ToolInvocationStatus;
   objectId: string | null;
-  objectType: "task" | "reminder" | null;
+  objectType: "task" | "reminder" | "contact" | "calendar_event" | null;
   state: Record<string, string | number | boolean | null> | null;
-  output:
-    | Record<string, string | number | boolean | null>
-    | string
-    | number
-    | boolean
-    | null;
+  output: JsonValue;
   createdAt: string;
   updatedAt: string;
 };
@@ -71,6 +68,7 @@ export type SendMessageVariables = {
   conversationId?: string;
   content: string;
   idempotencyKey: string;
+  attachmentIds?: string[];
 };
 
 export type SendMessageResult = {

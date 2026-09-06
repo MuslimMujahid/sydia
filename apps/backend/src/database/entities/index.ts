@@ -5,3 +5,6 @@ export * from './user.entity';
 export * from './memory.entity';
 export * from './reminder.entity';
 export * from './task.entity';
+export * from './document.entity';
+export * from './contact.entity';
+export * from './calendar.entity';

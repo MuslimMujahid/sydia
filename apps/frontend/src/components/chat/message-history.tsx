@@ -1,4 +1,4 @@
-import { AlertTriangle, LoaderCircle, RotateCcw } from "lucide-react";
+import { AlertTriangle, FileText, LoaderCircle, RotateCcw } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
@@ -20,6 +20,45 @@ function formatMessageTime(value: string): string {
     minute: "2-digit",
   }).format(date);
 }
+type DocumentSource = {
+  documentId: string;
+  documentName: string;
+  pageNumber: number | null;
+  chunkIndex: number | null;
+  excerpt: string | null;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function documentSources(invocations: ToolInvocation[]): DocumentSource[] {
+  return invocations.flatMap((invocation) => {
+    if (invocation.name !== "search_documents") return [];
+    const output = asRecord(invocation.output);
+    if (!Array.isArray(output?.sources)) return [];
+
+    return output.sources.flatMap((value) => {
+      const source = asRecord(value);
+      if (
+        typeof source?.documentId !== "string" ||
+        typeof source.filename !== "string"
+      )
+        return [];
+
+      return [{
+        documentId: source.documentId,
+        documentName: source.filename,
+        pageNumber: typeof source.page === "number" ? source.page : null,
+        chunkIndex: typeof source.chunk === "number" ? source.chunk : null,
+        excerpt: typeof source.quote === "string" ? source.quote : null,
+      }];
+    });
+  });
+}
+
 
 type TimelineEntry =
   | { type: "message"; timestamp: string; message: ConversationMessage }
@@ -113,7 +152,7 @@ export function MessageHistory({
   messages: ConversationMessage[];
   assistantRuns: AssistantRun[];
   toolInvocations: ToolInvocation[];
-  optimisticMessage?: { content: string };
+  optimisticMessage?: { content: string; attachmentCount?: number };
   isSending: boolean;
   retryingRunId?: string;
   retryErrorRunId?: string;
@@ -200,6 +239,9 @@ export function MessageHistory({
         const run = runsByMessageId[message.id];
         const isUser = message.role === "user";
         const time = formatMessageTime(message.createdAt);
+        const provenance = run
+          ? documentSources(toolsByRunId[run.id] ?? [])
+          : [];
 
         return (
           <li
@@ -245,6 +287,33 @@ export function MessageHistory({
               ) : (
                 <AssistantMarkdown content={message.content} />
               )}
+              {!isUser && provenance.length ? (
+                <aside
+                  aria-label="Sumber jawaban"
+                  className="mt-5 border-t border-surface-1 pt-4"
+                >
+                  <p className="font-display text-sm font-bold text-ink">Sumber</p>
+                  <ul className="mt-2 space-y-2 text-sm text-ink-muted">
+                    {provenance.map((source, index) => (
+                      <li
+                        key={`${source.documentId}-${source.chunkIndex ?? index}`}
+                        className="flex items-start gap-2"
+                      >
+                        <FileText className="mt-0.5 size-4 shrink-0 text-brand-deep" />
+                        <span>
+                          <span className="font-medium text-ink-soft">
+                            {source.documentName}
+                            {source.pageNumber ? ` · halaman ${source.pageNumber}` : ""}
+                          </span>
+                          {source.excerpt ? (
+                            <span className="mt-0.5 block line-clamp-2">{source.excerpt}</span>
+                          ) : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </aside>
+              ) : null}
               {!isUser && run ? (
                 <ChatActionCards invocations={toolsByRunId[run.id] ?? []} />
               ) : null}
@@ -275,6 +344,12 @@ export function MessageHistory({
             <p className="break-words whitespace-pre-wrap text-base leading-6 text-ink-soft">
               {optimisticMessage.content}
             </p>
+            {optimisticMessage.attachmentCount ? (
+              <p className="mt-2 flex items-center justify-end gap-1.5 text-sm text-ink-muted">
+                <FileText className="size-4" />
+                {optimisticMessage.attachmentCount} lampiran
+              </p>
+            ) : null}
           </article>
         </li>
       ) : null}

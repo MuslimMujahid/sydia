@@ -236,6 +236,23 @@ export class PrismaConversationRepository implements IConversationRepository {
           });
         }
 
+        const attachmentAssets = input.attachmentIds?.length
+          ? await transaction.fileAsset.findMany({
+              where: {
+                userId: input.userId,
+                OR: [
+                  { id: { in: input.attachmentIds } },
+                  { document: { id: { in: input.attachmentIds } } },
+                ],
+              },
+              select: { id: true },
+            })
+          : [];
+
+        if (attachmentAssets.length !== (input.attachmentIds?.length ?? 0)) {
+          throw new Error('Satu atau beberapa lampiran tidak ditemukan.');
+        }
+
         const userMessage = await transaction.message.create({
           data: {
             conversationId: conversation.id,
@@ -243,6 +260,15 @@ export class PrismaConversationRepository implements IConversationRepository {
             role: 'user',
             content: input.content,
             idempotencyKey: input.idempotencyKey,
+            ...(attachmentAssets.length
+              ? {
+                  attachments: {
+                    createMany: {
+                      data: attachmentAssets.map(({ id: fileAssetId }) => ({ fileAssetId })),
+                    },
+                  },
+                }
+              : {}),
           },
           select: messageSelect,
         });

@@ -1,9 +1,11 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
+  CALENDAR_REPOSITORY,
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
+  type ICalendarRepository,
   type IReminderRepository,
   type ITaskRepository,
   type IUserRepository,
@@ -17,12 +19,14 @@ export class TodayController {
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
+    @Inject(CALENDAR_REPOSITORY) private readonly calendar: ICalendarRepository,
   ) {}
 
   @Get() async get(@Session() s: UserSession) {
     const now = new Date();
     const timezone = (await this.users.findById(s.user.id))?.timezone ?? 'UTC';
-    const [tasks, reminders] = await Promise.all([
+    const window = dayWindow(now, timezone);
+    const [tasks, reminders, events] = await Promise.all([
       this.tasks.list(s.user.id, {
         status: ['inbox', 'doing'],
         due: 'today',
@@ -35,8 +39,9 @@ export class TodayController {
         now,
         timezone,
       }),
+      this.calendar.list(s.user.id, window.start, window.end),
     ]);
 
-    return { date: dayWindow(now, timezone).date, tasks, reminders };
+    return { date: window.date, tasks, reminders, events };
   }
 }

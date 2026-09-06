@@ -15,7 +15,10 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppFilesRouteImport } from './routes/_app.files'
 import { Route as AppMemoryRouteImport } from './routes/_app.memory'
 import { Route as AppRemindersRouteImport } from './routes/_app.reminders'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
@@ -50,9 +53,24 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCalendarRoute = AppCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppChatRoute = AppChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContactsRoute = AppContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFilesRoute = AppFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMemoryRoute = AppMemoryRouteImport.update({
@@ -82,7 +100,10 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
+  '/contacts': typeof AppContactsRoute
+  '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
   '/tasks': typeof AppTasksRoute
@@ -93,7 +114,10 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
+  '/contacts': typeof AppContactsRoute
+  '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
   '/tasks': typeof AppTasksRoute
@@ -107,7 +131,10 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/_app/calendar': typeof AppCalendarRoute
   '/_app/chat': typeof AppChatRoute
+  '/_app/contacts': typeof AppContactsRoute
+  '/_app/files': typeof AppFilesRoute
   '/_app/memory': typeof AppMemoryRoute
   '/_app/reminders': typeof AppRemindersRoute
   '/_app/tasks': typeof AppTasksRoute
@@ -122,7 +149,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/sign-in'
     | '/sign-up'
+    | '/calendar'
     | '/chat'
+    | '/contacts'
+    | '/files'
     | '/memory'
     | '/reminders'
     | '/tasks'
@@ -133,7 +163,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/sign-in'
     | '/sign-up'
+    | '/calendar'
     | '/chat'
+    | '/contacts'
+    | '/files'
     | '/memory'
     | '/reminders'
     | '/tasks'
@@ -146,7 +179,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/sign-in'
     | '/sign-up'
+    | '/_app/calendar'
     | '/_app/chat'
+    | '/_app/contacts'
+    | '/_app/files'
     | '/_app/memory'
     | '/_app/reminders'
     | '/_app/tasks'
@@ -206,11 +242,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/calendar': {
+      id: '/_app/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof AppCalendarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/chat': {
       id: '/_app/chat'
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof AppChatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/contacts': {
+      id: '/_app/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AppContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/files': {
+      id: '/_app/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof AppFilesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/memory': {
@@ -245,7 +302,10 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppCalendarRoute: typeof AppCalendarRoute
   AppChatRoute: typeof AppChatRoute
+  AppContactsRoute: typeof AppContactsRoute
+  AppFilesRoute: typeof AppFilesRoute
   AppMemoryRoute: typeof AppMemoryRoute
   AppRemindersRoute: typeof AppRemindersRoute
   AppTasksRoute: typeof AppTasksRoute
@@ -254,7 +314,10 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCalendarRoute: AppCalendarRoute,
   AppChatRoute: AppChatRoute,
+  AppContactsRoute: AppContactsRoute,
+  AppFilesRoute: AppFilesRoute,
   AppMemoryRoute: AppMemoryRoute,
   AppRemindersRoute: AppRemindersRoute,
   AppTasksRoute: AppTasksRoute,

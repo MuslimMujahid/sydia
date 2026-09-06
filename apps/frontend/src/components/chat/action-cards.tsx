@@ -96,7 +96,7 @@ function actionObject(invocation: ToolInvocation): ActionObject | null {
 function invocationKind(
   invocation: ToolInvocation
 ): "task" | "reminder" | null {
-  if (invocation.objectType) return invocation.objectType;
+  if (invocation.objectType === "task" || invocation.objectType === "reminder") return invocation.objectType;
   if (TASK_TOOL_NAMES[invocation.name]) return "task";
   if (REMINDER_TOOL_NAMES[invocation.name]) return "reminder";
 
