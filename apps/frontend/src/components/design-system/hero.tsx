@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { SydiaLogo } from "@/components/ui/sydia-logo";
 
 const NAV_WORDS = ["Pikirkan", "Rencanakan", "Ciptakan", "Bersama"];
 const SIDE_WORDS = ["Ide", "Tindakan", "Kemajuan"];
@@ -21,7 +22,8 @@ function HeroBand() {
         aria-label="Sistem desain"
         className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10"
       >
-        <span className="font-mono text-base leading-6 tracking-widest uppercase">
+        <span className="flex items-center gap-3 font-mono text-base leading-6 tracking-widest uppercase">
+          <SydiaLogo className="h-7" />
           Sydia
         </span>
         <ul className="hidden items-center gap-8 sm:flex">

@@ -49,8 +49,8 @@ function NewConversationState() {
   return (
     <div className="grid min-h-full place-items-center px-6 py-12 text-center">
       <div className="max-w-lg">
-        <span className="mx-auto grid size-12 place-items-center rounded-full bg-editorial text-canvas">
-          <SydiaLogo className="h-5" darkClassName="fill-canvas" />
+        <span className="mx-auto grid size-12 place-items-center rounded-full bg-canvas ring-1 ring-surface-1">
+          <SydiaLogo className="h-6" />
         </span>
         <h2 className="mt-5 font-display text-2xl font-extrabold sm:text-3xl">
           Apa yang perlu Anda catat atau kerjakan?

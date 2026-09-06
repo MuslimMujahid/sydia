@@ -21,7 +21,7 @@ export function AuthShell({
         aria-label="Tentang Sydia"
       >
         <div className="flex items-center gap-3 font-mono text-sm tracking-widest uppercase">
-          <SydiaLogo className="h-6" darkClassName="fill-canvas" />
+          <SydiaLogo className="h-6" />
           Sydia
         </div>
         <div className="max-w-lg space-y-6">
@@ -43,7 +43,8 @@ export function AuthShell({
       <section className="flex items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-md">
           <div className="mb-10 lg:hidden">
-            <span className="font-mono text-sm tracking-widest text-ink uppercase">
+            <span className="flex items-center gap-3 font-mono text-sm tracking-widest text-ink uppercase">
+              <SydiaLogo className="h-6" />
               Sydia
             </span>
           </div>

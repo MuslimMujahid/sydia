@@ -2,52 +2,23 @@ import { cn } from "@/lib/utils/cn";
 
 type SydiaLogoProps = {
   className?: string;
-  /**
-   * Fill utility for the dark half of the mark.
-   * Pass `"fill-canvas"` on dark surfaces.
-   */
-  darkClassName?: string;
 };
 
-const MARK_PATH =
-  "M 700 150 " +
-  "L 1000 150 " +
-  "C 1038 150 1051 172 1045 212 " +
-  "C 1038 278 1014 320 964 352 " +
-  "C 898 390 772 400 640 425 " +
-  "C 726 466 802 542 856 646 " +
-  "C 898 732 936 800 942 862 " +
-  "C 950 920 938 970 910 1014 " +
-  "C 884 960 860 892 848 810 " +
-  "C 796 710 698 638 590 572 " +
-  "C 510 534 446 502 406 458 " +
-  "C 378 418 373 350 386 290 " +
-  "C 407 222 487 168 600 153 " +
-  "L 700 150 Z " +
-  "M 700 150 " +
-  "C 630 185 548 236 496 290 " +
-  "C 462 324 458 366 482 398 " +
-  "C 505 424 575 430 640 425 " +
-  "C 620 406 608 370 606 326 " +
-  "C 604 274 630 206 700 150 Z";
+const TOP_SWASH =
+  "M1049 149H650C527 149 430 211 398 300C359 410 418 486 504 535L831 720C928 778 949 895 899 1018C993 970 1050 889 1050 800C1050 702 1005 635 924 592L650 465C584 435 585 397 644 397H811C958 397 1050 301 1050 149Z";
 
-export function SydiaLogo({
-  className,
-  darkClassName = "fill-editorial",
-}: SydiaLogoProps) {
+const BOTTOM_SWASH =
+  "M367 292C267 367 218 444 220 527C223 628 289 696 388 737L621 826C677 847 669 910 611 910H442C314 910 220 1000 220 1150H650C769 1150 850 1083 878 988C909 880 868 792 781 746L481 583C370 522 320 424 367 292Z";
+
+export function SydiaLogo({ className }: SydiaLogoProps) {
   return (
     <svg
-      viewBox="239 136 821 1011"
+      viewBox="180 110 910 1080"
       aria-hidden="true"
       className={cn("h-5 w-auto", className)}
     >
-      <path d={MARK_PATH} fillRule="evenodd" className="fill-brand" />
-      <path
-        d={MARK_PATH}
-        fillRule="evenodd"
-        transform="rotate(180 650 642)"
-        className={darkClassName}
-      />
+      <path d={BOTTOM_SWASH} fill="#073f40" />
+      <path d={TOP_SWASH} fill="#32e6e2" />
     </svg>
   );
 }

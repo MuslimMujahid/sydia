@@ -83,8 +83,8 @@ function PendingAssistant({
   return (
     <div className="max-w-xl" role="status" aria-live="polite">
       <div className="flex items-center gap-3 text-ink-muted">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-editorial text-canvas">
-          <SydiaLogo className="h-3.5" darkClassName="fill-canvas" />
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-canvas ring-1 ring-surface-1">
+          <SydiaLogo className="h-4" />
         </span>
         <span className="flex items-center gap-2 text-sm">
           <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
@@ -221,8 +221,8 @@ export function MessageHistory({
                 }
               >
                 {!isUser ? (
-                  <span className="grid size-8 place-items-center rounded-full bg-editorial text-canvas">
-                    <SydiaLogo className="h-3.5" darkClassName="fill-canvas" />
+                  <span className="grid size-8 place-items-center rounded-full bg-canvas ring-1 ring-surface-1">
+                    <SydiaLogo className="h-4" />
                   </span>
                 ) : null}
                 <span className="font-display text-sm font-bold">
