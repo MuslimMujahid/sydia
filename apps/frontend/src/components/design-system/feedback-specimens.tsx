@@ -281,7 +281,7 @@ function ModalSpecimen() {
             <div className="flex justify-end gap-2">
               <DialogClose
                 render={
-                  <Button variant="secondary" size="sm">
+                  <Button variant="dark-outline" size="sm">
                     Batal
                   </Button>
                 }
@@ -330,7 +330,7 @@ function ConfirmDialogSpecimen() {
             <div className="flex justify-center gap-2">
               <DialogClose
                 render={
-                  <Button variant="secondary" size="sm">
+                  <Button variant="dark-outline" size="sm">
                     Batal
                   </Button>
                 }

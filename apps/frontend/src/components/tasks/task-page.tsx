@@ -348,7 +348,7 @@ function CategoryManager({
           <div className="flex justify-end gap-2">
             <Button
               type="button"
-              variant="ghost"
+              variant="dark-outline"
               size="sm"
               disabled={mutation.isPending}
               onClick={cancelForm}
@@ -659,7 +659,7 @@ function TaskEditor({ task, onClose }: { task?: Task; onClose: () => void }) {
             <span />
           )}
           <div className="flex gap-3 sm:justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="dark-outline" onClick={onClose}>
               Batal
             </Button>
             <form.Subscribe

@@ -243,7 +243,7 @@ function MemoryEditor({
             <span />
           )}
           <div className="flex gap-3 sm:justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="dark-outline" onClick={onClose}>
               Batal
             </Button>
             <form.Subscribe

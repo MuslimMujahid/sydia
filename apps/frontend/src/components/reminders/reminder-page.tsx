@@ -303,7 +303,7 @@ function ReminderEditor({
             <span />
           )}
           <div className="flex gap-3 sm:justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="dark-outline" onClick={onClose}>
               Batal
             </Button>
             <form.Subscribe
@@ -418,7 +418,7 @@ function QuickTimeDialog({
         </FieldShell>
         <FormError message={mutation.error?.message} />
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="dark-outline" onClick={onClose}>
             Batal
           </Button>
           <Button type="submit" disabled={!value || mutation.isPending}>

@@ -238,7 +238,7 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
             <span />
           )}
           <div className="flex gap-3 sm:justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="dark-outline" onClick={onClose}>
               Batal
             </Button>
             <form.Subscribe
@@ -339,6 +339,7 @@ export function ContactPage() {
   const [editingContact, setEditingContact] = useState<Contact | "new" | null>(
     null
   );
+
   const query = useQuery(contactsQueryOptions(queryText));
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
