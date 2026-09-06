@@ -6,6 +6,7 @@ import { RequestLoggingMiddleware } from './shared/logging';
 import { AuthModule } from './infra/auth';
 import { PrismaModule } from './infra/prisma';
 import { UsersModule } from './modules/users/users.module';
+import { ConversationsModule } from './modules/conversations/conversations.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -19,6 +20,26 @@ function parsePort(
 
   if (!Number.isInteger(value) || value < 1 || value > 65535) {
     throw new Error(`${name} must be an integer between 1 and 65535`);
+  }
+
+  return value;
+}
+
+function parsePositiveInteger(
+  config: Record<string, unknown>,
+  name:
+    | 'BACKEND_ASSISTANT_CONTEXT_TOKENS'
+    | 'BACKEND_SUMMARY_TRIGGER_TOKENS'
+    | 'BACKEND_SUMMARY_RETAIN_MESSAGES',
+  defaultValue: number,
+): number {
+  const value =
+    config[name] === undefined || config[name] === ''
+      ? defaultValue
+      : Number(config[name]);
+
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer`);
   }
 
   return value;
@@ -92,6 +113,35 @@ export function validateEnvironment(
       typeof authUrl === 'string' && authUrl.trim() !== ''
         ? authUrl
         : `http://localhost:${backendPort}`,
+    BACKEND_MODEL_API_KEY:
+      typeof config.BACKEND_MODEL_API_KEY === 'string'
+        ? config.BACKEND_MODEL_API_KEY.trim()
+        : '',
+    BACKEND_MODEL_BASE_URL:
+      typeof config.BACKEND_MODEL_BASE_URL === 'string' &&
+      config.BACKEND_MODEL_BASE_URL.trim() !== ''
+        ? config.BACKEND_MODEL_BASE_URL.trim()
+        : 'https://openrouter.ai/api/v1',
+    BACKEND_MODEL_NAME:
+      typeof config.BACKEND_MODEL_NAME === 'string' &&
+      config.BACKEND_MODEL_NAME.trim() !== ''
+        ? config.BACKEND_MODEL_NAME.trim()
+        : 'z-ai/glm-5.3-flash',
+    BACKEND_ASSISTANT_CONTEXT_TOKENS: parsePositiveInteger(
+      config,
+      'BACKEND_ASSISTANT_CONTEXT_TOKENS',
+      6000,
+    ),
+    BACKEND_SUMMARY_TRIGGER_TOKENS: parsePositiveInteger(
+      config,
+      'BACKEND_SUMMARY_TRIGGER_TOKENS',
+      4500,
+    ),
+    BACKEND_SUMMARY_RETAIN_MESSAGES: parsePositiveInteger(
+      config,
+      'BACKEND_SUMMARY_RETAIN_MESSAGES',
+      8,
+    ),
   };
 }
 
@@ -104,6 +154,7 @@ export function validateEnvironment(
     PrismaModule,
     AuthModule,
     UsersModule,
+    ConversationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter, ResponseInterceptor],

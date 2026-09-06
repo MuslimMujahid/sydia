@@ -28,6 +28,9 @@ model User {
   accounts            Account[]
   externalIdentities  ExternalIdentity[]
   auditEvents         AuditEvent[]
+  conversations       Conversation[]
+  messages            Message[]
+
 
   @@map("user")
 }
@@ -104,4 +107,103 @@ model Verification {
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@map("verification")
+}
+
+model Conversation {
+  id                      String                @id @default(cuid())
+  userId                  String
+  channel                 String                @default("web")
+  title                   String?
+  rollingSummary          String?
+  summaryThroughMessageId String?
+  lastMessageAt           DateTime              @default(now())
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @default(now()) @updatedAt
+  user                    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages                Message[]
+  summaries               ConversationSummary[]
+  assistantRuns           AssistantRun[]
+
+  @@index([userId, lastMessageAt])
+  @@map("conversation")
+}
+
+model Message {
+  id                String         @id @default(cuid())
+  conversationId    String
+  userId            String
+  role              String
+  type              String         @default("text")
+  content           String
+  providerMessageId String?
+  idempotencyKey    String?
+  createdAt         DateTime       @default(now())
+  conversation      Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inputForRuns      AssistantRun[] @relation("AssistantRunInput")
+
+  @@unique([conversationId, providerMessageId])
+  @@unique([userId, idempotencyKey])
+  @@index([conversationId, createdAt])
+  @@map("message")
+}
+
+model ConversationSummary {
+  id               String       @id @default(cuid())
+  conversationId   String
+  content          String
+  throughMessageId String
+  createdAt        DateTime     @default(now())
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("conversation_summary")
+}
+
+model AssistantRun {
+  id                 String           @id @default(cuid())
+  conversationId     String
+  inputMessageId     String
+  idempotencyKey     String           @unique
+  assistantMessageId String?
+  retryOfRunId       String?
+  status             String           @default("queued")
+  provider           String
+  model              String
+  errorMessage       String?
+  inputTokens        Int?
+  outputTokens       Int?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @default(now()) @updatedAt
+  conversation       Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  inputMessage       Message          @relation("AssistantRunInput", fields: [inputMessageId], references: [id], onDelete: Cascade)
+  toolInvocations    ToolInvocation[]
+
+  @@index([conversationId, createdAt])
+  @@index([inputMessageId, createdAt])
+  @@map("assistant_run")
+}
+
+model ToolInvocation {
+  id             String       @id @default(cuid())
+  assistantRunId String
+  toolCallId     String
+  name           String
+  label          String
+  status         String       @default("pending")
+  arguments      Json
+  result         Json?
+  errorMessage   String?
+  idempotencyKey String       @unique
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  assistantRun   AssistantRun @relation(fields: [assistantRunId], references: [id], onDelete: Cascade)
+
+  @@unique([assistantRunId, toolCallId])
+  @@index([assistantRunId, createdAt])
+  @@map("tool_invocation")
 }

@@ -73,35 +73,35 @@
 
 ## Backend
 
-- [ ] BE-0201 Create Conversation domain
-- [ ] BE-0202 Create Message domain
-- [ ] BE-0203 Create Conversation Summary domain
-- [ ] BE-0204 Create Assistant Run domain
-- [ ] BE-0205 Create Tool Invocation domain
-- [ ] BE-0206 Implement Model Gateway
-- [ ] BE-0207 Implement Assistant Orchestrator
-- [ ] BE-0208 Implement Context Builder
-- [ ] BE-0209 Implement conversation summarization
-- [ ] BE-0210 Create web chat API
-- [ ] BE-0211 Implement message idempotency
-- [ ] BE-0212 Implement assistant tool execution safeguards
+- [x] BE-0201 Create Conversation domain
+- [x] BE-0202 Create Message domain
+- [x] BE-0203 Create Conversation Summary domain
+- [x] BE-0204 Create Assistant Run domain
+- [x] BE-0205 Create Tool Invocation domain
+- [x] BE-0206 Implement Model Gateway
+- [x] BE-0207 Implement Assistant Orchestrator
+- [x] BE-0208 Implement Context Builder
+- [x] BE-0209 Implement conversation summarization
+- [x] BE-0210 Create web chat API
+- [x] BE-0211 Implement message idempotency
+- [x] BE-0212 Implement assistant tool execution safeguards
 
 ## Frontend
 
-- [ ] FE-0201 Create web chat page
-- [ ] FE-0202 Create conversation list
-- [ ] FE-0203 Create message history view
-- [ ] FE-0204 Create chat composer
-- [ ] FE-0205 Add assistant loading state
-- [ ] FE-0206 Add assistant error and retry state
-- [ ] FE-0207 Create assistant activity/history view
+- [x] FE-0201 Create web chat page
+- [x] FE-0202 Create conversation list
+- [x] FE-0203 Create message history view
+- [x] FE-0204 Create chat composer
+- [x] FE-0205 Add assistant loading state
+- [x] FE-0206 Add assistant error and retry state
+- [x] FE-0207 Create assistant activity/history view
 
 ## Phase Exit
 
-- [ ] User can chat with Sydia from the web
-- [ ] Conversations are persisted
-- [ ] Conversation summaries are generated when needed
-- [ ] Web chat is sufficient for developing and testing assistant features
+- [x] User can chat with Sydia from the web
+- [x] Conversations are persisted
+- [x] Conversation summaries are generated when needed
+- [x] Web chat is sufficient for developing and testing assistant features
 
 ---
 
@@ -408,10 +408,10 @@
 
 - [ ] Phase 0 complete
 - [ ] Phase 1 complete
-- [ ] Phase 2 complete
-- [ ] Account creation works
-- [ ] Web chat works
-- [ ] Assistant context lifecycle works
+- [x] Phase 2 complete
+- [x] Account creation works
+- [x] Web chat works
+- [x] Assistant context lifecycle works
 
 ---
 

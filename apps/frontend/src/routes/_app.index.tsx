@@ -33,9 +33,9 @@ function TodayPage() {
       </header>
 
       <section aria-labelledby="context-title">
-        <Card variant="dark-accent" className="p-7 sm:p-8">
+        <Card variant="light" className="border-brand/60 p-7 sm:p-8">
           <div className="max-w-3xl space-y-4">
-            <p className="font-mono text-xs tracking-widest text-brand uppercase">
+            <p className="font-mono text-xs tracking-widest text-brand-deep uppercase">
               Konteks saat ini
             </p>
             <h2
@@ -45,22 +45,22 @@ function TodayPage() {
               Preferensi yang digunakan Sydia
             </h2>
           </div>
-          <dl className="mt-7 divide-y divide-canvas/10 border-y border-canvas/10">
+          <dl className="mt-7 divide-y divide-surface-1 border-y border-surface-1">
             <div className="grid gap-1 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
-              <dt className="text-sm text-canvas/60">Zona waktu</dt>
-              <dd className="font-semibold text-canvas">
+              <dt className="text-sm text-ink-muted">Zona waktu</dt>
+              <dd className="font-semibold text-ink">
                 {user.timezone.replaceAll("_", " ")}
               </dd>
             </div>
             <div className="grid gap-1 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
-              <dt className="text-sm text-canvas/60">Bahasa</dt>
-              <dd className="font-semibold text-canvas">
+              <dt className="text-sm text-ink-muted">Bahasa</dt>
+              <dd className="font-semibold text-ink">
                 {user.locale === "id" ? "Bahasa Indonesia" : "Bahasa Inggris"}
               </dd>
             </div>
           </dl>
           <Button
-            variant="dark-outline"
+            variant="secondary"
             className="mt-8"
             nativeButton={false}
             render={<Link to="/settings/profile" />}

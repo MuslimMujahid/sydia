@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Sparkles } from "lucide-react";
+import { SydiaLogo } from "@/components/ui/sydia-logo";
 
 export function AuthShell({
   eyebrow,
@@ -21,7 +21,7 @@ export function AuthShell({
         aria-label="Tentang Sydia"
       >
         <div className="flex items-center gap-3 font-mono text-sm tracking-widest uppercase">
-          <Sparkles className="size-5 text-brand" />
+          <SydiaLogo className="h-6" darkClassName="fill-canvas" />
           Sydia
         </div>
         <div className="max-w-lg space-y-6">

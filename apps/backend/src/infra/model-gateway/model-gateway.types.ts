@@ -1,0 +1,21 @@
+import type { ModelMessage, ToolSet } from 'ai';
+
+export type { ModelMessage, ToolSet } from 'ai';
+
+export type GenerateRequest = {
+  messages: ModelMessage[];
+  tools?: ToolSet;
+};
+
+export type GenerateResult = {
+  text: string;
+  usage: { inputTokens?: number; outputTokens?: number };
+};
+
+export interface LanguageModelGateway {
+  readonly provider: 'openrouter';
+  readonly model: string;
+  generate(request: GenerateRequest): Promise<GenerateResult>;
+}
+
+export const LANGUAGE_MODEL = Symbol('LanguageModelGateway');

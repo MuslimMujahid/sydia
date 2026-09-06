@@ -1,9 +1,9 @@
 import {
   Home,
   LogOut,
+  MessageSquareText,
   Menu,
   Settings,
-  Sparkles,
   UserRound,
   X,
 } from "lucide-react";
@@ -26,11 +26,13 @@ import {
   userQueryKeys,
   type UserProfile,
 } from "@/lib/services/api/users/users.queries";
+import { SydiaLogo } from "@/components/ui/sydia-logo";
 import { SESSION_EXPIRED_EVENT } from "@/lib/services/api/api";
 import { cn } from "@/lib/utils/cn";
 
 const NAV_ITEMS = [
   { to: "/", label: "Hari ini", icon: Home },
+  { to: "/chat", label: "Chat", icon: MessageSquareText },
   { to: "/settings/profile", label: "Profil & preferensi", icon: Settings },
 ] as const;
 
@@ -106,7 +108,7 @@ export function DashboardShell({
               "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors outline-none focus-visible:ring-3 focus-visible:ring-brand/40",
               active
                 ? "bg-brand text-ink"
-                : "text-canvas/70 hover:bg-canvas/10 hover:text-canvas"
+                : "text-ink-muted hover:bg-surface-1 hover:text-ink"
             )}
           >
             <Icon className="size-4" />
@@ -118,18 +120,18 @@ export function DashboardShell({
   );
 
   return (
-    <div className="min-h-screen bg-canvas text-ink lg:grid lg:grid-cols-[17rem_1fr]">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-68 flex-col bg-canvas-dark px-5 py-6 text-canvas lg:flex">
+    <div className="min-h-screen bg-canvas text-ink lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-68 flex-col border-r border-surface-1 bg-canvas px-5 py-6 text-ink lg:flex">
         <Link
           to="/"
           className="flex items-center gap-3 px-3 font-mono text-sm tracking-widest uppercase"
         >
-          <Sparkles className="size-5 text-brand" />
+          <SydiaLogo className="h-6" />
           Sydia
         </Link>
         <div className="mt-12 flex-1">{navigation}</div>
       </aside>
-      <div className="lg:col-start-2">
+      <div className="min-w-0 lg:col-start-2">
         <header className="sticky top-0 z-30 flex h-16 items-center border-b border-surface-1 bg-canvas/95 px-4 backdrop-blur sm:px-8">
           <Button
             variant="ghost"
@@ -181,12 +183,18 @@ export function DashboardShell({
         {mobileOpen ? (
           <div
             id="mobile-navigation"
-            className="fixed inset-x-0 top-16 z-20 bg-canvas-dark p-4 text-canvas shadow-sm lg:hidden"
+            className="fixed inset-x-0 top-16 z-20 border-b border-surface-1 bg-canvas p-4 text-ink shadow-sm lg:hidden"
           >
             {navigation}
           </div>
         ) : null}
-        <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
+        <main
+          className={cn(
+            "mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14",
+            activePath === "/chat" &&
+              "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:p-0"
+          )}
+        >
           {children}
         </main>
       </div>
