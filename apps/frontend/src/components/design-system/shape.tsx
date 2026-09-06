@@ -1,13 +1,13 @@
 import { ShowcaseSection } from "./section";
 
 const RADII: { name: string; px: number; className: string }[] = [
-  { name: "none", px: 0, className: "rounded-none" },
-  { name: "xs", px: 2, className: "rounded-xs" },
+  { name: "none", px: 0, className: "rounded-sm" },
+  { name: "xs", px: 2, className: "rounded-sm" },
   { name: "sm", px: 4, className: "rounded-sm" },
   { name: "md", px: 6, className: "rounded-md" },
   { name: "lg", px: 8, className: "rounded-lg" },
-  { name: "xl", px: 12, className: "rounded-xl" },
-  { name: "2xl", px: 16, className: "rounded-2xl" },
+  { name: "xl", px: 12, className: "rounded-lg" },
+  { name: "2xl", px: 16, className: "rounded-lg" },
   { name: "pill", px: 360, className: "rounded-pill" },
 ];
 

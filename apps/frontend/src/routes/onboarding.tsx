@@ -92,16 +92,16 @@ function OnboardingPage() {
   }, [form, user.timezone]);
 
   return (
-    <main className="min-h-screen bg-surface-1/30 px-5 py-10 sm:px-8 lg:py-16">
+    <main className="min-h-screen bg-background px-5 py-10 sm:px-8 lg:py-16">
       <div className="mx-auto max-w-3xl">
         <header className="mb-10 max-w-2xl space-y-4">
-          <p className="font-mono text-xs tracking-widest text-link uppercase">
+          <p className="font-mono text-[13px] font-medium tracking-widest text-ink-muted uppercase">
             Pengaturan akun
           </p>
-          <h1 className="font-display text-4xl leading-tight font-extrabold sm:text-5xl">
+          <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] sm:text-[44px] sm:leading-[1.1] sm:font-bold sm:tracking-[-0.03em]">
             Atur zona waktu dan bahasa Anda.
           </h1>
-          <p className="text-lg text-ink-muted">
+          <p className="text-[15px] leading-[1.6] text-ink-muted">
             Sydia menggunakan pilihan ini untuk memahami frasa seperti “besok
             pagi” dan memformat respons. Anda dapat mengubahnya nanti.
           </p>

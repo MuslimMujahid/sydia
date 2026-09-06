@@ -15,16 +15,19 @@ const MONTH_LABEL_FORMAT = new Intl.DateTimeFormat("id-ID", {
   year: "numeric",
   timeZone: "UTC",
 });
+
 const DAY_LABEL_FORMAT = new Intl.DateTimeFormat("id-ID", {
   weekday: "long",
   day: "numeric",
   month: "long",
   timeZone: "UTC",
 });
+
 const WEEKDAY_SHORT_FORMAT = new Intl.DateTimeFormat("id-ID", {
   weekday: "short",
   timeZone: "UTC",
 });
+
 const WEEKDAY_LONG_FORMAT = new Intl.DateTimeFormat("id-ID", {
   weekday: "long",
   timeZone: "UTC",
@@ -34,6 +37,7 @@ const WEEKDAY_LONG_FORMAT = new Intl.DateTimeFormat("id-ID", {
 const WEEKDAY_LABELS = Array.from({ length: 7 }, (_, index) =>
   WEEKDAY_SHORT_FORMAT.format(new Date(Date.UTC(2024, 0, 1 + index, 12)))
 );
+
 const WEEKDAY_NAMES = Array.from({ length: 7 }, (_, index) =>
   WEEKDAY_LONG_FORMAT.format(new Date(Date.UTC(2024, 0, 1 + index, 12)))
 );
@@ -56,6 +60,7 @@ function utcNoon(year: number, month: number, day: number): Date {
 
 function addCalendarDays(date: CalendarDate, delta: number): CalendarDate {
   const shifted = utcNoon(date.year, date.month, date.day + delta);
+
   return {
     year: shifted.getUTCFullYear(),
     month: shifted.getUTCMonth() + 1,
@@ -70,6 +75,7 @@ function daysInMonth(anchor: MonthAnchor): number {
 /** Day key ("yyyy-MM-dd") of an instant as seen in the given time zone. */
 export function dayKeyInZone(date: Date, timeZone: string): string {
   let formatter = DAY_KEY_FORMATTERS.get(timeZone);
+
   if (!formatter) {
     formatter = new Intl.DateTimeFormat("en-CA", {
       timeZone,
@@ -79,11 +85,13 @@ export function dayKeyInZone(date: Date, timeZone: string): string {
     });
     DAY_KEY_FORMATTERS.set(timeZone, formatter);
   }
+
   return formatter.format(date);
 }
 
 function zonedPartsFormatter(timeZone: string): Intl.DateTimeFormat {
   let formatter = ZONED_PARTS_FORMATTERS.get(timeZone);
+
   if (!formatter) {
     formatter = new Intl.DateTimeFormat("en-US", {
       timeZone,
@@ -97,15 +105,18 @@ function zonedPartsFormatter(timeZone: string): Intl.DateTimeFormat {
     });
     ZONED_PARTS_FORMATTERS.set(timeZone, formatter);
   }
+
   return formatter;
 }
 
 function timeZoneOffsetMs(timeZone: string, instant: Date): number {
   const values: Record<string, number> = {};
+
   for (const part of zonedPartsFormatter(timeZone).formatToParts(instant)) {
     if (part.type === "literal") continue;
     values[part.type] = Number(part.value);
   }
+
   const hour = values.hour === 24 ? 0 : (values.hour ?? 0);
   const wallAsUtc = Date.UTC(
     values.year ?? 0,
@@ -115,19 +126,18 @@ function timeZoneOffsetMs(timeZone: string, instant: Date): number {
     values.minute ?? 0,
     values.second ?? 0
   );
+
   return wallAsUtc - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
 /** Instant (ISO) of a wall-clock midnight in the given time zone. */
-function zonedMidnightToUtcIso(
-  timeZone: string,
-  date: CalendarDate
-): string {
+function zonedMidnightToUtcIso(timeZone: string, date: CalendarDate): string {
   const guess = Date.UTC(date.year, date.month - 1, date.day);
   const offset = timeZoneOffsetMs(timeZone, new Date(guess));
   let utc = guess - offset;
   const refined = timeZoneOffsetMs(timeZone, new Date(utc));
   if (refined !== offset) utc = guess - refined;
+
   return new Date(utc).toISOString();
 }
 
@@ -137,6 +147,7 @@ export function getMonthAnchorInZone(
   now = new Date()
 ): MonthAnchor {
   const [year = "0", month = "0"] = dayKeyInZone(now, timeZone).split("-");
+
   return { year: Number(year), month: Number(month) };
 }
 
@@ -145,6 +156,7 @@ export function shiftMonthAnchor(
   delta: number
 ): MonthAnchor {
   const shifted = utcNoon(anchor.year, anchor.month + delta, 1);
+
   return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1 };
 }
 
@@ -154,6 +166,7 @@ export function clampDayKeyToMonth(
   anchor: MonthAnchor
 ): string {
   const [, , day = "1"] = dayKey.split("-");
+
   return dayKeyOf({
     year: anchor.year,
     month: anchor.month,
@@ -163,13 +176,19 @@ export function clampDayKeyToMonth(
 
 /** Monday-first, week-aligned days covering the visible month (4–6 weeks). */
 export function getMonthGridDays(anchor: MonthAnchor): MonthGridDay[] {
-  const first: CalendarDate = { year: anchor.year, month: anchor.month, day: 1 };
+  const first: CalendarDate = {
+    year: anchor.year,
+    month: anchor.month,
+    day: 1,
+  };
   const weekday = utcNoon(first.year, first.month, first.day).getUTCDay();
   const leadDays = (weekday + 6) % 7;
   const weekCount = Math.ceil((leadDays + daysInMonth(anchor)) / 7);
   const start = addCalendarDays(first, -leadDays);
+
   return Array.from({ length: weekCount * 7 }, (_, index) => {
     const date = addCalendarDays(start, index);
+
     return {
       ...date,
       key: dayKeyOf(date),
@@ -186,8 +205,10 @@ export function getMonthGridRange(
   const days = getMonthGridDays(anchor);
   const first = days[0];
   const last = days[days.length - 1];
-  if (!first || !last) throw new Error("Month grid must contain at least one day");
+  if (!first || !last)
+    throw new Error("Month grid must contain at least one day");
   const afterLast = addCalendarDays(last, 1);
+
   return {
     from: zonedMidnightToUtcIso(timeZone, first),
     to: zonedMidnightToUtcIso(timeZone, afterLast),
@@ -198,11 +219,11 @@ export function getMonthGridRange(
 export function getEventDayKeys(event: CalendarEvent): string[] {
   const start = new Date(event.startAt);
   const end = new Date(event.endAt);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
-    return [];
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
   const firstKey = dayKeyInZone(start, event.timezone);
   const lastInstant =
     end.getTime() > start.getTime() ? end.getTime() - 1 : start.getTime();
+
   const lastKey = dayKeyInZone(new Date(lastInstant), event.timezone);
   const keys: string[] = [];
   let date: CalendarDate = {
@@ -210,12 +231,14 @@ export function getEventDayKeys(event: CalendarEvent): string[] {
     month: Number(firstKey.slice(5, 7)),
     day: Number(firstKey.slice(8, 10)),
   };
+
   for (let guard = 0; guard < 370; guard += 1) {
     const key = dayKeyOf(date);
     keys.push(key);
     if (key >= lastKey) break;
     date = addCalendarDays(date, 1);
   }
+
   return keys;
 }
 
@@ -235,6 +258,7 @@ export function formatDayKeyLabel(dayKey: string): string {
 
 function timeFormatter(timeZone: string): Intl.DateTimeFormat {
   let formatter = TIME_FORMATTERS.get(timeZone);
+
   if (!formatter) {
     formatter = new Intl.DateTimeFormat("id-ID", {
       hour: "2-digit",
@@ -243,6 +267,7 @@ function timeFormatter(timeZone: string): Intl.DateTimeFormat {
     });
     TIME_FORMATTERS.set(timeZone, formatter);
   }
+
   return formatter;
 }
 
@@ -252,12 +277,14 @@ export function timeLabel(event: CalendarEvent): string {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
     return `${event.startAt} – ${event.endAt}`;
   const formatter = timeFormatter(event.timezone);
+
   return `${formatter.format(start)}–${formatter.format(end)}`;
 }
 
 function startTimeLabel(event: CalendarEvent): string {
   const start = new Date(event.startAt);
   if (Number.isNaN(start.getTime())) return event.startAt;
+
   return timeFormatter(event.timezone).format(start);
 }
 
@@ -289,6 +316,7 @@ export function MonthGrid({
     const chunks: MonthGridDay[][] = [];
     for (let index = 0; index < days.length; index += 7)
       chunks.push(days.slice(index, index + 7));
+
     return chunks;
   }, [days]);
 
@@ -308,12 +336,17 @@ export function MonthGrid({
       </div>
       <div className="grid grid-cols-7 border-t border-l border-surface-1">
         {weeks.map((week) => (
-          <div role="row" key={week[0]?.key ?? `week-${week.length}`} className="contents">
+          <div
+            role="row"
+            key={week[0]?.key ?? `week-${week.length}`}
+            className="contents"
+          >
             {week.map((day) => {
               const events = eventsByDay[day.key] ?? [];
               const isToday = day.key === todayKey;
               const isSelected = day.key === selectedDay;
               const dayLabel = formatDayKeyLabel(day.key);
+
               return (
                 <div
                   key={day.key}
@@ -331,12 +364,12 @@ export function MonthGrid({
                     aria-label={`${dayLabel}${
                       events.length ? `, ${events.length} acara` : ""
                     }${isToday ? ", hari ini" : ""}`}
-                    className="flex flex-col items-center gap-1 rounded-xs outline-none focus-visible:ring-3 focus-visible:ring-brand/40 sm:items-start"
+                    className="flex flex-col items-center gap-1 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-brand/50 sm:items-start"
                     onClick={() => onSelectDay(day.key)}
                   >
                     <span
                       className={cn(
-                        "grid size-6 place-items-center rounded-full font-display text-xs font-bold sm:size-7 sm:text-sm",
+                        "grid size-6 place-items-center rounded-pill font-display text-xs font-semibold sm:size-7 sm:text-sm",
                         isToday
                           ? "bg-brand text-ink"
                           : day.inMonth
@@ -355,7 +388,7 @@ export function MonthGrid({
                         {events.slice(0, MAX_MOBILE_MARKERS).map((event) => (
                           <span
                             key={event.id}
-                            className="size-1 rounded-full bg-brand-deep"
+                            className="size-1 rounded-pill bg-ink-muted"
                           />
                         ))}
                         {events.length > MAX_MOBILE_MARKERS ? (
@@ -371,7 +404,7 @@ export function MonthGrid({
                       <li key={event.id} className="min-w-0">
                         <button
                           type="button"
-                          className="flex w-full min-w-0 items-baseline gap-1.5 rounded-xs px-1 py-0.5 text-left outline-none hover:bg-surface-1 focus-visible:ring-3 focus-visible:ring-brand/40"
+                          className="flex w-full min-w-0 items-baseline gap-1.5 rounded-sm px-1 py-0.5 text-left outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50"
                           onClick={() => onEditEvent(event)}
                         >
                           <time
@@ -390,7 +423,7 @@ export function MonthGrid({
                       <li>
                         <button
                           type="button"
-                          className="w-full rounded-xs px-1 py-0.5 text-left text-xs text-ink-muted outline-none hover:text-ink focus-visible:ring-3 focus-visible:ring-brand/40"
+                          className="w-full rounded-sm px-1 py-0.5 text-left text-xs text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50"
                           onClick={() => onSelectDay(day.key)}
                         >
                           +{events.length - MAX_DESKTOP_ENTRIES} lainnya
@@ -401,7 +434,7 @@ export function MonthGrid({
                   <button
                     type="button"
                     aria-label={`Buat acara pada ${dayLabel}`}
-                    className="absolute top-1 right-1 hidden size-6 place-items-center rounded-full text-ink-muted opacity-0 transition-opacity outline-none hover:bg-surface-1 hover:text-ink focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-brand/40 sm:grid sm:group-hover:opacity-100"
+                    className="absolute top-1 right-1 hidden size-6 place-items-center rounded-pill text-ink-muted opacity-0 transition-opacity outline-none hover:bg-surface-1 hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-brand/50 sm:grid sm:group-hover:opacity-100"
                     onClick={() => onCreateForDay(day.key)}
                   >
                     <Plus className="size-3.5" />

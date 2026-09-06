@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils/cn";
 const eyebrowVariants = cva("font-mono uppercase", {
   variants: {
     variant: {
-      plain: "text-base leading-6 text-link",
-      muted: "text-base leading-6 text-ink-weak",
-      chip: "inline-flex items-center rounded-sm bg-surface-2 px-2 py-0.5 text-xs leading-[18px] text-editorial-deep",
+      plain: "text-[13px] leading-none font-medium text-ink-muted",
+      muted: "text-[13px] leading-none font-medium text-ink-muted",
+      chip: "inline-flex items-center rounded-sm bg-ink/6 px-2 py-1 text-[13px] leading-none font-medium text-ink",
     },
   },
   defaultVariants: { variant: "plain" },

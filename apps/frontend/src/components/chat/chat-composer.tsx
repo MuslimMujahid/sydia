@@ -46,11 +46,14 @@ type ChatComposerProps = {
 function kindFromFile(file: File): FileKind {
   if (file.type.startsWith("image/")) return "image";
   if (file.type.startsWith("audio/")) return "audio";
+
   return "document";
 }
 
 function AttachmentIcon({ kind }: { kind: FileKind }) {
-  const Icon = kind === "audio" ? FileAudio : kind === "image" ? FileImage : FileText;
+  const Icon =
+    kind === "audio" ? FileAudio : kind === "image" ? FileImage : FileText;
+
   return <Icon className="size-4 shrink-0" aria-hidden="true" />;
 }
 
@@ -75,7 +78,9 @@ export function ChatComposer({
   useEffect(() => {
     if (!initialAttachmentId) return;
     setAttachments((current) =>
-      current.some((attachment) => attachment.documentId === initialAttachmentId)
+      current.some(
+        (attachment) => attachment.documentId === initialAttachmentId
+      )
         ? current
         : [
             ...current,
@@ -94,10 +99,12 @@ export function ChatComposer({
   const readyAttachments = attachments.filter(
     (attachment) => attachment.status === "ready" && attachment.documentId
   );
+
   const hasPendingUpload = attachments.some(
     (attachment) =>
       attachment.status === "queued" || attachment.status === "uploading"
   );
+
   const canSend =
     Boolean(normalizedContent || readyAttachments.length) &&
     !hasPendingUpload &&
@@ -119,6 +126,7 @@ export function ChatComposer({
         file: attachment.file,
         conversationId,
       });
+
       setAttachments((current) =>
         current.map((item) =>
           item.localId === attachment.localId
@@ -159,6 +167,7 @@ export function ChatComposer({
       status: "queued" as const,
       file,
     }));
+
     event.target.value = "";
     setAttachments((current) => [...current, ...selected]);
     for (const attachment of selected) await uploadAttachment(attachment);
@@ -175,15 +184,18 @@ export function ChatComposer({
     const submittedContent =
       normalizedContent ||
       `Gunakan ${readyAttachments.length === 1 ? "file terlampir" : `${readyAttachments.length} file terlampir`} ini.`;
+
     if (!canSend) return;
     const attachmentIds = readyAttachments.flatMap((attachment) =>
       attachment.documentId ? [attachment.documentId] : []
     );
+
     const signature = `${submittedContent}\u0000${attachmentIds.join(",")}`;
     const idempotencyKey =
       lastSubmission.current?.signature === signature
         ? lastSubmission.current.idempotencyKey
         : crypto.randomUUID();
+
     lastSubmission.current = { signature, idempotencyKey };
 
     try {
@@ -236,7 +248,13 @@ export function ChatComposer({
                   <AttachmentIcon kind={attachment.kind} />
                 )}
                 <span className="max-w-52 truncate">{attachment.name}</span>
-                <span className={attachment.status === "error" ? "text-destructive" : "text-ink-muted"}>
+                <span
+                  className={
+                    attachment.status === "error"
+                      ? "text-destructive"
+                      : "text-ink-muted"
+                  }
+                >
                   {attachment.status === "queued"
                     ? "Menunggu"
                     : attachment.status === "uploading"
@@ -272,7 +290,7 @@ export function ChatComposer({
             ))}
           </ul>
         ) : null}
-        <div className="flex items-end gap-2 rounded-xl border border-hairline bg-canvas p-2 transition-colors focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/20">
+        <div className="flex items-end gap-2 rounded-md border border-ink/16 bg-canvas p-2 focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
           <input
             ref={fileInputRef}
             type="file"
@@ -326,7 +344,9 @@ export function ChatComposer({
               {errorMessage} Tekan kirim untuk mencoba lagi.
             </p>
           ) : hasPendingUpload ? (
-            <p className="text-ink-muted">Tunggu hingga semua lampiran selesai diunggah.</p>
+            <p className="text-ink-muted">
+              Tunggu hingga semua lampiran selesai diunggah.
+            </p>
           ) : disabledReason ? (
             <p className="text-ink-muted">{disabledReason}</p>
           ) : null}

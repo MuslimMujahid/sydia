@@ -13,12 +13,14 @@ export function DomainPageHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-6 border-b border-surface-1 pb-8 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-6 border-b border-ink/8 pb-8 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-2xl">
-        <h1 className="font-display text-4xl leading-tight font-extrabold sm:text-5xl">
+        <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
           {title}
         </h1>
-        <p className="mt-3 text-lg text-ink-muted">{description}</p>
+        <p className="mt-3 text-[15px] leading-[1.6] text-ink-muted">
+          {description}
+        </p>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>
@@ -59,7 +61,9 @@ export function DomainInlineError({
   return (
     <div className="border-y border-destructive/30 py-8" role="alert">
       <AlertTriangle className="size-6 text-destructive" />
-      <h2 className="mt-4 font-display text-2xl font-bold">{title}</h2>
+      <h2 className="mt-4 font-display text-[17px] leading-[1.6] font-semibold">
+        {title}
+      </h2>
       <p className="mt-2 max-w-xl text-ink-muted">{message}</p>
       <Button variant="secondary" size="sm" className="mt-5" onClick={onRetry}>
         <RotateCcw />

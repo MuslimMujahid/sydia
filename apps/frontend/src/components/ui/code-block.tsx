@@ -23,7 +23,7 @@ function CodeBlock({ className, code, children, ...props }: CodeBlockProps) {
   return (
     <div
       data-slot="code-block"
-      className={cn("relative rounded-md bg-editorial p-4", className)}
+      className={cn("relative rounded-md bg-ink p-4", className)}
       {...props}
     >
       <pre className="overflow-x-auto font-mono text-xs leading-[18px] text-canvas">
@@ -33,7 +33,7 @@ function CodeBlock({ className, code, children, ...props }: CodeBlockProps) {
         type="button"
         onClick={copy}
         aria-label={copied ? "Tersalin" : "Salin kode"}
-        className="absolute top-3 right-3 rounded-sm p-1 text-canvas/60 transition-colors hover:text-canvas focus-visible:ring-3 focus-visible:ring-brand/40 focus-visible:outline-none"
+        className="absolute top-3 right-3 rounded-sm p-1 text-canvas/60 hover:text-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50"
       >
         {copied ? (
           <Check className="size-3.5" />

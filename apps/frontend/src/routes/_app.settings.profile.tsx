@@ -74,13 +74,13 @@ function ProfileSettingsPage() {
   return (
     <div className="max-w-3xl space-y-10">
       <header className="space-y-4">
-        <p className="font-mono text-xs tracking-widest text-link uppercase">
+        <p className="font-mono text-[13px] font-medium tracking-widest text-ink-muted uppercase">
           Pengaturan / Identitas & interpretasi
         </p>
-        <h1 className="font-display text-4xl font-extrabold sm:text-5xl">
+        <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
           Profil & preferensi
         </h1>
-        <p className="max-w-2xl text-lg text-ink-muted">
+        <p className="max-w-2xl text-[15px] leading-[1.6] text-ink-muted">
           Kelola informasi yang digunakan Sydia untuk menyapa Anda dan memahami
           waktu. Perubahan disimpan ke akun Anda.
         </p>
@@ -201,7 +201,9 @@ function ProfileSettingsPage() {
       <Card className="p-6 sm:p-8">
         <div className="flex items-start justify-between gap-6">
           <div className="max-w-xl">
-            <h2 className="font-display text-2xl font-bold">Memori otomatis</h2>
+            <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
+              Memori otomatis
+            </h2>
             <p
               id="automatic-memory-description"
               className="mt-2 text-ink-muted"

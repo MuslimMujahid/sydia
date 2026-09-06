@@ -96,7 +96,8 @@ function actionObject(invocation: ToolInvocation): ActionObject | null {
 function invocationKind(
   invocation: ToolInvocation
 ): "task" | "reminder" | null {
-  if (invocation.objectType === "task" || invocation.objectType === "reminder") return invocation.objectType;
+  if (invocation.objectType === "task" || invocation.objectType === "reminder")
+    return invocation.objectType;
   if (TASK_TOOL_NAMES[invocation.name]) return "task";
   if (REMINDER_TOOL_NAMES[invocation.name]) return "reminder";
 
@@ -115,7 +116,7 @@ function TaskActionCard({ invocation }: { invocation: ToolInvocation }) {
 
   return (
     <section
-      className="rounded-xl border border-surface-1 bg-canvas p-4"
+      className="rounded-lg border border-ink/6 bg-canvas p-5 shadow-card"
       aria-label={`Tindakan tugas: ${object.title}`}
     >
       <div className="flex items-start gap-3">
@@ -216,7 +217,7 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
 
   return (
     <section
-      className="rounded-xl border border-surface-1 bg-canvas p-4"
+      className="rounded-lg border border-ink/6 bg-canvas p-5 shadow-card"
       aria-label={`Tindakan pengingat: ${object.title}`}
     >
       <div className="flex items-start gap-3">
@@ -258,7 +259,7 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
             </Button>
             <Button
               size="sm"
-              variant="secondary"
+              variant="dark-outline"
               disabled={pending}
               onClick={snoozeOneHour}
             >

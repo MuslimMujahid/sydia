@@ -35,7 +35,7 @@ function PrimitivesSection() {
         >
           <Card variant="dark" className="p-4">
             <p className="font-display text-base font-semibold">Sydia</p>
-            <p className="font-sans text-sm text-canvas/70">
+            <p className="font-sans text-sm text-ink-muted">
               Lebih cerdas bersama.
             </p>
           </Card>
@@ -94,7 +94,7 @@ function PrimitivesSection() {
           description="Pola header konsisten untuk berbagai bagian."
         >
           <div className="flex items-baseline justify-between">
-            <p className="font-display text-lg font-bold text-ink">
+            <p className="font-display text-base font-semibold text-ink">
               Judul Bagian
             </p>
             <a

@@ -22,12 +22,12 @@ function Radio({ className, ...props }: RadioProps) {
     <RadioPrimitive.Root
       data-slot="radio"
       className={cn(
-        "flex size-4 shrink-0 items-center justify-center rounded-full border border-hairline bg-canvas transition-colors outline-none hover:border-ink-weak data-[checked]:border-brand data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[focused]:ring-3 data-[focused]:ring-brand/40",
+        "flex size-4 shrink-0 items-center justify-center rounded-pill border border-ink/16 bg-canvas outline-none hover:border-brand/50 data-[checked]:border-brand data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[focused]:outline-2 data-[focused]:outline-offset-2 data-[focused]:outline-brand/50",
         className
       )}
       {...props}
     >
-      <RadioPrimitive.Indicator className="size-2 rounded-full bg-brand" />
+      <RadioPrimitive.Indicator className="size-2 rounded-pill bg-brand" />
     </RadioPrimitive.Root>
   );
 }

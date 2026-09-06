@@ -20,6 +20,7 @@ function formatMessageTime(value: string): string {
     minute: "2-digit",
   }).format(date);
 }
+
 type DocumentSource = {
   documentId: string;
   documentName: string;
@@ -48,17 +49,18 @@ function documentSources(invocations: ToolInvocation[]): DocumentSource[] {
       )
         return [];
 
-      return [{
-        documentId: source.documentId,
-        documentName: source.filename,
-        pageNumber: typeof source.page === "number" ? source.page : null,
-        chunkIndex: typeof source.chunk === "number" ? source.chunk : null,
-        excerpt: typeof source.quote === "string" ? source.quote : null,
-      }];
+      return [
+        {
+          documentId: source.documentId,
+          documentName: source.filename,
+          pageNumber: typeof source.page === "number" ? source.page : null,
+          chunkIndex: typeof source.chunk === "number" ? source.chunk : null,
+          excerpt: typeof source.quote === "string" ? source.quote : null,
+        },
+      ];
     });
   });
 }
-
 
 type TimelineEntry =
   | { type: "message"; timestamp: string; message: ConversationMessage }
@@ -93,7 +95,7 @@ function FailedRun({
             <p className="mt-2 text-sm text-destructive">{retryErrorMessage}</p>
           ) : null}
           <Button
-            variant="secondary"
+            variant="dark-outline"
             size="sm"
             className="mt-4"
             disabled={isRetrying}
@@ -252,7 +254,7 @@ export function MessageHistory({
               aria-label={isUser ? "Pesan Anda" : "Jawaban Sydia"}
               className={
                 isUser
-                  ? "max-w-[85%] rounded-xl bg-surface-1 px-4 py-3 text-ink sm:max-w-[75%]"
+                  ? "max-w-[85%] rounded-md bg-surface-1 px-4 py-3 text-ink sm:max-w-[75%]"
                   : "max-w-xl"
               }
             >
@@ -292,7 +294,9 @@ export function MessageHistory({
                   aria-label="Sumber jawaban"
                   className="mt-5 border-t border-surface-1 pt-4"
                 >
-                  <p className="font-display text-sm font-bold text-ink">Sumber</p>
+                  <p className="font-display text-sm font-bold text-ink">
+                    Sumber
+                  </p>
                   <ul className="mt-2 space-y-2 text-sm text-ink-muted">
                     {provenance.map((source, index) => (
                       <li
@@ -303,10 +307,14 @@ export function MessageHistory({
                         <span>
                           <span className="font-medium text-ink-soft">
                             {source.documentName}
-                            {source.pageNumber ? ` · halaman ${source.pageNumber}` : ""}
+                            {source.pageNumber
+                              ? ` · halaman ${source.pageNumber}`
+                              : ""}
                           </span>
                           {source.excerpt ? (
-                            <span className="mt-0.5 block line-clamp-2">{source.excerpt}</span>
+                            <span className="mt-0.5 block line-clamp-2">
+                              {source.excerpt}
+                            </span>
                           ) : null}
                         </span>
                       </li>
@@ -332,7 +340,7 @@ export function MessageHistory({
         <li className="flex justify-end">
           <article
             aria-label="Pesan Anda sedang dikirim"
-            className="max-w-[85%] rounded-xl bg-surface-1 px-4 py-3 text-ink opacity-70 sm:max-w-[75%]"
+            className="max-w-[85%] rounded-md bg-surface-1 px-4 py-3 text-ink opacity-70 sm:max-w-[75%]"
           >
             <div className="mb-1 flex justify-end gap-2">
               <span className="font-display text-sm font-bold">Anda</span>

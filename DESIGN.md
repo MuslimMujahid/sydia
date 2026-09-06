@@ -1,405 +1,528 @@
 ---
-description: >-
-  A personal AI assistant site opens on an almost-black hero band, then drops to a warm white body — the two halves divided by a single saturated teal-cyan pill CTA that doubles as the brand voltage. Display headlines run Figtree at weight 800 (the heaviest 64px moment in the whole category), body copy switches to Instrument Sans, and a third voice — Martian Mono uppercase — carries every eyebrow label and feature tag. Cards on the cream body sit in #e4f0fb (a faintly blue-tinted hairline color that doubles as soft surface), the teal #32e6e2 returns as the in-card border tone, and every dark editorial panel below the fold borrows the same near-black band the hero introduces. Three typefaces, two surface eras, and one cyan pill that runs from hero to footer.
-
+name: "Aurora Haze"
+description: "Warm grainy aurora applied with restraint — amber bleeds into coral and softens into violet, with real fractal-noise grain layered on top. Inter throughout, generous bone-white surfaces, and the gradient appears in exactly two places: the primary CTA and the featured hero tile. Everything else stays calm so the bloom carries."
+tags: [grainy, gradient, modern, premium, light]
 colors:
-  primary: "#32e6e2"
-  primary-hover: "#8efbf7"
-  primary-deep: "#05bdba"
-  secondary: "#0c2a2a"
-  secondary-deep: "#014847"
-  link: "#2e51ed"
-  ink: "#181a1c"
-  ink-soft: "#353a3e"
-  ink-muted: "#545a61"
-  ink-weak: "#778089"
-  canvas: "#ffffff"
-  canvas-dark: "#181a1c"
-  surface-1: "#e4f0fb"
-  surface-2: "#d0fffe"
-  hairline: "#d1d5da"
-  syntax-cyan: "#89ddff"
-  syntax-purple: "#c792ea"
-  warn: "#f98e21"
-
+  primary: "#171419"
+  secondary: "#6b6470"
+  tertiary: "#ef5a8a"
+  neutral: "#fbf8f5"
+  surface: "#ffffff"
 typography:
-  display-xl:
-    fontFamily: "Figtree, system-ui, Helvetica, sans-serif"
-    fontSize: 64px
-    fontWeight: 800
-    lineHeight: 70.4px
-    letterSpacing: 0
-  display-md:
-    fontFamily: "Figtree, system-ui, Helvetica, sans-serif"
-    fontSize: 48px
-    fontWeight: 700
-    lineHeight: 52.8px
-    letterSpacing: 0
-  heading-lg:
-    fontFamily: "Figtree, system-ui, Helvetica, sans-serif"
-    fontSize: 36.8px
-    fontWeight: 800
-    lineHeight: 40.48px
-    letterSpacing: 0
-  heading-md:
-    fontFamily: "Figtree, system-ui, Helvetica, sans-serif"
-    fontSize: 32px
-    fontWeight: 700
-    lineHeight: 35.2px
-    letterSpacing: 0
-  heading-sm:
-    fontFamily: "Figtree, system-ui, Helvetica, sans-serif"
-    fontSize: 24px
-    fontWeight: 700
-    lineHeight: 26.4px
-    letterSpacing: 0
-  body-lg:
-    fontFamily: '"Instrument Sans", system-ui, Helvetica, sans-serif'
-    fontSize: 18px
-    fontWeight: 400
-    lineHeight: 27px
-    letterSpacing: 0
-  body-md:
-    fontFamily: '"Instrument Sans", system-ui, Helvetica, sans-serif'
-    fontSize: 16px
-    fontWeight: 400
-    lineHeight: 24px
-    letterSpacing: 0
-  body-sm:
-    fontFamily: '"Instrument Sans", system-ui, Helvetica, sans-serif'
-    fontSize: 14px
-    fontWeight: 400
-    lineHeight: 21px
-    letterSpacing: 0
-  button-md:
-    fontFamily: "Figtree, system-ui, Helvetica, sans-serif"
-    fontSize: 18px
-    fontWeight: 600
-    lineHeight: 19.8px
-    letterSpacing: 0
-  nav-link:
-    fontFamily: '"Instrument Sans", system-ui, Helvetica, sans-serif'
-    fontSize: 16px
-    fontWeight: 400
-    lineHeight: 24px
-    letterSpacing: 0
-  eyebrow-mono:
-    fontFamily: '"Martian Mono", ui-monospace, "Cascadia Code", monospace'
-    fontSize: 16px
-    fontWeight: 400
-    lineHeight: 24px
-    letterSpacing: 0
-  code-mono:
-    fontFamily: '"Martian Mono", ui-monospace, "Cascadia Code", monospace'
-    fontSize: 12px
-    fontWeight: 400
-    lineHeight: 18px
-    letterSpacing: 0
-
-rounded:
-  none: "0px"
-  xs: "2px"
-  sm: "4px"
-  md: "6px"
-  lg: "8px"
-  xl: "12px"
-  2xl: "16px"
-  pill: "360px"
-
-spacing:
-  xs: "4px"
-  sm: "8px"
-  base: "12px"
-  md: "16px"
-  lg: "24px"
-  xl: "32px"
-  2xl: "48px"
-  3xl: "64px"
-  4xl: "96px"
-
-components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.ink}"
-    typography: "{typography.button-md}"
-    rounded: "{rounded.pill}"
-    padding: "10px 17px"
-    height: "40px"
-  button-primary-hover:
-    backgroundColor: "{colors.primary-hover}"
-    textColor: "{colors.ink}"
-    typography: "{typography.button-md}"
-    rounded: "{rounded.pill}"
-    padding: "10px 17px"
-    height: "40px"
-  button-secondary:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    typography: "{typography.button-md}"
-    rounded: "{rounded.pill}"
-    padding: "10px 17px"
-    height: "40px"
-    borderColor: "{colors.ink}"
-  button-dark-secondary:
-    backgroundColor: "{colors.secondary}"
-    textColor: "{colors.canvas}"
-    typography: "{typography.button-md}"
-    rounded: "{rounded.pill}"
-    padding: "10px 17px"
-    height: "40px"
-  top-nav:
-    backgroundColor: "{colors.canvas-dark}"
-    textColor: "{colors.canvas}"
-    typography: "{typography.nav-link}"
-    rounded: "{rounded.none}"
-    padding: "12px 16px"
-    height: "56px"
-  nav-link:
-    backgroundColor: "transparent"
-    textColor: "{colors.canvas}"
-    typography: "{typography.nav-link}"
-    rounded: "{rounded.md}"
-    padding: "8px 12px"
-  hero-section:
-    backgroundColor: "{colors.canvas-dark}"
-    textColor: "{colors.canvas}"
-    typography: "{typography.display-xl}"
-    rounded: "{rounded.none}"
-    padding: "96px 0px"
-  hero-heading:
-    backgroundColor: "transparent"
-    textColor: "{colors.canvas}"
-    typography: "{typography.display-xl}"
-  section-heading:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    typography: "{typography.display-xl}"
-  body-paragraph:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-muted}"
-    typography: "{typography.body-md}"
-  eyebrow-label:
-    backgroundColor: "transparent"
-    textColor: "{colors.link}"
-    typography: "{typography.eyebrow-mono}"
-  card-dark:
-    backgroundColor: "{colors.secondary}"
-    textColor: "{colors.canvas}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.xl}"
-    padding: "24px"
-    borderColor: "{colors.primary}"
-  card-light:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.xl}"
-    padding: "24px"
-    borderColor: "{colors.surface-1}"
-  text-input:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.sm}"
-    padding: "8px"
-    height: "38px"
-    borderColor: "{colors.ink-weak}"
-  code-block:
-    backgroundColor: "{colors.secondary}"
-    textColor: "{colors.canvas}"
-    typography: "{typography.code-mono}"
-    rounded: "{rounded.md}"
-    padding: "16px"
-  footer:
-    backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink-muted}"
-    typography: "{typography.body-sm}"
-    padding: "48px 24px"
+  display: Inter
+  body: Inter
+  mono: "JetBrains Mono"
+  scale:
+    hero: "4.5rem / 1.02 / 700 / -0.04em"
+    h1: "2.75rem / 1.1 / 700 / -0.03em"
+    h2: "1.625rem / 1.22 / 600 / -0.018em"
+    body: "1.0625rem / 1.6 / 400 / -0.005em"
+radius:
+  sm: 10px
+  md: 16px
+  lg: 22px
+  pill: 9999px
+shadows:
+  card: "rgba(23,20,25,0.04) 0 1px 2px, rgba(23,20,25,0.06) 0 14px 36px -16px"
+  button: "rgba(240,102,148,0.28) 0 10px 24px -10px, rgba(140,92,255,0.22) 0 6px 18px -8px"
+borders:
+  card: "1px solid rgba(23,20,25,0.06)"
+  divider: rgba(23,20,25,0.08)
+buttons:
+  primary:
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>"), radial-gradient(ellipse 90% 70% at 12% 88%, #ff8a4c 0%, transparent 55%), radial-gradient(ellipse 70% 80% at 88% 12%, #c47bff 0%, transparent 55%), radial-gradient(ellipse 50% 60% at 55% 50%, #ff6b9b 0%, transparent 60%), linear-gradient(135deg, #ffb27a 0%, #f06694 45%, #8c5cff 100%)
+    color: #ffffff
+    border: none
+    shape: rounded
+    padding: 12px 22px
+    font: 700 / 0.9375rem
+    shadow: rgba(240,102,148,0.28) 0 10px 24px -10px, rgba(140,92,255,0.22) 0 6px 18px -8px
+  secondary:
+    background: #171419
+    color: #fbf8f5
+    border: none
+    shape: rounded
+    padding: 12px 22px
+    font: 600 / 0.9375rem
+  outline:
+    background: transparent
+    color: #171419
+    border: 1px solid rgba(23,20,25,0.16)
+    shape: rounded
+    padding: 12px 22px
+    font: 600 / 0.9375rem
+  ghost:
+    background: transparent
+    color: #6b6470
+    border: none
+    shape: rounded
+    padding: 12px 18px
+    font: 600 / 0.9375rem
+charts:
+  variant: "rounded-bars"
+  stroke_width: 1.5
+  fill_opacity: 0.12
+  gridlines: false
+  bar_gap: 10px
+  dot_marker: true
+  palette:
+    [
+      rgba(23,
+      20,
+      25,
+      0.10),
+      rgba(23,
+      20,
+      25,
+      0.10),
+      rgba(23,
+      20,
+      25,
+      0.10),
+      "#f06694",
+      rgba(23,
+      20,
+      25,
+      0.10),
+      rgba(23,
+      20,
+      25,
+      0.10),
+      rgba(23,
+      20,
+      25,
+      0.10),
+    ]
+fonts_url: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+dependencies: ["lucide-react"]
 ---
 
-## Overview
+# Aurora Haze
 
-The brand color is a single saturated teal-cyan (`{colors.primary}` — #32e6e2), wired into CSS as `--color-brand-2`, `--color-brand-core-2`, and `--button-primary-bg-color`. On hover it brightens to `{colors.primary-hover}` (#8efbf7), a paler teal step. A secondary brand cobalt `{colors.link}` (#2e51ed) carries the link tone and the highlighted-tab accent. The deep teal-charcoal `{colors.secondary}` (#0c2a2a) is the dark editorial surface that appears in cards below the fold — close enough to the hero's near-black that it reads as a return of the hero band, far enough that it sits as a distinct elevated surface on the white canvas.
+## AI Build Instructions
 
-Typography is the system's most distinctive move: **three typefaces, three jobs.** Figtree at weight 800 carries every display moment — the 64px hero h1, the 64px section h2 below the fold, and the smaller 32-48px headings inside cards. Instrument Sans handles body copy at 16-18px weight 400 and nav-link labels at 14-16px. Martian Mono at 16px in uppercase carries every eyebrow label, section tag, and feature chip — it appears 44 times in the captured page, more than any other typographic variant. The three voices divide labor cleanly: Figtree speaks, Instrument Sans explains, Martian Mono labels.
+> **Read this section before writing any code.** The rules below
+> are non-negotiable. Every value used in the UI must come from this
+> file's frontmatter — never substitute, approximate, or invent new
+> colors, fonts, radii, or shadows. If a value is missing, ask the
+> user before adding one.
 
-**Key Characteristics:**
+### 1 · Your role
 
-- Single brand voltage `{colors.primary}` (#32e6e2) — a saturated teal-cyan that owns the primary CTA pill and the search-submit button, paired with a paler teal hover step `{colors.primary-hover}` (#8efbf7).
-- Two-era page surface — near-black hero `{colors.canvas-dark}` (#181a1c) above the fold, warm white `{colors.canvas}` (#ffffff) below the fold, stitched by the cyan pill that appears in both eras.
-- Three-voice typography — Figtree for display (weight 700-800), Instrument Sans for body (weight 400), Martian Mono uppercase for eyebrows (weight 400, 44 occurrences).
-- Heavy 800-weight display tier — the 64px hero h1 and 64px section h2 both run at weight 800, not the 500-600 most peers use; a deliberate dial against the dark canvas.
-- Deep teal-charcoal `{colors.secondary}` (#0c2a2a) — the in-body dark editorial card surface that returns the brand voltage in the white-canvas half of the page.
-- Pill CTAs at `{rounded.pill}` (360px declared, rendered as fully-rounded) for both primary and secondary buttons across both surface eras.
-- Hand-drawn outline illustrations in the cyan voltage color — the cloud-shopping-cart, the agent-ready primitives diagram, the speedometer-and-globe — render as line art in the teal accent on the dark canvas.
-- Cobalt `{colors.link}` (#2e51ed) is the link tone and the eyebrow color, not a secondary brand voltage; it appears 0 times as background and 0 times as border in the captured page.
+You are building UI for a project that has adopted **Aurora Haze** as its
+design system. Treat `DESIGN.md` as the single source of truth.
+Your job is to translate the user's product requirements into
+components and pages that look like they were designed by the same
+person who authored this file.
 
-## Colors
+### 2 · Token compliance
 
-### Brand
+- Pull every color, font family, radius, shadow, and spacing value
+  from the frontmatter at the top of this file.
+- Use semantic roles (e.g. `primary`, `accent`, `muted`) — never
+  hard-code hex values that bypass the system.
+- When a token can be expressed as a CSS variable, declare it once
+  in your global stylesheet and reference it everywhere downstream.
+- The Google Fonts `<link>` is provided in the Typography section.
+  Add it to `<head>` before any component renders.
 
-- **Teal Primary** (`{colors.primary}` — #32e6e2): frequency 0 as text and border (the brand voltage is reserved for fills) — used as background only on the primary CTA pill, the search-submit button, and the in-card border for dark editorial cards. Wired in CSS as `--color-brand-2`, `--color-brand-core-2`, `--button-primary-bg-color`, `--search-submit-btn-bg-color`, `--teal-200`. The single chromatic brand moment.
-- **Teal Hover** (`{colors.primary-hover}` — #8efbf7): the paler teal hover variant for the primary CTA. Wired as `--color-brand-2-hover`, `--ntl-button-primary-bg-color-hover`, `--teal-100`, `--color-highlight`.
-- **Teal Deep** (`{colors.primary-deep}` — #05bdba): the logo "spark" color, wired as `--color-brand-logo-spark` and `--teal-400`. Appears in the wordmark and in dark-on-light surfaces where the primary cyan would burn out.
-- **Cobalt Link** (`{colors.link}` — #2e51ed): the link tone and the eyebrow-text color, wired as `--color-brand-primary`, `--color-brand-1`, `--color-link`, `--ntl-eyebrow-text-color`. A secondary brand voltage that carries link decoration and small accent rules.
-- **Teal Secondary** (`{colors.secondary}` — #0c2a2a): the dark editorial-card surface in the white-canvas half of the page. Wired as `--button-secondary-bg-color`, `--code-bg-color`, `--teal-900`, `--active-switcher-tab-bg-color`. Frequency 3 as gradient stop — used in dark surface fills.
-- **Teal Secondary Deep** (`{colors.secondary-deep}` — #014847): the wordmark text color and the secondary-button hover state. Wired as `--color-brand-logo-text`, `--color-brand-secondary-hover`, `--teal-800`.
+### 3 · Component recipes
+
+Use these recipes verbatim when building the corresponding component.
+
+#### Buttons
+
+Four variants are defined. Pick one — never blend variants or invent a fifth.
+
+- **Primary** — rounded shape, bg `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>"), radial-gradient(ellipse 90% 70% at 12% 88%, #ff8a4c 0%, transparent 55%), radial-gradient(ellipse 70% 80% at 88% 12%, #c47bff 0%, transparent 55%), radial-gradient(ellipse 50% 60% at 55% 50%, #ff6b9b 0%, transparent 60%), linear-gradient(135deg, #ffb27a 0%, #f06694 45%, #8c5cff 100%)`, text `#ffffff`, padding `12px 22px`, weight `700`, shadow `rgba(240,102,148,0.28) 0 10px 24px -10px, rgba(140,92,255,0.22) 0 6px 18px -8px`.
+- **Secondary** — rounded shape, bg `#171419`, text `#fbf8f5`, padding `12px 22px`, weight `600`.
+- **Outline** — rounded shape, text `#171419`, border `1px solid rgba(23,20,25,0.16)`, padding `12px 22px`, weight `600`.
+- **Ghost** — rounded shape, text `#6b6470`, padding `12px 18px`, weight `600`.
+
+Reach for **primary** as the single dominant CTA per screen.
+**Secondary** for the supporting action. **Outline** for tertiary
+actions in toolbars. **Ghost** for inline links and table actions.
+
+#### Cards
+
+- Background: `#ffffff`
+- Border: `1px solid rgba(23,20,25,0.06)`
+- Shadow: `rgba(23,20,25,0.04) 0 1px 2px, rgba(23,20,25,0.06) 0 14px 36px -16px`
+- Radius: `radius.lg` (`22px`)
+- Internal padding: `20px` for compact cards, `24–28px` for content cards.
+
+#### Tabs
+
+Variant: `underline`. Flat row of labels. Active tab gets a 2px underline in the accent color — no fill.
+
+#### Charts
+
+- Bar/line variant: `rounded-bars`
+- No gridlines — let the bars/lines carry the data.
+- Use the declared palette in order: `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)`, `#f06694`, `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)`.
+
+#### Typography pairings
+
+- **Display (`Inter`)** — h1, h2, hero headlines, brand wordmarks.
+- **Body (`Inter`)** — paragraphs, labels, button text, form inputs.
+- **Mono (`JetBrains Mono`)** — code, eyebrows, metadata, numerals in tables.
+
+### 4 · Hard constraints
+
+Never do any of the following without explicit instruction from the user:
+
+- Introduce a new color, font, radius, or shadow that isn't declared above.
+- Mix this system with another (e.g. don't paste in Material or Bootstrap defaults).
+- Use generic gradient defaults (purple→blue, peach→pink) — they break the system's voice.
+- Reach for emoji icons. Use a consistent icon library and size icons in line with body type.
+- Add motion that exceeds the system's restraint — keep transitions short (≤200ms) and subtle.
+
+### 5 · Before you finish — verify
+
+Run through this checklist for every screen you produce:
+
+- [ ] Every color used appears in the Colors table above.
+- [ ] Headlines use the display font; body copy uses the body font.
+- [ ] Buttons match one of the declared variants exactly (shape, padding, weight).
+- [ ] Border-radius values come from `radius.sm` / `radius.md` / `radius.lg` / `radius.pill`.
+- [ ] Cards and dividers use the declared border + shadow tokens.
+- [ ] No values were invented; if you needed something missing, you stopped and asked.
+
+---
+
+## 1. Atmosphere
+
+Aurora Haze is a calm bone-white surface with one hot moment: a multi-stop grainy aurora gradient that runs amber → coral → soft violet, with real SVG fractal-noise grain layered on top. The gradient lives in exactly two places — the primary CTA and the featured hero tile — so it always reads as a deliberate bloom, never decoration. Inter carries every word at 400/600/700; numbers shift to JetBrains Mono. Surfaces are flat ivory, hairlines at 6% ink, generous white space.
+
+The discipline is in placement: the gradient is never repeated on a third surface. Buttons that aren't the CTA fall back to graphite, outline, or ghost. The chart uses muted graphite bars except for one column rendered in coral — the visual rhyme tells you "this is the active value" without copy.
+
+**Signature moves**
+
+- Multi-stop grainy gradient (amber → coral → violet) with **real fractal-noise grain** baked in via an inline SVG `feTurbulence` data URI
+- Gradient appears exactly twice per screen: primary CTA + featured hero tile
+- The **active bar** in the chart picks up the coral stop from the gradient — visual rhyme
+- Bone-white surface (`#fbf8f5`), hairlines at 6% ink, no decorative borders
+- Inter at every level — display 700, body 400, UI 600
+
+## 2. The grainy gradient (copy this exactly)
+
+The grain is not a Photoshop filter or a Tailwind class — it is an inline SVG with `feTurbulence` set to `fractalNoise`, baseFrequency `0.9`, two octaves, stitched. The noise layer sits **on top** of a stack of three radial-gradient blooms over a 135° linear base. Stop order matters.
+
+```css
+background:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.55'/></svg>"),
+  radial-gradient(ellipse 90% 70% at 12% 88%, #ff8a4c 0%, transparent 55%),
+  radial-gradient(ellipse 70% 80% at 88% 12%, #c47bff 0%, transparent 55%),
+  radial-gradient(ellipse 50% 60% at 55% 50%, #ff6b9b 0%, transparent 60%),
+  linear-gradient(135deg, #ffb27a 0%, #f06694 45%, #8c5cff 100%);
+```
+
+The `feColorMatrix` reduces the noise to alpha-only (no color shift), so the grain darkens the gradient instead of tinting it. The 0.55 opacity is the calibrated value — anything higher reads as "dirty," anything lower disappears on retina screens.
+
+### Stop palette
+
+- **Amber bloom** `#ff8a4c` — bottom-left anchor
+- **Violet bloom** `#c47bff` — top-right counter-anchor
+- **Coral core** `#ff6b9b` — center bloom, 60% reach
+- **Linear base** `#ffb27a → #f06694 → #8c5cff` at 135°
+
+## 3. Palette
 
 ### Surface
 
-- **Canvas Dark** (`{colors.canvas-dark}` — #181a1c): frequency 0 as background fill, 38 as text — the near-black hero canvas above the fold and the page's primary heading color below the fold. Wired as `--ntl-neutral-800`, `--button-primary-text-color`, `--heading-text-color`. Both a surface tone and an ink tone, depending on which canvas era it sits on.
-- **Canvas** (`{colors.canvas}` — #ffffff): frequency 67 — 33 as text (white type on the dark hero), 4 as background (the body floor below the fold), 30 as border. Pure white; no warm cream variant.
-- **Surface 1** (`{colors.surface-1}` — #e4f0fb): frequency 85 — 37 as text, 11 as background, 37 as border. The faintly-blue hairline color that doubles as soft card-fill on the white-canvas half. Wired as `--ntl-color-bg-3`, `--ntl-neutral-200`, `--color-blog-cta-card-bg`. The single hardest-working surface token — borders cards, fills disabled states, and tints the blog-card surface.
-- **Surface 2** (`{colors.surface-2}` — #d0fffe): frequency 3 as border — a very-pale cyan tint used as the search-highlight and code-on-light surface fill. Wired as `--ntl-search-user-message-color`, `--color-guide-toc-bg`, `--teal-000`.
+- **Bone** `#fbf8f5` — page background
+- **Snow** `#ffffff` — cards, sheets
 
-### Text
+### Ink
 
-- **Ink** (`{colors.ink}` — #181a1c): frequency 38 as text — the primary heading and button-label color below the fold. Same hex as `{colors.canvas-dark}`; the system uses one near-black for both surface and ink roles depending on context.
-- **Ink Soft** (`{colors.ink-soft}` — #353a3e): the secondary running-text tone, wired as `--ntl-color-text`, `--neutral-700`. Used for body paragraphs that sit beside the heading ink without competing with it.
-- **Ink Muted** (`{colors.ink-muted}` — #545a61): frequency 215 — 108 as text, 107 as border. The dominant body-paragraph color across the page and the secondary border tone. Wired as `--ntl-title-text-color`, `--ntl-neutral-600`, `--color-text-2`, `--input-color-placeholder`.
-- **Ink Weak** (`{colors.ink-weak}` — #778089): the form-input border color and the testimonial-logo hover tone. Wired as `--input-border-color`, `--ntl-color-text-weak`, `--color-text-3`. The lightest readable ink in the system.
+- **Ink** `#171419` — text, headings, secondary CTA fill
+- **Ink 55** `#6b6470` — secondary text, mono labels
+- **Hairline** `rgba(23,20,25,0.06)` — every divider
 
-### Syntax & Accent
+### Accent (single)
 
-- **Syntax Cyan** (`{colors.syntax-cyan}` — #89ddff): frequency 48 — 24 as text, 24 as border. The code-snippet keyword color in the embedded code blocks ("Launch AI features with one gateway" panel). Borrowed from a Night Owl-style syntax theme rather than from the brand chrome.
-- **Syntax Purple** (`{colors.syntax-purple}` — #c792ea): frequency 16 — 8 as text, 8 as border. The code-snippet function-name color. Also from the syntax theme.
+- **Coral** `#ef5a8a` — picked from the gradient's mid stop, used for active tab underline + active chart bar
 
-### Hairline & Status
+## 4. Typography
 
-- **Hairline** (`{colors.hairline}` — #d1d5da): a cool grey border tone used on inverse surfaces and badges. Wired as `--ntl-color-border-strong`, `--ntl-badge-border-color`, `--card-border-color-hover`. Distinct from the soft `{colors.surface-1}` hairline which carries most of the card-border work.
-- **Warn** (`{colors.warn}` — #f98e21): a saturated gold/orange wired as `--gold-400`, `--color-brand-create-2`. Carries the "Create" product-domain identity but appears 0 times in the captured render — declared in the CSS root only.
+| Role        | Font           | Size | Weight | Leading | Tracking |
+| ----------- | -------------- | ---- | ------ | ------- | -------- |
+| Hero        | Inter          | 72px | 700    | 1.02    | -0.04em  |
+| H1          | Inter          | 44px | 700    | 1.10    | -0.03em  |
+| H2          | Inter          | 26px | 600    | 1.22    | -0.018em |
+| Body        | Inter          | 17px | 400    | 1.6     | -0.005em |
+| UI / Button | Inter          | 15px | 700    | 1.4     | 0        |
+| Number      | JetBrains Mono | 13px | 500    | 1.0     | 0        |
 
-## Typography
+Inter at three weights only — 400, 600, 700. The 800 weight is reserved for the optional oversized gradient KPI inside the featured tile.
 
-### Font Families
+## 5. Buttons
 
-The system runs three typefaces with cleanly divided jobs. **Figtree** is the display sans, used at weight 800 for the 64px hero h1 and the 64px below-fold section h2, plus weight 700 at 32-48px for smaller heading tiers. **Instrument Sans** is the body sans, used at weight 400 for paragraph copy at 14-18px and for nav-link labels at 14-16px. **Martian Mono** is the uppercase voice, used at weight 400 in all-caps for eyebrow labels above sections — 44 occurrences in the captured page, the single most-frequent type variant.
+### Primary (Grainy Gradient Box)
 
-The three-voice split is the system's distinctive typographic move. Most dev-infra peers run two voices (display + body, or display + mono) — Vercel runs Geist + Geist Mono, Cloudflare runs FT Kunst Grotesk + Apercu Mono Pro, Render runs Inter + JetBrains Mono.
+A solid box (not a pill) with the full grainy-gradient stack as background, white label, no border. The drop shadow uses two layered colored shadows that pick the coral and violet stops — they bloom under the button like a soft halo.
 
-### Hierarchy
+```css
+background: /* the full grainy gradient stack from §2 */;
+color: #ffffff;
+padding: 12px 22px;
+border-radius: 16px;
+box-shadow:
+  rgba(240, 102, 148, 0.28) 0 10px 24px -10px,
+  rgba(140, 92, 255, 0.22) 0 6px 18px -8px;
+font: 700 15px/1.4 Inter;
+```
 
-| Token                       | Size   | Weight | Line Height | Family          | Use                                |
-| --------------------------- | ------ | ------ | ----------- | --------------- | ---------------------------------- |
-| `{typography.display-xl}`   | 64px   | 800    | 70.4px      | Figtree         | Hero h1, section h2                |
-| `{typography.display-md}`   | 48px   | 700    | 52.8px      | Figtree         | Pull-quote blockquotes             |
-| `{typography.heading-lg}`   | 36.8px | 800    | 40.48px     | Figtree         | h3 inside dark editorial cards     |
-| `{typography.heading-md}`   | 32px   | 700    | 35.2px      | Figtree         | Sub-section number callouts        |
-| `{typography.heading-sm}`   | 24px   | 700    | 26.4px      | Figtree         | Card h3                            |
-| `{typography.body-lg}`      | 18px   | 400    | 27px        | Instrument Sans | Hero sub-paragraph                 |
-| `{typography.body-md}`      | 16px   | 400    | 24px        | Instrument Sans | Default running text               |
-| `{typography.body-sm}`      | 14px   | 400    | 21px        | Instrument Sans | Nav-link labels, button labels     |
-| `{typography.button-md}`    | 18px   | 600    | 19.8px      | Figtree         | CTA pill labels                    |
-| `{typography.nav-link}`     | 16px   | 400    | 24px        | Instrument Sans | Top-nav link labels                |
-| `{typography.eyebrow-mono}` | 16px   | 400    | 24px        | Martian Mono    | Section eyebrow labels (uppercase) |
-| `{typography.code-mono}`    | 12px   | 400    | 18px        | Martian Mono    | Inline code annotations            |
+### Secondary (Graphite Box)
 
-### Principles
+Solid ink `#171419`, bone label, same 16px radius, no shadow. The graphite-on-bone pairs cleanly with the gradient without competing.
 
-Display weight tops out at 800 — substantially heavier than the dev-infra norm (Vercel 500, Stripe 300, Cloudflare 500, Render 600). The 64px hero h1 at weight 800 reads as the loudest typographic moment in the system, and the same step repeats on the below-fold section h2 to anchor the page on a single display tier rather than a tiered ladder. The decision to dial display up to 800 instead of leaning on letter-spacing tightening (the Stripe / Cloudflare move) is what gives the hero its chunky-confident feel.
+### Outline & Ghost
 
-Martian Mono carries the entire eyebrow-label tier. There are no uppercase-tracked sans labels in the system — every "WAY IT WORKS", "USE CASES", "PLATFORM" small-caps section tag is set in Martian Mono. The mono voice reads quietly technical without ever shouting; the same role Apercu Mono Pro plays on Cloudflare's surface.
+- Outline: transparent, 1px hairline at 16% ink
+- Ghost: no border, ink-55, hover lifts to ink
 
-### Note on Font Substitutes
+## 6. The Featured tile
 
-All three families are open source. Figtree ships on Google Fonts and Bunny Fonts. Instrument Sans is distributed free by Instrument design studio. Martian Mono is open-sourced by Evil Martians on GitHub. No substitution needed — the system already runs free fonts. If you must substitute, **Inter** at weight 800 is the closest Figtree alternative; **Space Mono** uppercase carries the Martian Mono role at slightly tighter spacing.
+The featured hero tile uses the **same exact gradient stack** as the primary CTA. White display headline at 32px in Inter 700, label "Featured" in mono at 11px uppercase 0.12em tracking. No badge, no icon — the gradient does the work.
 
-## Layout
+## 7. Charts
 
-### Spacing System
+Rounded bars (pill ends), 10px gap. Six bars in graphite at 10% opacity, **one bar in coral** `#f06694` (the gradient's mid stop). The eye reads the coral bar as the active value because it visually rhymes with the CTA — no separate legend needed.
 
-- **Base unit:** 4px (with 12px as the dominant gap value — 37 occurrences).
-- **Tokens:** `{spacing.xs}` 4px · `{spacing.sm}` 8px · `{spacing.base}` 12px · `{spacing.md}` 16px · `{spacing.lg}` 24px · `{spacing.xl}` 32px · `{spacing.2xl}` 48px · `{spacing.3xl}` 64px · `{spacing.4xl}` 96px.
-- **Section padding (vertical):** 96px on the hero band, 64px between major sections below the fold (captured 6 times as `96px 0px` and 3 times as 64px on section margins).
-- **Card internal padding:** 24px on the dark editorial cards below the fold; 16px on the smaller hairline-bordered feature cards.
-- **Button padding:** 10x17px on the primary pill CTA (captured 6 times); 8x12px on secondary nav-link hovers.
+## 8. Tabs
 
-### Grid & Container
+Underline 1.5px in coral. Inactive tabs in Inter 600 ink-55. Hover lifts to ink. Active = ink + coral underline.
 
-- **Max content width:** ~1080px on the hero, ~1280px on the dark editorial cards section.
-- **Hero block:** full-bleed dark canvas at 96px top/bottom, content centered at ~720px on the left with the illustration occupying the right half.
-- **Below-fold sections:** centered displays at ~1080px, with feature cards splitting into 3-up at desktop and stacking to 1-up on mobile.
-- **Dark editorial cards:** sit on the white body canvas as elevated `{colors.secondary}` panels — the surface contrast between near-black card and white canvas does the elevation work.
+## 9. Spacing
 
-### Rhythm
+- Base 4px
+- Scale: `4, 8, 12, 16, 20, 24, 32, 48, 64, 96`
+- Section padding: 96px desktop, 48px mobile
 
-The page's structural device is the **dark-light alternation.** Hero (dark) → logo wall (light) → "Build your way" editorial (light) → dark prompt-preview card (dark) → "For every kind of web app" editorial (light) → "Start your way" footer-adjacent (light). The dark editorial cards inside the light body act as in-body returns of the hero canvas — a visual reminder that the platform identity sits on the dark side, while the marketing copy lives on the light side.
+## 10. Do's & don'ts
 
-## Elevation
+✅ **Do**
 
-The system has **two shadow tiers and one tonal-lift tier.** Most cards on the white canvas use the soft `{colors.surface-1}` border at #e4f0fb to read as elevated without a shadow draw; the dark editorial cards lift off the white canvas by surface-contrast alone (the ~95% lightness gap between `{colors.canvas}` and `{colors.secondary}` makes any shadow redundant).
+- Use the full grainy-gradient stack from §2 verbatim — the noise layer is what makes it expensive
+- Apply the gradient exactly twice per screen: primary CTA + featured tile
+- Pick the active chart bar from the gradient's coral stop so it rhymes with the CTA
+- Layer two colored shadows under the gradient button — coral + violet, low opacity, wide spread
 
-- **Flat (no shadow):** hero, body bands, feature cells, logo wall — 95% of surfaces.
-- **Hairline elevation:** white cards on white canvas with a 1px `{colors.surface-1}` border carry the soft-tinted hairline that reads as elevation.
-- **Tonal lift:** `{colors.secondary}` dark editorial cards lift off the white canvas by surface-color contrast — no shadow drawn.
+❌ **Don't**
 
-## Shapes
+- Apply the gradient to a third surface (cards, secondary buttons, headers) — it loses its weight
+- Use a 2-stop gradient (e.g. peach → pink) — this system is multi-stop with grain, never the cliché
+- Skip the SVG noise layer — without grain the gradient reads as generic
+- Use coral anywhere except active states (chart bar, tab underline) — the gradient owns the bloom
 
-The radius scale is **small-step plus pill.**
+---
 
-- **Small-step:** `{rounded.xs}` 2px (2 occurrences), `{rounded.sm}` 4px (23 — the dominant card and input radius), `{rounded.md}` 6px (8 — icon buttons), `{rounded.lg}` 8px (1 — outlier), `{rounded.xl}` 12px (3 — larger feature cards), `{rounded.2xl}` 16px (1 — outlier on the largest card).
-- **Pill:** `{rounded.pill}` 360px (6 — the primary CTA, secondary nav buttons, all the "rounded" interactive surfaces) and 50% (4 — circular avatar chips). The 360px value renders as a fully-rounded pill on any element shorter than 720px tall.
-- **No middle tier in heavy use:** the scale concentrates at 4px and at the full pill; 8 / 12 / 16px appear only as outliers.
+## Tokens
 
-The pill treatment carries the brand voltage. The primary CTA pill at `{rounded.pill}` is filled with `{colors.primary}` cyan; secondary pills sit as transparent surfaces with a 1px ink border in `{colors.canvas-dark}` on the dark hero and `{colors.ink}` on the white body.
+> Generated from the same source the live preview renders from.
+> Treat the values below as the contract — never substitute approximations.
 
-## Components
+### Colors
 
-**`button-primary`** — The signature CTA. Teal-cyan `{colors.primary}` fill, near-black `{colors.ink}` text, fully-rounded pill at `{rounded.pill}`, 10x17px padding, 40px height, Figtree weight 600 at 18px. "Get started" is the canonical instance, sitting at the center of the hero stack.
+| Role      | Value     |
+| --------- | --------- |
+| primary   | `#171419` |
+| secondary | `#6b6470` |
+| tertiary  | `#ef5a8a` |
+| neutral   | `#fbf8f5` |
+| surface   | `#ffffff` |
 
-**`button-primary-hover`** — Flips to the brighter `{colors.primary-hover}` (#8efbf7) on hover, with the same ink text. The single hover state in the captured system.
+### Typography
 
-**`button-secondary`** — Transparent fill with ink text and a 1px ink border, same pill radius and dimensions as primary. Used as the "View account" secondary CTA on the dark hero.
+- **Display:** Inter
+- **Body:** Inter
+- **Mono:** JetBrains Mono
 
-**`button-dark-secondary`** — Deep teal-charcoal `{colors.secondary}` fill, white text, same pill geometry. Used as the in-card CTA on the dark editorial cards below the fold.
+| Role | size / leading / weight / tracking |
+| ---- | ---------------------------------- |
+| Hero | 4.5rem / 1.02 / 700 / -0.04em      |
+| H1   | 2.75rem / 1.1 / 700 / -0.03em      |
+| H2   | 1.625rem / 1.22 / 600 / -0.018em   |
+| Body | 1.0625rem / 1.6 / 400 / -0.005em   |
 
-**`top-nav`** — Dark `{colors.canvas-dark}` surface that matches the hero canvas — the nav merges visually into the hero band rather than sitting as a separate strip. 12x16px padding, 56px height.
+### Radius
 
-**`nav-link`** — Transparent fill, white text in `{typography.nav-link}`, 8x12px padding, `{rounded.md}` 6px hover-surface pill.
+- sm: `10px`
+- md: `16px`
+- lg: `22px`
+- pill: `9999px`
 
-**`hero-section`** — Full-bleed `{colors.canvas-dark}` band, 96x0 padding, no border-radius. Holds the hero h1 in white at `{typography.display-xl}`, a single-line sub-paragraph in `{typography.body-lg}`, the cyan CTA pill stack, and the hand-drawn cart illustration on the right.
+### Shadows
 
-**`hero-heading`** — White `{colors.canvas}` text on the dark hero, Figtree 64px / 800, 0 letter-spacing. The display tier — confidence by weight, not by tracking.
+- **card:** `rgba(23,20,25,0.04) 0 1px 2px, rgba(23,20,25,0.06) 0 14px 36px -16px`
+- **button:** `rgba(240,102,148,0.28) 0 10px 24px -10px, rgba(140,92,255,0.22) 0 6px 18px -8px`
 
-**`section-heading`** — Same `{typography.display-xl}` token but rendered in ink `{colors.ink}` on the white canvas below the fold. "Build your way. Ship on one platform." and "For every kind of web app." are the canonical instances.
+### Borders
 
-**`body-paragraph`** — `{colors.ink-muted}` running-text at `{typography.body-md}` — the workhorse paragraph style. Notable that the body color is the muted #545a61 rather than the heading #181a1c — a deliberate softness in the running text.
+- **card:** `1px solid rgba(23,20,25,0.06)`
+- **divider:** `rgba(23,20,25,0.08)`
 
-**`eyebrow-label`** — Cobalt-link `{colors.link}` color, Martian Mono uppercase at 16px / 400, 0 letter-spacing. The single most-distinctive small-caps treatment in the system. "WAY IT WORKS", "USE CASES", "PLATFORM" are the canonical instances.
+### Buttons
 
-**`card-dark`** — Deep teal-charcoal `{colors.secondary}` fill, white text, `{rounded.xl}` 12px radius, 24px internal padding, optional 1px `{colors.primary}` cyan border on the most-emphasized cards. The in-body return of the hero canvas; holds prompt-preview demos, agent-primitive diagrams, and the speedometer-globe panels.
+Four variants, each fully tokenized. The preview renders from these exact values.
 
-**`card-light`** — White `{colors.canvas}` fill, ink text, `{rounded.xl}` 12px radius, 24px padding, 1px `{colors.surface-1}` border. The hairline-bordered feature card on the white canvas.
+#### Primary
 
-**`text-input`** — White surface, ink text, 1px `{colors.ink-weak}` border, `{rounded.sm}` 4px radius, 8px padding, 38px height. Used in the email-signup row of the footer.
+| Property   | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| shape      | `rounded`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| background | `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>"), radial-gradient(ellipse 90% 70% at 12% 88%, #ff8a4c 0%, transparent 55%), radial-gradient(ellipse 70% 80% at 88% 12%, #c47bff 0%, transparent 55%), radial-gradient(ellipse 50% 60% at 55% 50%, #ff6b9b 0%, transparent 60%), linear-gradient(135deg, #ffb27a 0%, #f06694 45%, #8c5cff 100%)` |
+| color      | `#ffffff`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| border     | `none`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| padding    | `12px 22px`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| fontWeight | `700`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| fontSize   | `0.9375rem`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| shadow     | `rgba(240,102,148,0.28) 0 10px 24px -10px, rgba(140,92,255,0.22) 0 6px 18px -8px`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
-**`code-block`** — Deep teal-charcoal `{colors.secondary}` fill, white text in `{typography.code-mono}` (Martian Mono 12px / 400), `{rounded.md}` 6px radius, 16px padding. Syntax colors are `{colors.syntax-cyan}` and `{colors.syntax-purple}` borrowed from a Night Owl-style theme.
+#### Secondary
 
-**`footer`** — White `{colors.canvas}` surface, muted-grey text, 48x24px padding. Sits on the same canvas as the body — no surface contrast against the page floor.
+| Property   | Value       |
+| ---------- | ----------- |
+| shape      | `rounded`   |
+| background | `#171419`   |
+| color      | `#fbf8f5`   |
+| border     | `none`      |
+| padding    | `12px 22px` |
+| fontWeight | `600`       |
+| fontSize   | `0.9375rem` |
 
-## Do's and Don'ts
+#### Outline
 
-**Do** stitch the dark hero and the light body with the cyan pill. The single object that runs across both surface eras is the `{colors.primary}` CTA — removing the pill from one half breaks the visual through-line and turns the page into two unrelated landing strips.
+| Property   | Value                           |
+| ---------- | ------------------------------- |
+| shape      | `rounded`                       |
+| background | `transparent`                   |
+| color      | `#171419`                       |
+| border     | `1px solid rgba(23,20,25,0.16)` |
+| padding    | `12px 22px`                     |
+| fontWeight | `600`                           |
+| fontSize   | `0.9375rem`                     |
 
-**Do** run all three typefaces. Figtree for display, Instrument Sans for body, Martian Mono for uppercase eyebrows — each has a different job and each appears with distinctive frequency in the captured page. Replacing Martian Mono with an uppercase-tracked Figtree turns the page into a generic SaaS marketing surface.
+#### Ghost
 
-**Do** dial the display tier to weight 800. The 64px hero h1 sits at weight 800, not the 500-600 most peers run; bumping down to 600 makes the chunky-confident feel collapse into Stripe-style restraint, which is the wrong identity for this product.
+| Property   | Value         |
+| ---------- | ------------- |
+| shape      | `rounded`     |
+| background | `transparent` |
+| color      | `#6b6470`     |
+| border     | `none`        |
+| padding    | `12px 18px`   |
+| fontWeight | `600`         |
+| fontSize   | `0.9375rem`   |
 
-**Do** use `{colors.secondary}` (#0c2a2a) for in-body dark editorial cards — not pure black, not a generic charcoal. The deep teal-charcoal is part of the brand voltage system; substituting a flat grey or pure black removes the teal undertone that ties the dark surface back to the cyan primary.
+### Charts
 
-**Don't** render the brand cyan as text or border. `{colors.primary}` (#32e6e2) appears 0 times as text and 0 times as border in the captured page — it is reserved exclusively for CTA pill fills and one in-card emphasis border. Using cyan as a link color or a body accent dilutes the single chromatic anchor.
+| Property    | Value                                                                                                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| variant     | `rounded-bars`                                                                                                                                      |
+| strokeWidth | `1.5`                                                                                                                                               |
+| fillOpacity | `0.12`                                                                                                                                              |
+| gridlines   | `false`                                                                                                                                             |
+| barGap      | `10px`                                                                                                                                              |
+| dotMarker   | `true`                                                                                                                                              |
+| palette     | `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)`, `#f06694`, `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)`, `rgba(23,20,25,0.10)` |
 
-**Don't** use the syntax colors (`{colors.syntax-cyan}` #89ddff, `{colors.syntax-purple}` #c792ea) anywhere outside code blocks. They are borrowed Night Owl theme values for the embedded code snippets, not part of the brand palette.
+---
 
-**Don't** introduce a 8px or 16px middle radius tier on cards. The system concentrates radii at 4px (small-step cards / inputs) and at the full pill — adding a middle value softens the binary contrast between body chrome and the warm pill surfaces.
+## Pro tokens
 
-**Don't** swap Martian Mono for a sans uppercase. The mono uppercase eyebrow is the system's quiet technical voice — replacing it with a tracked sans turns "WAY IT WORKS" into a generic marketing tag rather than a developer-flagged section label.
+> Production-fidelity tokens. States, density, motion, elevation,
+> content rules and a measured WCAG contract — derived from the
+> resting tokens unless explicitly authored.
 
-## Known Gaps
+### States
 
-- **Dark mode:** the page already runs both a dark hero and a light body, so a full dark-mode variant would need a parallel light-hero / dark-body inversion that the captured site does not expose. Product surfaces carry a separate dark token set not represented here.
-- **Hover and focus states:** documented for `{component.button-primary-hover}` only; the full state matrix (focus rings, active press, disabled tints, error fills) is not visible on the captured marketing surface.
-- **Form input states:** `{component.text-input}` carries the resting state at the footer email-signup field; error / validation styling lives inside the dashboard and is not exposed here.
-- **Product domain colors:** the CSS root declares `--color-brand-create-1`, `--color-brand-create-2` (which resolves to `{colors.warn}`), `--color-brand-connect-1`, and `--color-brand-connect-2` (which resolves to `{colors.link}`) as product-domain identifiers ("Create" and "Connect" product surfaces) but they appear 0 times in the captured render outside the CSS root.
-- **Motion:** the hero illustration and the prompt-preview animation are interactive but the spec captures end-state values only. Easing curves and duration live in the live JavaScript.
-- **Customer testimonial typography:** the page's blockquote tier (the "I can push a change…" pull-quote) runs at Figtree 48px / 700 — captured but not as a primary typography token because it appears only once.
+#### Button
+
+- **hover** — shadow: `0 4px 12px -2px rgba(15,23,42,0.18)`, filter: `brightness(0.97)`
+- **focus** — outline: `2px solid rgba(239, 90, 138, 0.5)`, outline-offset: `2px`
+- **active** — shadow: `0 1px 2px rgba(15,23,42,0.1)`, transform: `scale(0.98)`
+- **disabled** — opacity: `0.4`, filter: `saturate(0.5)`
+- **loading** — opacity: `0.7`
+- **selected** — bg: `#ef5a8a`, color: `#ffffff`
+
+#### Input
+
+- **hover** — border: `1px solid rgba(239, 90, 138, 0.5)`
+- **focus** — border: `1.5px solid #ef5a8a`, shadow: `0 0 0 4px rgba(239, 90, 138, 0.15)`
+- **disabled** — bg: `rgba(23, 20, 25, 0.04)`, opacity: `0.4`
+- **error** — border: `1.5px solid #DC2626`, shadow: `0 0 0 4px rgba(220,38,38,0.15)`
+
+#### Card
+
+- **hover** — shadow: `0 12px 28px -12px rgba(15,23,42,0.18)`, transform: `translateY(-2px)`
+- **selected** — bg: `rgba(239, 90, 138, 0.04)`, border: `1.5px solid #ef5a8a`
+- **dragging** — shadow: `0 20px 48px -16px rgba(15,23,42,0.3)`, transform: `scale(1.02) rotate(-0.5deg)`, opacity: `0.9`
+
+#### Tab
+
+- **hover** — bg: `rgba(239, 90, 138, 0.06)`, color: `#ef5a8a`
+- **focus** — outline: `2px solid rgba(239, 90, 138, 0.5)`, outline-offset: `2px`
+- **selected** — color: `#ef5a8a`, border: `0 0 2px 0 solid #ef5a8a`
+
+### Density
+
+| Mode        | padding × | row × | body      | radius × | Use for                                      |
+| ----------- | --------- | ----- | --------- | -------- | -------------------------------------------- |
+| compact     | 0.72      | 0.78  | 0.8125rem | 0.85     | Information-dense — tables, IDEs, dashboards |
+| comfortable | 1         | 1     | 0.9375rem | —        | Default — most product UI                    |
+| spacious    | 1.35      | 1.3   | 1rem      | 1.15     | Editorial — marketing, long-form, settings   |
+
+### Motion
+
+**Signature — Quiet ease.** 240 ms ease-out for all standard transitions. Reliable, invisible — motion stays out of the way.
+
+```css
+transition: all 240ms cubic-bezier(0.4, 0, 0.2, 1);
+```
+
+| Token             | Value                              |
+| ----------------- | ---------------------------------- |
+| duration.instant  | `80ms`                             |
+| duration.fast     | `160ms`                            |
+| duration.base     | `240ms`                            |
+| duration.slow     | `380ms`                            |
+| easing.standard   | `cubic-bezier(0.4, 0, 0.2, 1)`     |
+| easing.decelerate | `cubic-bezier(0.0, 0, 0.2, 1)`     |
+| easing.accelerate | `cubic-bezier(0.4, 0, 1, 1)`       |
+| easing.spring     | `cubic-bezier(0.34, 1.4, 0.64, 1)` |
+
+### Elevation
+
+Five-level scale, system-specific recipe.
+
+| Level  | Shadow                                                                  | Recipe                            |
+| ------ | ----------------------------------------------------------------------- | --------------------------------- |
+| level0 | `none`                                                                  | Flat — hairline border separates. |
+| level1 | `0 1px 2px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)`          | List rows, resting cards.         |
+| level2 | `0 4px 12px -2px rgba(15,23,42,0.1), 0 2px 6px rgba(15,23,42,0.06)`     | Hover cards, popover.             |
+| level3 | `0 12px 32px -8px rgba(15,23,42,0.16), 0 4px 12px rgba(15,23,42,0.08)`  | Sheets, side panels.              |
+| level4 | `0 28px 64px -16px rgba(15,23,42,0.28), 0 8px 24px rgba(15,23,42,0.12)` | Modals — scrim required.          |
+
+### Content
+
+- **measure:** `68ch` (max line length for body prose)
+- **paragraph spacing:** `1.2em`
+- **list indent:** `1.5em`
+- **list gap:** `0.5em`
+- **link:** color `#ef5a8a`, underline `hover`
+- **blockquote:** border `3px solid rgba(239, 90, 138, 0.6)`, padding `0.5em 0 0.5em 1.25em`
+- **code:** background `rgba(23, 20, 25, 0.06)`, color `#171419`
+
+### Accessibility (WCAG 2.1)
+
+**Overall:** AA-Large
+
+| Pair                  | Ratio   | Required | Grade    | Suggested fix |
+| --------------------- | ------- | -------- | -------- | ------------- |
+| Body text on surface  | 18.25:1 | AA       | AAA      | —             |
+| Body text on canvas   | 17.25:1 | AA       | AAA      | —             |
+| Muted text on surface | 5.7:1   | AA       | AA       | —             |
+| Accent on surface     | 3.23:1  | AA-Large | AA-Large | —             |
+| Accent on canvas      | 3.05:1  | AA-Large | AA-Large | —             |

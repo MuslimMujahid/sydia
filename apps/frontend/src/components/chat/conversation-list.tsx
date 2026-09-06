@@ -62,7 +62,9 @@ export function ConversationList({
     <div className="flex h-full min-h-0 flex-col bg-canvas">
       <div className="border-b border-surface-1 p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-display text-xl font-bold">Percakapan</h2>
+          <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
+            Percakapan
+          </h2>
           {!isLoading && !errorMessage ? (
             <span className="ml-auto font-mono text-xs text-ink-muted">
               {conversations.length}
@@ -100,7 +102,7 @@ export function ConversationList({
           >
             <p className="text-sm text-ink-soft">{errorMessage}</p>
             <Button
-              variant="secondary"
+              variant="dark-outline"
               size="sm"
               className="mt-4"
               onClick={onRetry}
@@ -114,7 +116,7 @@ export function ConversationList({
         {!isLoading && !errorMessage && conversations.length === 0 ? (
           <div className="px-5 py-8 text-center">
             <MessageSquareText className="mx-auto size-6 text-brand-deep" />
-            <p className="mt-4 font-display text-lg font-bold">
+            <p className="mt-4 font-display text-base font-semibold">
               Mulai dari pesan pertama
             </p>
             <p className="mt-2 text-sm text-ink-muted">

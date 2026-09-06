@@ -15,9 +15,9 @@ export function AuthShell({
   footer: ReactNode;
 }) {
   return (
-    <main className="grid min-h-screen bg-canvas lg:grid-cols-[minmax(20rem,0.8fr)_minmax(32rem,1.2fr)]">
+    <main className="grid min-h-screen bg-background lg:grid-cols-[minmax(20rem,0.8fr)_minmax(32rem,1.2fr)]">
       <section
-        className="relative hidden overflow-hidden bg-canvas-dark p-12 text-canvas lg:flex lg:flex-col lg:justify-between"
+        className="aurora-gradient relative hidden overflow-hidden p-12 text-canvas lg:flex lg:flex-col lg:justify-between"
         aria-label="Tentang Sydia"
       >
         <div className="flex items-center gap-3 font-mono text-sm tracking-widest uppercase">
@@ -25,18 +25,18 @@ export function AuthShell({
           Sydia
         </div>
         <div className="max-w-lg space-y-6">
-          <p className="font-mono text-xs tracking-widest text-brand uppercase">
+          <p className="font-mono text-[11px] font-medium tracking-[0.12em] text-canvas uppercase">
             Aktivitas pribadi, tertata jelas
           </p>
-          <p className="font-display text-5xl leading-[1.06] font-extrabold">
+          <p className="font-display text-[32px] leading-[1.1] font-bold tracking-[-0.03em]">
             Catat lewat percakapan. Kelola dengan tenang di satu tempat.
           </p>
-          <p className="text-lg text-canvas/70">
+          <p className="text-[17px] leading-[1.6] text-canvas">
             Sydia mengubah pesan menjadi informasi yang dapat Anda tinjau,
             sementara Anda tetap mengendalikan apa yang disimpan dan diubah.
           </p>
         </div>
-        <p className="font-mono text-xs text-canvas/50 uppercase">
+        <p className="font-mono text-[11px] font-medium tracking-[0.12em] text-canvas uppercase">
           Utamakan WhatsApp · Pusat kendali web
         </p>
       </section>
@@ -49,16 +49,18 @@ export function AuthShell({
             </span>
           </div>
           <header className="mb-8 space-y-3">
-            <p className="font-mono text-xs tracking-widest text-link uppercase">
+            <p className="font-mono text-[13px] font-medium tracking-widest text-ink-muted uppercase">
               {eyebrow}
             </p>
-            <h1 className="font-display text-4xl leading-tight font-extrabold text-ink sm:text-5xl">
+            <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] text-ink sm:text-[44px] sm:leading-[1.1] sm:font-bold sm:tracking-[-0.03em]">
               {title}
             </h1>
-            <p className="text-lg text-ink-muted">{description}</p>
+            <p className="text-[15px] leading-[1.6] text-ink-muted">
+              {description}
+            </p>
           </header>
           {children}
-          <div className="mt-8 border-t border-surface-1 pt-6 text-sm text-ink-muted">
+          <div className="mt-8 border-t border-ink/8 pt-6 text-sm text-ink-muted">
             {footer}
           </div>
         </div>

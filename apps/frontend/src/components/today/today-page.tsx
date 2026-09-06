@@ -20,7 +20,11 @@ import { CompactTaskRow } from "@/components/tasks/task-page";
 import { Button } from "@/components/ui/button";
 import { calendarEventsQueryOptions } from "@/lib/services/api/calendar/calendar.queries";
 import { todayQueryOptions } from "@/lib/services/api/today/today.queries";
-import { formatDay, formatDayInZone, formatDateTimeInZone } from "@/lib/utils/date-time";
+import {
+  formatDay,
+  formatDayInZone,
+  formatDateTimeInZone,
+} from "@/lib/utils/date-time";
 
 export function TodayPage({ firstName }: { firstName: string }) {
   const query = useQuery(todayQueryOptions());
@@ -29,28 +33,32 @@ export function TodayPage({ firstName }: { firstName: string }) {
     from.setHours(0, 0, 0, 0);
     const to = new Date(from);
     to.setDate(to.getDate() + 7);
+
     return { from: from.toISOString(), to: to.toISOString() };
   }, []);
+
   const eventsQuery = useQuery(calendarEventsQueryOptions(eventRange));
   const events = (eventsQuery.data ?? []).filter(
     (event) => event.status !== "cancelled"
   );
+
   const hasOverviewItems = Boolean(
     query.data?.tasks.length || query.data?.reminders.length
   );
+
   const hasItems = hasOverviewItems || Boolean(events.length);
 
   return (
     <div className="space-y-10">
-      <header className="grid gap-7 border-b border-surface-1 pb-9 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <header className="grid gap-7 border-b border-ink/8 pb-9 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="max-w-3xl">
           <p className="text-sm text-ink-muted">
             {query.data ? formatDay(query.data.date) : "Hari ini"}
           </p>
-          <h1 className="mt-2 font-display text-4xl leading-tight font-extrabold sm:text-5xl">
+          <h1 className="mt-2 font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
             Selamat datang, {firstName}.
           </h1>
-          <p className="mt-3 max-w-2xl text-lg text-ink-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-[1.6] text-ink-muted">
             Lihat apa yang perlu ditindaklanjuti sekarang. Sydia tetap menjadi
             tempat tercepat untuk menangkap hal baru.
           </p>
@@ -81,7 +89,8 @@ export function TodayPage({ firstName }: { firstName: string }) {
           }
         />
       ) : null}
-      {query.isSuccess && (hasItems || eventsQuery.isPending || eventsQuery.isError) ? (
+      {query.isSuccess &&
+      (hasItems || eventsQuery.isPending || eventsQuery.isError) ? (
         <div className="grid gap-10 xl:grid-cols-2">
           <section aria-labelledby="today-tasks-title">
             <div className="flex items-center justify-between gap-4 border-b border-surface-1 pb-4">
@@ -89,7 +98,7 @@ export function TodayPage({ firstName }: { firstName: string }) {
                 <CheckSquare2 className="size-5 text-brand-deep" />
                 <h2
                   id="today-tasks-title"
-                  className="font-display text-2xl font-bold"
+                  className="font-display text-[17px] leading-[1.6] font-semibold"
                 >
                   Tugas hari ini
                 </h2>
@@ -121,7 +130,7 @@ export function TodayPage({ firstName }: { firstName: string }) {
                 <CalendarCheck2 className="size-5 text-brand-deep" />
                 <h2
                   id="today-reminders-title"
-                  className="font-display text-2xl font-bold"
+                  className="font-display text-[17px] leading-[1.6] font-semibold"
                 >
                   Pengingat hari ini
                 </h2>
@@ -147,25 +156,45 @@ export function TodayPage({ firstName }: { firstName: string }) {
               </p>
             )}
           </section>
-          <section aria-labelledby="today-calendar-title" className="xl:col-span-2">
+          <section
+            aria-labelledby="today-calendar-title"
+            className="xl:col-span-2"
+          >
             <div className="flex items-center justify-between gap-4 border-b border-surface-1 pb-4">
               <div className="flex items-center gap-3">
                 <CalendarDays className="size-5 text-brand-deep" />
-                <h2 id="today-calendar-title" className="font-display text-2xl font-bold">
+                <h2
+                  id="today-calendar-title"
+                  className="font-display text-[17px] leading-[1.6] font-semibold"
+                >
                   Agenda mendatang
                 </h2>
               </div>
-              <Button variant="link" size="sm" nativeButton={false} render={<Link to="/calendar" />}>
+              <Button
+                variant="link"
+                size="sm"
+                nativeButton={false}
+                render={<Link to="/calendar" />}
+              >
                 Buka kalender <ArrowRight />
               </Button>
             </div>
             {eventsQuery.isPending ? (
-              <p className="py-7 text-ink-muted" role="status">Memuat agenda…</p>
+              <p className="py-7 text-ink-muted" role="status">
+                Memuat agenda…
+              </p>
             ) : null}
             {eventsQuery.isError ? (
               <div className="py-7" role="alert">
-                <p className="text-sm text-destructive">{eventsQuery.error.message}</p>
-                <Button variant="secondary" size="sm" className="mt-3" onClick={() => void eventsQuery.refetch()}>
+                <p className="text-sm text-destructive">
+                  {eventsQuery.error.message}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => void eventsQuery.refetch()}
+                >
                   Coba lagi
                 </Button>
               </div>
@@ -173,14 +202,26 @@ export function TodayPage({ firstName }: { firstName: string }) {
             {eventsQuery.isSuccess && events.length ? (
               <ul className="divide-y divide-surface-1">
                 {events.slice(0, 4).map((event) => (
-                  <li key={event.id} className="grid gap-2 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <li
+                    key={event.id}
+                    className="grid gap-2 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  >
                     <div>
                       <p className="font-display font-bold">{event.title}</p>
                       <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted">
-                        <time dateTime={event.startAt} className="flex items-center gap-1.5">
-                          <Clock3 className="size-4" /> {formatDayInZone(event.startAt, event.timezone)} · {formatDateTimeInZone(event.startAt, event.timezone)}
+                        <time
+                          dateTime={event.startAt}
+                          className="flex items-center gap-1.5"
+                        >
+                          <Clock3 className="size-4" />{" "}
+                          {formatDayInZone(event.startAt, event.timezone)} ·{" "}
+                          {formatDateTimeInZone(event.startAt, event.timezone)}
                         </time>
-                        {event.location ? <span className="flex items-center gap-1.5"><MapPin className="size-4" /> {event.location}</span> : null}
+                        {event.location ? (
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="size-4" /> {event.location}
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                   </li>
@@ -188,7 +229,9 @@ export function TodayPage({ firstName }: { firstName: string }) {
               </ul>
             ) : null}
             {eventsQuery.isSuccess && !events.length ? (
-              <p className="py-7 text-ink-muted">Tidak ada acara dalam tujuh hari ke depan.</p>
+              <p className="py-7 text-ink-muted">
+                Tidak ada acara dalam tujuh hari ke depan.
+              </p>
             ) : null}
           </section>
         </div>

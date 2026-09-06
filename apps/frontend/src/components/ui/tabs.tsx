@@ -19,10 +19,7 @@ function TabsList({ className, ...props }: TabsListProps) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn(
-        "flex items-center gap-6 border-b border-hairline",
-        className
-      )}
+      className={cn("flex items-center gap-6 border-b border-ink/8", className)}
       {...props}
     />
   );
@@ -35,7 +32,7 @@ function TabsTab({ className, ...props }: TabsTabProps) {
     <TabsPrimitive.Tab
       data-slot="tabs-tab"
       className={cn(
-        "-mb-px border-b-2 border-transparent pb-2 font-sans text-base text-ink-muted transition-colors outline-none hover:text-ink data-[active]:border-brand data-[active]:text-ink data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[focused]:ring-3 data-[focused]:ring-brand/40",
+        "-mb-px border-b-2 border-transparent px-0 pb-2 font-sans text-[15px] font-semibold text-ink-muted outline-none hover:text-ink data-[active]:border-brand data-[active]:text-ink data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[focused]:outline-2 data-[focused]:outline-offset-2 data-[focused]:outline-brand/50",
         className
       )}
       {...props}

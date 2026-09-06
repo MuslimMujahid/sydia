@@ -421,7 +421,7 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
         <div className="flex items-start justify-between gap-3">
           <h3
             className={cn(
-              "font-display text-lg leading-snug font-bold text-ink",
+              "font-display text-base leading-snug font-semibold text-ink",
               task.status === "done" && "text-editorial",
               task.status === "cancelled" && "text-ink-muted line-through"
             )}
@@ -526,7 +526,7 @@ function TaskColumn({
               status === "cancelled" && "text-destructive"
             )}
           />
-          <h2 id={headingId} className="font-display text-lg font-bold">
+          <h2 id={headingId} className="font-display text-base font-semibold">
             {label}
           </h2>
         </div>
@@ -608,7 +608,7 @@ export function TaskPage() {
           />
           <Button
             type="submit"
-            variant="secondary"
+            variant="dark-outline"
             size="icon"
             aria-label="Cari tugas"
           >

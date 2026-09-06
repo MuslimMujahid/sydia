@@ -8,12 +8,12 @@ function Switch({ className, ...props }: SwitchProps) {
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        "inline-flex h-6 w-10 shrink-0 items-center rounded-pill bg-hairline p-0.5 transition-colors outline-none data-[checked]:bg-brand data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[focused]:ring-3 data-[focused]:ring-brand/40",
+        "inline-flex h-6 w-10 shrink-0 items-center rounded-pill bg-ink/10 p-0.5 outline-none data-[checked]:bg-brand data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[focused]:outline-2 data-[focused]:outline-offset-2 data-[focused]:outline-brand/50",
         className
       )}
       {...props}
     >
-      <SwitchPrimitive.Thumb className="size-5 rounded-full bg-canvas transition-transform data-[checked]:translate-x-4" />
+      <SwitchPrimitive.Thumb className="size-5 rounded-pill bg-canvas transition-transform data-[checked]:translate-x-4" />
     </SwitchPrimitive.Root>
   );
 }

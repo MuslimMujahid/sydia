@@ -8,19 +8,10 @@ const SIDE_WORDS = ["Ide", "Tindakan", "Kemajuan"];
 
 function HeroBand() {
   return (
-    <header className="relative overflow-hidden bg-canvas-dark text-canvas">
-      {/* Brand voltage glow arc */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-40 -bottom-72 size-[560px] rounded-full opacity-80"
-        style={{
-          background:
-            "radial-gradient(closest-side, transparent 62%, rgba(50, 230, 226, 0.55) 78%, rgba(50, 230, 226, 0.12) 92%, transparent 100%)",
-        }}
-      />
+    <header className="aurora-gradient relative overflow-hidden text-canvas">
       <nav
         aria-label="Sistem desain"
-        className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10"
+        className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10"
       >
         <span className="flex items-center gap-3 font-mono text-base leading-6 tracking-widest uppercase">
           <SydiaLogo className="h-7" />
@@ -30,22 +21,22 @@ function HeroBand() {
           {NAV_WORDS.map((word) => (
             <li
               key={word}
-              className="font-mono text-xs leading-[18px] tracking-widest text-canvas/70 uppercase"
+              className="font-mono text-[11px] leading-none font-medium tracking-[0.12em] text-canvas uppercase"
             >
               {word}
             </li>
           ))}
         </ul>
       </nav>
-      <div className="relative mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-10 px-6 pt-16 pb-20 lg:px-10 lg:pt-24">
+      <div className="relative mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-10 px-6 pt-12 pb-16 lg:px-10 lg:pt-24 lg:pb-24">
         <div className="max-w-2xl space-y-6">
-          <h1 className="font-display text-5xl leading-[1.1] font-extrabold lg:text-[64px] lg:leading-[70.4px]">
+          <h1 className="font-display text-[44px] leading-[1.1] font-bold tracking-[-0.03em] lg:text-[64px] lg:leading-[1.02] lg:tracking-[-0.04em]">
             Sistem Desain Sydia
           </h1>
-          <p className="font-sans text-2xl leading-8 text-canvas/90">
+          <p className="font-sans text-xl leading-[1.22] font-semibold tracking-[-0.018em] text-canvas">
             Platform Asisten AI Pribadi
           </p>
-          <p className="font-sans text-lg leading-[27px] text-canvas/60">
+          <p className="font-sans text-[15px] leading-[1.6] text-canvas">
             Antarmuka kanvas terbagi, nuansa merek teal-sian, permukaan gelap
             editorial, dan suara teknis yang tenang.
           </p>
@@ -68,7 +59,7 @@ function HeroBand() {
             {SIDE_WORDS.map((word) => (
               <li
                 key={word}
-                className="font-mono text-xs leading-[18px] tracking-widest text-canvas/70 uppercase"
+                className="font-mono text-[11px] leading-none font-medium tracking-[0.12em] text-canvas uppercase"
               >
                 {word}
               </li>

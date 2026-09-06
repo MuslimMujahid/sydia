@@ -444,7 +444,7 @@ export function MemoryPage() {
           />
           <Button
             type="submit"
-            variant="secondary"
+            variant="dark-outline"
             size="icon"
             aria-label="Cari memori"
           >
@@ -468,7 +468,8 @@ export function MemoryPage() {
           </SelectField>
         </label>
         <Button
-          variant={pinnedOnly ? "dark" : "secondary"}
+          variant="dark-outline"
+          className={cn(pinnedOnly && "bg-surface-1 [&_svg]:text-brand")}
           disabled={Boolean(search)}
           onClick={() => setPinnedOnly((value) => !value)}
           aria-pressed={pinnedOnly}

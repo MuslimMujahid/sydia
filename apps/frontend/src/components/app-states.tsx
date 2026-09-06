@@ -43,7 +43,9 @@ export function ErrorState({
   return (
     <Card className="mx-auto max-w-xl" role="alert">
       <AlertTriangle className="mb-4 size-6 text-destructive" />
-      <h1 className="font-display text-3xl font-extrabold">{title}</h1>
+      <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
+        {title}
+      </h1>
       <p className="mt-2 text-ink-muted">{message}</p>
       <div className="mt-6 flex flex-wrap gap-3">
         {onRetry ? (
@@ -77,7 +79,9 @@ export function EmptyState({
   return (
     <div className="border-y border-surface-1 py-10">
       <Inbox className="mb-4 size-6 text-brand-deep" />
-      <h2 className="font-display text-2xl font-bold">{title}</h2>
+      <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
+        {title}
+      </h2>
       <p className="mt-2 max-w-xl text-ink-muted">{message}</p>
       {action ? <div className="mt-6">{action}</div> : null}
     </div>
@@ -86,15 +90,15 @@ export function EmptyState({
 
 export function AppNotFound() {
   return (
-    <main className="grid min-h-screen place-items-center bg-canvas px-6 py-16">
-      <section className="max-w-xl border-l-4 border-brand pl-6">
-        <p className="font-mono text-xs tracking-widest text-link uppercase">
+    <main className="grid min-h-screen place-items-center bg-background px-6 py-16">
+      <section className="max-w-xl border-l border-ink/8 pl-6">
+        <p className="font-mono text-[13px] font-medium tracking-widest text-ink-muted uppercase">
           404 / Tidak ditemukan
         </p>
-        <h1 className="mt-4 font-display text-5xl font-extrabold text-ink">
+        <h1 className="mt-4 font-display text-[44px] leading-[1.1] font-bold tracking-[-0.03em] text-ink">
           Halaman ini tidak tersedia.
         </h1>
-        <p className="mt-4 text-lg text-ink-muted">
+        <p className="mt-4 text-[15px] leading-[1.6] text-ink-muted">
           Kembali ke pusat kendali Sydia untuk melanjutkan dari tempat yang Anda
           kenali.
         </p>

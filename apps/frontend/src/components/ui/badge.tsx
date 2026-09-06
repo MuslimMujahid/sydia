@@ -17,7 +17,7 @@ function Badge({ className, dot, children, ...props }: BadgeProps) {
     <span
       data-slot="badge"
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-pill border border-hairline bg-canvas px-3 py-1 font-sans text-sm leading-[21px] text-ink-soft",
+        "inline-flex items-center gap-1.5 rounded-pill border border-ink/8 bg-canvas px-3 py-1 font-sans text-[13px] leading-[1.4] text-ink-muted",
         className
       )}
       {...props}
@@ -25,7 +25,7 @@ function Badge({ className, dot, children, ...props }: BadgeProps) {
       {dot ? (
         <span
           aria-hidden="true"
-          className={cn("size-2 rounded-full", dotClasses[dot])}
+          className={cn("size-2 rounded-pill", dotClasses[dot])}
         />
       ) : null}
       {children}

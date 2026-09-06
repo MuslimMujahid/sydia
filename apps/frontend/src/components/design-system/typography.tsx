@@ -8,7 +8,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     name: "Display XL",
     meta: "Figtree · 64 / 70.4 — 800",
     sample: (
-      <span className="font-display text-[64px] leading-[70.4px] font-extrabold">
+      <span className="font-display text-[44px] leading-[1.1] font-bold tracking-[-0.03em] lg:text-[64px] lg:leading-[1.02] lg:tracking-[-0.04em]">
         Anda yang lebih mampu
       </span>
     ),
@@ -17,7 +17,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     name: "Display MD",
     meta: "Figtree · 48 / 52.8 — 700",
     sample: (
-      <span className="font-display text-5xl leading-[52.8px] font-bold">
+      <span className="font-display text-[44px] leading-[1.1] font-bold tracking-[-0.03em]">
         Ubah ide menjadi kemajuan
       </span>
     ),
@@ -26,7 +26,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     name: "Heading LG",
     meta: "Figtree · 36.8 / 40.48 — 800",
     sample: (
-      <span className="font-display text-4xl leading-10 font-extrabold">
+      <span className="font-display text-[32px] leading-[1.1] font-bold tracking-[-0.03em]">
         Pendamping AI Anda
       </span>
     ),
@@ -35,7 +35,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     name: "Heading MD",
     meta: "Figtree · 32 / 35.2 — 700",
     sample: (
-      <span className="font-display text-[32px] leading-[35.2px] font-bold">
+      <span className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
         Rencanakan, ciptakan, dan capai
       </span>
     ),
@@ -44,7 +44,7 @@ const DISPLAY_ROWS: TypeRow[] = [
     name: "Heading SM",
     meta: "Figtree · 24 / 26.4 — 700",
     sample: (
-      <span className="font-display text-2xl leading-[26.4px] font-bold">
+      <span className="font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]">
         Lebih cerdas bersama
       </span>
     ),
@@ -56,7 +56,7 @@ const BODY_ROWS: TypeRow[] = [
     name: "Body LG",
     meta: "Instrument Sans · 18 / 27 — 400",
     sample: (
-      <span className="font-sans text-lg leading-[27px]">
+      <span className="font-sans text-[17px] leading-[1.6] tracking-[-0.005em]">
         Sydia membantu Anda berpikir jernih, bergerak cepat, dan melakukan lebih
         banyak.
       </span>
@@ -66,7 +66,7 @@ const BODY_ROWS: TypeRow[] = [
     name: "Body MD",
     meta: "Instrument Sans · 16 / 24 — 400",
     sample: (
-      <span className="font-sans text-base leading-6">
+      <span className="font-sans text-[15px] leading-[1.6] tracking-[-0.005em]">
         Asisten AI pribadi untuk pekerjaan dan kehidupan.
       </span>
     ),
@@ -84,7 +84,7 @@ const BODY_ROWS: TypeRow[] = [
     name: "Eyebrow Mono",
     meta: "Martian Mono · 16 / 24 — 400",
     sample: (
-      <span className="font-mono text-base leading-6 uppercase">
+      <span className="font-mono text-[13px] leading-none font-medium uppercase">
         Dibuat untuk manusia
       </span>
     ),

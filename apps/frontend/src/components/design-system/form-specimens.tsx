@@ -32,7 +32,7 @@ function ButtonSpecimen() {
         <Button variant="dark" className="w-full">
           Ciptakan
         </Button>
-        <Button variant="secondary" className="w-full">
+        <Button variant="dark-outline" className="w-full">
           Pelajari lebih lanjut
         </Button>
         <Button variant="primary" disabled className="w-full">
@@ -70,7 +70,7 @@ function TextInputSpecimen() {
           <Input
             id="input-focused"
             defaultValue="Rencanakan proyek berikutnya"
-            className="border-brand ring-3 ring-brand/30"
+            className="border-brand ring-4 ring-brand/15"
             readOnly
           />
         </div>
@@ -151,7 +151,7 @@ function TextareaSpecimen() {
             rows={3}
             readOnly
             aria-describedby="textarea-count"
-            className="border-brand ring-3 ring-brand/30"
+            className="border-brand ring-4 ring-brand/15"
           />
           <p
             id="textarea-count"
@@ -187,7 +187,7 @@ function SelectSpecimen() {
         <div
           role="listbox"
           aria-label="Model"
-          className="space-y-0.5 rounded-md border border-surface-1 bg-canvas p-1.5 shadow-sm"
+          className="space-y-0.5 rounded-md border border-ink/6 bg-canvas p-1.5 shadow-card"
         >
           {MODELS.map((model, index) => (
             <div

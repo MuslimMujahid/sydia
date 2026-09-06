@@ -19,13 +19,13 @@ function Avatar({
       className={cn("relative inline-flex", className)}
       {...props}
     >
-      <span className="flex size-10 items-center justify-center rounded-full bg-editorial font-display text-sm font-semibold text-canvas">
+      <span className="flex size-10 items-center justify-center rounded-pill bg-ink font-display text-sm font-semibold text-background">
         {initials}
       </span>
       {presence ? (
         <span
           aria-hidden="true"
-          className="absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-canvas bg-brand-deep"
+          className="absolute right-0 bottom-0 size-2.5 rounded-pill border-2 border-canvas bg-brand"
         />
       ) : null}
     </span>

@@ -16,12 +16,12 @@ function ShowcaseSection({
   return (
     <section
       aria-labelledby={`section-${number}`}
-      className="rounded-xl border border-surface-1 bg-canvas p-6 lg:p-8"
+      className="rounded-lg border border-ink/6 bg-canvas p-6 shadow-card lg:p-8"
     >
       <header className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
         <h2
           id={`section-${number}`}
-          className="font-mono text-base leading-6 text-ink uppercase"
+          className="font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em] text-ink"
         >
           {number}. {title}
         </h2>
@@ -45,7 +45,7 @@ type SpecimenProps = {
 
 function Specimen({ number, title, description, children }: SpecimenProps) {
   return (
-    <div className="flex flex-col rounded-lg border border-surface-1 bg-canvas p-4">
+    <div className="flex flex-col rounded-md border border-ink/6 bg-canvas p-5 shadow-card">
       <div className="mb-4">
         <h3 className="font-mono text-sm leading-[21px] text-ink uppercase">
           {number ? `${number}. ` : ""}

@@ -14,12 +14,12 @@ const COMPONENTS = {
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
   h1: ({ children }) => (
-    <h1 className="mt-5 mb-2 font-display text-xl leading-7 font-extrabold text-ink">
+    <h1 className="mt-5 mb-2 font-display text-[17px] leading-[1.6] font-semibold text-ink">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="mt-5 mb-2 font-display text-lg leading-6 font-bold text-ink">
+    <h2 className="mt-5 mb-2 font-display text-base leading-6 font-semibold text-ink">
       {children}
     </h2>
   ),
@@ -67,7 +67,7 @@ const COMPONENTS = {
         title={title}
         target={external ? "_blank" : undefined}
         rel={external ? "noreferrer noopener" : undefined}
-        className="break-words text-link underline decoration-link/40 underline-offset-2 transition-colors hover:decoration-link focus-visible:rounded-xs focus-visible:ring-3 focus-visible:ring-brand/40 focus-visible:outline-none"
+        className="break-words text-link underline decoration-link/40 underline-offset-2 hover:decoration-link focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-brand/50"
       >
         {children}
       </a>

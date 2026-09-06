@@ -52,7 +52,7 @@ function NewConversationState() {
         <span className="mx-auto grid size-12 place-items-center rounded-full bg-canvas ring-1 ring-surface-1">
           <SydiaLogo className="h-6" />
         </span>
-        <h2 className="mt-5 font-display text-2xl font-extrabold sm:text-3xl">
+        <h2 className="mt-5 font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]">
           Apa yang perlu Anda catat atau kerjakan?
         </h2>
         <p className="mt-3 text-ink-muted">
@@ -69,7 +69,7 @@ function EmptyConversationState() {
     <div className="grid min-h-full place-items-center px-6 py-12 text-center">
       <div className="max-w-md">
         <MessageSquareText className="mx-auto size-7 text-brand-deep" />
-        <h2 className="mt-4 font-display text-2xl font-bold">
+        <h2 className="mt-4 font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]">
           Percakapan ini belum berisi pesan
         </h2>
         <p className="mt-2 text-ink-muted">
@@ -80,7 +80,11 @@ function EmptyConversationState() {
   );
 }
 
-export function ChatPage({ initialAttachmentId }: { initialAttachmentId?: string }) {
+export function ChatPage({
+  initialAttachmentId,
+}: {
+  initialAttachmentId?: string;
+}) {
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null | undefined
   >(undefined);
@@ -222,7 +226,7 @@ export function ChatPage({ initialAttachmentId }: { initialAttachmentId?: string
             <Menu />
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate font-display text-xl font-extrabold sm:text-2xl">
+            <h1 className="truncate font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]">
               {title}
             </h1>
             <p className="mt-0.5 text-xs text-ink-muted sm:text-sm">
@@ -251,14 +255,14 @@ export function ChatPage({ initialAttachmentId }: { initialAttachmentId?: string
                 role="alert"
               >
                 <AlertTriangle className="mx-auto size-6 text-destructive" />
-                <h2 className="mt-4 font-display text-2xl font-bold">
+                <h2 className="mt-4 font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]">
                   Percakapan tidak dapat dimuat
                 </h2>
                 <p className="mt-2 text-ink-muted">
                   {conversationsQuery.error.message}
                 </p>
                 <Button
-                  variant="secondary"
+                  variant="dark-outline"
                   size="sm"
                   className="mt-5"
                   onClick={() => void conversationsQuery.refetch()}
@@ -292,14 +296,14 @@ export function ChatPage({ initialAttachmentId }: { initialAttachmentId?: string
                 role="alert"
               >
                 <AlertTriangle className="mx-auto size-6 text-destructive" />
-                <h2 className="mt-4 font-display text-2xl font-bold">
+                <h2 className="mt-4 font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]">
                   Percakapan tidak dapat dimuat
                 </h2>
                 <p className="mt-2 text-ink-muted">
                   {conversationQuery.error.message}
                 </p>
                 <Button
-                  variant="secondary"
+                  variant="dark-outline"
                   size="sm"
                   className="mt-5"
                   onClick={() => void conversationQuery.refetch()}

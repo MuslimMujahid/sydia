@@ -43,7 +43,7 @@ function TabsSpecimen() {
         </TabsList>
         <TabsPanel value="chat">
           <div className="rounded-md bg-surface-1/50 p-4">
-            <p className="font-display text-lg font-bold text-ink">
+            <p className="font-display text-base font-semibold text-ink">
               Mulai percakapan
             </p>
             <p className="font-sans text-sm leading-[21px] text-ink-muted">

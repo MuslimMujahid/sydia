@@ -17,8 +17,8 @@ export function SydiaLogo({ className }: SydiaLogoProps) {
       aria-hidden="true"
       className={cn("h-5 w-auto", className)}
     >
-      <path d={BOTTOM_SWASH} fill="#073f40" />
-      <path d={TOP_SWASH} fill="#32e6e2" />
+      <path d={BOTTOM_SWASH} className="fill-ink" />
+      <path d={TOP_SWASH} className="fill-brand" />
     </svg>
   );
 }

@@ -20,7 +20,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl bg-canvas p-6 text-ink transition-all data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
+          "fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-ink/6 bg-canvas p-6 text-ink shadow-card transition-all data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
           className
         )}
         {...props}
@@ -29,7 +29,7 @@ function DialogContent({
         {showClose ? (
           <DialogPrimitive.Close
             aria-label="Tutup"
-            className="absolute top-4 right-4 rounded-sm p-1 text-ink-weak transition-colors outline-none hover:text-ink focus-visible:ring-3 focus-visible:ring-brand/40"
+            className="absolute top-4 right-4 rounded-sm p-1 text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50"
           >
             <X className="size-4" />
           </DialogPrimitive.Close>
@@ -46,7 +46,7 @@ function DialogTitle({ className, ...props }: DialogTitleProps) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-display text-2xl leading-[26.4px] font-bold text-ink",
+        "font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em] text-ink",
         className
       )}
       {...props}
@@ -60,7 +60,10 @@ function DialogDescription({ className, ...props }: DialogDescriptionProps) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("font-sans text-base leading-6 text-ink-muted", className)}
+      className={cn(
+        "font-sans text-[15px] leading-6 text-ink-muted",
+        className
+      )}
       {...props}
     />
   );

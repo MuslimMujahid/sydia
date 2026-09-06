@@ -37,7 +37,7 @@ export function FieldShell({
   return (
     <div className="space-y-2">
       <label
-        className="block font-display text-sm font-semibold text-ink"
+        className="block font-sans text-sm font-semibold text-ink"
         htmlFor={id}
       >
         {label}
@@ -68,7 +68,7 @@ export function SelectField({
   return (
     <select
       className={cn(
-        "h-10 w-full rounded-sm border border-hairline bg-canvas px-3 text-base text-ink outline-none transition-colors hover:border-ink-weak focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30 disabled:opacity-50 aria-invalid:border-destructive",
+        "h-11 w-full rounded-sm border border-ink/16 bg-canvas px-3 text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:bg-ink/4 disabled:opacity-40 aria-invalid:border-destructive",
         className
       )}
       {...props}

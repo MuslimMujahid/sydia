@@ -37,7 +37,7 @@ function SpacingSection() {
                 </span>
                 <span
                   aria-hidden="true"
-                  className="h-3 rounded-xs bg-brand/70"
+                  className="h-3 rounded-pill bg-ink/10"
                   style={{ width: step.px }}
                 />
                 <span className="font-sans text-sm leading-[21px] text-ink-weak">

@@ -17,7 +17,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta: [
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
-        { name: "theme-color", content: "#181a1c" },
+        { name: "theme-color", content: "#fbf8f5" },
         { title: "Sydia · Aktivitas pribadi tertata jelas" },
         {
           name: "description",
@@ -26,6 +26,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
       ],
       links: [
+        {
+          rel: "preconnect",
+          href: "https://fonts.googleapis.com",
+        },
+        {
+          rel: "preconnect",
+          href: "https://fonts.gstatic.com",
+          crossOrigin: "anonymous",
+        },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
+        },
         {
           rel: "icon",
           href: "/favicon.svg",
@@ -52,7 +65,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         {
           rel: "mask-icon",
           href: "/safari-pinned-tab.svg",
-          color: "#073f40",
+          color: "#171419",
         },
         { rel: "manifest", href: "/site.webmanifest" },
       ],
@@ -80,7 +93,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         <a
           href="#main-content"
-          className="sr-only fixed top-2 left-2 z-50 bg-brand px-4 py-2 text-ink focus:not-sr-only"
+          className="sr-only fixed top-2 left-2 z-50 rounded-md bg-ink px-[22px] py-3 text-[15px] font-semibold text-canvas focus:not-sr-only"
         >
           Lewati ke konten
         </a>

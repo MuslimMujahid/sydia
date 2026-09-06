@@ -26,9 +26,9 @@ export const Route = createFileRoute("/design-system")({
 
 function DesignSystemPage() {
   return (
-    <div className="min-h-screen bg-surface-1/30">
+    <div className="min-h-screen bg-background">
       <HeroBand />
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 lg:px-8">
+      <main className="mx-auto max-w-7xl space-y-8 px-4 py-12 lg:px-8 lg:py-24">
         <ColorSystemSection />
         <div className="grid items-start gap-6 xl:grid-cols-2">
           <TypographySection />

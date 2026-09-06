@@ -453,7 +453,7 @@ function ReminderRow({
         <div className="flex flex-wrap items-center gap-2">
           <h2
             className={cn(
-              "font-display text-lg font-bold",
+              "font-display text-base font-semibold",
               !active && "text-ink-muted"
             )}
           >
@@ -490,7 +490,7 @@ function ReminderRow({
         {active ? (
           <>
             <Button
-              variant="secondary"
+              variant="dark-outline"
               size="sm"
               disabled={statusMutation.isPending}
               onClick={() =>
@@ -591,7 +591,7 @@ export function ReminderPage() {
           />
           <Button
             type="submit"
-            variant="secondary"
+            variant="dark-outline"
             size="icon"
             aria-label="Cari pengingat"
           >

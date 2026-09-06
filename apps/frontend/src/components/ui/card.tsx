@@ -2,16 +2,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils/cn";
 
-const cardVariants = cva("rounded-xl p-6", {
-  variants: {
-    variant: {
-      light: "border border-surface-1 bg-canvas text-ink",
-      dark: "bg-editorial text-canvas",
-      "dark-accent": "border border-brand bg-editorial text-canvas",
+const cardVariants = cva(
+  "rounded-lg border border-ink/6 bg-canvas p-6 shadow-card",
+  {
+    variants: {
+      variant: {
+        light: "text-ink",
+        dark: "text-ink",
+        "dark-accent": "text-ink",
+      },
     },
-  },
-  defaultVariants: { variant: "light" },
-});
+    defaultVariants: { variant: "light" },
+  }
+);
 
 type CardProps = ComponentProps<"div"> & VariantProps<typeof cardVariants>;
 
@@ -30,7 +33,7 @@ function CardTitle({ className, ...props }: ComponentProps<"h3">) {
     <h3
       data-slot="card-title"
       className={cn(
-        "font-display text-2xl leading-[26.4px] font-bold",
+        "font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]",
         className
       )}
       {...props}
@@ -42,7 +45,10 @@ function CardDescription({ className, ...props }: ComponentProps<"p">) {
   return (
     <p
       data-slot="card-description"
-      className={cn("font-sans text-base leading-6 text-ink-muted", className)}
+      className={cn(
+        "font-sans text-[15px] leading-6 text-ink-muted",
+        className
+      )}
       {...props}
     />
   );

@@ -3,26 +3,27 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils/cn";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-pill border border-transparent bg-clip-padding font-display font-semibold whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-3 focus-visible:ring-brand/40 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent bg-clip-padding font-sans text-[15px] leading-[1.4] font-semibold whitespace-nowrap outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50 active:not-aria-[haspopup]:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 disabled:saturate-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        primary: "bg-brand text-ink hover:bg-brand-hover",
-        secondary: "border-ink bg-transparent text-ink hover:bg-ink/5",
-        dark: "bg-editorial text-canvas hover:bg-editorial-deep",
-        "dark-outline":
-          "border-canvas/50 bg-transparent text-canvas hover:border-canvas hover:bg-canvas/5",
-        ghost: "text-ink-soft hover:bg-surface-1 hover:text-ink",
+        primary:
+          "aurora-gradient border-0 font-bold text-canvas shadow-button hover:brightness-[0.97]",
+        secondary: "bg-ink text-background hover:brightness-[0.97]",
+        dark: "bg-ink text-background hover:brightness-[0.97]",
+        "dark-outline": "border-ink/16 bg-transparent text-ink hover:text-ink",
+        ghost:
+          "border-0 bg-transparent px-[18px] text-ink-muted hover:text-ink",
         destructive:
-          "bg-destructive text-canvas hover:bg-destructive/90 focus-visible:ring-destructive/30",
-        link: "text-link underline-offset-4 hover:underline",
+          "bg-destructive text-canvas hover:brightness-[0.97] focus-visible:outline-destructive/50",
+        link: "border-0 bg-transparent px-[18px] text-ink-muted hover:text-ink hover:underline",
       },
       size: {
-        default: "h-10 px-[17px] text-lg",
-        sm: "h-8 px-3 text-sm",
-        lg: "h-12 px-6 text-lg",
-        icon: "size-10",
-        "icon-sm": "size-8",
+        default: "min-h-11 px-[22px] py-3",
+        sm: "min-h-10 px-[18px] py-2.5 text-sm",
+        lg: "min-h-11 px-[22px] py-3",
+        icon: "size-11 p-0",
+        "icon-sm": "size-10 p-0",
       },
     },
     defaultVariants: { variant: "primary", size: "default" },
