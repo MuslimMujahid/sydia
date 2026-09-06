@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpStatus, Patch } from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { GetUserService, UpdateUserProfileService } from './services';
-import { UpdateUserProfileDto } from './dto';
+import { UpdateUserPreferencesDto, UpdateUserProfileDto } from './dto';
 
 @Controller('users')
 export class UsersController {
@@ -26,6 +26,38 @@ export class UsersController {
     }
 
     return user;
+  }
+
+  @Get('me/preferences')
+  async getPreferences(@Session() session: UserSession) {
+    const user = await this.getUser.byId(session.user.id);
+    if (!user)
+      throw new ApiException({
+        code: ErrorCodes.NOT_FOUND,
+        message: 'Authenticated user no longer exists',
+        status: HttpStatus.NOT_FOUND,
+      });
+
+    return { automaticMemoryEnabled: user.automaticMemoryEnabled };
+  }
+
+  @Patch('me/preferences')
+  async updatePreferences(
+    @Session() session: UserSession,
+    @Body() input: UpdateUserPreferencesDto,
+  ) {
+    const user = await this.updateUserProfile.execute(session.user.id, {
+      automaticMemoryEnabled: input.automaticMemoryEnabled,
+    });
+
+    if (!user)
+      throw new ApiException({
+        code: ErrorCodes.NOT_FOUND,
+        message: 'Authenticated user no longer exists',
+        status: HttpStatus.NOT_FOUND,
+      });
+
+    return { automaticMemoryEnabled: user.automaticMemoryEnabled };
   }
 
   @Patch('me')

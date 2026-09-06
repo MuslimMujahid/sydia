@@ -15,10 +15,18 @@ export type User = Pick<
   | 'timezone'
   | 'locale'
   | 'onboardingCompleted'
+  | 'automaticMemoryEnabled'
   | 'createdAt'
   | 'updatedAt'
 >;
 
 export type UserProfileUpdate = Partial<
-  Pick<User, 'name' | 'timezone' | 'locale' | 'onboardingCompleted'>
+  Pick<
+    User,
+    | 'name'
+    | 'timezone'
+    | 'locale'
+    | 'onboardingCompleted'
+    | 'automaticMemoryEnabled'
+  >
 >;

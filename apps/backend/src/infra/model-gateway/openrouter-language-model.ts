@@ -11,7 +11,7 @@ import type {
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'z-ai/glm-5.3-flash';
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export class ModelGatewayError extends Error {
   constructor(message: string) {

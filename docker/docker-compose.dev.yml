@@ -5,7 +5,7 @@
 name: sydia
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${BACKEND_DB_USER}
@@ -20,6 +20,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
+  redis-data:
   postgres-data:

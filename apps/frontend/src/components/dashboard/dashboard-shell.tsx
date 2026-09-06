@@ -1,4 +1,7 @@
 import {
+  Bell,
+  Brain,
+  CheckSquare2,
   Home,
   LogOut,
   MessageSquareText,
@@ -33,6 +36,9 @@ import { cn } from "@/lib/utils/cn";
 const NAV_ITEMS = [
   { to: "/", label: "Hari ini", icon: Home },
   { to: "/chat", label: "Chat", icon: MessageSquareText },
+  { to: "/tasks", label: "Tugas", icon: CheckSquare2 },
+  { to: "/reminders", label: "Pengingat", icon: Bell },
+  { to: "/memory", label: "Memori", icon: Brain },
   { to: "/settings/profile", label: "Profil & preferensi", icon: Settings },
 ] as const;
 
@@ -191,6 +197,7 @@ export function DashboardShell({
         <main
           className={cn(
             "mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14",
+            activePath === "/tasks" && "max-w-none",
             activePath === "/chat" &&
               "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:p-0"
           )}

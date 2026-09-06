@@ -44,8 +44,18 @@ export type ToolInvocationStatus =
 export type ToolInvocation = {
   id: string;
   assistantRunId: string;
+  name: string;
   label: string;
   status: ToolInvocationStatus;
+  objectId: string | null;
+  objectType: "task" | "reminder" | null;
+  state: Record<string, string | number | boolean | null> | null;
+  output:
+    | Record<string, string | number | boolean | null>
+    | string
+    | number
+    | boolean
+    | null;
   createdAt: string;
   updatedAt: string;
 };

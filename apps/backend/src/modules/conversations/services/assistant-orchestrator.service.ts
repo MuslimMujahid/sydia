@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import type {
   AssistantRun,
@@ -16,6 +16,7 @@ import {
   type LanguageModelGateway,
   type ModelMessage,
 } from '../../../infra/model-gateway';
+import { AutomaticMemoryExtractorService } from '../../memories/automatic-memory-extractor.service';
 import { ContextBuilderService } from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 import { ToolExecutorService } from './tool-executor.service';
@@ -24,6 +25,18 @@ const SAFE_FAILURE_MESSAGE =
   'Sydia belum dapat menyelesaikan respons ini. Coba lagi dalam beberapa saat.';
 
 const RUN_STALE_AFTER_MS = 60_000;
+
+function toolConfirmation(invocations: ToolInvocation[]): string | null {
+  const completed = invocations.filter(
+    (invocation) => invocation.status === 'completed',
+  );
+
+  if (completed.length === 0) return null;
+
+  return completed
+    .map((invocation) => `${invocation.label} berhasil.`)
+    .join(' ');
+}
 
 type TurnUser = Pick<User, 'id' | 'name' | 'timezone' | 'locale'>;
 type GenerationUsage = {
@@ -85,6 +98,8 @@ export class AssistantOrchestratorService {
     private readonly contextBuilder: ContextBuilderService,
     private readonly summarizer: ConversationSummarizerService,
     private readonly toolExecutor: ToolExecutorService,
+    @Optional()
+    private readonly automaticMemoryExtractor?: AutomaticMemoryExtractorService,
   ) {}
 
   async send(
@@ -241,7 +256,7 @@ export class AssistantOrchestratorService {
           });
 
           return {
-            text: generation.text,
+            text: generation.text || toolConfirmation(toolInvocations) || '',
             usage: generation.usage,
             toolInvocations,
           };
@@ -275,6 +290,21 @@ export class AssistantOrchestratorService {
               `Conversation summary failed for ${state.conversation.id}`,
               error instanceof Error ? error.stack : undefined,
             );
+          }
+
+          if (this.automaticMemoryExtractor) {
+            void this.automaticMemoryExtractor
+              .extract(
+                state.user.id,
+                state.inputMessage.id,
+                state.inputMessage.content,
+              )
+              .catch((error: unknown) =>
+                this.logger.error(
+                  'Automatic memory extraction failed',
+                  error instanceof Error ? error.stack : undefined,
+                ),
+              );
           }
 
           return { assistantMessage, assistantRun };

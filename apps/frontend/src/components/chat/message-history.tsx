@@ -9,6 +9,7 @@ import type {
 } from "@/lib/services/api/conversations/conversations.api";
 import { AssistantActivity } from "./assistant-activity";
 import { AssistantMarkdown } from "./assistant-markdown";
+import { ChatActionCards } from "./action-cards";
 
 function formatMessageTime(value: string): string {
   const date = new Date(value);
@@ -244,6 +245,9 @@ export function MessageHistory({
               ) : (
                 <AssistantMarkdown content={message.content} />
               )}
+              {!isUser && run ? (
+                <ChatActionCards invocations={toolsByRunId[run.id] ?? []} />
+              ) : null}
               {!isUser && run ? (
                 <AssistantActivity
                   run={run}

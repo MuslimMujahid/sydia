@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ModelGatewayModule } from '../../infra/model-gateway';
+import { MemoriesModule } from '../memories/memories.module';
+import { RemindersModule } from '../reminders/reminders.module';
+import { TasksModule } from '../tasks/tasks.module';
 import {
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
@@ -15,10 +18,11 @@ import {
   ContextBuilderService,
   ConversationSummarizerService,
   ToolExecutorService,
+  DomainToolsProvider,
 } from './services';
 
 @Module({
-  imports: [ModelGatewayModule],
+  imports: [ModelGatewayModule, TasksModule, RemindersModule, MemoriesModule],
   controllers: [ConversationsController],
   providers: [
     {
@@ -26,7 +30,12 @@ import {
       useClass: PrismaConversationRepository,
     },
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
-    { provide: ASSISTANT_TOOLS, useValue: [] },
+    DomainToolsProvider,
+    {
+      provide: ASSISTANT_TOOLS,
+      useFactory: (provider: DomainToolsProvider) => provider.tools,
+      inject: [DomainToolsProvider],
+    },
     AssistantOrchestratorService,
     ContextBuilderService,
     ConversationSummarizerService,

@@ -48,11 +48,54 @@ const assistantRunSelect = {
 const toolInvocationSelect = {
   id: true,
   assistantRunId: true,
+  name: true,
   label: true,
   status: true,
+  result: true,
+  errorMessage: true,
+  startedAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
+
+type InvocationRow = {
+  id: string;
+  assistantRunId: string;
+  name: string;
+  label: string;
+  status: string;
+  result: Prisma.JsonValue | null;
+  errorMessage: string | null;
+  startedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function presentInvocation(invocation: InvocationRow): ToolInvocationRecord {
+  const output = invocation.result;
+  const record =
+    output && typeof output === 'object' && !Array.isArray(output)
+      ? (output as Record<string, unknown>)
+      : null;
+
+  const nested =
+    record && typeof record.object === 'object' && record.object !== null
+      ? (record.object as Record<string, unknown>)
+      : null;
+
+  const state = nested ?? record;
+  const objectId = state && typeof state.id === 'string' ? state.id : null;
+  const objectType =
+    record?.objectType === 'task' || record?.objectType === 'reminder'
+      ? record.objectType
+      : invocation.name.includes('task')
+        ? 'task'
+        : invocation.name.includes('reminder')
+          ? 'reminder'
+          : null;
+
+  return { ...invocation, objectId, objectType, state, output };
+}
 
 function titleFromContent(content: string): string {
   const firstLine = content.split('\n', 1)[0]?.trim() ?? content.trim();
@@ -115,7 +158,12 @@ export class PrismaConversationRepository implements IConversationRepository {
 
     const { messages, assistantRuns, ...summary } = conversation;
 
-    return { conversation: summary, messages, assistantRuns, toolInvocations };
+    return {
+      conversation: summary,
+      messages,
+      assistantRuns,
+      toolInvocations: toolInvocations.map(presentInvocation),
+    };
   }
 
   async findContext(
@@ -386,7 +434,12 @@ export class PrismaConversationRepository implements IConversationRepository {
     } as const;
 
     try {
-      return await this.prisma.toolInvocation.create({ data: input, select });
+      const created = await this.prisma.toolInvocation.create({
+        data: input,
+        select,
+      });
+
+      return presentInvocation(created);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -397,7 +450,7 @@ export class PrismaConversationRepository implements IConversationRepository {
           select,
         });
 
-        if (existing) return existing;
+        if (existing) return presentInvocation(existing);
       }
 
       throw error;
@@ -429,16 +482,15 @@ export class PrismaConversationRepository implements IConversationRepository {
       completedAt?: Date;
     },
   ): Promise<ToolInvocationRecord> {
-    return this.prisma.toolInvocation.update({
+    const invocation = await this.prisma.toolInvocation.update({
       where: { id },
       data: update,
       select: {
         ...toolInvocationSelect,
-        result: true,
-        errorMessage: true,
-        startedAt: true,
       },
     });
+
+    return presentInvocation(invocation);
   }
 
   async replaceSummary(

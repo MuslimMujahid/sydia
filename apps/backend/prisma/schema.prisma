@@ -22,6 +22,7 @@ model User {
   timezone            String             @default("Asia/Jakarta")
   locale              String             @default("id")
   onboardingCompleted Boolean            @default(false)
+  automaticMemoryEnabled Boolean            @default(false)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @default(now()) @updatedAt
   sessions            Session[]
@@ -30,6 +31,9 @@ model User {
   auditEvents         AuditEvent[]
   conversations       Conversation[]
   messages            Message[]
+  tasks                 Task[]
+  reminders             Reminder[]
+  memories              Memory[]
 
 
   @@map("user")
@@ -206,4 +210,93 @@ model ToolInvocation {
   @@unique([assistantRunId, toolCallId])
   @@index([assistantRunId, createdAt])
   @@map("tool_invocation")
+}
+
+model Task {
+  id              String    @id @default(cuid())
+  userId          String
+  title           String
+  description     String?
+  status          String    @default("inbox")
+  priority        String    @default("medium")
+  dueAt           DateTime?
+  tags            String[]  @default([])
+  sourceType      String    @default("dashboard")
+  sourceMessageId String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, dueAt])
+  @@index([userId, updatedAt])
+  @@map("task")
+}
+
+model Reminder {
+  id              String               @id @default(cuid())
+  userId          String
+  title           String
+  notes           String?
+  status          String               @default("scheduled")
+  scheduledAt     DateTime
+  timezone        String
+  recurrence      Json?
+  sourceType      String               @default("dashboard")
+  sourceMessageId String?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @default(now()) @updatedAt
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  occurrences     ReminderOccurrence[]
+
+  @@index([userId, status, scheduledAt])
+  @@index([userId, updatedAt])
+  @@map("reminder")
+}
+
+model ReminderOccurrence {
+  id                String    @id @default(cuid())
+  reminderId        String
+  occurrenceAt      DateTime
+  idempotencyKey    String    @unique
+  status            String    @default("pending")
+  providerMessageId String?
+  attemptedAt       DateTime?
+  deliveredAt       DateTime?
+  errorMessage      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  reminder          Reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, occurrenceAt])
+  @@index([status, occurrenceAt])
+  @@map("reminder_occurrence")
+}
+
+model Memory {
+  id                String    @id @default(cuid())
+  userId            String
+  content           String
+  category          String?
+  status            String    @default("active")
+  pinned            Boolean   @default(false)
+  confidence        Float?
+  sourceType        String    @default("dashboard")
+  sourceMessageId   String?
+  sourceDocumentId  String?
+  extractorVersion  String?
+  supersedesId      String?
+  supersededById    String?
+  embedding         Unsupported("vector(1536)")?
+  embeddingModel    String?
+  embeddingVersion  String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, pinned])
+  @@index([userId, updatedAt])
+  @@map("memory")
 }

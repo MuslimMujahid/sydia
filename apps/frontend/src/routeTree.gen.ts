@@ -16,6 +16,9 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AppMemoryRouteImport } from './routes/_app.memory'
+import { Route as AppRemindersRouteImport } from './routes/_app.reminders'
+import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
 
 const AppRoute = AppRouteImport.update({
@@ -52,6 +55,21 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMemoryRoute = AppMemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRemindersRoute = AppRemindersRouteImport.update({
+  id: '/reminders',
+  path: '/reminders',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
   id: '/settings/profile',
   path: '/settings/profile',
@@ -65,6 +83,9 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/chat': typeof AppChatRoute
+  '/memory': typeof AppMemoryRoute
+  '/reminders': typeof AppRemindersRoute
+  '/tasks': typeof AppTasksRoute
   '/settings/profile': typeof AppSettingsProfileRoute
 }
 export interface FileRoutesByTo {
@@ -73,6 +94,9 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/chat': typeof AppChatRoute
+  '/memory': typeof AppMemoryRoute
+  '/reminders': typeof AppRemindersRoute
+  '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/settings/profile': typeof AppSettingsProfileRoute
 }
@@ -84,6 +108,9 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/_app/chat': typeof AppChatRoute
+  '/_app/memory': typeof AppMemoryRoute
+  '/_app/reminders': typeof AppRemindersRoute
+  '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
 }
@@ -96,6 +123,9 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/chat'
+    | '/memory'
+    | '/reminders'
+    | '/tasks'
     | '/settings/profile'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -104,6 +134,9 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/chat'
+    | '/memory'
+    | '/reminders'
+    | '/tasks'
     | '/'
     | '/settings/profile'
   id:
@@ -114,6 +147,9 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/_app/chat'
+    | '/_app/memory'
+    | '/_app/reminders'
+    | '/_app/tasks'
     | '/_app/'
     | '/_app/settings/profile'
   fileRoutesById: FileRoutesById
@@ -177,6 +213,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/memory': {
+      id: '/_app/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof AppMemoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reminders': {
+      id: '/_app/reminders'
+      path: '/reminders'
+      fullPath: '/reminders'
+      preLoaderRoute: typeof AppRemindersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tasks': {
+      id: '/_app/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof AppTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/profile': {
       id: '/_app/settings/profile'
       path: '/settings/profile'
@@ -189,12 +246,18 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
+  AppMemoryRoute: typeof AppMemoryRoute
+  AppRemindersRoute: typeof AppRemindersRoute
+  AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsProfileRoute: typeof AppSettingsProfileRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
+  AppMemoryRoute: AppMemoryRoute,
+  AppRemindersRoute: AppRemindersRoute,
+  AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppSettingsProfileRoute: AppSettingsProfileRoute,
 }

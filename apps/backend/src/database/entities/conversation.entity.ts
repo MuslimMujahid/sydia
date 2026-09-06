@@ -57,8 +57,19 @@ export type AssistantRunRecord = AssistantRun &
 
 export type ToolInvocation = Pick<
   PrismaToolInvocation,
-  'id' | 'assistantRunId' | 'label' | 'status' | 'createdAt' | 'updatedAt'
->;
+  | 'id'
+  | 'assistantRunId'
+  | 'name'
+  | 'label'
+  | 'status'
+  | 'createdAt'
+  | 'updatedAt'
+> & {
+  objectId: string | null;
+  objectType: 'task' | 'reminder' | null;
+  state: Record<string, unknown> | null;
+  output: Prisma.JsonValue | null;
+};
 
 export type ToolInvocationRecord = ToolInvocation &
   Pick<PrismaToolInvocation, 'result' | 'errorMessage' | 'startedAt'>;

@@ -1,8 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Save } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   FieldShell,
   FormError,
@@ -11,6 +13,10 @@ import {
 } from "@/components/forms/form-fields";
 import { useAppForm } from "@/lib/hooks/forms";
 import { useUpdateCurrentUser } from "@/lib/services/api/users/users.queries";
+import {
+  userPreferencesQueryOptions,
+  useUpdateUserPreferences,
+} from "@/lib/services/api/users/preferences.queries";
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "Masukkan minimal 2 karakter."),
@@ -43,6 +49,8 @@ export const Route = createFileRoute("/_app/settings/profile")({
 function ProfileSettingsPage() {
   const user = Route.useRouteContext();
   const updateMutation = useUpdateCurrentUser();
+  const preferencesQuery = useQuery(userPreferencesQueryOptions());
+  const updatePreferencesMutation = useUpdateUserPreferences();
   const form = useAppForm({
     defaultValues: {
       name: user.name,
@@ -189,6 +197,69 @@ function ProfileSettingsPage() {
             )}
           </form.Subscribe>
         </form>
+      </Card>
+      <Card className="p-6 sm:p-8">
+        <div className="flex items-start justify-between gap-6">
+          <div className="max-w-xl">
+            <h2 className="font-display text-2xl font-bold">Memori otomatis</h2>
+            <p
+              id="automatic-memory-description"
+              className="mt-2 text-ink-muted"
+            >
+              Izinkan Sydia memilih informasi berguna dari percakapan untuk
+              disimpan sebagai memori. Riwayat chat tetap terpisah; setiap
+              memori dapat diperiksa, dikoreksi, atau dihapus.
+            </p>
+          </div>
+          {preferencesQuery.isPending ? (
+            <span
+              className="h-6 w-10 animate-pulse rounded-pill bg-hairline motion-reduce:animate-none"
+              aria-label="Memuat preferensi memori"
+            />
+          ) : (
+            <Switch
+              aria-label="Aktifkan memori otomatis"
+              aria-describedby="automatic-memory-description"
+              checked={preferencesQuery.data?.automaticMemoryEnabled ?? false}
+              disabled={
+                preferencesQuery.isError || updatePreferencesMutation.isPending
+              }
+              onCheckedChange={(checked) =>
+                updatePreferencesMutation.mutate({
+                  automaticMemoryEnabled: checked,
+                })
+              }
+            />
+          )}
+        </div>
+        {preferencesQuery.isError ? (
+          <div className="mt-5" role="alert">
+            <p className="text-sm text-destructive">
+              {preferencesQuery.error.message}
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-3"
+              onClick={() => void preferencesQuery.refetch()}
+            >
+              Coba lagi
+            </Button>
+          </div>
+        ) : null}
+        {updatePreferencesMutation.error ? (
+          <p className="mt-5 text-sm text-destructive" role="alert">
+            {updatePreferencesMutation.error.message}
+          </p>
+        ) : null}
+        {updatePreferencesMutation.isSuccess ? (
+          <p
+            className="mt-5 flex items-center gap-2 text-sm text-editorial-deep"
+            role="status"
+          >
+            <CheckCircle2 className="size-4" /> Preferensi memori disimpan.
+          </p>
+        ) : null}
       </Card>
     </div>
   );

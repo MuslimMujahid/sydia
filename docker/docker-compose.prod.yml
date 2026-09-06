@@ -4,15 +4,43 @@
 #   docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --build
 
 name: sydia
+
 services:
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   backend:
     image: monorepo-backend:prod
     build:
       context: ..
       dockerfile: apps/backend/Dockerfile
     env_file: ../.env
+    environment:
+      BACKEND_REDIS_HOST: redis
+      BACKEND_REDIS_PORT: 6379
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    image: monorepo-backend:prod
+    env_file: ../.env
+    environment:
+      BACKEND_REDIS_HOST: redis
+      BACKEND_REDIS_PORT: 6379
+    command: ["node", "dist/src/worker.js"]
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:

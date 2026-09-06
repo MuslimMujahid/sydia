@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev dev:worker",
     "lint": "turbo run lint",
     "setup-env": "node scripts/setup-env.js",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

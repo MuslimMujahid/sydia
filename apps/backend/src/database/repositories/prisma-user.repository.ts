@@ -12,6 +12,7 @@ const userSelect = {
   timezone: true,
   locale: true,
   onboardingCompleted: true,
+  automaticMemoryEnabled: true,
   createdAt: true,
   updatedAt: true,
 } as const;

@@ -109,41 +109,41 @@
 
 ## Backend
 
-- [ ] BE-0301 Set up Redis
-- [ ] BE-0302 Set up BullMQ
-- [ ] BE-0303 Establish worker process
-- [ ] BE-0304 Create Reminder domain
-- [ ] BE-0305 Create Reminder Schedule domain
-- [ ] BE-0306 Create Reminder Occurrence domain
-- [ ] BE-0307 Implement reminder scheduling
-- [ ] BE-0308 Implement recurring reminders
-- [ ] BE-0309 Implement reminder delivery
-- [ ] BE-0310 Implement reminder assistant tools
-- [ ] BE-0311 Create Task domain
-- [ ] BE-0312 Implement task assistant tools
-- [ ] BE-0313 Implement task/reminder reference resolution
-- [ ] BE-0314 Add reminder and task audit events
+- [x] BE-0301 Set up Redis
+- [x] BE-0302 Set up BullMQ
+- [x] BE-0303 Establish worker process
+- [x] BE-0304 Create Reminder domain
+- [x] BE-0305 Create Reminder Schedule domain
+- [x] BE-0306 Create Reminder Occurrence domain
+- [x] BE-0307 Implement reminder scheduling
+- [x] BE-0308 Implement recurring reminders
+- [x] BE-0309 Implement reminder delivery
+- [x] BE-0310 Implement reminder assistant tools
+- [x] BE-0311 Create Task domain
+- [x] BE-0312 Implement task assistant tools
+- [x] BE-0313 Implement task/reminder reference resolution
+- [x] BE-0314 Add reminder and task audit events
 
 ## Frontend
 
-- [ ] FE-0301 Create Reminders page
-- [ ] FE-0302 Create reminder detail/edit flow
-- [ ] FE-0303 Create Tasks page
-- [ ] FE-0304 Create task detail/edit flow
-- [ ] FE-0305 Add task filters
-- [ ] FE-0306 Add reminder filters
-- [ ] FE-0307 Create Today page
-- [ ] FE-0308 Add task/reminder chat action cards
-- [ ] FE-0309 Add snooze and complete actions
-- [ ] FE-0310 Add reschedule actions
+- [x] FE-0301 Create Reminders page
+- [x] FE-0302 Create reminder detail/edit flow
+- [x] FE-0303 Create Tasks page
+- [x] FE-0304 Create task detail/edit flow
+- [x] FE-0305 Add task filters
+- [x] FE-0306 Add reminder filters
+- [x] FE-0307 Create Today page
+- [x] FE-0308 Add task/reminder chat action cards
+- [x] FE-0309 Add snooze and complete actions
+- [x] FE-0310 Add reschedule actions
 
 ## Phase Exit
 
-- [ ] User can create reminders via web chat
-- [ ] User can create recurring reminders
-- [ ] User can reschedule, snooze, and cancel reminders
-- [ ] User can create, update, and complete tasks
-- [ ] Tasks and reminders are manageable from the dashboard
+- [x] User can create reminders via web chat
+- [x] User can create recurring reminders
+- [x] User can reschedule, snooze, and cancel reminders
+- [x] User can create, update, and complete tasks
+- [x] Tasks and reminders are manageable from the dashboard
 
 ---
 
@@ -151,39 +151,39 @@
 
 ## Backend
 
-- [ ] BE-0401 Enable pgvector
-- [ ] BE-0402 Create Memory domain
-- [ ] BE-0403 Implement explicit memory tools
-- [ ] BE-0404 Implement memory embeddings
-- [ ] BE-0405 Implement keyword search
-- [ ] BE-0406 Implement semantic search
-- [ ] BE-0407 Implement hybrid retrieval
-- [ ] BE-0408 Add memory retrieval to assistant context
-- [ ] BE-0409 Implement automatic memory extraction
-- [ ] BE-0410 Implement memory conflict handling
-- [ ] BE-0411 Implement memory supersession
-- [ ] BE-0412 Implement memory deletion and index cleanup
-- [ ] BE-0413 Add memory provenance
+- [x] BE-0401 Enable pgvector
+- [x] BE-0402 Create Memory domain
+- [x] BE-0403 Implement explicit memory tools
+- [x] BE-0404 Implement memory embeddings
+- [x] BE-0405 Implement keyword search
+- [x] BE-0406 Implement semantic search
+- [x] BE-0407 Implement hybrid retrieval
+- [x] BE-0408 Add memory retrieval to assistant context
+- [x] BE-0409 Implement automatic memory extraction
+- [x] BE-0410 Implement memory conflict handling
+- [x] BE-0411 Implement memory supersession
+- [x] BE-0412 Implement memory deletion and index cleanup
+- [x] BE-0413 Add memory provenance
 
 ## Frontend
 
-- [ ] FE-0401 Create Memory page
-- [ ] FE-0402 Create memory search
-- [ ] FE-0403 Create memory detail view
-- [ ] FE-0404 Create memory edit flow
-- [ ] FE-0405 Add pin memory action
-- [ ] FE-0406 Add archive memory action
-- [ ] FE-0407 Add delete memory action
-- [ ] FE-0408 Show memory provenance
-- [ ] FE-0409 Add automatic-memory setting
+- [x] FE-0401 Create Memory page
+- [x] FE-0402 Create memory search
+- [x] FE-0403 Create memory detail view
+- [x] FE-0404 Create memory edit flow
+- [x] FE-0405 Add pin memory action
+- [x] FE-0406 Add archive memory action
+- [x] FE-0407 Add delete memory action
+- [x] FE-0408 Show memory provenance
+- [x] FE-0409 Add automatic-memory setting
 
 ## Phase Exit
 
-- [ ] User can explicitly save a memory
-- [ ] User can retrieve memories semantically
-- [ ] User can browse and manage memories
-- [ ] Updated memories supersede outdated information correctly
-- [ ] Deleted memories no longer appear in retrieval
+- [x] User can explicitly save a memory
+- [x] User can retrieve memories semantically
+- [x] User can browse and manage memories
+- [x] Updated memories supersede outdated information correctly
+- [x] Deleted memories no longer appear in retrieval
 
 ---
 

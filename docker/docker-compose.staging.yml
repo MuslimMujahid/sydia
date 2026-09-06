@@ -5,26 +5,47 @@
 #   docker compose --env-file .env.staging -f docker/docker-compose.staging.yml up -d --build
 
 name: sydia-staging
+
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  BACKEND_PORT: ${BACKEND_PORT:?BACKEND_PORT is required}
+  FRONTEND_PORT: ${FRONTEND_PORT:?FRONTEND_PORT is required}
+  FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+  BACKEND_DB_HOST: ${BACKEND_DB_HOST:?BACKEND_DB_HOST is required}
+  BACKEND_DB_PORT: ${BACKEND_DB_PORT:?BACKEND_DB_PORT is required}
+  BACKEND_DB_USER: ${BACKEND_DB_USER:?BACKEND_DB_USER is required}
+  BACKEND_DB_PASSWORD: ${BACKEND_DB_PASSWORD:?BACKEND_DB_PASSWORD is required}
+  BACKEND_DB_NAME: ${BACKEND_DB_NAME:?BACKEND_DB_NAME is required}
+  BACKEND_REDIS_HOST: redis
+  BACKEND_REDIS_PORT: 6379
+  BACKEND_AUTH_SECRET: ${BACKEND_AUTH_SECRET:?BACKEND_AUTH_SECRET is required}
+  BACKEND_AUTH_URL: ${BACKEND_AUTH_URL:?BACKEND_AUTH_URL is required}
+  BACKEND_MODEL_API_KEY: ${BACKEND_MODEL_API_KEY-}
+  BACKEND_MODEL_BASE_URL: ${BACKEND_MODEL_BASE_URL-}
+  BACKEND_MODEL_NAME: ${BACKEND_MODEL_NAME-}
+  BACKEND_EMBEDDING_MODEL: ${BACKEND_EMBEDDING_MODEL-}
+
 services:
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   backend:
     image: sydia-backend:staging
     build:
       context: ..
       dockerfile: apps/backend/Dockerfile
-    environment:
-      NODE_ENV: production
-      BACKEND_PORT: ${BACKEND_PORT:?BACKEND_PORT is required}
-      FRONTEND_PORT: ${FRONTEND_PORT:?FRONTEND_PORT is required}
-      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
-      BACKEND_DB_HOST: ${BACKEND_DB_HOST:?BACKEND_DB_HOST is required}
-      BACKEND_DB_PORT: ${BACKEND_DB_PORT:?BACKEND_DB_PORT is required}
-      BACKEND_DB_USER: ${BACKEND_DB_USER:?BACKEND_DB_USER is required}
-      BACKEND_DB_PASSWORD: ${BACKEND_DB_PASSWORD:?BACKEND_DB_PASSWORD is required}
-      BACKEND_DB_NAME: ${BACKEND_DB_NAME:?BACKEND_DB_NAME is required}
-      BACKEND_AUTH_SECRET: ${BACKEND_AUTH_SECRET:?BACKEND_AUTH_SECRET is required}
-      BACKEND_AUTH_URL: ${BACKEND_AUTH_URL:?BACKEND_AUTH_URL is required}
+    environment: *backend-environment
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       # The anonymous root route is the existing public application probe.
       test:
@@ -38,6 +59,14 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+
+  worker:
+    image: sydia-backend:staging
+    environment: *backend-environment
+    command: ["node", "dist/src/worker.js"]
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:

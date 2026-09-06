@@ -25,6 +25,7 @@ export type AssistantTool = {
   parseArguments(value: unknown): Prisma.InputJsonValue;
   execute(input: {
     userId: string;
+    sourceMessageId: string;
     arguments: Prisma.InputJsonValue;
     idempotencyKey: string;
   }): Promise<Prisma.InputJsonValue>;
@@ -191,6 +192,7 @@ export class ToolExecutorService {
 
     try {
       const result = await assistantTool.execute({
+        sourceMessageId: inputMessageId,
         userId,
         arguments: argumentsValue,
         idempotencyKey,

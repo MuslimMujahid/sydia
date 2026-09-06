@@ -1,0 +1,93 @@
+import { describe, expect, jest, test } from '@jest/globals';
+import type {
+  IMemoryRepository,
+  IReminderRepository,
+  ITaskRepository,
+  IUserRepository,
+} from '../../../database/interfaces';
+import type { MemoryService } from '../../memories/memory.service';
+import type { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
+import { createDomainTools } from './domain-tools';
+
+function resolved<T>(value: T) {
+  return jest.fn<() => Promise<T>>().mockResolvedValue(value);
+}
+
+describe('domain assistant tools', () => {
+  test('creates and updates a task without duplicating it', async () => {
+    const created = { id: 'task-1', title: 'Kirim invoice', status: 'inbox' };
+    const updated = { ...created, title: 'Kirim invoice revisi' };
+    const createTask = resolved(created);
+    const findTask = resolved(created);
+    const updateTask = resolved(updated);
+    const tasks = {
+      create: createTask,
+      findReference: findTask,
+      update: updateTask,
+    } as unknown as ITaskRepository;
+
+    const tools = createDomainTools({
+      tasks,
+      reminders: {} as IReminderRepository,
+      memories: {} as IMemoryRepository,
+      memoryService: {} as MemoryService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {} as IUserRepository,
+    });
+
+    const create = tools.find((tool) => tool.definition.name === 'create_task');
+    const update = tools.find((tool) => tool.definition.name === 'update_task');
+
+    await create?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      arguments: { title: 'Kirim invoice' },
+      idempotencyKey: 'one',
+    });
+    const result = await update?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-2',
+      arguments: { query: 'invoice', title: 'Kirim invoice revisi' },
+      idempotencyKey: 'two',
+    });
+
+    expect(createTask).toHaveBeenCalledTimes(1);
+    expect(updateTask.mock.calls[0]).toEqual([
+      'user-1',
+      'task-1',
+      expect.objectContaining({ title: 'Kirim invoice revisi' }),
+    ]);
+    expect(result).toEqual(expect.objectContaining({ objectType: 'task' }));
+  });
+
+  test('retrieves durable memory independently of a conversation', async () => {
+    const search = resolved([
+      { id: 'memory-1', content: 'Bayar vendor dengan BCA' },
+    ]);
+
+    const tools = createDomainTools({
+      tasks: {} as ITaskRepository,
+      reminders: {} as IReminderRepository,
+      memories: {} as IMemoryRepository,
+      memoryService: { search } as unknown as MemoryService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {} as IUserRepository,
+    });
+
+    const searchTool = tools.find(
+      (tool) => tool.definition.name === 'search_memory',
+    );
+
+    const result = await searchTool?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-3',
+      arguments: { query: 'bank vendor' },
+      idempotencyKey: 'three',
+    });
+
+    expect(search.mock.calls[0]).toEqual(['user-1', 'bank vendor', 5]);
+    expect(result).toEqual({
+      memories: [{ id: 'memory-1', content: 'Bayar vendor dengan BCA' }],
+    });
+  });
+});

@@ -5,14 +5,20 @@ import { ResponseInterceptor } from './shared/response';
 import { RequestLoggingMiddleware } from './shared/logging';
 import { AuthModule } from './infra/auth';
 import { PrismaModule } from './infra/prisma';
+import { QueueModule } from './infra/queue';
 import { UsersModule } from './modules/users/users.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
+import { MemoriesModule } from './modules/memories/memories.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
+import { TasksModule } from './modules/tasks/tasks.module';
+import { TodayModule } from './modules/today/today.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 function parsePort(
   config: Record<string, unknown>,
-  name: 'BACKEND_PORT' | 'FRONTEND_PORT' | 'BACKEND_DB_PORT',
+  name:
+    'BACKEND_PORT' | 'FRONTEND_PORT' | 'BACKEND_DB_PORT' | 'BACKEND_REDIS_PORT',
   defaultValue: number,
 ): number {
   const value =
@@ -108,6 +114,12 @@ export function validateEnvironment(
     BACKEND_DB_USER: requireString(config, 'BACKEND_DB_USER'),
     BACKEND_DB_PASSWORD: requireString(config, 'BACKEND_DB_PASSWORD'),
     BACKEND_DB_NAME: requireString(config, 'BACKEND_DB_NAME'),
+    BACKEND_REDIS_HOST:
+      typeof config.BACKEND_REDIS_HOST === 'string' &&
+      config.BACKEND_REDIS_HOST.trim() !== ''
+        ? config.BACKEND_REDIS_HOST.trim()
+        : 'localhost',
+    BACKEND_REDIS_PORT: parsePort(config, 'BACKEND_REDIS_PORT', 6379),
     BACKEND_AUTH_SECRET: requireString(config, 'BACKEND_AUTH_SECRET'),
     BACKEND_AUTH_URL:
       typeof authUrl === 'string' && authUrl.trim() !== ''
@@ -127,6 +139,11 @@ export function validateEnvironment(
       config.BACKEND_MODEL_NAME.trim() !== ''
         ? config.BACKEND_MODEL_NAME.trim()
         : 'z-ai/glm-5.3-flash',
+    BACKEND_EMBEDDING_MODEL:
+      typeof config.BACKEND_EMBEDDING_MODEL === 'string' &&
+      config.BACKEND_EMBEDDING_MODEL.trim() !== ''
+        ? config.BACKEND_EMBEDDING_MODEL.trim()
+        : 'openai/text-embedding-3-small',
     BACKEND_ASSISTANT_CONTEXT_TOKENS: parsePositiveInteger(
       config,
       'BACKEND_ASSISTANT_CONTEXT_TOKENS',
@@ -152,9 +169,14 @@ export function validateEnvironment(
       validate: validateEnvironment,
     }),
     PrismaModule,
+    QueueModule,
     AuthModule,
     UsersModule,
     ConversationsModule,
+    TasksModule,
+    RemindersModule,
+    MemoriesModule,
+    TodayModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter, ResponseInterceptor],
