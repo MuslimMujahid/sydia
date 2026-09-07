@@ -1,3 +1,13 @@
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { useQuery } from "@tanstack/react-query";
 import {
   Ban,
@@ -6,6 +16,7 @@ import {
   CheckCircle2,
   CircleDot,
   Inbox,
+  Flag,
   LoaderCircle,
   Pencil,
   Plus,
@@ -756,102 +767,86 @@ const TASK_COLUMNS: Array<{
 ];
 
 function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
-  const statusMutation = useSetTaskStatus();
-  const statusId = `task-${task.id}-status`;
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: task.id,
+      data: { status: task.status },
+    });
+
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
 
   return (
-    <li>
+    <li ref={setNodeRef} style={dragStyle} className="touch-none">
       <article
+        {...attributes}
+        {...listeners}
         className={cn(
-          "rounded-sm border border-surface-1 bg-canvas p-4",
+          "group cursor-grab rounded-sm border border-surface-1 bg-canvas p-4 transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-ink-weak/50 hover:shadow-[0_8px_24px_-18px_var(--color-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep active:cursor-grabbing",
           task.status === "doing" && "border-warn/40",
           task.status === "done" && "border-brand-deep/30 bg-surface-2",
           task.status === "cancelled" &&
-            "border-destructive/30 bg-destructive/5"
+            "border-destructive/30 bg-destructive/5",
+          isDragging && "z-20 scale-[1.02] cursor-grabbing opacity-70 shadow-lg"
         )}
+        onClick={() => {
+          if (!isDragging) onEdit();
+        }}
+        onKeyDown={(event) => {
+          listeners?.onKeyDown?.(event);
+          if (event.key === "Enter" && !event.defaultPrevented) onEdit();
+        }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <h3
-            className={cn(
-              "font-display text-base leading-snug font-semibold text-ink",
-              task.status === "done" && "text-editorial",
-              task.status === "cancelled" && "text-ink-muted line-through"
-            )}
-          >
-            {task.title}
-          </h3>
-          {task.priority === "high" ? (
-            <Badge dot="warn" className="shrink-0 px-2 py-0.5 text-xs">
-              Tinggi
-            </Badge>
-          ) : null}
-        </div>
+        <h3
+          className={cn(
+            "font-display text-base leading-snug font-semibold text-ink",
+            task.status === "done" && "text-editorial",
+            task.status === "cancelled" && "text-ink-muted line-through"
+          )}
+        >
+          {task.title}
+        </h3>
+        {task.categories.length ? (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {task.categories.map((category) => (
+              <span
+                key={category.id}
+                className="inline-flex items-center gap-1 rounded-pill bg-surface-1 py-1 pr-2 pl-1 text-xs font-medium text-ink-soft"
+              >
+                <CategoryIcon
+                  iconKey={category.iconKey}
+                  color={category.color}
+                  className="size-4.5 rounded-md [&_svg]:size-3"
+                />
+                {category.name}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {task.description ? (
-          <p className="mt-2 line-clamp-3 text-sm text-ink-muted">
+          <p className="mt-3 line-clamp-3 text-sm text-ink-muted">
             {task.description}
           </p>
         ) : null}
-        <div className="mt-4 space-y-2 text-sm text-ink-muted">
-          <span className="flex items-center gap-1.5">
-            <CalendarClock className="size-4" />
-            {task.dueAt ? formatRelativeDay(task.dueAt) : "Tanpa tenggat"}
+        <div className="mt-5 flex items-center gap-4 border-t border-surface-1 pt-3 text-xs text-ink-muted">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <CalendarClock className="size-3.5 shrink-0" />
+            <span className="truncate">
+              {task.dueAt ? formatRelativeDay(task.dueAt) : "Tanpa tenggat"}
+            </span>
           </span>
-          {task.categories.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {task.categories.map((category) => (
-                <span
-                  key={category.id}
-                  className="inline-flex items-center gap-1 rounded-pill bg-surface-1 py-1 pr-2 pl-1 text-xs text-ink-soft"
-                >
-                  <CategoryIcon
-                    iconKey={category.iconKey}
-                    color={category.color}
-                    className="size-5 rounded-md [&_svg]:size-3.5"
-                  />
-                  {category.name}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        <div className="mt-5 border-t border-surface-1 pt-4">
-          <label
-            className="block font-display text-xs font-semibold text-ink-soft"
-            htmlFor={statusId}
+          <span
+            className={cn(
+              "ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-1",
+              task.priority === "high" && "bg-warn/15 text-warn",
+              task.priority === "low" && "text-ink-weak"
+            )}
+            title={`Prioritas ${PRIORITY_LABELS[task.priority].toLowerCase()}`}
+            aria-label={`Prioritas ${PRIORITY_LABELS[task.priority].toLowerCase()}`}
           >
-            Pindahkan ke
-          </label>
-          <SelectField
-            id={statusId}
-            className="mt-2 h-9 text-sm"
-            value={task.status}
-            disabled={statusMutation.isPending}
-            onChange={(event) =>
-              statusMutation.mutate({
-                taskId: task.id,
-                status: event.target.value as TaskStatus,
-              })
-            }
-          >
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 w-full"
-            onClick={onEdit}
-          >
-            <Pencil /> Lihat rincian
-          </Button>
-          {statusMutation.error ? (
-            <p className="mt-2 text-sm text-destructive" role="alert">
-              {statusMutation.error.message}
-            </p>
-          ) : null}
+            <Flag className="size-3.5" aria-hidden="true" />
+          </span>
         </div>
       </article>
     </li>
@@ -874,10 +869,16 @@ function TaskColumn({
   onCreate: () => void;
 }) {
   const headingId = `task-column-${status}`;
+  const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
     <section
-      className="min-w-72 snap-start xl:min-w-0"
+      ref={setNodeRef}
+      className={cn(
+        "min-w-72 snap-start rounded-sm transition-colors xl:min-w-0",
+        isOver &&
+          "bg-brand-soft/35 outline-2 outline-offset-4 outline-brand-deep/30"
+      )}
       aria-labelledby={headingId}
     >
       <header className="flex items-center justify-between gap-3 border-b border-hairline pb-3">
@@ -902,7 +903,7 @@ function TaskColumn({
         </span>
       </header>
       {tasks.length ? (
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-4 min-h-24 space-y-3">
           {tasks.map((task) => (
             <TaskCard key={task.id} task={task} onEdit={() => onEdit(task)} />
           ))}
@@ -937,6 +938,12 @@ export function TaskPage() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [editor, setEditor] = useState<Task | "new" | null>(null);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const statusMutation = useSetTaskStatus();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  );
+
   const categoriesQuery = useQuery(categoriesQueryOptions());
   const filters: TaskFilters = {
     due,
@@ -952,6 +959,18 @@ export function TaskPage() {
   function submitSearch(event: FormEvent) {
     event.preventDefault();
     setSearch(searchDraft.trim());
+  }
+
+  function moveTask(event: DragEndEvent) {
+    const destination = event.over?.id as TaskStatus | undefined;
+    const current = event.active.data.current?.status as TaskStatus | undefined;
+
+    if (!destination || !current || destination === current) return;
+
+    statusMutation.mutate({
+      taskId: String(event.active.id),
+      status: destination,
+    });
   }
 
   return (
@@ -1064,22 +1083,30 @@ export function TaskPage() {
       {query.isSuccess ? (
         <section aria-label="Papan tugas">
           <p className="mb-3 text-sm text-ink-muted xl:sr-only">
-            Geser papan ke samping untuk melihat semua tahap.
+            Geser papan ke samping untuk melihat semua tahap. Seret kartu untuk
+            memindahkan tugas.
           </p>
-          <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(18rem,85vw)] gap-4 overflow-x-auto pb-4 xl:grid-flow-row xl:auto-cols-auto xl:grid-cols-4">
-            {TASK_COLUMNS.map((column) => (
-              <TaskColumn
-                key={column.status}
-                {...column}
-                tasks={query.data.filter(
-                  (task) => task.status === column.status
-                )}
-                filtered={filtered}
-                onEdit={setEditor}
-                onCreate={() => setEditor("new")}
-              />
-            ))}
-          </div>
+          {statusMutation.error ? (
+            <p className="mb-3 text-sm text-destructive" role="alert">
+              {statusMutation.error.message}
+            </p>
+          ) : null}
+          <DndContext sensors={sensors} onDragEnd={moveTask}>
+            <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(18rem,85vw)] gap-4 overflow-x-auto pb-4 xl:grid-flow-row xl:auto-cols-auto xl:grid-cols-4">
+              {TASK_COLUMNS.map((column) => (
+                <TaskColumn
+                  key={column.status}
+                  {...column}
+                  tasks={query.data.filter(
+                    (task) => task.status === column.status
+                  )}
+                  filtered={filtered}
+                  onEdit={setEditor}
+                  onCreate={() => setEditor("new")}
+                />
+              ))}
+            </div>
+          </DndContext>
         </section>
       ) : null}
       <Dialog
