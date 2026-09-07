@@ -1,0 +1,1 @@
+process.env.BACKEND_WHATSAPP_RUNTIME_ENABLED = 'false';

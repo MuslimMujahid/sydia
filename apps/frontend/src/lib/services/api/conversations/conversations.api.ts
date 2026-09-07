@@ -195,3 +195,16 @@ export async function retryAssistantRun({
     );
   }
 }
+
+export async function deleteConversation(
+  conversationId: string
+): Promise<void> {
+  try {
+    await api.delete(`/conversations/${encodeURIComponent(conversationId)}`);
+  } catch (error) {
+    throw toApiError(
+      error,
+      "Percakapan tidak dapat dihapus. Periksa koneksi Anda, lalu coba lagi."
+    );
+  }
+}

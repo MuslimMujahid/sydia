@@ -9,6 +9,7 @@ import {
   Clock3,
   MapPin,
   MessageSquareText,
+  PauseCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/app-states";
 import {
@@ -18,26 +19,29 @@ import {
 import { CompactReminderRow } from "@/components/reminders/reminder-page";
 import { CompactTaskRow } from "@/components/tasks/task-page";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { calendarEventsQueryOptions } from "@/lib/services/api/calendar/calendar.queries";
 import { todayQueryOptions } from "@/lib/services/api/today/today.queries";
+import { currentUserQueryOptions } from "@/lib/services/api/users/users.queries";
+import { userPreferencesQueryOptions } from "@/lib/services/api/users/preferences.queries";
 import {
-  formatDay,
   formatDayInZone,
   formatDateTimeInZone,
+  getDayRangeInZone,
 } from "@/lib/utils/date-time";
 
 export function TodayPage({ firstName }: { firstName: string }) {
   const query = useQuery(todayQueryOptions());
-  const eventRange = useMemo(() => {
-    const from = new Date();
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(from);
-    to.setDate(to.getDate() + 7);
+  const preferencesQuery = useQuery(userPreferencesQueryOptions());
+  const profileQuery = useQuery(currentUserQueryOptions());
+  const timezone = profileQuery.data?.timezone ?? "UTC";
+  const eventRange = useMemo(() => getDayRangeInZone(timezone, 7), [timezone]);
 
-    return { from: from.toISOString(), to: to.toISOString() };
-  }, []);
+  const eventsQuery = useQuery({
+    ...calendarEventsQueryOptions(eventRange),
+    enabled: profileQuery.isSuccess,
+  });
 
-  const eventsQuery = useQuery(calendarEventsQueryOptions(eventRange));
   const events = (eventsQuery.data ?? []).filter(
     (event) => event.status !== "cancelled"
   );
@@ -53,7 +57,9 @@ export function TodayPage({ firstName }: { firstName: string }) {
       <header className="grid gap-7 border-b border-ink/8 pb-9 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="max-w-3xl">
           <p className="text-sm text-ink-muted">
-            {query.data ? formatDay(query.data.date) : "Hari ini"}
+            {query.data
+              ? formatDayInZone(query.data.date, timezone)
+              : "Hari ini"}
           </p>
           <h1 className="mt-2 font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
             Selamat datang, {firstName}.
@@ -67,6 +73,48 @@ export function TodayPage({ firstName }: { firstName: string }) {
           <MessageSquareText /> Bicara dengan Sydia
         </Button>
       </header>
+
+      {preferencesQuery.isSuccess ? (
+        <section
+          aria-label="Status briefing dan pesan proaktif"
+          className="flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-surface-1 py-4"
+        >
+          <p className="text-sm text-ink-muted">
+            {preferencesQuery.data.briefingEnabled
+              ? `Briefing harian aktif, dikirim pukul ${preferencesQuery.data.briefingTime}.`
+              : "Briefing harian nonaktif."}{" "}
+            <Link
+              to="/settings/notifications"
+              className="font-semibold text-link underline underline-offset-2"
+            >
+              Atur notifikasi
+            </Link>
+          </p>
+          {preferencesQuery.data.proactivePaused ? (
+            <Badge dot="warn" role="status">
+              <PauseCircle className="size-3.5" aria-hidden="true" />
+              Pesan proaktif dijeda
+            </Badge>
+          ) : null}
+        </section>
+      ) : null}
+      {preferencesQuery.isError ? (
+        <div
+          className="flex flex-wrap items-center gap-3 border-y border-destructive/30 py-4"
+          role="alert"
+        >
+          <p className="text-sm text-destructive">
+            {preferencesQuery.error.message}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void preferencesQuery.refetch()}
+          >
+            Coba lagi
+          </Button>
+        </div>
+      ) : null}
 
       {query.isPending ? (
         <DomainListSkeleton label="Memuat ringkasan hari ini" />

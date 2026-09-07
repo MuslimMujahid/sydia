@@ -42,6 +42,7 @@ type TurnUser = Pick<User, 'id' | 'name' | 'timezone' | 'locale' | 'persona'>;
 type GenerationUsage = {
   inputTokens?: number;
   outputTokens?: number;
+  costUsd?: number;
 };
 
 const AssistantTurnState = Annotation.Root({
@@ -285,6 +286,7 @@ export class AssistantOrchestratorService {
               content: state.text,
               inputTokens: state.usage.inputTokens,
               outputTokens: state.usage.outputTokens,
+              costUsd: state.usage.costUsd,
             });
 
           try {

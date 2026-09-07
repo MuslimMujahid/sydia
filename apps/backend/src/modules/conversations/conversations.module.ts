@@ -25,7 +25,15 @@ import {
 } from './services';
 
 @Module({
-  imports: [ModelGatewayModule, TasksModule, RemindersModule, MemoriesModule, DocumentsModule, ContactsModule, CalendarModule],
+  imports: [
+    ModelGatewayModule,
+    TasksModule,
+    RemindersModule,
+    MemoriesModule,
+    DocumentsModule,
+    ContactsModule,
+    CalendarModule,
+  ],
   controllers: [ConversationsController],
   providers: [
     {
@@ -43,6 +51,11 @@ import {
     ContextBuilderService,
     ConversationSummarizerService,
     ToolExecutorService,
+  ],
+  exports: [
+    AssistantOrchestratorService,
+    CONVERSATION_REPOSITORY,
+    USER_REPOSITORY,
   ],
 })
 export class ConversationsModule {}

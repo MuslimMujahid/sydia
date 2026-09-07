@@ -11,7 +11,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   AUDIT_EVENT_REPOSITORY,
   MEMORY_REPOSITORY,
@@ -27,6 +27,7 @@ import {
   UpdateMemoryDto,
 } from './memory.dto';
 
+@Roles(['user'])
 @Controller('memories')
 export class MemoriesController {
   constructor(

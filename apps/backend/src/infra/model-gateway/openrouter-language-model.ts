@@ -26,6 +26,16 @@ function tokenCount(value: unknown): number | undefined {
     : undefined;
 }
 
+function openRouterCost(metadata: unknown): number | undefined {
+  if (!metadata || typeof metadata !== 'object') return undefined;
+  const openrouter = (metadata as Record<string, unknown>).openrouter;
+  if (!openrouter || typeof openrouter !== 'object') return undefined;
+  const usage = (openrouter as Record<string, unknown>).usage;
+  if (!usage || typeof usage !== 'object') return undefined;
+
+  return tokenCount((usage as Record<string, unknown>).cost);
+}
+
 @Injectable()
 export class OpenRouterLanguageModel implements LanguageModelGateway {
   readonly provider = 'openrouter' as const;
@@ -50,7 +60,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       compatibility: 'strict',
     });
 
-    this.languageModel = openrouter.chat(this.model);
+    this.languageModel = openrouter.chat(this.model, {
+      usage: { include: true },
+    });
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResult> {
@@ -80,6 +92,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
         usage: {
           inputTokens: tokenCount(result.usage.inputTokens),
           outputTokens: tokenCount(result.usage.outputTokens),
+          costUsd: openRouterCost(result.providerMetadata),
         },
       };
     } catch (error) {

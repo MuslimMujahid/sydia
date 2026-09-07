@@ -69,6 +69,7 @@ export interface IConversationRepository {
     content: string;
     inputTokens?: number;
     outputTokens?: number;
+    costUsd?: number;
   }): Promise<{ assistantMessage: Message; assistantRun: AssistantRun }>;
   createToolInvocation(input: NewToolInvocation): Promise<ToolInvocationRecord>;
   claimToolInvocation(id: string, staleBefore: Date): Promise<boolean>;
@@ -93,6 +94,7 @@ export interface IConversationRepository {
     content: string,
     throughMessageId: string,
   ): Promise<void>;
+  delete(userId: string, conversationId: string): Promise<boolean>;
 }
 
 export const CONVERSATION_REPOSITORY = Symbol('IConversationRepository');

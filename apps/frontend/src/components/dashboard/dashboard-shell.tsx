@@ -45,7 +45,7 @@ const NAV_ITEMS = [
   { to: "/files", label: "File", icon: Files },
   { to: "/contacts", label: "Kontak", icon: ContactRound },
   { to: "/calendar", label: "Kalender", icon: CalendarDays },
-  { to: "/settings/profile", label: "Profil & preferensi", icon: Settings },
+  { to: "/settings/profile", label: "Pengaturan", icon: Settings },
 ] as const;
 
 function initialsFor(name: string): string {
@@ -108,7 +108,11 @@ export function DashboardShell({
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active =
-          item.to === "/" ? activePath === "/" : activePath.startsWith(item.to);
+          item.to === "/"
+            ? activePath === "/"
+            : item.to === "/settings/profile"
+              ? activePath.startsWith("/settings")
+              : activePath.startsWith(item.to);
 
         return (
           <Link

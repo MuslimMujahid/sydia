@@ -102,17 +102,17 @@ export class ContextBuilderService {
         .filter((content) => content.length > 0)
         .join('\n\n');
 
-      if (attachmentContext) {
-        const attachmentBudget = Math.floor(
-          this.tokenBudget * ATTACHMENT_BUDGET_SHARE,
-        );
+      const availableTokens = Math.max(0, this.tokenBudget - systemTokens);
+      const attachmentBudget = Math.min(
+        Math.floor(this.tokenBudget * ATTACHMENT_BUDGET_SHARE),
+        availableTokens,
+      );
 
-        const headerTokens = estimateTokens(ATTACHMENT_HEADER);
-        const bodyBudget = Math.max(0, attachmentBudget - headerTokens - 1);
-        const attachmentBody =
-          bodyBudget > 0 ? truncateToTokens(attachmentContext, bodyBudget) : '';
+      const headerTokens = estimateTokens(ATTACHMENT_HEADER);
 
-        const attachmentMessage = `${ATTACHMENT_HEADER}${attachmentBody}`;
+      if (attachmentContext && attachmentBudget > headerTokens) {
+        const bodyBudget = attachmentBudget - headerTokens - 1;
+        const attachmentMessage = `${ATTACHMENT_HEADER}${truncateToTokens(attachmentContext, bodyBudget)}`;
         messages.push({ role: 'system', content: attachmentMessage });
         systemTokens += estimateTokens(attachmentMessage);
       }

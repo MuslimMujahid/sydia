@@ -11,7 +11,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   AUDIT_EVENT_REPOSITORY,
   REMINDER_REPOSITORY,
@@ -28,6 +28,7 @@ import {
   UpdateReminderDto,
 } from './reminder.dto';
 
+@Roles(['user'])
 @Controller('reminders')
 export class RemindersController {
   constructor(

@@ -1,3 +1,4 @@
+import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
@@ -9,10 +10,19 @@ import {
 } from './database/interfaces';
 import {
   QueueService,
+  type BriefingJob,
   type DocumentJob,
+  type FollowUpJob,
   type ReminderJob,
+  type RetentionJob,
 } from './infra/queue';
 import { DocumentService } from './modules/documents/document.service';
+import {
+  DailyBriefingService,
+  FollowUpService,
+  NotificationService,
+  RetentionService,
+} from './modules/notifications';
 
 async function bootstrap(): Promise<void> {
   const context = await NestFactory.createApplicationContext(AppModule);
@@ -20,6 +30,10 @@ async function bootstrap(): Promise<void> {
   const reminders = context.get<IReminderRepository>(REMINDER_REPOSITORY);
   const queues = context.get(QueueService);
   const documents = context.get(DocumentService);
+  const notifications = context.get(NotificationService);
+  const briefings = context.get(DailyBriefingService);
+  const followUps = context.get(FollowUpService);
+  const retention = context.get(RetentionService);
   const connection = {
     host: config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
     port: config.get<number>('BACKEND_REDIS_PORT', 6379),
@@ -28,9 +42,22 @@ async function bootstrap(): Promise<void> {
   const reminderWorker = new Worker<ReminderJob>(
     'reminders',
     async (job) => {
-      await reminders.markOccurrenceDelivered(job.data.idempotencyKey);
       const reminder = await reminders.findByIdForDelivery(job.data.reminderId);
-      if (!reminder?.recurrence || reminder.status !== 'scheduled') return;
+      if (!reminder || reminder.status !== 'scheduled') return;
+
+      await notifications.enqueue({
+        userId: reminder.userId,
+        kind: 'reminder',
+        content: reminder.notes
+          ? `Reminder: ${reminder.title}\n${reminder.notes}`
+          : `Reminder: ${reminder.title}`,
+        idempotencyKey: job.data.idempotencyKey,
+        proactive: false,
+        sourceId: reminder.id,
+        reminderOccurrenceId: job.data.idempotencyKey,
+      });
+
+      if (!reminder.recurrence) return;
       const rule = new RRule({
         freq: {
           daily: RRule.DAILY,
@@ -77,8 +104,32 @@ async function bootstrap(): Promise<void> {
     { connection },
   );
 
+  const briefingWorker = new Worker<BriefingJob>(
+    'briefings',
+    async (job) => briefings.run(job.data.userId, new Date(job.data.date)),
+    { connection },
+  );
+
+  const followUpWorker = new Worker<FollowUpJob>(
+    'follow-ups',
+    async (job) => followUps.run(job.data.userId, new Date(job.data.date)),
+    { connection },
+  );
+
+  const retentionWorker = new Worker<RetentionJob>(
+    'retention',
+    async (job) => retention.run(job.data.userId, new Date(job.data.cutoff)),
+    { connection },
+  );
+
   const close = async () => {
-    await Promise.all([reminderWorker.close(), documentWorker.close()]);
+    await Promise.all([
+      reminderWorker.close(),
+      documentWorker.close(),
+      briefingWorker.close(),
+      followUpWorker.close(),
+      retentionWorker.close(),
+    ]);
     await context.close();
   };
 

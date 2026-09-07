@@ -5,5 +5,13 @@ import { CalendarProviderModule } from '../../infra/calendar';
 import { CalendarController } from './calendar.controller';
 import { CalendarService } from './calendar.service';
 
-@Module({ imports: [CalendarProviderModule], controllers: [CalendarController], providers: [{ provide: CALENDAR_REPOSITORY, useClass: PrismaCalendarRepository }, CalendarService], exports: [CALENDAR_REPOSITORY, CalendarService] })
+@Module({
+  imports: [CalendarProviderModule],
+  controllers: [CalendarController],
+  providers: [
+    { provide: CALENDAR_REPOSITORY, useClass: PrismaCalendarRepository },
+    CalendarService,
+  ],
+  exports: [CALENDAR_REPOSITORY, CalendarService, CalendarProviderModule],
+})
 export class CalendarModule {}

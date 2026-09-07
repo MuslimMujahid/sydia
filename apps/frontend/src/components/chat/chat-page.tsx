@@ -17,10 +17,14 @@ import { SydiaLogo } from "@/components/ui/sydia-logo";
 import {
   conversationQueryOptions,
   conversationsQueryOptions,
+  useDeleteConversation,
   useRetryAssistantRun,
   useSendConversationMessage,
 } from "@/lib/services/api/conversations/conversations.queries";
-import type { SendMessageVariables } from "@/lib/services/api/conversations/conversations.api";
+import type {
+  ConversationSummary,
+  SendMessageVariables,
+} from "@/lib/services/api/conversations/conversations.api";
 import { ChatComposer } from "./chat-composer";
 import { ConversationList } from "./conversation-list";
 import { MessageHistory } from "./message-history";
@@ -104,6 +108,10 @@ export function ChatPage({
 
   const sendMutation = useSendConversationMessage();
   const retryMutation = useRetryAssistantRun();
+  const deleteMutation = useDeleteConversation();
+  const [deleteTarget, setDeleteTarget] = useState<ConversationSummary | null>(
+    null
+  );
 
   const messages = conversationQuery.data?.messages ?? [];
   const assistantRuns = conversationQuery.data?.assistantRuns ?? [];
@@ -146,6 +154,18 @@ export function ChatPage({
     if (mobileListOpen) setConversationListOpen(false);
   }
 
+  async function handleDeleteConversation() {
+    if (!deleteTarget) return;
+
+    await deleteMutation.mutateAsync(deleteTarget.id);
+
+    if (activeConversationId === deleteTarget.id) {
+      setSelectedConversationId(null);
+    }
+
+    setDeleteTarget(null);
+  }
+
   function startNewConversation() {
     sendMutation.reset();
     retryMutation.reset();
@@ -163,6 +183,7 @@ export function ChatPage({
       onSelect={selectConversation}
       onNew={startNewConversation}
       onRetry={() => void conversationsQuery.refetch()}
+      onRequestDelete={setDeleteTarget}
     />
   );
 
@@ -366,8 +387,52 @@ export function ChatPage({
             onSelect={selectConversation}
             onNew={startNewConversation}
             onRetry={() => void conversationsQuery.refetch()}
+            onRequestDelete={setDeleteTarget}
             onClose={() => setConversationListOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            deleteMutation.reset();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Hapus percakapan ini?</DialogTitle>
+          <DialogDescription className="mt-3">
+            &ldquo;
+            {deleteTarget?.title?.trim() || "Percakapan baru"}
+            &rdquo; beserta seluruh pesan dan riwayatnya akan dihapus permanen.
+            Tindakan ini tidak dapat dibatalkan.
+          </DialogDescription>
+          {deleteMutation.error ? (
+            <p className="mt-4 text-sm text-destructive" role="alert">
+              {deleteMutation.error.message}
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeleteTarget(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteMutation.isPending}
+              onClick={() => void handleDeleteConversation()}
+            >
+              {deleteMutation.isPending ? "Menghapus…" : "Hapus permanen"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </section>

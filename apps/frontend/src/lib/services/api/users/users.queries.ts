@@ -18,6 +18,7 @@ export type UserProfile = {
   locale: SupportedLocale;
   onboardingCompleted: boolean;
   image?: string | null;
+  role: string;
 };
 
 export type UpdateUserProfileVariables = {

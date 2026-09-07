@@ -15,9 +15,30 @@ export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
 
 export const DEFAULT_ASSISTANT_PERSONA: AssistantPersona = "supportive";
 
+export const ASSISTANT_VERBOSITIES = [
+  "concise",
+  "balanced",
+  "detailed",
+] as const;
+
+export type AssistantVerbosity = (typeof ASSISTANT_VERBOSITIES)[number];
+
+export const DEFAULT_ASSISTANT_VERBOSITY: AssistantVerbosity = "balanced";
+
+export const RETENTION_DAY_OPTIONS = [30, 90, 180, 365] as const;
+
 export type UserPreferences = {
   automaticMemoryEnabled: boolean;
   persona: AssistantPersona;
+  assistantStyle: AssistantPersona;
+  assistantVerbosity: AssistantVerbosity;
+  briefingEnabled: boolean;
+  briefingTime: string;
+  webNotificationsEnabled: boolean;
+  whatsappNotificationsEnabled: boolean;
+  emailNotificationsEnabled: boolean;
+  proactivePaused: boolean;
+  retentionDays: number;
 };
 
 export type UpdateUserPreferencesInput = Partial<UserPreferences>;

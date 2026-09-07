@@ -1,4 +1,5 @@
 export * from './prisma-audit-event.repository';
+export * from './prisma-admin.repository';
 export * from './prisma-conversation.repository';
 export * from './prisma-external-identity.repository';
 export * from './prisma-user.repository';
@@ -9,3 +10,6 @@ export * from './prisma-category.repository';
 export * from './prisma-document.repository';
 export * from './prisma-contact.repository';
 export * from './prisma-calendar.repository';
+export * from './prisma-whatsapp.repository';
+export * from './prisma-notification.repository';
+export * from './prisma-user-privacy.repository';

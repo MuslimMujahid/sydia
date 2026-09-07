@@ -16,8 +16,12 @@ import { TodayModule } from './modules/today/today.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { StorageModule } from './infra/storage';
 import { CryptoModule } from './infra/crypto';
+import { WhatsAppInfraModule } from './infra/whatsapp';
+import { WhatsAppModule } from './modules/whatsapp';
+import { NotificationsModule } from './modules/notifications';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -42,7 +46,8 @@ function parsePositiveInteger(
   name:
     | 'BACKEND_ASSISTANT_CONTEXT_TOKENS'
     | 'BACKEND_SUMMARY_TRIGGER_TOKENS'
-    | 'BACKEND_SUMMARY_RETAIN_MESSAGES',
+    | 'BACKEND_SUMMARY_RETAIN_MESSAGES'
+    | 'BACKEND_WHATSAPP_COMMAND_TIMEOUT',
   defaultValue: number,
 ): number {
   const value =
@@ -170,6 +175,18 @@ export function validateEnvironment(
       'BACKEND_SUMMARY_RETAIN_MESSAGES',
       8,
     ),
+    BACKEND_WHATSAPP_STORE_PATH:
+      typeof config.BACKEND_WHATSAPP_STORE_PATH === 'string' &&
+      config.BACKEND_WHATSAPP_STORE_PATH.trim() !== ''
+        ? config.BACKEND_WHATSAPP_STORE_PATH.trim()
+        : '.data/whatsapp',
+    BACKEND_WHATSAPP_COMMAND_TIMEOUT: parsePositiveInteger(
+      config,
+      'BACKEND_WHATSAPP_COMMAND_TIMEOUT',
+      30_000,
+    ),
+    BACKEND_WHATSAPP_RUNTIME_ENABLED:
+      config.BACKEND_WHATSAPP_RUNTIME_ENABLED !== 'false',
   };
 }
 
@@ -194,6 +211,10 @@ export function validateEnvironment(
     DocumentsModule,
     ContactsModule,
     CalendarModule,
+    AdminModule,
+    WhatsAppInfraModule,
+    NotificationsModule,
+    WhatsAppModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter, ResponseInterceptor],

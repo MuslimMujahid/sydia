@@ -9,6 +9,7 @@ import {
   getConversations,
   retryAssistantRun,
   sendConversationMessage,
+  deleteConversation,
   type AssistantRun,
   type ConversationDetail,
   type ConversationMessage,
@@ -120,6 +121,20 @@ export function useRetryAssistantRun() {
   return useMutation({
     mutationFn: retryAssistantRun,
     onSuccess: (result) => cacheRetryResult(queryClient, result),
+    meta: { invalidateQueries: [conversationQueryKeys.all] },
+  });
+}
+
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteConversation,
+    onSuccess: (_result, conversationId) => {
+      queryClient.removeQueries({
+        queryKey: conversationQueryKeys.detail(conversationId),
+      });
+    },
     meta: { invalidateQueries: [conversationQueryKeys.all] },
   });
 }

@@ -1,5 +1,6 @@
-import { betterAuth } from 'better-auth';
+import { betterAuth, type Auth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { admin } from 'better-auth/plugins';
 import type { CreateAuditEvent } from '../../database/entities';
 import type { IAuditEventRepository } from '../../database/interfaces';
 import type { PrismaService } from '../prisma';
@@ -24,7 +25,7 @@ export type AuthOptions = {
  * invariant in its options, so the concrete instance type flows into
  * `@thallesp/nestjs-better-auth`'s generic `AuthModuleOptions<A>`.
  */
-export function createAuth(prisma: PrismaService, options: AuthOptions) {
+export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
   const recordAuditEvent = async (
     eventType: string,
     userId: string | undefined,
@@ -69,11 +70,16 @@ export function createAuth(prisma: PrismaService, options: AuthOptions) {
         },
       },
     },
+    plugins: [
+      admin({
+        bannedUserMessage: 'Akun Anda telah dinonaktifkan oleh administrator.',
+      }),
+    ],
     emailAndPassword: {
       enabled: true,
     },
     secret: options.secret,
     baseURL: options.baseURL,
     trustedOrigins: options.trustedOrigins,
-  });
+  }) as unknown as Auth;
 }

@@ -9,6 +9,7 @@ const userSelect = {
   email: true,
   emailVerified: true,
   image: true,
+  role: true,
   timezone: true,
   locale: true,
   onboardingCompleted: true,

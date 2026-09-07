@@ -422,6 +422,7 @@ export class PrismaConversationRepository implements IConversationRepository {
     content: string;
     inputTokens?: number;
     outputTokens?: number;
+    costUsd?: number;
   }): Promise<{ assistantMessage: Message; assistantRun: AssistantRun }> {
     return this.prisma.$transaction(async (transaction) => {
       const assistantMessage = await transaction.message.create({
@@ -446,6 +447,7 @@ export class PrismaConversationRepository implements IConversationRepository {
           assistantMessageId: assistantMessage.id,
           inputTokens: input.inputTokens,
           outputTokens: input.outputTokens,
+          costUsd: input.costUsd,
           completedAt: new Date(),
         },
         select: assistantRunSelect,
@@ -576,5 +578,13 @@ export class PrismaConversationRepository implements IConversationRepository {
         },
       }),
     ]);
+  }
+
+  async delete(userId: string, conversationId: string): Promise<boolean> {
+    const result = await this.prisma.conversation.deleteMany({
+      where: { id: conversationId, userId },
+    });
+
+    return result.count === 1;
   }
 }

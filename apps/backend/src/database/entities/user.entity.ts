@@ -21,6 +21,7 @@ export type User = Pick<
   | 'email'
   | 'emailVerified'
   | 'image'
+  | 'role'
   | 'timezone'
   | 'locale'
   | 'onboardingCompleted'

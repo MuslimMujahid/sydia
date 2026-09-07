@@ -275,29 +275,29 @@
 
 ## Backend
 
-- [ ] BE-0701 Integrate WhatsApp webhook
-- [ ] BE-0702 Implement WhatsApp identity linking
-- [ ] BE-0703 Implement WhatsApp inbound text handling
-- [ ] BE-0704 Implement WhatsApp outbound messaging
-- [ ] BE-0705 Implement WhatsApp inbound message idempotency
-- [ ] BE-0706 Implement WhatsApp media ingestion
-- [ ] BE-0707 Implement WhatsApp image handling
-- [ ] BE-0708 Implement WhatsApp document handling
-- [ ] BE-0709 Implement WhatsApp voice-note handling
-- [ ] BE-0710 Implement WhatsApp conversation-window handling
-- [ ] BE-0711 Implement WhatsApp template-message support
-- [ ] BE-0712 Implement proactive reminder delivery over WhatsApp
-- [ ] BE-0713 Add WhatsApp delivery-state tracking
-- [ ] BE-0714 Add WhatsApp integration audit events
+- [x] BE-0701 Integrate WhatsApp event adapter
+- [x] BE-0702 Implement WhatsApp identity linking
+- [x] BE-0703 Implement WhatsApp inbound text handling
+- [x] BE-0704 Implement WhatsApp outbound messaging
+- [x] BE-0705 Implement WhatsApp inbound message idempotency
+- [x] BE-0706 Implement WhatsApp media ingestion
+- [x] BE-0707 Implement WhatsApp image handling
+- [x] BE-0708 Implement WhatsApp document handling
+- [x] BE-0709 Implement WhatsApp voice-note handling
+- [x] BE-0710 Implement WhatsApp conversation-window handling
+- [x] BE-0711 Implement WhatsApp varied-message composition
+- [x] BE-0712 Implement proactive reminder delivery over WhatsApp
+- [x] BE-0713 Add WhatsApp delivery-state tracking
+- [x] BE-0714 Add WhatsApp integration audit events
 
 ## Frontend
 
-- [ ] FE-0701 Create WhatsApp connection page
-- [ ] FE-0702 Create WhatsApp account-linking flow
-- [ ] FE-0703 Show WhatsApp connection status
-- [ ] FE-0704 Add WhatsApp unlink flow
-- [ ] FE-0705 Show WhatsApp identity details
-- [ ] FE-0706 Add WhatsApp connection errors and recovery states
+- [x] FE-0701 Create WhatsApp connection page
+- [x] FE-0702 Create WhatsApp account-linking flow
+- [x] FE-0703 Show WhatsApp connection status
+- [x] FE-0704 Add WhatsApp unlink flow
+- [x] FE-0705 Show WhatsApp identity details
+- [x] FE-0706 Add WhatsApp connection errors and recovery states
 
 ## Phase Exit
 
@@ -308,7 +308,7 @@
 - [ ] Documents work
 - [ ] Voice notes work
 - [ ] Reminder delivery works over WhatsApp
-- [ ] Web chat and WhatsApp use the same assistant runtime
+- [x] Web chat and WhatsApp use the same assistant runtime
 
 ---
 
@@ -316,39 +316,39 @@
 
 ## Backend
 
-- [ ] BE-0801 Create notification abstraction
-- [ ] BE-0802 Implement daily briefing
-- [ ] BE-0803 Implement proactive follow-ups
-- [ ] BE-0804 Implement notification preferences
-- [ ] BE-0805 Implement global proactive pause
-- [ ] BE-0806 Implement data export
-- [ ] BE-0807 Implement conversation deletion
-- [ ] BE-0808 Implement account deletion
-- [ ] BE-0809 Implement integration revocation
-- [ ] BE-0810 Implement data retention jobs
-- [ ] BE-0811 Expand assistant preferences
+- [x] BE-0801 Create notification abstraction
+- [x] BE-0802 Implement daily briefing
+- [x] BE-0803 Implement proactive follow-ups
+- [x] BE-0804 Implement notification preferences
+- [x] BE-0805 Implement global proactive pause
+- [x] BE-0806 Implement data export
+- [x] BE-0807 Implement conversation deletion
+- [x] BE-0808 Implement account deletion
+- [x] BE-0809 Implement integration revocation
+- [x] BE-0810 Implement data retention jobs
+- [x] BE-0811 Expand assistant preferences
 
 ## Frontend
 
-- [ ] FE-0801 Create Assistant settings
-- [ ] FE-0802 Create Notification settings
-- [ ] FE-0803 Create Integrations settings
-- [ ] FE-0804 Create Memory & Privacy settings
-- [ ] FE-0805 Create Data settings
-- [ ] FE-0806 Add daily briefing controls
-- [ ] FE-0807 Add proactive messaging pause
-- [ ] FE-0808 Add data export flow
-- [ ] FE-0809 Add conversation deletion flow
-- [ ] FE-0810 Add account deletion flow
-- [ ] FE-0811 Refine Today/Home page
+- [x] FE-0801 Create Assistant settings
+- [x] FE-0802 Create Notification settings
+- [x] FE-0803 Create Integrations settings
+- [x] FE-0804 Create Memory & Privacy settings
+- [x] FE-0805 Create Data settings
+- [x] FE-0806 Add daily briefing controls
+- [x] FE-0807 Add proactive messaging pause
+- [x] FE-0808 Add data export flow
+- [x] FE-0809 Add conversation deletion flow
+- [x] FE-0810 Add account deletion flow
+- [x] FE-0811 Refine Today/Home page
 
 ## Phase Exit
 
-- [ ] User can enable daily briefing
-- [ ] User can control proactive messaging
-- [ ] User can manage privacy settings
-- [ ] User can export or delete account data
-- [ ] User can revoke connected integrations
+- [x] User can enable daily briefing
+- [x] User can control proactive messaging
+- [x] User can manage privacy settings
+- [x] User can export or delete account data
+- [x] User can revoke connected integrations
 
 ---
 

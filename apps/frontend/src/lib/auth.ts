@@ -11,6 +11,11 @@ import {
 } from "@/lib/services/api/users/users.queries";
 
 export const SAFE_DEFAULT_REDIRECT = "/";
+export const ADMIN_ROLE = "admin";
+
+export function isAdminRole(role: string | null | undefined): boolean {
+  return role === ADMIN_ROLE;
+}
 
 export function safeRedirectTarget(value: unknown): string {
   return typeof value === "string" &&
@@ -55,6 +60,7 @@ export async function requireCompletedOnboarding(
 
   try {
     const user = await queryClient.ensureQueryData(currentUserQueryOptions());
+    if (isAdminRole(user.role)) throw redirect({ to: "/admin" });
     if (!user.onboardingCompleted) throw redirect({ to: "/onboarding" });
 
     return user;
@@ -77,7 +83,50 @@ export async function redirectAuthenticatedUser(queryClient: QueryClient) {
     const session = await queryClient.ensureQueryData(sessionQueryOptions());
     if (!session) return;
     const user = await queryClient.ensureQueryData(currentUserQueryOptions());
+    if (isAdminRole(user.role)) throw redirect({ to: "/admin" });
     throw redirect({ to: user.onboardingCompleted ? "/" : "/onboarding" });
+  } catch (error) {
+    if (isUnauthorizedError(error)) return;
+    throw error;
+  }
+}
+
+export async function requireAdminSession(
+  queryClient: QueryClient,
+  locationHref: string
+) {
+  try {
+    const session = await queryClient.ensureQueryData(sessionQueryOptions());
+    if (!session)
+      throw redirect({
+        to: "/admin/login",
+        search: { redirect: locationHref, reason: "required" },
+      });
+
+    const user = await queryClient.ensureQueryData(currentUserQueryOptions());
+    if (!isAdminRole(user.role)) throw redirect({ to: "/" });
+
+    return user;
+  } catch (error) {
+    if (isUnauthorizedError(error)) {
+      queryClient.removeQueries({ queryKey: authQueryKeys.all });
+      queryClient.removeQueries({ queryKey: userQueryKeys.all });
+      throw redirect({
+        to: "/admin/login",
+        search: { redirect: locationHref, reason: "expired" },
+      });
+    }
+
+    throw error;
+  }
+}
+
+export async function redirectAuthenticatedAdmin(queryClient: QueryClient) {
+  try {
+    const session = await queryClient.ensureQueryData(sessionQueryOptions());
+    if (!session) return;
+    const user = await queryClient.ensureQueryData(currentUserQueryOptions());
+    throw redirect({ to: isAdminRole(user.role) ? "/admin" : "/" });
   } catch (error) {
     if (isUnauthorizedError(error)) return;
     throw error;

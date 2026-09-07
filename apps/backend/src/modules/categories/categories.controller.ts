@@ -9,7 +9,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { Transform } from 'class-transformer';
 import {
   IsIn,
@@ -57,6 +57,7 @@ class UpdateCategoryDto {
   @IsOptional() @IsIn(CATEGORY_ICON_KEYS) iconKey?: CategoryIconKey;
 }
 
+@Roles(['user'])
 @Controller('categories')
 export class CategoriesController {
   constructor(

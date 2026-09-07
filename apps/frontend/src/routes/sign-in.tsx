@@ -48,9 +48,12 @@ function SignInPage() {
         currentUserQueryOptions()
       );
 
-      const destination = user.onboardingCompleted
-        ? safeRedirectTarget(search.redirect)
-        : "/onboarding";
+      const destination =
+        user.role === "admin"
+          ? "/admin"
+          : user.onboardingCompleted
+            ? safeRedirectTarget(search.redirect)
+            : "/onboarding";
 
       await navigate({ to: destination, replace: true });
     },

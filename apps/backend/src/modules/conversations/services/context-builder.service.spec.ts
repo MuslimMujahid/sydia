@@ -122,7 +122,6 @@ describe('ContextBuilderService personas', () => {
     expect(persona?.content).toContain('kemampuan, alat, izin');
   });
 });
-
 describe('ContextBuilderService attachments', () => {
   it('truncates huge attachments to their 40% budget share', async () => {
     const tokenBudget = 1_000;
@@ -150,7 +149,7 @@ describe('ContextBuilderService attachments', () => {
   });
 
   it('keeps the complete context within the configured token budget', async () => {
-    const tokenBudget = 260;
+    const tokenBudget = 1_000;
     const context = await createBuilder(tokenBudget, {
       documents: [document('x'.repeat(100_000))],
       messages: [

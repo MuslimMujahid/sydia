@@ -1,4 +1,4 @@
-import { MessageSquareText, Plus, RotateCcw, X } from "lucide-react";
+import { MessageSquareText, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ConversationSummary } from "@/lib/services/api/conversations/conversations.api";
 import { cn } from "@/lib/utils/cn";
@@ -47,6 +47,7 @@ export function ConversationList({
   onNew,
   onRetry,
   onClose,
+  onRequestDelete,
 }: {
   conversations: ConversationSummary[];
   selectedConversationId: string | null | undefined;
@@ -57,6 +58,7 @@ export function ConversationList({
   onNew: () => void;
   onRetry: () => void;
   onClose?: () => void;
+  onRequestDelete: (conversation: ConversationSummary) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-canvas">
@@ -135,36 +137,50 @@ export function ConversationList({
 
               return (
                 <li key={conversation.id}>
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    aria-current={selected ? "page" : undefined}
-                    onClick={() => onSelect(conversation.id)}
-                    className={cn(
-                      "w-full rounded-md px-3 py-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50",
-                      selected ? "bg-surface-2 text-ink" : "hover:bg-surface-1"
-                    )}
-                  >
-                    <span className="flex items-baseline justify-between gap-3">
-                      <span className="truncate font-display text-sm font-bold">
-                        {conversation.title?.trim() || "Percakapan baru"}
+                  <div className="group flex items-stretch gap-1">
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      aria-current={selected ? "page" : undefined}
+                      onClick={() => onSelect(conversation.id)}
+                      className={cn(
+                        "min-w-0 flex-1 rounded-md px-3 py-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50",
+                        selected
+                          ? "bg-surface-2 text-ink"
+                          : "hover:bg-surface-1"
+                      )}
+                    >
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className="truncate font-display text-sm font-bold">
+                          {conversation.title?.trim() || "Percakapan baru"}
+                        </span>
+                        {time ? (
+                          <time
+                            dateTime={
+                              conversation.lastMessageAt ??
+                              conversation.updatedAt
+                            }
+                            className="shrink-0 font-mono text-xs text-ink-muted"
+                          >
+                            {time}
+                          </time>
+                        ) : null}
                       </span>
-                      {time ? (
-                        <time
-                          dateTime={
-                            conversation.lastMessageAt ?? conversation.updatedAt
-                          }
-                          className="shrink-0 font-mono text-xs text-ink-muted"
-                        >
-                          {time}
-                        </time>
-                      ) : null}
-                    </span>
-                    <span className="mt-1 block truncate text-sm text-ink-muted">
-                      {conversation.lastMessagePreview?.trim() ||
-                        "Belum ada pesan"}
-                    </span>
-                  </button>
+                      <span className="mt-1 block truncate text-sm text-ink-muted">
+                        {conversation.lastMessagePreview?.trim() ||
+                          "Belum ada pesan"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      aria-label={`Hapus percakapan ${conversation.title?.trim() || "baru"}`}
+                      onClick={() => onRequestDelete(conversation)}
+                      className="self-center rounded-sm p-2 text-ink-muted outline-none transition-colors hover:text-destructive focus-visible:text-destructive focus-visible:ring-3 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
                 </li>
               );
             })}

@@ -9,7 +9,7 @@ export type GenerateRequest = {
 
 export type GenerateResult = {
   text: string;
-  usage: { inputTokens?: number; outputTokens?: number };
+  usage: { inputTokens?: number; outputTokens?: number; costUsd?: number };
 };
 
 export interface LanguageModelGateway {

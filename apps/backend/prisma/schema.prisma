@@ -22,18 +22,22 @@ enum AssistantPersona {
 }
 
 model User {
-  id                     String                @id
+  id                     String                 @id
   name                   String
-  email                  String                @unique
-  emailVerified          Boolean               @default(false)
+  email                  String                 @unique
+  emailVerified          Boolean                @default(false)
   image                  String?
-  timezone               String                @default("Asia/Jakarta")
-  locale                 String                @default("id")
-  onboardingCompleted    Boolean               @default(false)
-  automaticMemoryEnabled Boolean               @default(false)
-  persona                AssistantPersona      @default(supportive)
-  createdAt              DateTime              @default(now())
-  updatedAt              DateTime              @default(now()) @updatedAt
+  role                   String                 @default("user")
+  banned                 Boolean                @default(false)
+  banReason              String?
+  banExpires             DateTime?
+  timezone               String                 @default("Asia/Jakarta")
+  locale                 String                 @default("id")
+  onboardingCompleted    Boolean                @default(false)
+  automaticMemoryEnabled Boolean                @default(false)
+  persona                AssistantPersona       @default(supportive)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @default(now()) @updatedAt
   sessions               Session[]
   accounts               Account[]
   externalIdentities     ExternalIdentity[]
@@ -49,19 +53,26 @@ model User {
   contacts               Contact[]
   calendarIntegrations   CalendarIntegration[]
   calendarEvents         CalendarEvent[]
+  whatsappLinkCodes      WhatsAppLinkCode[]
+  notificationDeliveries NotificationDelivery[]
+  userPreference         UserPreference?
 
+  @@index([role])
+  @@index([banned])
   @@map("user")
 }
 
 model ExternalIdentity {
-  id         String    @id @default(cuid())
-  userId     String
-  provider   String
-  externalId String
-  verifiedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now()) @updatedAt
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String                   @id @default(cuid())
+  userId          String
+  provider        String
+  externalId      String
+  verifiedAt      DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @default(now()) @updatedAt
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsappState   WhatsAppContactState?
+  inboundMessages WhatsAppInboundMessage[]
 
   @@unique([provider, externalId])
   @@index([userId])
@@ -82,16 +93,18 @@ model AuditEvent {
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, expiresAt])
   @@map("session")
 }
 
@@ -190,6 +203,7 @@ model AssistantRun {
   provider           String
   model              String
   errorMessage       String?
+  costUsd            Decimal?         @db.Decimal(18, 8)
   inputTokens        Int?
   outputTokens       Int?
   startedAt          DateTime?
@@ -200,6 +214,7 @@ model AssistantRun {
   inputMessage       Message          @relation("AssistantRunInput", fields: [inputMessageId], references: [id], onDelete: Cascade)
   toolInvocations    ToolInvocation[]
 
+  @@index([model])
   @@index([conversationId, createdAt])
   @@index([inputMessageId, createdAt])
   @@map("assistant_run")
@@ -300,18 +315,19 @@ model Reminder {
 }
 
 model ReminderOccurrence {
-  id                String    @id @default(cuid())
-  reminderId        String
-  occurrenceAt      DateTime
-  idempotencyKey    String    @unique
-  status            String    @default("pending")
-  providerMessageId String?
-  attemptedAt       DateTime?
-  deliveredAt       DateTime?
-  errorMessage      String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
-  reminder          Reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  id                     String                 @id @default(cuid())
+  reminderId             String
+  occurrenceAt           DateTime
+  idempotencyKey         String                 @unique
+  status                 String                 @default("pending")
+  providerMessageId      String?
+  attemptedAt            DateTime?
+  deliveredAt            DateTime?
+  errorMessage           String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @default(now()) @updatedAt
+  reminder               Reminder               @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  notificationDeliveries NotificationDelivery[]
 
   @@unique([reminderId, occurrenceAt])
   @@index([status, occurrenceAt])
@@ -468,4 +484,158 @@ model CalendarEvent {
   @@unique([userId, provider, providerEventId])
   @@index([userId, startAt, status])
   @@map("calendar_event")
+}
+
+model WhatsAppGatewayState {
+  id                String    @id @default("default")
+  status            String    @default("disconnected")
+  registrationReady Boolean   @default(false)
+  profileReady      Boolean   @default(false)
+  sendingPaused     Boolean   @default(false)
+  enforcementCode   String?
+  enforcementReason String?
+  recoveryReason    String?
+  lastConnectedAt   DateTime?
+  lastEventAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  @@map("whatsapp_gateway_state")
+}
+
+model WhatsAppLinkCode {
+  id                   String    @id @default(cuid())
+  userId               String
+  codeHash             String    @unique
+  expiresAt            DateTime
+  consumedAt           DateTime?
+  consumedByExternalId String?
+  createdAt            DateTime  @default(now())
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, consumedAt])
+  @@map("whatsapp_link_code")
+}
+
+model WhatsAppContactState {
+  id                       String           @id @default(cuid())
+  externalIdentityId       String           @unique
+  firstInboundAt           DateTime?
+  firstResponseAt          DateTime?
+  optedOutAt               DateTime?
+  lastInboundAt            DateTime?
+  lastProactiveSentAt      DateTime?
+  lastProactiveReplyAt     DateTime?
+  unansweredProactiveCount Int              @default(0)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @default(now()) @updatedAt
+  externalIdentity         ExternalIdentity @relation(fields: [externalIdentityId], references: [id], onDelete: Cascade)
+
+  @@index([optedOutAt, lastProactiveReplyAt])
+  @@map("whatsapp_contact_state")
+}
+
+model WhatsAppInboundMessage {
+  id                 String            @id @default(cuid())
+  provider           String
+  providerMessageId  String
+  senderExternalId   String
+  externalIdentityId String?
+  receivedAt         DateTime
+  processedAt        DateTime?
+  createdAt          DateTime          @default(now())
+  externalIdentity   ExternalIdentity? @relation(fields: [externalIdentityId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerMessageId])
+  @@index([senderExternalId, receivedAt])
+  @@index([externalIdentityId, receivedAt])
+  @@map("whatsapp_inbound_message")
+}
+
+model NotificationDelivery {
+  id                   String                        @id @default(cuid())
+  userId               String
+  kind                 String
+  content              String
+  idempotencyKey       String                        @unique
+  proactive            Boolean                       @default(false)
+  sourceId             String?
+  providerMessageId    String?
+  status               String                        @default("pending")
+  policyOutcome        String?
+  attemptedAt          DateTime?
+  deliveredAt          DateTime?
+  failedAt             DateTime?
+  lastError            String?
+  reminderOccurrenceId String?
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @default(now()) @updatedAt
+  user                 User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminderOccurrence   ReminderOccurrence?           @relation(fields: [reminderOccurrenceId], references: [id], onDelete: SetNull)
+  attempts             NotificationDeliveryAttempt[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([proactive, createdAt])
+  @@map("notification_delivery")
+}
+
+model NotificationDeliveryAttempt {
+  id                String               @id @default(cuid())
+  deliveryId        String
+  attemptNumber     Int
+  providerMessageId String?
+  status            String
+  errorMessage      String?
+  attemptedAt       DateTime             @default(now())
+  deliveredAt       DateTime?
+  createdAt         DateTime             @default(now())
+  delivery          NotificationDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryId, attemptNumber])
+  @@index([status, attemptedAt])
+  @@map("notification_delivery_attempt")
+}
+
+model WhatsAppTrafficDaily {
+  id             String   @id @default(cuid())
+  day            DateTime @db.Date
+  inboundCount   Int      @default(0)
+  outboundCount  Int      @default(0)
+  proactiveCount Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  @@unique([day])
+  @@map("whatsapp_traffic_daily")
+}
+
+model WhatsAppOutboundReservation {
+  id         String   @id
+  day        DateTime @db.Date
+  proactive  Boolean  @default(false)
+  reservedAt DateTime
+
+  @@index([reservedAt])
+  @@index([day, proactive])
+  @@map("whatsapp_outbound_reservation")
+}
+
+model UserPreference {
+  userId                       String   @id
+  assistantVerbosity           String   @default("balanced")
+  assistantStyle               String   @default("supportive")
+  briefingEnabled              Boolean  @default(false)
+  briefingTime                 String?
+  webNotificationsEnabled      Boolean  @default(true)
+  whatsappNotificationsEnabled Boolean  @default(true)
+  emailNotificationsEnabled    Boolean  @default(false)
+  proactivePaused              Boolean  @default(false)
+  retentionDays                Int?
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @default(now()) @updatedAt
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preference")
 }

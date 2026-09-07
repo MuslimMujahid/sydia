@@ -11,7 +11,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   AUDIT_EVENT_REPOSITORY,
   TASK_REPOSITORY,
@@ -23,6 +23,7 @@ import {
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { CreateTaskDto, TaskFiltersDto, UpdateTaskDto } from './task.dto';
 
+@Roles(['user'])
 @Controller('tasks')
 export class TasksController {
   constructor(

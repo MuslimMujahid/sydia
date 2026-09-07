@@ -1,4 +1,5 @@
 export * from './audit-event.repository.interface';
+export * from './admin.repository.interface';
 export * from './conversation.repository.interface';
 export * from './external-identity.repository.interface';
 export * from './user.repository.interface';
@@ -9,3 +10,6 @@ export * from './category.repository.interface';
 export * from './document.repository.interface';
 export * from './contact.repository.interface';
 export * from './calendar.repository.interface';
+export * from './whatsapp.repository.interface';
+export * from './notification.repository.interface';
+export * from './user-privacy.repository.interface';

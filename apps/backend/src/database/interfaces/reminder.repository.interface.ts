@@ -1,5 +1,6 @@
 import type { Reminder, ReminderStatus, ReminderWrite } from '../entities';
 
+export type ReminderDelivery = Reminder & { userId: string };
 export type ReminderFilters = {
   status?: ReminderStatus;
   schedule?: 'today' | 'upcoming' | 'past';
@@ -22,7 +23,7 @@ export interface IReminderRepository {
     id: string,
     input: Partial<ReminderWrite>,
   ): Promise<Reminder | null>;
-  findByIdForDelivery(id: string): Promise<Reminder | null>;
+  findByIdForDelivery(id: string): Promise<ReminderDelivery | null>;
   updateDeliverySchedule(
     id: string,
     scheduledAt: Date,

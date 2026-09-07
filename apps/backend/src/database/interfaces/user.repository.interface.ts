@@ -1,4 +1,4 @@
-import { User, UserProfileUpdate } from '../entities';
+import type { User, UserProfileUpdate } from '../entities';
 
 export interface IUserRepository {
   findById(id: string): Promise<User | null>;

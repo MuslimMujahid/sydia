@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SignInRouteImport } from './routes/sign-in'
@@ -21,11 +22,25 @@ import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppFilesRouteImport } from './routes/_app.files'
 import { Route as AppMemoryRouteImport } from './routes/_app.memory'
 import { Route as AppRemindersRouteImport } from './routes/_app.reminders'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
+import { Route as AdminLoginRouteImport } from './routes/admin_.login'
+import { Route as AdminWhatsappRouteImport } from './routes/admin_.whatsapp'
+import { Route as AppSettingsAssistantRouteImport } from './routes/_app.settings.assistant'
+import { Route as AppSettingsDataRouteImport } from './routes/_app.settings.data'
+import { Route as AppSettingsIntegrationsRouteImport } from './routes/_app.settings.integrations'
+import { Route as AppSettingsNotificationsRouteImport } from './routes/_app.settings.notifications'
+import { Route as AppSettingsPrivacyRouteImport } from './routes/_app.settings.privacy'
 import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
+import { Route as AppSettingsWhatsappRouteImport } from './routes/_app.settings.whatsapp'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesignSystemRoute = DesignSystemRouteImport.update({
@@ -83,19 +98,66 @@ const AppRemindersRoute = AppRemindersRouteImport.update({
   path: '/reminders',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTasksRoute = AppTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin_/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
+  id: '/admin_/whatsapp',
+  path: '/admin/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSettingsAssistantRoute = AppSettingsAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsDataRoute = AppSettingsDataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsIntegrationsRoute = AppSettingsIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsNotificationsRoute =
+  AppSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
+const AppSettingsPrivacyRoute = AppSettingsPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
-  id: '/settings/profile',
-  path: '/settings/profile',
-  getParentRoute: () => AppRoute,
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsWhatsappRoute = AppSettingsWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/admin': typeof AdminRoute
   '/design-system': typeof DesignSystemRoute
   '/onboarding': typeof OnboardingRoute
   '/sign-in': typeof SignInRoute
@@ -106,10 +168,20 @@ export interface FileRoutesByFullPath {
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/tasks': typeof AppTasksRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/settings/assistant': typeof AppSettingsAssistantRoute
+  '/settings/data': typeof AppSettingsDataRoute
+  '/settings/integrations': typeof AppSettingsIntegrationsRoute
+  '/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/settings/privacy': typeof AppSettingsPrivacyRoute
   '/settings/profile': typeof AppSettingsProfileRoute
+  '/settings/whatsapp': typeof AppSettingsWhatsappRoute
 }
 export interface FileRoutesByTo {
+  '/admin': typeof AdminRoute
   '/design-system': typeof DesignSystemRoute
   '/onboarding': typeof OnboardingRoute
   '/sign-in': typeof SignInRoute
@@ -120,13 +192,23 @@ export interface FileRoutesByTo {
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/tasks': typeof AppTasksRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
   '/': typeof AppIndexRoute
+  '/settings/assistant': typeof AppSettingsAssistantRoute
+  '/settings/data': typeof AppSettingsDataRoute
+  '/settings/integrations': typeof AppSettingsIntegrationsRoute
+  '/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/settings/privacy': typeof AppSettingsPrivacyRoute
   '/settings/profile': typeof AppSettingsProfileRoute
+  '/settings/whatsapp': typeof AppSettingsWhatsappRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/admin': typeof AdminRoute
   '/design-system': typeof DesignSystemRoute
   '/onboarding': typeof OnboardingRoute
   '/sign-in': typeof SignInRoute
@@ -137,14 +219,24 @@ export interface FileRoutesById {
   '/_app/files': typeof AppFilesRoute
   '/_app/memory': typeof AppMemoryRoute
   '/_app/reminders': typeof AppRemindersRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/tasks': typeof AppTasksRoute
+  '/admin_/login': typeof AdminLoginRoute
+  '/admin_/whatsapp': typeof AdminWhatsappRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/settings/assistant': typeof AppSettingsAssistantRoute
+  '/_app/settings/data': typeof AppSettingsDataRoute
+  '/_app/settings/integrations': typeof AppSettingsIntegrationsRoute
+  '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/_app/settings/privacy': typeof AppSettingsPrivacyRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
+  '/_app/settings/whatsapp': typeof AppSettingsWhatsappRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/design-system'
     | '/onboarding'
     | '/sign-in'
@@ -155,10 +247,20 @@ export interface FileRouteTypes {
     | '/files'
     | '/memory'
     | '/reminders'
+    | '/settings'
     | '/tasks'
+    | '/admin/login'
+    | '/admin/whatsapp'
+    | '/settings/assistant'
+    | '/settings/data'
+    | '/settings/integrations'
+    | '/settings/notifications'
+    | '/settings/privacy'
     | '/settings/profile'
+    | '/settings/whatsapp'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/admin'
     | '/design-system'
     | '/onboarding'
     | '/sign-in'
@@ -169,12 +271,22 @@ export interface FileRouteTypes {
     | '/files'
     | '/memory'
     | '/reminders'
+    | '/settings'
     | '/tasks'
+    | '/admin/login'
+    | '/admin/whatsapp'
     | '/'
+    | '/settings/assistant'
+    | '/settings/data'
+    | '/settings/integrations'
+    | '/settings/notifications'
+    | '/settings/privacy'
     | '/settings/profile'
+    | '/settings/whatsapp'
   id:
     | '__root__'
     | '/_app'
+    | '/admin'
     | '/design-system'
     | '/onboarding'
     | '/sign-in'
@@ -185,17 +297,29 @@ export interface FileRouteTypes {
     | '/_app/files'
     | '/_app/memory'
     | '/_app/reminders'
+    | '/_app/settings'
     | '/_app/tasks'
+    | '/admin_/login'
+    | '/admin_/whatsapp'
     | '/_app/'
+    | '/_app/settings/assistant'
+    | '/_app/settings/data'
+    | '/_app/settings/integrations'
+    | '/_app/settings/notifications'
+    | '/_app/settings/privacy'
     | '/_app/settings/profile'
+    | '/_app/settings/whatsapp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AdminRoute: typeof AdminRoute
   DesignSystemRoute: typeof DesignSystemRoute
   OnboardingRoute: typeof OnboardingRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminWhatsappRoute: typeof AdminWhatsappRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -205,6 +329,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/design-system': {
@@ -284,6 +415,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRemindersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/tasks': {
       id: '/_app/tasks'
       path: '/tasks'
@@ -291,15 +429,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTasksRouteImport
       parentRoute: typeof AppRoute
     }
+    '/admin_/login': {
+      id: '/admin_/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/whatsapp': {
+      id: '/admin_/whatsapp'
+      path: '/admin/whatsapp'
+      fullPath: '/admin/whatsapp'
+      preLoaderRoute: typeof AdminWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/settings/assistant': {
+      id: '/_app/settings/assistant'
+      path: '/assistant'
+      fullPath: '/settings/assistant'
+      preLoaderRoute: typeof AppSettingsAssistantRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/data': {
+      id: '/_app/settings/data'
+      path: '/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof AppSettingsDataRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/integrations': {
+      id: '/_app/settings/integrations'
+      path: '/integrations'
+      fullPath: '/settings/integrations'
+      preLoaderRoute: typeof AppSettingsIntegrationsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/notifications': {
+      id: '/_app/settings/notifications'
+      path: '/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof AppSettingsNotificationsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/privacy': {
+      id: '/_app/settings/privacy'
+      path: '/privacy'
+      fullPath: '/settings/privacy'
+      preLoaderRoute: typeof AppSettingsPrivacyRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/profile': {
       id: '/_app/settings/profile'
-      path: '/settings/profile'
+      path: '/profile'
       fullPath: '/settings/profile'
       preLoaderRoute: typeof AppSettingsProfileRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/whatsapp': {
+      id: '/_app/settings/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/settings/whatsapp'
+      preLoaderRoute: typeof AppSettingsWhatsappRouteImport
+      parentRoute: typeof AppSettingsRoute
     }
   }
 }
+
+interface AppSettingsRouteChildren {
+  AppSettingsAssistantRoute: typeof AppSettingsAssistantRoute
+  AppSettingsDataRoute: typeof AppSettingsDataRoute
+  AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
+  AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
+  AppSettingsPrivacyRoute: typeof AppSettingsPrivacyRoute
+  AppSettingsProfileRoute: typeof AppSettingsProfileRoute
+  AppSettingsWhatsappRoute: typeof AppSettingsWhatsappRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAssistantRoute: AppSettingsAssistantRoute,
+  AppSettingsDataRoute: AppSettingsDataRoute,
+  AppSettingsIntegrationsRoute: AppSettingsIntegrationsRoute,
+  AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
+  AppSettingsPrivacyRoute: AppSettingsPrivacyRoute,
+  AppSettingsProfileRoute: AppSettingsProfileRoute,
+  AppSettingsWhatsappRoute: AppSettingsWhatsappRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
@@ -308,9 +526,9 @@ interface AppRouteChildren {
   AppFilesRoute: typeof AppFilesRoute
   AppMemoryRoute: typeof AppMemoryRoute
   AppRemindersRoute: typeof AppRemindersRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppSettingsProfileRoute: typeof AppSettingsProfileRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -320,19 +538,22 @@ const AppRouteChildren: AppRouteChildren = {
   AppFilesRoute: AppFilesRoute,
   AppMemoryRoute: AppMemoryRoute,
   AppRemindersRoute: AppRemindersRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
-  AppSettingsProfileRoute: AppSettingsProfileRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AdminRoute: AdminRoute,
   DesignSystemRoute: DesignSystemRoute,
   OnboardingRoute: OnboardingRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminWhatsappRoute: AdminWhatsappRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -10,6 +10,7 @@ import type { IReminderRepository, ReminderFilters } from '../interfaces';
 
 const reminderSelect = {
   id: true,
+  userId: true,
   title: true,
   notes: true,
   status: true,
@@ -43,6 +44,10 @@ function present(row: ReminderRow): Reminder {
       messageId: row.sourceMessageId,
     },
   };
+}
+
+function presentForDelivery(row: ReminderRow): Reminder & { userId: string } {
+  return { ...present(row), userId: row.userId };
 }
 
 function updateData(input: Partial<ReminderWrite>): Prisma.ReminderUpdateInput {
@@ -109,13 +114,15 @@ export class PrismaReminderRepository implements IReminderRepository {
     return row ? present(row) : null;
   }
 
-  async findByIdForDelivery(id: string): Promise<Reminder | null> {
+  async findByIdForDelivery(
+    id: string,
+  ): Promise<(Reminder & { userId: string }) | null> {
     const row = await this.prisma.reminder.findUnique({
       where: { id },
       select: reminderSelect,
     });
 
-    return row ? present(row) : null;
+    return row ? presentForDelivery(row) : null;
   }
 
   async updateDeliverySchedule(

@@ -1,13 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpStatus,
   Inject,
   Param,
   Post,
 } from '@nestjs/common';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   CONVERSATION_REPOSITORY,
   ConversationNotFoundError,
@@ -24,6 +25,7 @@ class ResolveConfirmationDto {
   @IsBoolean() approved!: boolean;
 }
 
+@Roles(['user'])
 @Controller('conversations')
 export class ConversationsController {
   constructor(
@@ -37,6 +39,21 @@ export class ConversationsController {
   @Get()
   list(@Session() session: UserSession) {
     return this.conversations.list(session.user.id);
+  }
+
+  @Delete(':conversationId')
+  async delete(
+    @Session() session: UserSession,
+    @Param('conversationId') conversationId: string,
+  ) {
+    const deleted = await this.conversations.delete(
+      session.user.id,
+      conversationId,
+    );
+
+    if (!deleted) throw this.notFound();
+
+    return { deleted: true };
   }
 
   @Get(':conversationId')

@@ -43,3 +43,7 @@ yarn-error.log*
 # QA screenshots and local file storage
 .qa/
 apps/backend/.data/
+# Patched whatsmeow companion binary (rebuilt from upstream source, not committed)
+apps/backend/bin/
+# Design tool review artifacts
+apps/frontend/.impeccable/

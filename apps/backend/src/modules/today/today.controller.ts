@@ -1,5 +1,5 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   CALENDAR_REPOSITORY,
   REMINDER_REPOSITORY,
@@ -12,6 +12,7 @@ import {
 } from '../../database/interfaces';
 import { dayWindow } from '../../shared/date-time';
 
+@Roles(['user'])
 @Controller('today')
 export class TodayController {
   constructor(
