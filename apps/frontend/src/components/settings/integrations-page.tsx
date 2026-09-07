@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, MessageSquareText, Unplug } from "lucide-react";
+import { CalendarDays, MessageSquareText, Send, Unplug } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,63 @@ import {
   useDisconnectCalendar,
 } from "@/lib/services/api/calendar/calendar.queries";
 import { whatsappStatusQueryOptions } from "@/lib/services/api/whatsapp/whatsapp.queries";
+import { telegramStatusQueryOptions } from "@/lib/services/api/telegram/telegram.queries";
 import { SettingsPageHeader } from "./settings-nav";
+
+function TelegramIntegrationCard() {
+  const statusQuery = useQuery(telegramStatusQueryOptions());
+  const status = statusQuery.data;
+
+  return (
+    <Card className="p-6 sm:p-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-xl">
+          <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
+            <Send className="size-5 text-brand-deep" /> Telegram
+          </h2>
+          {statusQuery.isPending ? (
+            <p className="mt-2 text-sm text-ink-muted" role="status">
+              Memeriksa koneksi…
+            </p>
+          ) : null}
+          {statusQuery.isError ? (
+            <p className="mt-2 text-sm text-destructive" role="alert">
+              {statusQuery.error.message}
+            </p>
+          ) : null}
+          {status ? (
+            <>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge dot={status.linked ? "brand" : "ink-weak"}>
+                  {status.linked ? "Tertaut" : "Belum tertaut"}
+                </Badge>
+              </div>
+              <p className="mt-3 text-sm text-ink-muted">
+                {status.linked
+                  ? `Terhubung ke ${status.username ? `@${status.username}` : (status.firstName ?? "akun Anda")}. Pesan dan balasan berjalan melalui bot Telegram Sydia.`
+                  : "Tautkan akun Anda untuk mengobrol dengan Sydia lewat Telegram."}
+              </p>
+            </>
+          ) : null}
+        </div>
+        <Button
+          variant="dark-outline"
+          size="sm"
+          nativeButton={false}
+          className="shrink-0"
+          render={<Link to="/settings/telegram" />}
+        >
+          Kelola Telegram
+        </Button>
+      </div>
+      {status?.available === false ? (
+        <p className="mt-4 text-sm text-ink-muted">
+          Integrasi Telegram belum tersedia di server ini.
+        </p>
+      ) : null}
+    </Card>
+  );
+}
 
 function WhatsAppIntegrationCard() {
   const statusQuery = useQuery(whatsappStatusQueryOptions());
@@ -205,6 +261,7 @@ export function IntegrationSettingsPage() {
         description="Layanan yang terhubung ke akun Sydia Anda. Mencabut integrasi menghentikan sinkronisasi tanpa menghapus data yang sudah tersimpan."
       />
       <WhatsAppIntegrationCard />
+      <TelegramIntegrationCard />
       <GoogleCalendarIntegrationCard />
     </div>
   );

@@ -11,6 +11,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter } from 'node:events';
+import type {
+  OutboundMessage,
+  OutboundMessageAdapter,
+  OutboundMessageResult,
+} from '../../shared/messaging';
 import {
   WHATSAPP_REPOSITORY,
   type IWhatsAppRepository,
@@ -71,7 +76,7 @@ type GatewayEvents = {
 @Injectable()
 export class WhatsAppGatewayService
   extends EventEmitter
-  implements OnModuleInit, OnModuleDestroy
+  implements OnModuleInit, OnModuleDestroy, OutboundMessageAdapter
 {
   private readonly logger = new Logger(WhatsAppGatewayService.name);
   private readonly baseUrl: string;
@@ -191,6 +196,15 @@ export class WhatsAppGatewayService
       await this.handleError(error);
       throw error;
     }
+  }
+
+  async send(input: OutboundMessage): Promise<OutboundMessageResult> {
+    const result = await this.sendText(
+      input.recipientExternalId,
+      input.content,
+    );
+
+    return { providerMessageId: result.id };
   }
 
   async sendText(jid: string, content: string): Promise<{ id: string }> {

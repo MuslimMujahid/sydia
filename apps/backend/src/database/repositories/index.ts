@@ -11,5 +11,6 @@ export * from './prisma-document.repository';
 export * from './prisma-contact.repository';
 export * from './prisma-calendar.repository';
 export * from './prisma-whatsapp.repository';
+export * from './prisma-telegram.repository';
 export * from './prisma-notification.repository';
 export * from './prisma-user-privacy.repository';

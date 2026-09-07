@@ -11,5 +11,6 @@ export * from './document.repository.interface';
 export * from './contact.repository.interface';
 export * from './calendar.repository.interface';
 export * from './whatsapp.repository.interface';
+export * from './telegram.repository.interface';
 export * from './notification.repository.interface';
 export * from './user-privacy.repository.interface';

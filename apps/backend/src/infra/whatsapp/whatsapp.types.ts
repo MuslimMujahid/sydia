@@ -1,3 +1,5 @@
+import type { NormalizedInboundMessage } from '../../shared/messaging';
+
 export type WhatsAppGatewayStatus =
   | 'disconnected'
   | 'connecting'
@@ -6,19 +8,8 @@ export type WhatsAppGatewayStatus =
   | 'enforced'
   | 'logged_out';
 
-export type NormalizedInboundMessage = {
+export type WhatsAppInboundMessage = NormalizedInboundMessage & {
   provider: 'whatsapp';
-  providerMessageId: string;
-  senderExternalId: string;
-  chatExternalId: string;
-  isGroup: boolean;
-  isFromMe: boolean;
-  receivedAt: Date;
-  text: string;
-  kind: 'text' | 'image' | 'document' | 'voice' | 'unknown';
-  caption?: string;
-  mediaMessage?: Record<string, unknown>;
-  raw: Record<string, unknown>;
 };
 
 export type GoWaStatus = {
@@ -105,6 +96,8 @@ export interface WhatsAppClient {
   ): Promise<void>;
   downloadMedia(phone: string, messageId: string): Promise<GoWaDownloadResult>;
 }
+
+export type { NormalizedInboundMessage } from '../../shared/messaging';
 
 export type WhatsAppClientOptions = {
   baseUrl: string;

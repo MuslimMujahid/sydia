@@ -1,4 +1,4 @@
-import type { NormalizedInboundMessage } from './whatsapp.types';
+import type { NormalizedInboundMessage } from '../../shared/messaging';
 
 export function normalizeJid(jid: string): string {
   const trimmed = jid.trim().toLowerCase();

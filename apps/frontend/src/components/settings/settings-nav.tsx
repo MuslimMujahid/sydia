@@ -4,6 +4,7 @@ import {
   Cable,
   Database,
   MessageSquareText,
+  Send,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils/cn";
 const SETTINGS_NAV_ITEMS = [
   { to: "/settings/profile", label: "Profil", icon: UserRound },
   { to: "/settings/whatsapp", label: "WhatsApp", icon: MessageSquareText },
+  { to: "/settings/telegram", label: "Telegram", icon: Send },
   { to: "/settings/assistant", label: "Asisten", icon: Sparkles },
   { to: "/settings/notifications", label: "Notifikasi", icon: Bell },
   { to: "/settings/integrations", label: "Integrasi", icon: Cable },

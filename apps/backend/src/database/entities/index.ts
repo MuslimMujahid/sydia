@@ -10,4 +10,5 @@ export * from './document.entity';
 export * from './contact.entity';
 export * from './calendar.entity';
 export * from './whatsapp.entity';
+export * from './telegram.entity';
 export * from './notification.entity';

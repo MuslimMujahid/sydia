@@ -10,7 +10,7 @@ import {
   type IWhatsAppRepository,
 } from '../../database/interfaces';
 import type { WhatsAppContactState } from '../../database/entities';
-import { AssistantOrchestratorService } from '../conversations/services/assistant-orchestrator.service';
+import { MessagingHandlerService } from '../messaging';
 import { DocumentService } from '../documents/document.service';
 import { NotificationService } from '../notifications';
 import { OpenRouterMediaService } from '../../infra/model-gateway';
@@ -70,7 +70,7 @@ export class WhatsAppService implements OnModuleInit {
     private readonly notifications: NotificationService,
     @Inject(AUDIT_EVENT_REPOSITORY)
     private readonly audit: IAuditEventRepository,
-    private readonly assistant: AssistantOrchestratorService,
+    private readonly messages: MessagingHandlerService,
     private readonly documents: DocumentService,
     private readonly media: OpenRouterMediaService,
     @Inject(WHATSAPP_CLOCK) private readonly clock: Clock,
@@ -324,24 +324,28 @@ export class WhatsAppService implements OnModuleInit {
       const user = await this.users.findById(identity.userId);
       if (!user) return;
       const input = await this.ingestInboundMedia(user.id, message);
-      const turn = await this.assistant.send(user, {
+      const responded = await this.messages.handle({
+        message,
+        user,
         content: input.content,
-        idempotencyKey: `whatsapp:${message.providerMessageId}`,
         attachmentIds: input.attachmentIds,
+        transformResponse: (content) =>
+          state.firstResponseAt
+            ? content
+            : `Hi, this is ${user.name}'s AI assistant. ${content} Reply STOP to opt out.`,
+        send: async (content) => {
+          await this.sendOutbound({
+            userId: user.id,
+            externalId: identity.externalId,
+            content,
+            proactive: false,
+            inbound: message,
+            contactState: state,
+          });
+        },
       });
 
-      if (!turn.assistantMessage) return;
-      let content = turn.assistantMessage.content;
-      if (!state.firstResponseAt)
-        content = `Hi, this is ${user.name}'s AI assistant. ${content} Reply STOP to opt out.`;
-      await this.sendOutbound({
-        userId: user.id,
-        externalId: identity.externalId,
-        content,
-        proactive: false,
-        inbound: message,
-        contactState: state,
-      });
+      if (!responded) return;
       await this.whatsapp.updateContactState(identity.id, {
         firstResponseAt: state.firstResponseAt ?? now,
         optedOutAt: null,
@@ -514,7 +518,12 @@ export class WhatsAppService implements OnModuleInit {
         ? options.inbound.chatExternalId
         : normalizeJid(options.externalId);
 
-      const result = await this.gateway.sendText(recipient, options.content);
+      const result = await this.gateway.send({
+        recipientExternalId: recipient,
+        content: options.content,
+        replyToProviderMessageId: options.inbound?.providerMessageId,
+      });
+
       const sentAt = this.clock();
       await this.whatsapp.incrementTraffic(day, {
         outbound: 1,
@@ -530,7 +539,7 @@ export class WhatsAppService implements OnModuleInit {
       if (options.inbound)
         await this.gateway.presence(options.inbound.chatExternalId, 'paused');
 
-      return result;
+      return { id: result.providerMessageId };
     });
   }
 

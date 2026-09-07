@@ -1,1 +1,2 @@
 process.env.BACKEND_WHATSAPP_RUNTIME_ENABLED = 'false';
+process.env.BACKEND_TELEGRAM_RUNTIME_ENABLED = 'false';

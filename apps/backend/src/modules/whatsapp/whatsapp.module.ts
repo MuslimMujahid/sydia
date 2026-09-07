@@ -4,6 +4,7 @@ import { ModelGatewayModule } from '../../infra/model-gateway';
 import { WhatsAppInfraModule } from '../../infra/whatsapp';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { DocumentsModule } from '../documents/documents.module';
+import { MessagingModule } from '../messaging';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { WhatsAppController } from './whatsapp.controller';
@@ -20,6 +21,7 @@ import {
     WhatsAppInfraModule,
     ConversationsModule,
     DocumentsModule,
+    MessagingModule,
     ModelGatewayModule,
     AuditModule,
     NotificationsModule,

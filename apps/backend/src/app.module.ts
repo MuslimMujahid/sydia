@@ -21,6 +21,8 @@ import { StorageModule } from './infra/storage';
 import { CryptoModule } from './infra/crypto';
 import { WhatsAppInfraModule } from './infra/whatsapp';
 import { WhatsAppModule } from './modules/whatsapp';
+import { TelegramInfraModule } from './infra/telegram';
+import { TelegramModule } from './modules/telegram';
 import { NotificationsModule } from './modules/notifications';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -208,6 +210,16 @@ export function validateEnvironment(
     ),
     BACKEND_WHATSAPP_RUNTIME_ENABLED:
       config.BACKEND_WHATSAPP_RUNTIME_ENABLED !== 'false',
+    BACKEND_TELEGRAM_BOT_TOKEN:
+      typeof config.BACKEND_TELEGRAM_BOT_TOKEN === 'string'
+        ? config.BACKEND_TELEGRAM_BOT_TOKEN.trim()
+        : '',
+    BACKEND_TELEGRAM_BOT_USERNAME:
+      typeof config.BACKEND_TELEGRAM_BOT_USERNAME === 'string'
+        ? config.BACKEND_TELEGRAM_BOT_USERNAME.trim().replace(/^@/, '')
+        : '',
+    BACKEND_TELEGRAM_RUNTIME_ENABLED:
+      config.BACKEND_TELEGRAM_RUNTIME_ENABLED !== 'false',
   };
 }
 
@@ -234,8 +246,10 @@ export function validateEnvironment(
     CalendarModule,
     AdminModule,
     WhatsAppInfraModule,
+    TelegramInfraModule,
     NotificationsModule,
     WhatsAppModule,
+    TelegramModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter, ResponseInterceptor],
