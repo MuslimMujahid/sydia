@@ -1,4 +1,3 @@
-import type { MessageInfo } from '@whatsmeow-node/whatsmeow-node';
 import type { NormalizedInboundMessage } from './whatsapp.types';
 
 export function normalizeJid(jid: string): string {
@@ -11,85 +10,100 @@ export function normalizeJid(jid: string): string {
   return `${bareLocal}@${server}`;
 }
 
-function textFromMessage(message: Record<string, unknown>): string {
-  const conversation = message.conversation;
-  if (typeof conversation === 'string') return conversation;
-  const extended = message.extendedTextMessage;
+type MediaField = string | Record<string, unknown> | undefined;
 
-  if (extended && typeof extended === 'object') {
-    const text = (extended as Record<string, unknown>).text;
-    if (typeof text === 'string') return text;
-  }
-
-  for (const key of ['imageMessage', 'documentMessage', 'videoMessage']) {
-    const media = message[key];
-
-    if (media && typeof media === 'object') {
-      const caption = (media as Record<string, unknown>).caption;
-      if (typeof caption === 'string') return caption;
-    }
-  }
-
-  return '';
+function asRecord(value: MediaField): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' ? value : undefined;
 }
 
-function messageKind(
-  message: Record<string, unknown>,
+function kindFromPayload(
+  payload: Record<string, unknown>,
 ): NormalizedInboundMessage['kind'] {
-  if (typeof message.conversation === 'string' || message.extendedTextMessage)
+  if (payload.image) return 'image';
+  if (payload.audio) return 'voice';
+  if (payload.document) return 'document';
+  if (typeof payload.body === 'string' && payload.body.length > 0)
     return 'text';
-  if (message.imageMessage) return 'image';
-  if (message.documentMessage) return 'document';
-  if (message.audioMessage) return 'voice';
 
   return 'unknown';
 }
 
+function textFromPayload(payload: Record<string, unknown>): string {
+  const body = payload.body;
+
+  return typeof body === 'string' ? body : '';
+}
+
 function mediaFor(
-  message: Record<string, unknown>,
+  payload: Record<string, unknown>,
   kind: NormalizedInboundMessage['kind'],
 ): Record<string, unknown> | undefined {
   const key =
     kind === 'image'
-      ? 'imageMessage'
-      : kind === 'document'
-        ? 'documentMessage'
-        : kind === 'voice'
-          ? 'audioMessage'
+      ? 'image'
+      : kind === 'voice'
+        ? 'audio'
+        : kind === 'document'
+          ? 'document'
           : null;
 
   if (!key) return undefined;
-  const media = message[key];
+  const media = payload[key] as MediaField;
+  const record = asRecord(media);
+  if (!record && typeof media !== 'string') return undefined;
 
-  return media && typeof media === 'object'
-    ? (media as Record<string, unknown>)
-    : undefined;
+  const result: Record<string, unknown> = {};
+  if (typeof record?.caption === 'string') result.caption = record.caption;
+  if (typeof record?.filename === 'string') result.fileName = record.filename;
+  if (typeof record?.mimetype === 'string') result.mimetype = record.mimetype;
+  if (typeof record?.path === 'string') result.path = record.path;
+  if (typeof record?.url === 'string') result.url = record.url;
+  if (typeof media === 'string') result.path = media;
+
+  return result;
 }
 
-export function normalizeInboundEvent(event: {
-  info: MessageInfo;
-  message: Record<string, unknown>;
-}): NormalizedInboundMessage {
-  const { info, message } = event;
-  const kind = messageKind(message);
-  const text = textFromMessage(message);
+function timestampFrom(payload: Record<string, unknown>): Date {
+  const raw = payload.timestamp;
+
+  if (typeof raw === 'string') {
+    const parsed = new Date(raw);
+
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+
+  return new Date();
+}
+
+export function normalizeInboundEvent(
+  payload: Record<string, unknown>,
+): NormalizedInboundMessage {
+  const chatJid = normalizeJid(
+    typeof payload.chat_id === 'string' ? payload.chat_id : '',
+  );
+
+  const sender = normalizeJid(
+    typeof payload.from === 'string' ? payload.from : chatJid,
+  );
+
+  const isGroup = chatJid.endsWith('@g.us');
+  const kind = kindFromPayload(payload);
+  const text = textFromPayload(payload);
+  const mediaMessage = mediaFor(payload, kind);
 
   return {
     provider: 'whatsapp',
-    providerMessageId: info.id,
-    senderExternalId: normalizeJid(info.isGroup ? info.sender : info.chat),
-    chatExternalId: normalizeJid(info.chat),
-    isGroup: info.isGroup,
-    isFromMe: info.isFromMe,
-    receivedAt: new Date(
-      info.timestamp > 10_000_000_000 ? info.timestamp : info.timestamp * 1000,
-    ),
+    providerMessageId: typeof payload.id === 'string' ? payload.id : '',
+    senderExternalId: sender,
+    chatExternalId: chatJid,
+    isGroup,
+    isFromMe: payload.is_from_me === true,
+    receivedAt: timestampFrom(payload),
     text,
     kind,
     caption: text || undefined,
-    mediaMessage: mediaFor(message, kind),
-    info,
-    raw: message,
+    mediaMessage,
+    raw: payload,
   };
 }
 

@@ -47,7 +47,8 @@ function parsePositiveInteger(
     | 'BACKEND_ASSISTANT_CONTEXT_TOKENS'
     | 'BACKEND_SUMMARY_TRIGGER_TOKENS'
     | 'BACKEND_SUMMARY_RETAIN_MESSAGES'
-    | 'BACKEND_WHATSAPP_COMMAND_TIMEOUT',
+    | 'BACKEND_WHATSAPP_COMMAND_TIMEOUT'
+    | 'BACKEND_WHATSAPP_STATUS_POLL_MS',
   defaultValue: number,
 ): number {
   const value =
@@ -175,15 +176,35 @@ export function validateEnvironment(
       'BACKEND_SUMMARY_RETAIN_MESSAGES',
       8,
     ),
-    BACKEND_WHATSAPP_STORE_PATH:
-      typeof config.BACKEND_WHATSAPP_STORE_PATH === 'string' &&
-      config.BACKEND_WHATSAPP_STORE_PATH.trim() !== ''
-        ? config.BACKEND_WHATSAPP_STORE_PATH.trim()
+    BACKEND_WHATSAPP_GOWA_URL:
+      typeof config.BACKEND_WHATSAPP_GOWA_URL === 'string' &&
+      config.BACKEND_WHATSAPP_GOWA_URL.trim() !== ''
+        ? config.BACKEND_WHATSAPP_GOWA_URL.trim()
+        : 'http://127.0.0.1:3001',
+    BACKEND_WHATSAPP_GOWA_DEVICE_ID:
+      typeof config.BACKEND_WHATSAPP_GOWA_DEVICE_ID === 'string' &&
+      config.BACKEND_WHATSAPP_GOWA_DEVICE_ID.trim() !== ''
+        ? config.BACKEND_WHATSAPP_GOWA_DEVICE_ID.trim()
+        : 'sydia',
+    BACKEND_WHATSAPP_WEBHOOK_SECRET:
+      typeof config.BACKEND_WHATSAPP_WEBHOOK_SECRET === 'string' &&
+      config.BACKEND_WHATSAPP_WEBHOOK_SECRET.trim() !== ''
+        ? config.BACKEND_WHATSAPP_WEBHOOK_SECRET.trim()
+        : 'dev-secret',
+    BACKEND_WHATSAPP_LOCK_PATH:
+      typeof config.BACKEND_WHATSAPP_LOCK_PATH === 'string' &&
+      config.BACKEND_WHATSAPP_LOCK_PATH.trim() !== ''
+        ? config.BACKEND_WHATSAPP_LOCK_PATH.trim()
         : '.data/whatsapp',
     BACKEND_WHATSAPP_COMMAND_TIMEOUT: parsePositiveInteger(
       config,
       'BACKEND_WHATSAPP_COMMAND_TIMEOUT',
       30_000,
+    ),
+    BACKEND_WHATSAPP_STATUS_POLL_MS: parsePositiveInteger(
+      config,
+      'BACKEND_WHATSAPP_STATUS_POLL_MS',
+      15_000,
     ),
     BACKEND_WHATSAPP_RUNTIME_ENABLED:
       config.BACKEND_WHATSAPP_RUNTIME_ENABLED !== 'false',

@@ -26,7 +26,6 @@
         "@prisma/client": "^7.10.0",
         "@thallesp/nestjs-better-auth": "^2.8.0",
         "@types/multer": "^2.2.0",
-        "@whatsmeow-node/whatsmeow-node": "0.7.0",
         "ai": "^7.0.93",
         "better-auth": "^1.7.2",
         "bullmq": "^6.3.4",
@@ -1013,22 +1012,6 @@
     "@webassemblyjs/wasm-parser": ["@webassemblyjs/wasm-parser@1.14.1", "", { "dependencies": { "@webassemblyjs/ast": "1.14.1", "@webassemblyjs/helper-api-error": "1.13.2", "@webassemblyjs/helper-wasm-bytecode": "1.13.2", "@webassemblyjs/ieee754": "1.13.2", "@webassemblyjs/leb128": "1.13.2", "@webassemblyjs/utf8": "1.13.2" } }, "sha512-JLBl+KZ0R5qB7mCnud/yyX08jWFw5MsoalJ1pQ4EdFlgj9VdXKGuENGsiCIjegI1W7p91rUlcB/LB5yRJKNTcQ=="],
 
     "@webassemblyjs/wast-printer": ["@webassemblyjs/wast-printer@1.14.1", "", { "dependencies": { "@webassemblyjs/ast": "1.14.1", "@xtuc/long": "4.2.2" } }, "sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw=="],
-
-    "@whatsmeow-node/darwin-arm64": ["@whatsmeow-node/darwin-arm64@0.7.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-6qu5H0O5lydaNf9haOe7mRxU4UWL5Smrlw9rcBN19VabPi/tJs+AXUBJHZTXweX3uC213rwzpk6ii3smpe5jlw=="],
-
-    "@whatsmeow-node/darwin-x64": ["@whatsmeow-node/darwin-x64@0.7.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-Sht7ZtrDeiI/zx/JQdNiqgcywiesHkYFNaJaCpenweVG4kaE3+cA8eDMAVtyM6FoXrDI9w/FxhyQizWuuFWlkw=="],
-
-    "@whatsmeow-node/linux-arm64": ["@whatsmeow-node/linux-arm64@0.7.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-OZRSBj2ULdUHNFegi1KQ5hgt/tzs5zPzPIa9Nt5RsKh6tQp4yBFjYVW+X/jbbc9w5ymW5+uwnmNBGoNzO9MLdg=="],
-
-    "@whatsmeow-node/linux-x64": ["@whatsmeow-node/linux-x64@0.7.0", "", { "os": "linux", "cpu": "x64" }, "sha512-hOqWFUZ7ecR8oU9VrBctT0LIzRLSMGu5XLtO9jASaOEF4h18Gj1V9whu2XwQ12Nzsv9KvcFT1S6psi6Dh8k7Fw=="],
-
-    "@whatsmeow-node/linux-x64-musl": ["@whatsmeow-node/linux-x64-musl@0.7.0", "", { "os": "linux", "cpu": "x64" }, "sha512-RviyMXwO2v84VJ+0um0aBKi1QA0fLZqJgoJely+9WUJ2+i2Cxj17DRwl9kvAMAPWF2c7FV/GhNl81pa+451uog=="],
-
-    "@whatsmeow-node/whatsmeow-node": ["@whatsmeow-node/whatsmeow-node@0.7.0", "", { "optionalDependencies": { "@whatsmeow-node/darwin-arm64": "0.7.0", "@whatsmeow-node/darwin-x64": "0.7.0", "@whatsmeow-node/linux-arm64": "0.7.0", "@whatsmeow-node/linux-x64": "0.7.0", "@whatsmeow-node/linux-x64-musl": "0.7.0", "@whatsmeow-node/win32-arm64": "0.7.0", "@whatsmeow-node/win32-x64": "0.7.0" } }, "sha512-2/54SGYOOta9Vm0nPNKyHzmXlo/LJDxmsZSeZUBhiNpTpSMgjbfWsp/HwCgiA4DvCyev8ZEMjzKJdHcSenukqA=="],
-
-    "@whatsmeow-node/win32-arm64": ["@whatsmeow-node/win32-arm64@0.7.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-M6WadhbHwpEgTKppar+v/PwuX5n6ml1mCa1IhixhAnuXHyz/asnDoappMKgEpD8B0JCIRssnmZ0YH9m2PVTMGQ=="],
-
-    "@whatsmeow-node/win32-x64": ["@whatsmeow-node/win32-x64@0.7.0", "", { "os": "win32", "cpu": "x64" }, "sha512-PnUnr9DlJ7guF1L7LctefhABY/3lrGS2JMUn3VAUA6qhXL/dt3ttmYae1PidGzYK9c2kV2f+H324LtxhlMR3ag=="],
 
     "@workflow/serde": ["@workflow/serde@4.1.0", "", {}, "sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ=="],
 

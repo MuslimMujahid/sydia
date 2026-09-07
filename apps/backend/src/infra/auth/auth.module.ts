@@ -42,6 +42,7 @@ import { createAuth } from './auth';
           provisionDefaultCategories: (userId) =>
             categoryRepository.provisionDefaults(userId),
         }),
+        bodyParser: { rawBody: true },
       }),
     }),
   ],

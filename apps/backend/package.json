@@ -36,7 +36,6 @@
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
     "@openrouter/ai-sdk-provider": "^3.0.0",
-    "@whatsmeow-node/whatsmeow-node": "0.7.0",
     "@prisma/client": "^7.10.0",
     "@thallesp/nestjs-better-auth": "^2.8.0",
     "@types/multer": "^2.2.0",

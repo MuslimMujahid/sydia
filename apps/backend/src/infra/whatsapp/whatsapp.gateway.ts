@@ -1,7 +1,7 @@
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { FileHandle } from 'node:fs/promises';
-import { open, readFile, unlink } from 'node:fs/promises';
+import { mkdtemp, open, readFile, unlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   Inject,
   Injectable,
@@ -10,7 +10,6 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient } from '@whatsmeow-node/whatsmeow-node';
 import { EventEmitter } from 'node:events';
 import {
   WHATSAPP_REPOSITORY,
@@ -18,6 +17,7 @@ import {
 } from '../../database/interfaces';
 import { normalizeInboundEvent } from './whatsapp.adapter';
 import type {
+  GoWaWebhookEvent,
   NormalizedInboundMessage,
   WhatsAppClient,
   WhatsAppClientFactory,
@@ -37,15 +37,24 @@ export type GatewaySnapshot = {
   lastEventAt: Date | null;
 };
 
+// Session hygiene (Part 1 #14-16) and the ban guardrails (Part 2 #9-10) live
+// here. Any protocol-level warning matching ENFORCEMENT_CODES pauses sending
+// and pairing (operator recovery required); never retry logins or relink QR
+// codes while `enforced`. Reconnect attempts are deliberately bounded so the
+// gateway never reconnects in a loop. Full rules: whatsapp.policy.ts.
 const ENFORCEMENT_CODES: Record<string, true> = {
   '401': true,
+  '463': true,
   BULK_MESSAGING: true,
   REACHOUT_TIMELIMIT: true,
+  REACHOUT_TIMELOCK: true,
   TEMPORARY_BAN: true,
 };
 
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
+const ENFORCEMENT_PATTERN =
+  /401|463|BULK_MESSAGING|REACHOUT_TIMELIMIT|REACHOUT_TIMELOCK|TEMPORARY_BAN|reach.?out|timelock/i;
+
+const DEFAULT_POLL_MS = 15_000;
 
 type GatewayEvents = {
   inbound: (message: NormalizedInboundMessage) => void;
@@ -65,7 +74,11 @@ export class WhatsAppGatewayService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(WhatsAppGatewayService.name);
-  private readonly store: string;
+  private readonly baseUrl: string;
+  private readonly deviceId: string;
+  private readonly timeoutMs: number;
+  private readonly lockPath: string;
+  private readonly pollMs: number;
   private jid: string | undefined;
   private client: WhatsAppClient | null = null;
   private snapshot: GatewaySnapshot = {
@@ -81,44 +94,38 @@ export class WhatsAppGatewayService
   };
 
   private stopped = false;
-  private reconnectAttempt = 0;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private generation = 0;
+  private deviceEnsured = false;
   private lock: FileHandle | null = null;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly config: ConfigService,
     @Inject(WHATSAPP_REPOSITORY)
     private readonly repository: IWhatsAppRepository,
     @Inject(WHATSAPP_CLIENT_FACTORY)
-    private readonly factory: WhatsAppClientFactory = (options) =>
-      createClient(options),
+    private readonly factory: WhatsAppClientFactory,
   ) {
     super();
-    this.store = config.get<string>(
-      'BACKEND_WHATSAPP_STORE_PATH',
+    this.baseUrl = config
+      .get<string>('BACKEND_WHATSAPP_GOWA_URL', 'http://127.0.0.1:3001')
+      .replace(/\/+$/, '');
+    this.deviceId = config.get<string>(
+      'BACKEND_WHATSAPP_GOWA_DEVICE_ID',
+      'sydia',
+    );
+    this.timeoutMs = config.get<number>(
+      'BACKEND_WHATSAPP_COMMAND_TIMEOUT',
+      30_000,
+    );
+    this.lockPath = config.get<string>(
+      'BACKEND_WHATSAPP_LOCK_PATH',
       '.data/whatsapp',
     );
-    this.ensureGoResolverForCompanion();
-  }
-
-  private companionBinaryPath(): string | undefined {
-    const configured = this.config.get<string>('BACKEND_WHATSAPP_BINARY_PATH');
-    if (configured) return configured;
-
-    const local = resolve(process.cwd(), 'bin', 'whatsmeow-node');
-
-    return existsSync(local) ? local : undefined;
-  }
-
-  private ensureGoResolverForCompanion(): void {
-    const current = process.env.GODEBUG;
-    const options = current
-      ? current.split(',').filter((option) => !option.startsWith('netdns='))
-      : [];
-
-    if (!options.includes('netdns=go')) options.push('netdns=go');
-    process.env.GODEBUG = options.join(',');
+    this.pollMs = config.get<number>(
+      'BACKEND_WHATSAPP_STATUS_POLL_MS',
+      DEFAULT_POLL_MS,
+    );
   }
 
   async onModuleInit(): Promise<void> {
@@ -146,22 +153,11 @@ export class WhatsAppGatewayService
 
   async onModuleDestroy(): Promise<void> {
     this.stopped = true;
-    clearTimeout(this.reconnectTimer ?? undefined);
-    const client = this.client;
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.pollTimer = null;
     this.client = null;
     this.generation += 1;
-
-    try {
-      if (client) {
-        try {
-          await client.disconnect();
-        } finally {
-          client.close();
-        }
-      }
-    } finally {
-      await this.releaseOwnership();
-    }
+    await this.releaseOwnership();
   }
 
   getStatus(): GatewaySnapshot {
@@ -185,7 +181,7 @@ export class WhatsAppGatewayService
     await this.persist({ status: 'connecting', recoveryReason: null });
 
     try {
-      if (!(await this.client.isConnected())) await this.client.connect();
+      await this.client.ensureDevice(this.deviceId);
       const code = await this.client.pairCode(phone);
       this.snapshot.status = 'awaiting_pair';
       await this.persist({ status: 'awaiting_pair' });
@@ -197,7 +193,7 @@ export class WhatsAppGatewayService
     }
   }
 
-  async sendText(jid: string, content: string) {
+  async sendText(jid: string, content: string): Promise<{ id: string }> {
     if (
       !this.client ||
       this.snapshot.sendingPaused ||
@@ -207,23 +203,72 @@ export class WhatsAppGatewayService
         'WhatsApp sending is paused until the companion session is healthy.',
       );
 
-    return this.client.sendMessage(jid, { conversation: content });
+    try {
+      const result = await this.client.sendText(jid, content);
+
+      return { id: result.message_id };
+    } catch (error) {
+      await this.handleError(error);
+      throw error;
+    }
   }
 
   async markRead(ids: string[], chat: string, sender?: string): Promise<void> {
     if (!this.client) throw new Error('WhatsApp client is unavailable.');
-    await this.client.markRead(ids, chat, sender);
+    const phone = sender ?? chat;
+
+    try {
+      for (const id of ids) await this.client.markRead(phone, id);
+    } catch (error) {
+      await this.handleError(error);
+      throw error;
+    }
   }
 
   async presence(chat: string, state: 'composing' | 'paused'): Promise<void> {
     if (!this.client) throw new Error('WhatsApp client is unavailable.');
-    await this.client.sendChatPresence(chat, state);
+
+    try {
+      await this.client.sendChatPresence(chat, state);
+    } catch (error) {
+      await this.handleError(error);
+    }
   }
 
-  async download(message: Record<string, unknown>): Promise<string> {
+  async download(raw: Record<string, unknown>): Promise<string> {
     if (!this.client) throw new Error('WhatsApp client is unavailable.');
+    const messageId = typeof raw.id === 'string' ? raw.id : '';
+    const chat =
+      typeof raw.chat_id === 'string'
+        ? raw.chat_id
+        : typeof raw.from === 'string'
+          ? raw.from
+          : '';
 
-    return this.client.downloadAny(message);
+    if (!messageId || !chat)
+      throw new Error('Cannot resolve WhatsApp media message identity.');
+
+    const result = await this.client.downloadMedia(chat, messageId);
+    const url =
+      result.file_url ||
+      (result.file_path
+        ? `${this.baseUrl}/${result.file_path.replace(/^\/+/, '')}`
+        : '');
+
+    if (!url) throw new Error('WhatsApp media URL is unavailable.');
+
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+
+    if (!response.ok)
+      throw new Error(`WhatsApp media download failed: ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const directory = await mkdtemp(join(tmpdir(), 'sydia-whatsapp-'));
+    const path = join(directory, result.filename || `${messageId}.bin`);
+    await writeFile(path, buffer);
+
+    return path;
   }
 
   on<K extends keyof GatewayEvents>(
@@ -233,36 +278,94 @@ export class WhatsAppGatewayService
     return super.on(event, listener as (...args: unknown[]) => void);
   }
 
+  handleWebhook(event: GoWaWebhookEvent): void {
+    if (this.stopped) return;
+
+    if (event.event === 'message' && event.payload) {
+      const normalized = normalizeInboundEvent(event.payload);
+      this.snapshot.lastEventAt = new Date();
+      void this.persist({ lastEventAt: this.snapshot.lastEventAt });
+      if (!normalized.isFromMe) this.emit('inbound', normalized);
+
+      return;
+    }
+
+    if (event.event === 'message.ack' && event.payload) {
+      const payload = event.payload;
+      const ids = Array.isArray(payload.ids)
+        ? payload.ids.map((id) => String(id))
+        : [];
+
+      const chat = typeof payload.chat_id === 'string' ? payload.chat_id : '';
+      const sender = typeof payload.from === 'string' ? payload.from : chat;
+
+      this.emit('receipt', {
+        type:
+          typeof payload.receipt_type === 'string' ? payload.receipt_type : '',
+        chat,
+        sender,
+        isGroup: chat.endsWith('@g.us'),
+        ids,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
   private async initialize(): Promise<void> {
     if (this.stopped || this.client) return;
-    const goDebug = (process.env.GODEBUG ?? '')
-      .split(',')
-      .filter((setting) => setting !== '' && !setting.startsWith('netdns='));
-
-    process.env.GODEBUG = [...goDebug, 'netdns=go'].join(',');
     this.snapshot.status = 'connecting';
     await this.persist({ status: 'connecting', lastEventAt: new Date() });
+
     const client = this.factory({
-      store: this.store,
-      binaryPath: this.companionBinaryPath(),
-      commandTimeout: this.config.get<number>(
-        'BACKEND_WHATSAPP_COMMAND_TIMEOUT',
-        30_000,
-      ),
+      baseUrl: this.baseUrl,
+      deviceId: this.deviceId,
+      timeoutMs: this.timeoutMs,
     });
 
     const generation = ++this.generation;
     this.client = client;
-    this.bindEvents(client, generation);
+
+    await this.refreshStatus(generation);
+    this.pollTimer = setInterval(() => {
+      if (!this.stopped && generation === this.generation)
+        void this.refreshStatus(generation);
+    }, this.pollMs);
+  }
+
+  private async refreshStatus(generation: number): Promise<void> {
+    if (!this.client || generation !== this.generation || this.stopped) return;
 
     try {
-      const initialized = await client.init();
-      if (generation !== this.generation || this.client !== client) return;
-      this.jid = initialized.jid;
-      this.snapshot.registrationReady = Boolean(initialized.jid);
-      const loggedIn = await client.isLoggedIn();
+      if (!this.deviceEnsured) {
+        await this.client.ensureDevice(this.deviceId);
+        this.deviceEnsured = true;
+      }
 
-      if (!loggedIn) {
+      const status = await this.client.status();
+      if (generation !== this.generation) return;
+
+      this.jid = status.jid || undefined;
+
+      if (this.snapshot.status === 'enforced') return;
+      if (this.snapshot.sendingPaused && this.snapshot.status === 'logged_out')
+        return;
+
+      if (status.is_logged_in && status.jid) {
+        this.snapshot.status = 'connected';
+        this.snapshot.registrationReady = true;
+        this.snapshot.profileReady = true;
+        this.snapshot.lastConnectedAt =
+          this.snapshot.lastConnectedAt ?? new Date();
+        this.snapshot.recoveryReason = null;
+        await this.persist({
+          status: 'connected',
+          registrationReady: true,
+          profileReady: true,
+          lastConnectedAt: this.snapshot.lastConnectedAt,
+          lastEventAt: new Date(),
+          recoveryReason: null,
+        });
+      } else {
         this.snapshot.status = 'awaiting_pair';
         this.snapshot.registrationReady = false;
         await this.persist({
@@ -270,116 +373,17 @@ export class WhatsAppGatewayService
           registrationReady: false,
           recoveryReason: 'WhatsApp companion is not paired.',
         });
-
-        return;
       }
-
-      await client.connect();
     } catch (error) {
-      if (generation === this.generation) {
-        await this.handleError(error);
-        await this.retireClient(client);
-        this.scheduleReconnect();
-      }
-    }
-  }
-
-  private bindEvents(client: WhatsAppClient, generation: number): void {
-    const current = (): boolean =>
-      generation === this.generation && this.client === client;
-
-    client.on('connected', (event) => {
-      if (
-        !current() ||
-        this.snapshot.status === 'enforced' ||
-        this.snapshot.sendingPaused
-      )
-        return;
-      this.reconnectAttempt = 0;
-      this.snapshot.status = 'connected';
-      this.snapshot.registrationReady = true;
-      this.snapshot.profileReady = true;
-      this.snapshot.lastConnectedAt = new Date();
-      void this.persist({
-        status: 'connected',
-        registrationReady: true,
-        profileReady: true,
-        lastConnectedAt: this.snapshot.lastConnectedAt,
-        lastEventAt: new Date(),
-      });
-      this.logger.log(`WhatsApp companion connected as ${event.jid}`);
-    });
-    client.on('message', (event) => {
-      if (!current()) return;
-      const normalized = normalizeInboundEvent(event);
-      this.snapshot.lastEventAt = new Date();
-      void this.persist({ lastEventAt: this.snapshot.lastEventAt });
-      if (!normalized.isFromMe) this.emit('inbound', normalized);
-    });
-    client.on('message:receipt', (receipt) => {
-      if (current()) this.emit('receipt', receipt);
-    });
-    client.on('disconnected', () => {
-      if (!current()) return;
+      if (generation !== this.generation) return;
+      await this.handleError(error);
       this.snapshot.status = 'disconnected';
-      this.snapshot.recoveryReason = 'WhatsApp companion disconnected.';
-      void this.persist({
+      await this.persist({
         status: 'disconnected',
         recoveryReason: this.snapshot.recoveryReason,
         lastEventAt: new Date(),
       });
-      void this.retireClient(client).then(() => this.scheduleReconnect());
-    });
-    client.on('logged_out', (event) => {
-      if (!current()) return;
-      this.snapshot.status = 'logged_out';
-      this.snapshot.registrationReady = false;
-      this.snapshot.sendingPaused = true;
-      this.snapshot.recoveryReason = `WhatsApp companion logged out: ${event.reason}`;
-      void this.persist({
-        status: 'logged_out',
-        registrationReady: false,
-        sendingPaused: true,
-        recoveryReason: this.snapshot.recoveryReason,
-        lastEventAt: new Date(),
-      });
-      void this.retireClient(client);
-    });
-    client.on('stream_error', (event) => {
-      if (current())
-        void this.enforce(event.code, `WhatsApp stream error ${event.code}`);
-    });
-    client.on('temporary_ban', (event) => {
-      if (current())
-        void this.enforce(
-          'TEMPORARY_BAN',
-          `Temporary ban ${event.code} until ${event.expire}`,
-        );
-    });
-    client.on('error', (error) => {
-      if (current()) void this.handleError(error);
-    });
-    client.on('exit', (event) => {
-      if (!current() || this.stopped || event.code === 0) return;
-      void this.handleError(
-        new Error(`WhatsApp companion exited (${event.code ?? 'unknown'})`),
-      );
-      void this.retireClient(client).then(() => this.scheduleReconnect());
-    });
-  }
-
-  private async retireClient(client: WhatsAppClient): Promise<void> {
-    if (this.client !== client) return;
-    this.client = null;
-    this.generation += 1;
-
-    try {
-      await client.disconnect();
-    } catch {
-      /* process may already be gone */
     }
-
-    client.close();
   }
 
   private async enforce(code: string, reason: string): Promise<void> {
@@ -398,16 +402,19 @@ export class WhatsAppGatewayService
       recoveryReason: this.snapshot.recoveryReason,
       lastEventAt: new Date(),
     });
-    const client = this.client;
-    if (client) await this.retireClient(client);
   }
 
   private async handleError(error: unknown): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
-    const match = /401|BULK_MESSAGING|REACHOUT_TIMELIMIT/i.exec(message);
+    const match = ENFORCEMENT_PATTERN.exec(message);
 
-    if (match) await this.enforce(match[0].toUpperCase(), message);
-    else {
+    if (match) {
+      const code = match[0].toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      await this.enforce(
+        ENFORCEMENT_CODES[code] ? code : 'REACHOUT_TIMELOCK',
+        message,
+      );
+    } else {
       this.snapshot.recoveryReason = message;
       await this.persist({ recoveryReason: message, lastEventAt: new Date() });
     }
@@ -416,7 +423,7 @@ export class WhatsAppGatewayService
   }
 
   private async acquireOwnership(): Promise<boolean> {
-    const lockPath = `${this.store}.owner.lock`;
+    const lockPath = `${this.lockPath}.owner.lock`;
 
     const acquire = async (): Promise<boolean> => {
       try {
@@ -478,28 +485,7 @@ export class WhatsAppGatewayService
     this.lock = null;
     if (!lock) return;
     await lock.close();
-    await unlink(`${this.store}.owner.lock`).catch(() => undefined);
-  }
-
-  private scheduleReconnect(): void {
-    if (
-      this.stopped ||
-      this.snapshot.sendingPaused ||
-      this.snapshot.status === 'logged_out' ||
-      this.snapshot.status === 'enforced' ||
-      this.reconnectTimer ||
-      this.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS
-    )
-      return;
-    const delay =
-      RECONNECT_DELAY_MS[this.reconnectAttempt] ??
-      RECONNECT_DELAY_MS[RECONNECT_DELAY_MS.length - 1];
-
-    this.reconnectAttempt += 1;
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      void this.initialize();
-    }, delay);
+    await unlink(`${this.lockPath}.owner.lock`).catch(() => undefined);
   }
 
   private async persist(input: Partial<GatewaySnapshot>): Promise<void> {
