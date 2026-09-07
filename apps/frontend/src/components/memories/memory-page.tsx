@@ -63,11 +63,17 @@ const memorySchema = z.object({
   category: z.string(),
 });
 
-const STATUS_LABELS: Record<MemoryStatus | "all", string> = {
-  all: "Semua memori",
+const STATUS_LABELS: Record<MemoryStatus, string> = {
   active: "Aktif",
   archived: "Diarsipkan",
+  superseded: "Versi lama",
 };
+
+const STATUS_FILTERS: Array<{ value: MemoryStatus | "all"; label: string }> = [
+  { value: "all", label: "Semua memori" },
+  { value: "active", label: STATUS_LABELS.active },
+  { value: "archived", label: STATUS_LABELS.archived },
+];
 
 const SOURCE_LABELS: Record<MemorySourceType, string> = {
   dashboard: "Disimpan dari dasbor",
@@ -310,7 +316,8 @@ function MemoryEditorLoader({
 function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
   const pinMutation = useSetMemoryPinned();
   const archiveMutation = useSetMemoryArchived();
-  const unavailable = Boolean(memory.supersededById);
+  const unavailable =
+    memory.status === "superseded" || Boolean(memory.supersededById);
 
   return (
     <li className="grid gap-5 py-6 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -322,9 +329,13 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
             </Badge>
           ) : null}
           {memory.status === "archived" ? (
-            <Badge dot="ink-weak">Diarsipkan</Badge>
+            <Badge dot="ink-weak">{STATUS_LABELS.archived}</Badge>
           ) : null}
-          {unavailable ? <Badge dot="warn">Versi lama</Badge> : null}
+          {memory.status === "superseded" ? (
+            <Badge dot="warn">{STATUS_LABELS.superseded}</Badge>
+          ) : unavailable && memory.status !== "archived" ? (
+            <Badge dot="warn">Versi lama</Badge>
+          ) : null}
           {memory.category ? <Badge>{memory.category}</Badge> : null}
         </div>
         <p
@@ -374,7 +385,7 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
           aria-label={
             memory.status === "archived" ? "Pulihkan memori" : "Arsipkan memori"
           }
-          disabled={archiveMutation.isPending}
+          disabled={archiveMutation.isPending || memory.status === "superseded"}
           onClick={() =>
             archiveMutation.mutate({
               memoryId: memory.id,
@@ -460,9 +471,9 @@ export function MemoryPage() {
               setStatus(event.target.value as MemoryStatus | "all")
             }
           >
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {STATUS_FILTERS.map((filter) => (
+              <option key={filter.value} value={filter.value}>
+                {filter.label}
               </option>
             ))}
           </SelectField>

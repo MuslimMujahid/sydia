@@ -55,7 +55,11 @@ export class PrismaMemoryRepository implements IMemoryRepository {
   constructor(private readonly prisma: PrismaService) {}
   async list(userId: string, filters: MemoryFilters = {}): Promise<Memory[]> {
     const rows = await this.prisma.memory.findMany({
-      where: { userId, status: filters.status, pinned: filters.pinned },
+      where: {
+        userId,
+        status: filters.status ?? { in: ['active', 'archived'] },
+        pinned: filters.pinned,
+      },
       orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
       select: memorySelect,
     });

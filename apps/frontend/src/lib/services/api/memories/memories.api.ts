@@ -4,7 +4,7 @@ import { z } from "zod";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
-export type MemoryStatus = "active" | "archived";
+export type MemoryStatus = "active" | "archived" | "superseded";
 export type MemorySourceType =
   "dashboard" | "chat" | "whatsapp" | "document" | "automatic";
 
@@ -46,7 +46,7 @@ export type UpdateMemoryInput = Partial<CreateMemoryInput> & {
 };
 
 const memoryFiltersSchema = z.object({
-  status: z.enum(["active", "archived", "all"]).optional(),
+  status: z.enum(["active", "archived", "superseded", "all"]).optional(),
   pinned: z.boolean().optional(),
 });
 

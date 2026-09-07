@@ -1,6 +1,6 @@
 import type { Memory as PrismaMemory } from '../../generated/prisma/client';
 
-export const MEMORY_STATUSES = ['active', 'archived'] as const;
+export const MEMORY_STATUSES = ['active', 'archived', 'superseded'] as const;
 export type MemoryStatus = (typeof MEMORY_STATUSES)[number];
 
 export type Memory = Pick<
