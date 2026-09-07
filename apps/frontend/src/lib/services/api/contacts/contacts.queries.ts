@@ -43,6 +43,7 @@ function cacheContact(queryClient: QueryClient, contact: Contact) {
 
 export function useCreateContact() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: createContact,
     onSuccess: (contact) => cacheContact(queryClient, contact),
@@ -54,6 +55,7 @@ export function useCreateContact() {
 
 export function useUpdateContact() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: updateContact,
     onSuccess: (contact) => cacheContact(queryClient, contact),
@@ -65,10 +67,13 @@ export function useUpdateContact() {
 
 export function useDeleteContact() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: deleteContact,
     onSuccess: (_, contactId) =>
-      queryClient.removeQueries({ queryKey: contactQueryKeys.detail(contactId) }),
+      queryClient.removeQueries({
+        queryKey: contactQueryKeys.detail(contactId),
+      }),
     meta: {
       invalidateQueries: [contactQueryKeys.all, conversationQueryKeys.all],
     },

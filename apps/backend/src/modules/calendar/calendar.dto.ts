@@ -1,7 +1,17 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsDate, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsDate,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
-export class CalendarRangeDto { @Type(() => Date) @IsDate() from!: Date; @Type(() => Date) @IsDate() to!: Date; }
+export class CalendarRangeDto {
+  @Type(() => Date) @IsDate() from!: Date;
+  @Type(() => Date) @IsDate() to!: Date;
+}
 export class CreateCalendarEventDto {
   @IsString() @MinLength(1) @MaxLength(300) title!: string;
   @IsOptional() @IsString() @MaxLength(4000) description?: string | null;

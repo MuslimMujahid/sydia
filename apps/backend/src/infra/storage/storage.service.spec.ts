@@ -23,9 +23,11 @@ describe('StorageService', () => {
     const service = new StorageService(
       new ConfigService({ BACKEND_STORAGE_BUCKET: 'documents' }),
     );
+
     const send = jest
       .fn<(command: DeleteObjectCommand) => Promise<unknown>>()
       .mockRejectedValue({ $metadata: { httpStatusCode: 404 } });
+
     (service as unknown as PrivateStorage).s3 = { send } as unknown as S3Client;
 
     await expect(service.delete('missing-key')).resolves.toBeUndefined();
@@ -37,10 +39,12 @@ describe('StorageService', () => {
     const service = new StorageService(
       new ConfigService({ BACKEND_STORAGE_BUCKET: 'documents' }),
     );
+
     const error = new Error('Access denied');
     const send = jest
       .fn<(command: DeleteObjectCommand) => Promise<unknown>>()
       .mockRejectedValue(error);
+
     (service as unknown as PrivateStorage).s3 = { send } as unknown as S3Client;
 
     await expect(service.delete('protected-key')).rejects.toBe(error);

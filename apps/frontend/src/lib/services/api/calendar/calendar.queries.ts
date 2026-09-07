@@ -44,6 +44,7 @@ function cacheCalendarEvent(queryClient: QueryClient, event: CalendarEvent) {
     (current) => {
       if (!current) return current;
       const withoutEvent = current.filter((item) => item.id !== event.id);
+
       return [...withoutEvent, event].sort((left, right) =>
         left.startAt.localeCompare(right.startAt)
       );
@@ -59,6 +60,7 @@ const invalidatedKeys = [
 
 export function useCreateCalendarEvent() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: createCalendarEvent,
     onSuccess: (event) => cacheCalendarEvent(queryClient, event),
@@ -68,6 +70,7 @@ export function useCreateCalendarEvent() {
 
 export function useUpdateCalendarEvent() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: updateCalendarEvent,
     onSuccess: (event) => cacheCalendarEvent(queryClient, event),

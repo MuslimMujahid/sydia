@@ -7,6 +7,7 @@ describe('TokenCipher', () => {
     const cipher = new TokenCipher(
       new ConfigService({ BACKEND_TOKEN_ENCRYPTION_KEY: 'token-key' }),
     );
+
     const encrypted = cipher.encrypt('access-token');
 
     expect(encrypted).toMatch(/^v1\.[^.]+\.[^.]+\.[^.]+$/);

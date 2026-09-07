@@ -38,7 +38,6 @@ export type Document = {
   chunks?: DocumentChunk[];
 };
 
-
 export type UploadDocumentInput = {
   file: File;
   conversationId?: string;
@@ -77,12 +76,12 @@ const getDocumentServer = createServerFn({ method: "GET" })
     }
   });
 
-
 export async function getDocuments(): Promise<Document[]> {
   if (typeof window === "undefined") return getDocumentsServer();
 
   try {
     const response = await api.get<ApiResponse<Document[]>>("/documents");
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Daftar file tidak dapat dimuat.");
@@ -97,6 +96,7 @@ export async function getDocument(documentId: string): Promise<Document> {
     const response = await api.get<ApiResponse<Document>>(
       `/documents/${encodeURIComponent(documentId)}`
     );
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Rincian file tidak dapat dimuat.");
@@ -105,9 +105,9 @@ export async function getDocument(documentId: string): Promise<Document> {
 
 export function getDocumentContentUrl(documentId: string): string {
   const baseUrl = String(api.defaults.baseURL ?? "").replace(/\/$/, "");
+
   return `${baseUrl}/documents/${encodeURIComponent(documentId)}/content`;
 }
-
 
 export async function uploadDocument({
   file,
@@ -122,6 +122,7 @@ export async function uploadDocument({
       "/documents",
       formData
     );
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, `File ${file.name} tidak dapat diunggah.`);

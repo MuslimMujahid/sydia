@@ -22,23 +22,30 @@ function createService(stored: StoredCredentials) {
   const integrationCredentials = jest
     .fn<() => Promise<StoredCredentials | null>>()
     .mockResolvedValue(stored);
+
   const updateAccessToken = jest
-    .fn<(userId: string, accessToken: string, expiresAt: Date) => Promise<void>>()
+    .fn<
+      (userId: string, accessToken: string, expiresAt: Date) => Promise<void>
+    >()
     .mockResolvedValue(undefined);
+
   const refresh = jest
     .fn<GoogleCalendarService['refresh']>()
     .mockResolvedValue({
       accessToken: 'refreshed-token',
       expiresAt: new Date('2026-01-01T13:00:00.000Z'),
     });
+
   const calendars = {
     integrationCredentials,
     updateAccessToken,
   } as unknown as ICalendarRepository;
+
   const google = { refresh } as unknown as GoogleCalendarService;
   const service = new CalendarService(calendars, google);
   const privateService = service as unknown as CalendarServicePrivate;
   const credentials = privateService.credentials.bind(service);
+
   return { credentials, integrationCredentials, updateAccessToken, refresh };
 }
 
@@ -53,8 +60,12 @@ describe('CalendarService credentials', () => {
       expiresAt: new Date('2026-01-01T11:00:00.000Z'),
       calendarId: 'work',
     });
+
     const refreshedResult = await service.credentials(userId);
-    expect(refreshedResult).toEqual({ accessToken: 'refreshed-token', calendarId: 'work' });
+    expect(refreshedResult).toEqual({
+      accessToken: 'refreshed-token',
+      calendarId: 'work',
+    });
     expect(service.refresh).toHaveBeenCalledTimes(1);
     expect(service.updateAccessToken).toHaveBeenCalledTimes(1);
   });

@@ -64,13 +64,13 @@ const getContactServer = createServerFn({ method: "GET" })
   });
 
 export async function getContacts(query = ""): Promise<Contact[]> {
-  if (typeof window === "undefined")
-    return getContactsServer({ data: query });
+  if (typeof window === "undefined") return getContactsServer({ data: query });
 
   try {
     const response = await api.get<ApiResponse<Contact[]>>("/contacts", {
       params: { q: query.trim() || undefined },
     });
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Daftar kontak tidak dapat dimuat.");
@@ -85,6 +85,7 @@ export async function getContact(contactId: string): Promise<Contact> {
     const response = await api.get<ApiResponse<Contact>>(
       `/contacts/${encodeURIComponent(contactId)}`
     );
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Rincian kontak tidak dapat dimuat.");
@@ -96,6 +97,7 @@ export async function createContact(
 ): Promise<Contact> {
   try {
     const response = await api.post<ApiResponse<Contact>>("/contacts", values);
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Kontak tidak dapat disimpan.");
@@ -111,6 +113,7 @@ export async function updateContact({
       `/contacts/${encodeURIComponent(contactId)}`,
       values
     );
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Perubahan kontak tidak dapat disimpan.");

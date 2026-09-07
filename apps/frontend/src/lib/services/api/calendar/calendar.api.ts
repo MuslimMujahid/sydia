@@ -60,6 +60,7 @@ const getCalendarStatusServer = createServerFn({ method: "GET" }).handler(
         "/calendar/status",
         { headers: cookie ? { cookie } : undefined }
       );
+
       return response.data.data;
     } catch (error) {
       throw toApiError(error, "Status kalender tidak dapat dimuat.");
@@ -79,6 +80,7 @@ const getCalendarEventsServer = createServerFn({ method: "GET" })
           headers: cookie ? { cookie } : undefined,
         }
       );
+
       return response.data.data;
     } catch (error) {
       throw toApiError(error, "Agenda tidak dapat dimuat.");
@@ -89,9 +91,9 @@ export async function getCalendarStatus(): Promise<CalendarStatus> {
   if (typeof window === "undefined") return getCalendarStatusServer();
 
   try {
-    const response = await api.get<ApiResponse<CalendarStatus>>(
-      "/calendar/status"
-    );
+    const response =
+      await api.get<ApiResponse<CalendarStatus>>("/calendar/status");
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Status kalender tidak dapat dimuat.");
@@ -109,6 +111,7 @@ export async function getCalendarEvents(
       "/calendar/events",
       { params: range }
     );
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Agenda tidak dapat dimuat.");
@@ -123,6 +126,7 @@ export async function createCalendarEvent(
       "/calendar/events",
       values
     );
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Acara tidak dapat dibuat.");
@@ -138,6 +142,7 @@ export async function updateCalendarEvent({
       `/calendar/events/${encodeURIComponent(eventId)}`,
       values
     );
+
     return response.data.data;
   } catch (error) {
     throw toApiError(error, "Perubahan acara tidak dapat disimpan.");
@@ -165,9 +170,9 @@ export async function getGoogleCalendarAuthorizationUrl(): Promise<string> {
     const response = await api.get<ApiResponse<{ url: string }>>(
       "/calendar/google/connect"
     );
+
     return response.data.data.url;
   } catch (error) {
     throw toApiError(error, "Koneksi Google Calendar tidak dapat dimulai.");
   }
 }
-

@@ -22,5 +22,6 @@ export const Route = createFileRoute("/_app/chat")({
 
 function ChatRoute() {
   const search = Route.useSearch();
+
   return <ChatPage initialAttachmentId={search.attachment} />;
 }

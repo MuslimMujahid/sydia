@@ -16,5 +16,6 @@ export const Route = createFileRoute("/_app/calendar")({
 
 function CalendarRoute() {
   const user = Route.useRouteContext();
+
   return <CalendarPage timezone={user.timezone} />;
 }

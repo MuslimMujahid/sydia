@@ -181,6 +181,7 @@ export function getMonthGridDays(anchor: MonthAnchor): MonthGridDay[] {
     month: anchor.month,
     day: 1,
   };
+
   const weekday = utcNoon(first.year, first.month, first.day).getUTCDay();
   const leadDays = (weekday + 6) % 7;
   const weekCount = Math.ceil((leadDays + daysInMonth(anchor)) / 7);

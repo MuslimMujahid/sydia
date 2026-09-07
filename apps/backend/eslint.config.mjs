@@ -50,4 +50,13 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Jest mock assertions (`expect(mock.method).toHaveBeenCalled*`) access
+    // methods on objects cast `as unknown as Service`, which is the documented
+    // false positive of unbound-method.
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

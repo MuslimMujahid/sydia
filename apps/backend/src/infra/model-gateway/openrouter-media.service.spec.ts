@@ -2,7 +2,6 @@ import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { OpenRouterMediaService } from './openrouter-media.service';
 
-
 describe('OpenRouterMediaService', () => {
   afterEach(() => jest.restoreAllMocks());
 

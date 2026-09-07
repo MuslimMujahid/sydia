@@ -405,22 +405,27 @@ export function CalendarPage({ timezone }: { timezone: string }) {
   const [editingEvent, setEditingEvent] = useState<
     CalendarEvent | "new" | null
   >(null);
+
   const [draftTimes, setDraftTimes] = useState<{
     startAt: string;
     endAt: string;
   } | null>(null);
+
   const [monthAnchor, setMonthAnchor] = useState<MonthAnchor>(() =>
     getMonthAnchorInZone(timezone)
   );
+
   const [selectedDay, setSelectedDay] = useState<string>(() =>
     dayKeyInZone(new Date(), timezone)
   );
+
   const [connectError, setConnectError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const range = useMemo(
     () => getMonthGridRange(monthAnchor, timezone),
     [monthAnchor, timezone]
   );
+
   const statusQuery = useQuery(calendarStatusQueryOptions());
   const eventsQuery = useQuery({
     ...calendarEventsQueryOptions(range),
