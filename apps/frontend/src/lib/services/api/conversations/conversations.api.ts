@@ -18,12 +18,21 @@ export type ConversationSummary = Conversation & {
 
 export type ConversationRole = "user" | "assistant";
 
+export type ConversationAttachment = {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  kind: string;
+};
+
 export type ConversationMessage = {
   id: string;
   conversationId: string;
   role: ConversationRole;
   content: string;
   createdAt: string;
+  attachments: Array<{ fileAsset: ConversationAttachment }>;
 };
 
 export type AssistantRunStatus = "queued" | "running" | "completed" | "failed";
@@ -190,12 +199,23 @@ const conversationSchema = z.object({
   updatedAt: z.string(),
 });
 
+const attachmentSchema = z.object({
+  fileAsset: z.object({
+    id: z.string(),
+    originalName: z.string(),
+    mimeType: z.string(),
+    size: z.number(),
+    kind: z.string(),
+  }),
+});
+
 const messageSchema = z.object({
   id: z.string(),
   conversationId: z.string(),
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   createdAt: z.string(),
+  attachments: z.array(attachmentSchema),
 });
 
 const runSchema = z.object({

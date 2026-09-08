@@ -78,6 +78,50 @@ describe('phase 5 and 6 assistant tools', () => {
     );
     expect(found).toEqual({ contacts: [{ id: 'contact-1', name: 'Rina' }] });
   });
+  test('saves every file attached to the source message', async () => {
+    const attached = [
+      { id: 'doc-1', title: 'invoice.pdf' },
+      { id: 'doc-2', title: 'receipt.jpg' },
+    ];
+
+    const listAttached = jest
+      .fn<(userId: string, messageId: string) => Promise<typeof attached>>()
+      .mockResolvedValue(attached);
+
+    const tool = tools({
+      documents: { listAttached } as unknown as DocumentService,
+    }).find(({ definition }) => definition.name === 'save_attached_files');
+
+    const result = await tool?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      idempotencyKey: 'save-files',
+      arguments: {},
+    });
+
+    expect(listAttached).toHaveBeenCalledWith('user-1', 'message-1');
+    expect(result).toEqual({ objectType: 'documents', objects: attached });
+  });
+
+  test('rejects saving when the source message has no attached files', async () => {
+    const listAttached = jest
+      .fn<(userId: string, messageId: string) => Promise<[]>>()
+      .mockResolvedValue([]);
+
+    const tool = tools({
+      documents: { listAttached } as unknown as DocumentService,
+    }).find(({ definition }) => definition.name === 'save_attached_files');
+
+    await expect(
+      tool?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'save-files',
+        arguments: {},
+      }),
+    ).rejects.toThrow('Tidak ada file yang dilampirkan pada pesan ini.');
+  });
+
   test('returns document provenance from retrieval', async () => {
     const searchForMessage = jest
       .fn<

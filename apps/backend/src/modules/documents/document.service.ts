@@ -281,6 +281,10 @@ export class DocumentService {
     return this.documents.findById(userId, documentId);
   }
 
+  async listAttached(userId: string, messageId: string): Promise<Document[]> {
+    return this.documents.findByMessageId(userId, messageId);
+  }
+
   async searchForMessage(
     userId: string,
     messageId: string,

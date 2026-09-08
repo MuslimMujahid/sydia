@@ -35,6 +35,19 @@ const messageSelect = {
   role: true,
   content: true,
   createdAt: true,
+  attachments: {
+    select: {
+      fileAsset: {
+        select: {
+          id: true,
+          originalName: true,
+          mimeType: true,
+          size: true,
+          kind: true,
+        },
+      },
+    },
+  },
 } as const;
 
 const assistantRunSelect = {

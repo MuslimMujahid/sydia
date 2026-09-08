@@ -1,6 +1,7 @@
 import type {
   AssistantRun as PrismaAssistantRun,
   Conversation as PrismaConversation,
+  FileAsset as PrismaFileAsset,
   Message as PrismaMessage,
   Prisma,
   ToolInvocation as PrismaToolInvocation,
@@ -37,10 +38,17 @@ export type ConversationSummary = Conversation & {
   lastMessageAt: Date | null;
 };
 
+export type MessageAttachment = Pick<
+  PrismaFileAsset,
+  'id' | 'originalName' | 'mimeType' | 'size' | 'kind'
+>;
+
 export type Message = Pick<
   PrismaMessage,
   'id' | 'conversationId' | 'role' | 'content' | 'createdAt'
->;
+> & {
+  attachments?: Array<{ fileAsset: MessageAttachment }>;
+};
 
 export type AssistantRun = Pick<
   PrismaAssistantRun,

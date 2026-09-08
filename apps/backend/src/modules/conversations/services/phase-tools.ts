@@ -119,6 +119,27 @@ export function createPhaseTools(deps: {
     },
     {
       definition: {
+        name: 'save_attached_files',
+        label: 'Menyimpan file lampiran',
+        description:
+          'Simpan semua file yang dilampirkan pada pesan aktif. Selalu gunakan alat ini ketika pengguna meminta file lampiran disimpan.',
+        parameters: schema({}),
+      },
+      parseArguments,
+      execute: async ({ userId, sourceMessageId }) => {
+        const documents = await deps.documents.listAttached(
+          userId,
+          sourceMessageId,
+        );
+
+        if (documents.length === 0)
+          throw new Error('Tidak ada file yang dilampirkan pada pesan ini.');
+
+        return { objectType: 'documents', objects: documents };
+      },
+    },
+    {
+      definition: {
         name: 'search_documents',
         label: 'Mencari dokumen',
         description:

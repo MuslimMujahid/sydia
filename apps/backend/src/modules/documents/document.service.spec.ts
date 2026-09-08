@@ -341,6 +341,23 @@ describe('DocumentService processDocument', () => {
 });
 
 describe('DocumentService retrieval', () => {
+  test('lists all documents attached to a user-owned source message', async () => {
+    const { service, documents } = dependencies();
+    const attached = [
+      { ...document('ready'), id: 'document-1' },
+      { ...document('ready'), id: 'document-2' },
+    ];
+
+    documents.findByMessageId = jest
+      .fn<IDocumentRepository['findByMessageId']>()
+      .mockResolvedValue(attached);
+
+    await expect(service.listAttached(userId, 'message-1')).resolves.toEqual(
+      attached,
+    );
+    expect(documents.findByMessageId).toHaveBeenCalledWith(userId, 'message-1');
+  });
+
   test('scopes retrieval to documents attached to the source message', async () => {
     const { service, documents } = dependencies();
     documents.findByMessageId = jest

@@ -1,7 +1,6 @@
 import { AlertTriangle, FileText, LoaderCircle, RotateCcw } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { SydiaLogo } from "@/components/ui/sydia-logo";
 import type {
   AssistantActivity,
   AssistantRun,
@@ -11,14 +10,11 @@ import type {
 import { AssistantMarkdown } from "./assistant-markdown";
 import { ChatActionCards } from "./action-cards";
 
-function formatMessageTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
 
-  return new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 type DocumentSource = {
@@ -167,12 +163,6 @@ function PendingAssistant({
 }) {
   return (
     <article className="max-w-xl" aria-label="Jawaban Sydia">
-      <div className="mb-3 flex items-center gap-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-canvas ring-1 ring-surface-1">
-          <SydiaLogo className="h-4" />
-        </span>
-        <span className="font-display text-sm font-bold">Sydia</span>
-      </div>
       {streamedText ? (
         <AssistantMarkdown content={streamedText} />
       ) : (
@@ -259,7 +249,7 @@ export function MessageHistory({
   );
 
   return (
-    <ol className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
+    <ol className="mx-auto max-w-3xl space-y-12 px-4 py-8 sm:px-6 sm:py-10">
       {timeline.map((entry) => {
         if (entry.type === "run") {
           if (entry.run.status === "failed") {
@@ -300,7 +290,6 @@ export function MessageHistory({
         const { message } = entry;
         const run = runsByMessageId[message.id];
         const isUser = message.role === "user";
-        const time = formatMessageTime(message.createdAt);
         const provenance = run
           ? documentSources(toolsByRunId[run.id] ?? [])
           : [];
@@ -318,34 +307,36 @@ export function MessageHistory({
                   : "max-w-xl"
               }
             >
-              <div
-                className={
-                  isUser
-                    ? "mb-1 flex justify-end gap-2"
-                    : "mb-3 flex items-center gap-3"
-                }
-              >
-                {!isUser ? (
-                  <span className="grid size-8 place-items-center rounded-full bg-canvas ring-1 ring-surface-1">
-                    <SydiaLogo className="h-4" />
-                  </span>
-                ) : null}
-                <span className="font-display text-sm font-bold">
-                  {isUser ? "Anda" : "Sydia"}
-                </span>
-                {time ? (
-                  <time
-                    dateTime={message.createdAt}
-                    className="font-mono text-xs font-normal text-ink-muted"
-                  >
-                    {time}
-                  </time>
-                ) : null}
-              </div>
               {isUser ? (
-                <p className="break-words whitespace-pre-wrap text-base leading-6 text-ink-soft">
-                  {message.content}
-                </p>
+                <>
+                  <p className="break-words whitespace-pre-wrap text-base leading-6 text-ink-soft">
+                    {message.content}
+                  </p>
+                  {message.attachments.length ? (
+                    <ul
+                      aria-label="File lampiran"
+                      className="mt-3 space-y-2 border-t border-ink/10 pt-3"
+                    >
+                      {message.attachments.map(({ fileAsset }) => (
+                        <li
+                          key={fileAsset.id}
+                          className="flex min-w-0 items-center gap-2"
+                        >
+                          <FileText className="size-4 shrink-0 text-ink-muted" />
+                          <span
+                            className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
+                            title={fileAsset.originalName}
+                          >
+                            {fileAsset.originalName}
+                          </span>
+                          <span className="shrink-0 font-mono text-xs text-ink-muted">
+                            {formatFileSize(fileAsset.size)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
               ) : (
                 <AssistantMarkdown content={message.content} />
               )}
@@ -396,13 +387,6 @@ export function MessageHistory({
             aria-label="Pesan Anda sedang dikirim"
             className="max-w-[85%] rounded-md bg-surface-1 px-4 py-3 text-ink opacity-70 sm:max-w-[75%]"
           >
-            <div className="mb-1 flex justify-end gap-2">
-              <span className="font-display text-sm font-bold">Anda</span>
-              <span className="flex items-center gap-1 font-mono text-xs text-ink-muted">
-                <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
-                Mengirim
-              </span>
-            </div>
             <p className="break-words whitespace-pre-wrap text-base leading-6 text-ink-soft">
               {optimisticMessage.content}
             </p>
