@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils/cn";
 
 export function LoadingState({
   label = "Memuat ruang kerja Anda…",
@@ -71,13 +72,15 @@ export function EmptyState({
   title,
   message,
   action,
+  className,
 }: {
   title: string;
   message: string;
   action?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="border-y border-surface-1 py-10">
+    <div className={cn("border-surface-1 py-10", className)}>
       <Inbox className="mb-4 size-6 text-brand-deep" />
       <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
         {title}

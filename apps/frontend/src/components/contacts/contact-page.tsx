@@ -348,7 +348,7 @@ export function ContactPage() {
   }
 
   return (
-    <div className="space-y-9">
+    <div className="space-y-8">
       <DomainPageHeader
         title="Kontak"
         description="Kelola orang dan nama lain yang perlu dikenali Sydia dalam percakapan."
@@ -392,13 +392,6 @@ export function ContactPage() {
             queryText
               ? "Periksa ejaan atau cari dengan nama lain."
               : "Tambahkan orang pertama beserta alias yang biasa Anda gunakan di chat."
-          }
-          action={
-            !queryText ? (
-              <Button onClick={() => setEditingContact("new")}>
-                <Plus /> Tambah kontak pertama
-              </Button>
-            ) : undefined
           }
         />
       ) : null}

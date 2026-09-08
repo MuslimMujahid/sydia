@@ -651,11 +651,6 @@ export function ReminderPage() {
               ? "Ubah pencarian atau filter untuk melihat jadwal lain."
               : "Jadwalkan dari dasbor, atau minta Sydia mengingatkan Anda melalui chat."
           }
-          action={
-            <Button onClick={() => setEditor("new")}>
-              <Plus /> Buat pengingat
-            </Button>
-          }
         />
       ) : null}
       {query.isSuccess && query.data.length > 0 ? (

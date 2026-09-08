@@ -306,7 +306,7 @@ export function DocumentPage() {
   }
 
   return (
-    <div className="space-y-9">
+    <div className="space-y-8">
       <DomainPageHeader
         title="File"
         description="Unggah dokumen, gambar, atau audio. Sydia mengekstrak isi yang dapat Anda periksa dan gunakan dalam chat."
@@ -363,11 +363,6 @@ export function DocumentPage() {
         <EmptyState
           title="Belum ada file"
           message="Unggah file pertama agar Sydia dapat membacanya, membuat transkrip, dan menggunakannya saat menjawab."
-          action={
-            <Button onClick={() => inputRef.current?.click()}>
-              <Upload /> Unggah file pertama
-            </Button>
-          }
         />
       ) : null}
       {query.isSuccess && query.data.length ? (

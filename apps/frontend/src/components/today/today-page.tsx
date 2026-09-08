@@ -53,8 +53,8 @@ export function TodayPage({ firstName }: { firstName: string }) {
   const hasItems = hasOverviewItems || Boolean(events.length);
 
   return (
-    <div className="space-y-10">
-      <header className="grid gap-7 border-b border-ink/8 pb-9 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+    <div className="space-y-8">
+      <header className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="max-w-3xl">
           <p className="text-sm text-ink-muted">
             {query.data
@@ -77,7 +77,7 @@ export function TodayPage({ firstName }: { firstName: string }) {
       {preferencesQuery.isSuccess ? (
         <section
           aria-label="Status briefing dan pesan proaktif"
-          className="flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-surface-1 py-4"
+          className="flex flex-wrap items-center gap-x-6 gap-y-3"
         >
           <p className="text-sm text-ink-muted">
             {preferencesQuery.data.briefingEnabled
@@ -130,11 +130,6 @@ export function TodayPage({ firstName }: { firstName: string }) {
         <EmptyState
           title="Hari ini masih lapang"
           message="Belum ada tugas jatuh tempo, pengingat terjadwal, atau acara dalam tujuh hari ke depan. Anda dapat menangkap rencana berikutnya melalui chat."
-          action={
-            <Button nativeButton={false} render={<Link to="/chat" />}>
-              <MessageSquareText /> Mulai dari chat
-            </Button>
-          }
         />
       ) : null}
       {query.isSuccess &&

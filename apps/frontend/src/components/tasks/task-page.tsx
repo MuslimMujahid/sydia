@@ -861,7 +861,6 @@ function TaskColumn({
   tasks,
   filtered,
   onEdit,
-  onCreate,
 }: (typeof TASK_COLUMNS)[number] & {
   tasks: Task[];
   filtered: boolean;
@@ -915,16 +914,6 @@ function TaskColumn({
               ? "Tidak ada tugas yang cocok di tahap ini."
               : emptyMessage}
           </p>
-          {status === "inbox" && !filtered ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-4"
-              onClick={onCreate}
-            >
-              <Plus /> Buat tugas
-            </Button>
-          ) : null}
         </div>
       )}
     </section>

@@ -515,7 +515,7 @@ export function CalendarPage({ timezone }: { timezone: string }) {
   }
 
   return (
-    <div className="space-y-9">
+    <div className="space-y-8">
       <DomainPageHeader
         title="Kalender"
         description="Telusuri kalender per bulan dan kelola waktu tanpa meninggalkan Sydia."
@@ -661,11 +661,6 @@ export function CalendarPage({ timezone }: { timezone: string }) {
         <EmptyState
           title={`Belum ada acara di ${formatMonthAnchor(monthAnchor)}`}
           message="Buat acara atau hubungkan Google Calendar agar komitmen waktu terlihat di sini."
-          action={
-            <Button onClick={() => openCreate()}>
-              <Plus /> Buat acara
-            </Button>
-          }
         />
       ) : null}
       {eventsQuery.isSuccess && hasVisibleEvents ? (
