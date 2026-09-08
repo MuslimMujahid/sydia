@@ -40,6 +40,7 @@ type ChatComposerProps = {
   isSending: boolean;
   errorMessage?: string;
   onDraftChange?: () => void;
+  embedded?: boolean;
   onSend: (values: SendMessageVariables) => Promise<void>;
 };
 
@@ -65,6 +66,7 @@ export function ChatComposer({
   isSending,
   errorMessage,
   onDraftChange,
+  embedded = false,
   onSend,
 }: ChatComposerProps) {
   const [content, setContent] = useState("");
@@ -231,10 +233,14 @@ export function ChatComposer({
 
   return (
     <form
-      className="border-t border-surface-1 bg-canvas px-4 py-4 sm:px-6"
+      className={
+        embedded
+          ? "bg-transparent"
+          : "border-t border-surface-1 bg-canvas px-4 py-4 sm:px-6"
+      }
       onSubmit={handleSubmit}
     >
-      <div className="mx-auto max-w-3xl">
+      <div className={embedded ? "w-full" : "mx-auto max-w-3xl"}>
         {attachments.length ? (
           <ul className="mb-3 flex flex-wrap gap-2" aria-label="Lampiran pesan">
             {attachments.map((attachment) => (
@@ -290,7 +296,7 @@ export function ChatComposer({
             ))}
           </ul>
         ) : null}
-        <div className="flex items-end gap-2 rounded-md border border-ink/16 bg-canvas p-2 focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
+        <div className="flex items-end gap-2 rounded-lg border border-ink/16 bg-canvas p-2 shadow-card focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
           <input
             ref={fileInputRef}
             type="file"

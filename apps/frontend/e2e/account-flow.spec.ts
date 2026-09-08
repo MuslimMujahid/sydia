@@ -45,18 +45,11 @@ test("registers, configures, persists, and recovers an account session", async (
 
   await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("heading", {
-      name: `Selamat datang, ${initialName.split(" ")[0]}.`,
-    })
+    page.getByRole("heading", { name: "Ingin melakukan apa hari ini?" })
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Preferensi yang digunakan Sydia" })
-  ).toBeVisible();
+  await expect(page.getByLabel("Pesan untuk Sydia")).toBeVisible();
 
-  await page
-    .getByRole("navigation", { name: "Navigasi utama" })
-    .getByRole("link", { name: "Profil & preferensi" })
-    .click();
+  await page.getByRole("link", { name: "Pengaturan" }).click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await page.getByLabel("Nama").fill("");
   await page.getByLabel("Nama").pressSequentially(updatedName);
@@ -77,14 +70,12 @@ test("registers, configures, persists, and recovers an account session", async (
   await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("heading", {
-      name: `Selamat datang, ${updatedName.split(" ")[0]}.`,
-    })
+    page.getByRole("heading", { name: "Ingin melakukan apa hari ini?" })
   ).toBeVisible();
 
   await page
     .getByRole("navigation", { name: "Navigasi utama" })
-    .getByRole("link", { name: "Profil & preferensi" })
+    .getByRole("link", { name: "Pengaturan" })
     .click();
   await expect(page.getByLabel("Nama")).toHaveValue(updatedName);
   await expect(page.getByLabel("Zona waktu")).toHaveValue("Asia/Jayapura");

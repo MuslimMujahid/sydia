@@ -326,6 +326,7 @@ function DayCell({
   const visibleEvents = expanded
     ? events
     : events.slice(0, MAX_DESKTOP_ENTRIES);
+
   const dayLabel = formatDayKeyLabel(day.key);
 
   return (

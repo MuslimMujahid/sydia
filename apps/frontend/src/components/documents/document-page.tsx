@@ -271,7 +271,7 @@ function DocumentDetail({
         </Button>
         <Button
           nativeButton={false}
-          render={<Link to="/chat" search={{ attachment: document.id }} />}
+          render={<Link to="/" search={{ attachment: document.id }} />}
           disabled={document.status !== "ready"}
         >
           <MessageSquareText /> Tanyakan di chat
@@ -411,7 +411,7 @@ export function DocumentPage() {
                   {document.status === "ready" ? (
                     <DropdownMenuItem
                       render={
-                        <Link to="/chat" search={{ attachment: document.id }} />
+                        <Link to="/" search={{ attachment: document.id }} />
                       }
                     >
                       <MessageSquareText /> Tanyakan di chat

@@ -1,19 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { TodayPage } from "@/components/today/today-page";
+import { z } from "zod";
+import { ChatPage } from "@/components/chat/chat-page";
 
-export const Route = createFileRoute("/_app/")({
-  head: () => ({
-    meta: [
-      { title: "Hari ini · Sydia" },
-      { name: "description", content: "Pusat kendali Sydia Anda yang tenang." },
-    ],
-  }),
-  component: TodayRoute,
+const chatSearchSchema = z.object({
+  conversation: z.string().optional(),
+  attachment: z.string().optional(),
 });
 
-function TodayRoute() {
-  const user = Route.useRouteContext();
-  const firstName = user.name.trim().split(/\s+/)[0] || user.name;
+export const Route = createFileRoute("/_app/")({
+  validateSearch: chatSearchSchema,
+  head: () => ({
+    meta: [
+      { title: "Chat · Sydia" },
+      {
+        name: "description",
+        content: "Kirim pesan dan lanjutkan percakapan Anda dengan Sydia.",
+      },
+    ],
+  }),
+  component: ChatRoute,
+});
 
-  return <TodayPage firstName={firstName} />;
+function ChatRoute() {
+  const search = Route.useSearch();
+
+  return (
+    <ChatPage
+      conversationId={search.conversation}
+      initialAttachmentId={search.attachment}
+    />
+  );
 }
