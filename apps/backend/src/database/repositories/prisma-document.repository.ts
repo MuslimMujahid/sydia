@@ -10,6 +10,7 @@ import type {
   Document,
   DocumentChunk,
   DocumentCreate,
+  DocumentMetadata,
   FileAsset,
   FileKind,
 } from '../entities';
@@ -40,6 +41,15 @@ const documentSelect = {
   imageDescription: true,
   structuredData: true,
   errorMessage: true,
+  createdAt: true,
+  updatedAt: true,
+  fileAsset: { select: fileSelect },
+} as const;
+
+const documentMetadataSelect = {
+  id: true,
+  title: true,
+  status: true,
   createdAt: true,
   updatedAt: true,
   fileAsset: { select: fileSelect },
@@ -82,6 +92,24 @@ function present(row: DocumentRow): Document {
     updatedAt: row.updatedAt,
     file: presentFile(row.fileAsset),
     ...(row.chunks ? { chunks: row.chunks } : {}),
+  };
+}
+
+type DocumentMetadataRow = Pick<
+  PrismaDocument,
+  'id' | 'title' | 'status' | 'createdAt' | 'updatedAt'
+> & {
+  fileAsset: Pick<PrismaFileAsset, keyof typeof fileSelect>;
+};
+
+function presentMetadata(row: DocumentMetadataRow): DocumentMetadata {
+  return {
+    id: row.id,
+    title: row.title,
+    status: row.status as DocumentMetadata['status'],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    file: presentFile(row.fileAsset),
   };
 }
 
@@ -135,6 +163,16 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     ).map(present);
   }
 
+  async listMetadata(userId: string): Promise<DocumentMetadata[]> {
+    return (
+      await this.prisma.document.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: documentMetadataSelect,
+      })
+    ).map(presentMetadata);
+  }
+
   async findById(
     userId: string,
     id: string,
@@ -171,6 +209,19 @@ export class PrismaDocumentRepository implements IDocumentRepository {
         },
       })
     ).map(present);
+  }
+
+  async findMetadataByMessageId(
+    userId: string,
+    messageId: string,
+  ): Promise<DocumentMetadata[]> {
+    return (
+      await this.prisma.document.findMany({
+        where: { userId, fileAsset: { messages: { some: { messageId } } } },
+        orderBy: { createdAt: 'asc' },
+        select: documentMetadataSelect,
+      })
+    ).map(presentMetadata);
   }
 
   async findByAssetIds(

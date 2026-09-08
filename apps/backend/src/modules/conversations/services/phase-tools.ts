@@ -119,6 +119,28 @@ export function createPhaseTools(deps: {
     },
     {
       definition: {
+        name: 'list_documents',
+        label: 'Mendaftar file',
+        description:
+          'Gunakan untuk menjawab file atau dokumen apa saja yang dimiliki pengguna, menemukan file berdasarkan nama, atau melihat status file. Mengembalikan metadata saja tanpa membaca isi file.',
+        parameters: schema({}),
+      },
+      parseArguments,
+      execute: async ({ userId }) => ({
+        documents: (await deps.documents.listMetadata(userId)).map(
+          (document) => ({
+            id: document.id,
+            filename: document.file.originalName,
+            mimeType: document.file.mimeType,
+            size: document.file.size,
+            status: document.status,
+            createdAt: document.createdAt,
+          }),
+        ),
+      }),
+    },
+    {
+      definition: {
         name: 'save_attached_files',
         label: 'Menyimpan file lampiran',
         description:

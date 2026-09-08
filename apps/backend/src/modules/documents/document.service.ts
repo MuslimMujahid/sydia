@@ -12,7 +12,11 @@ import {
   type IDocumentRepository,
 } from '../../database/interfaces';
 import { PDFParse } from 'pdf-parse';
-import type { Document, FileKind } from '../../database/entities';
+import type {
+  Document,
+  DocumentMetadata,
+  FileKind,
+} from '../../database/entities';
 import { EmbeddingsService } from '../../infra/embeddings';
 import { OpenRouterMediaService } from '../../infra/model-gateway';
 import { QueueService } from '../../infra/queue';
@@ -281,8 +285,19 @@ export class DocumentService {
     return this.documents.findById(userId, documentId);
   }
 
+  async listMetadata(userId: string): Promise<DocumentMetadata[]> {
+    return this.documents.listMetadata(userId);
+  }
+
   async listAttached(userId: string, messageId: string): Promise<Document[]> {
     return this.documents.findByMessageId(userId, messageId);
+  }
+
+  async listAttachedMetadata(
+    userId: string,
+    messageId: string,
+  ): Promise<DocumentMetadata[]> {
+    return this.documents.findMetadataByMessageId(userId, messageId);
   }
 
   async searchForMessage(

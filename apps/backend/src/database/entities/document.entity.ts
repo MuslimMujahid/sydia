@@ -34,6 +34,13 @@ export type Document = Pick<
   chunks?: DocumentChunk[];
 };
 
+export type DocumentMetadata = Pick<
+  Document,
+  'id' | 'title' | 'status' | 'createdAt' | 'updatedAt'
+> & {
+  file: FileAsset;
+};
+
 export type DocumentCreate = {
   fileAssetId: string;
   title: string;

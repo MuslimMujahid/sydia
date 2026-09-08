@@ -31,10 +31,10 @@ describe('conversation context lifecycle', () => {
       }),
     } as unknown as IConversationRepository;
 
-    const config = new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 80 });
+    const config = new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 650 });
     const builder = new ContextBuilderService(repository, config);
 
-    const context = await builder.build(
+    const { messages: context } = await builder.build(
       {
         id: 'user-1',
         name: 'Ayu',

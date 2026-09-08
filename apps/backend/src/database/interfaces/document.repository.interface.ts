@@ -3,6 +3,7 @@ import type {
   Document,
   DocumentCreate,
   DocumentChunk,
+  DocumentMetadata,
   FileAsset,
   FileKind,
 } from '../entities';
@@ -21,12 +22,17 @@ export interface IDocumentRepository {
   ): Promise<FileAsset>;
   create(userId: string, input: DocumentCreate): Promise<Document>;
   list(userId: string): Promise<Document[]>;
+  listMetadata(userId: string): Promise<DocumentMetadata[]>;
   findById(
     userId: string,
     id: string,
     chunks?: boolean,
   ): Promise<Document | null>;
   findByMessageId(userId: string, messageId: string): Promise<Document[]>;
+  findMetadataByMessageId(
+    userId: string,
+    messageId: string,
+  ): Promise<DocumentMetadata[]>;
   findByAssetIds(userId: string, assetIds: string[]): Promise<Document[]>;
   storageKey(userId: string, id: string): Promise<string | null>;
   complete(

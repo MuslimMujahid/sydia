@@ -20,7 +20,10 @@ import type {
 } from '../../../infra/model-gateway/model-gateway.types';
 import { QueueService } from '../../../infra/queue';
 import { MemoryDreamSchedulerService } from '../../memories/memory-dream-scheduler.service';
-import { ContextBuilderService } from './context-builder.service';
+import {
+  ContextBuilderService,
+  type ContextTokenUsage,
+} from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 import { ToolExecutorService } from './tool-executor.service';
 
@@ -73,6 +76,10 @@ const AssistantTurnState = Annotation.Root({
   context: Annotation<ModelMessage[]>({
     reducer: (_current, update) => update,
     default: () => [],
+  }),
+  contextTokenUsage: Annotation<ContextTokenUsage | null>({
+    reducer: (_current, update) => update,
+    default: () => null,
   }),
   text: Annotation<string>({
     reducer: (_current, update) => update,
@@ -458,12 +465,15 @@ export class AssistantOrchestratorService {
     const graph = new StateGraph(AssistantTurnState)
       .addNode('buildContext', async (state) => {
         try {
+          const built = await this.contextBuilder.build(
+            state.user,
+            state.conversation.id,
+            state.inputMessage.id,
+          );
+
           return {
-            context: await this.contextBuilder.build(
-              state.user,
-              state.conversation.id,
-              state.inputMessage.id,
-            ),
+            context: built.messages,
+            contextTokenUsage: built.tokenUsage,
           };
         } catch {
           return { errorMessage: SAFE_FAILURE_MESSAGE };
@@ -493,6 +503,19 @@ export class AssistantOrchestratorService {
 
           const generation =
             await this.languageModel.generate(generationRequest);
+
+          this.logger.debug(
+            JSON.stringify({
+              event: 'assistant_context_usage',
+              conversationId: state.conversation.id,
+              runId: state.run.id,
+              estimatedInitialContextTokens:
+                state.contextTokenUsage?.total ?? null,
+              context: state.contextTokenUsage,
+              provider: generation.usage,
+              toolInvocations: toolInvocations.length,
+            }),
+          );
 
           return {
             text: generation.text || toolConfirmation(toolInvocations) || '',

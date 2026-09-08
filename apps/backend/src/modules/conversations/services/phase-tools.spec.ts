@@ -78,6 +78,56 @@ describe('phase 5 and 6 assistant tools', () => {
     );
     expect(found).toEqual({ contacts: [{ id: 'contact-1', name: 'Rina' }] });
   });
+  test('lists document metadata without extracted content', async () => {
+    const documents = [
+      {
+        id: 'doc-1',
+        title: 'invoice.pdf',
+        status: 'ready' as const,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+        updatedAt: new Date('2026-09-01T00:00:00Z'),
+        file: {
+          id: 'file-1',
+          originalName: 'invoice.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+          kind: 'document' as const,
+          createdAt: new Date('2026-09-01T00:00:00Z'),
+        },
+      },
+    ];
+
+    const listMetadata = jest
+      .fn<(userId: string) => Promise<typeof documents>>()
+      .mockResolvedValue(documents);
+
+    const result = await tools({
+      documents: { listMetadata } as unknown as DocumentService,
+    })
+      .find((tool) => tool.definition.name === 'list_documents')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'list-files',
+        arguments: {},
+      });
+
+    expect(listMetadata).toHaveBeenCalledWith('user-1');
+    expect(result).toEqual({
+      documents: [
+        {
+          id: 'doc-1',
+          filename: 'invoice.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+          status: 'ready',
+          createdAt: new Date('2026-09-01T00:00:00Z'),
+        },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain('textContent');
+  });
+
   test('saves every file attached to the source message', async () => {
     const attached = [
       { id: 'doc-1', title: 'invoice.pdf' },
