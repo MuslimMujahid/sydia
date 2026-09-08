@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -401,6 +400,94 @@ function AgendaEventRow({
   );
 }
 
+type CalendarConnectionProps = {
+  isPending: boolean;
+  error: string | null;
+  connected: boolean | undefined;
+  available: boolean | undefined;
+  isConnecting: boolean;
+  isDisconnecting: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+};
+
+/** Compact connection control for the page header; the calendar stays the page's focal point. */
+function CalendarConnection({
+  isPending,
+  error,
+  connected,
+  available,
+  isConnecting,
+  isDisconnecting,
+  onConnect,
+  onDisconnect,
+}: CalendarConnectionProps) {
+  if (isPending)
+    return (
+      <span className="text-sm text-ink-muted" role="status">
+        Memeriksa koneksi…
+      </span>
+    );
+
+  if (error)
+    return (
+      <span className="text-sm text-destructive" role="alert">
+        {error}
+      </span>
+    );
+
+  if (connected)
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-label="Kelola koneksi kalender"
+            />
+          }
+        >
+          <Badge dot="brand">Google terhubung</Badge>
+          <MoreHorizontal />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            destructive
+            disabled={isDisconnecting}
+            onClick={onDisconnect}
+          >
+            <Unplug />
+            {isDisconnecting ? "Memutuskan…" : "Putuskan kalender"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+
+  if (available === false)
+    return (
+      <span className="text-sm text-ink-muted">
+        Integrasi Google belum tersedia.
+      </span>
+    );
+
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      disabled={isConnecting}
+      onClick={onConnect}
+    >
+      {isConnecting ? (
+        <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+      ) : (
+        <ExternalLink />
+      )}
+      {isConnecting ? "Menghubungkan…" : "Hubungkan Google"}
+    </Button>
+  );
+}
+
 export function CalendarPage({ timezone }: { timezone: string }) {
   const [editingEvent, setEditingEvent] = useState<
     CalendarEvent | "new" | null
@@ -520,90 +607,28 @@ export function CalendarPage({ timezone }: { timezone: string }) {
         title="Kalender"
         description="Telusuri kalender per bulan dan kelola waktu tanpa meninggalkan Sydia."
         action={
-          <Button onClick={() => openCreate()}>
-            <Plus /> Buat acara
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <CalendarConnection
+              isPending={statusQuery.isPending}
+              error={statusQuery.error?.message ?? null}
+              connected={statusQuery.data?.connected}
+              available={statusQuery.data?.available}
+              isConnecting={isConnecting}
+              isDisconnecting={disconnectMutation.isPending}
+              onConnect={() => void handleConnect()}
+              onDisconnect={() => void handleDisconnect()}
+            />
+            <Button onClick={() => openCreate()}>
+              <Plus /> Buat acara
+            </Button>
+          </div>
         }
       />
-      <section
-        aria-labelledby="calendar-connection-title"
-        className="flex flex-col gap-4 border-y border-surface-1 py-5 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div>
-          <h2
-            id="calendar-connection-title"
-            className="flex items-center gap-2 font-display text-[17px] font-semibold"
-          >
-            <CalendarDays className="size-5 text-brand-deep" /> Google Calendar
-          </h2>
-          {statusQuery.isPending ? (
-            <p className="mt-1 text-sm text-ink-muted" role="status">
-              Memeriksa koneksi…
-            </p>
-          ) : null}
-          {statusQuery.isError ? (
-            <p className="mt-1 text-sm text-destructive" role="alert">
-              {statusQuery.error.message}
-            </p>
-          ) : null}
-          {statusQuery.data ? (
-            <p className="mt-1 text-sm text-ink-muted">
-              {statusQuery.data.connected
-                ? `Terhubung${statusQuery.data.calendarId ? ` ke ${statusQuery.data.calendarId}` : ""}. Perubahan akan disinkronkan.`
-                : "Belum terhubung. Anda masih dapat memakai agenda lokal."}
-            </p>
-          ) : null}
-        </div>
-        {statusQuery.data?.connected ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="secondary"
-                  aria-label="Kelola koneksi kalender"
-                />
-              }
-            >
-              <Badge dot="brand">Terhubung</Badge>
-              <MoreHorizontal />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                destructive
-                disabled={disconnectMutation.isPending}
-                onClick={() => void handleDisconnect()}
-              >
-                <Unplug />{" "}
-                {disconnectMutation.isPending
-                  ? "Memutuskan…"
-                  : "Putuskan kalender"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button
-            disabled={statusQuery.data?.available === false || isConnecting}
-            onClick={() => void handleConnect()}
-          >
-            {isConnecting ? (
-              <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-            ) : (
-              <ExternalLink />
-            )}{" "}
-            {isConnecting ? "Menghubungkan…" : "Hubungkan Google"}
-          </Button>
-        )}
-        {statusQuery.data?.available === false ? (
-          <p className="text-sm text-ink-muted">
-            Integrasi Google belum tersedia.
-          </p>
-        ) : null}
-        {disconnectMutation.error || connectError ? (
-          <p className="text-sm text-destructive" role="alert">
-            {disconnectMutation.error?.message ?? connectError}
-          </p>
-        ) : null}
-      </section>
+      {disconnectMutation.error || connectError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {disconnectMutation.error?.message ?? connectError}
+        </p>
+      ) : null}
       {eventsQuery.isPending ? (
         <DomainListSkeleton label="Memuat kalender" />
       ) : null}
@@ -663,8 +688,16 @@ export function CalendarPage({ timezone }: { timezone: string }) {
           message="Buat acara atau hubungkan Google Calendar agar komitmen waktu terlihat di sini."
         />
       ) : null}
+      {/*
+        Mobile only: grid cells show event dots but no titles, so this list is
+        the only way to open an event on small screens. On desktop the grid
+        already carries every entry, so the list is redundant and hidden.
+      */}
       {eventsQuery.isSuccess && hasVisibleEvents ? (
-        <section aria-labelledby="calendar-selected-day-title">
+        <section
+          aria-labelledby="calendar-selected-day-title"
+          className="sm:hidden"
+        >
           <div className="flex items-center gap-3 border-b border-surface-1 pb-3">
             <Clock3 className="size-5 text-brand-deep" />
             <h2
@@ -687,7 +720,7 @@ export function CalendarPage({ timezone }: { timezone: string }) {
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3 py-5">
               <p className="text-sm text-ink-muted">
-                Tidak ada acara pada hari ini.
+                Tidak ada acara pada hari yang dipilih.
               </p>
               <Button
                 variant="secondary"

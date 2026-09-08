@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type {
   CalendarEvent,
   CalendarRange,
@@ -302,6 +302,128 @@ type MonthGridProps = {
   onCreateForDay: (dayKey: string) => void;
 };
 
+type DayCellProps = {
+  day: MonthGridDay;
+  events: CalendarEvent[];
+  isToday: boolean;
+  isSelected: boolean;
+  onSelectDay: (dayKey: string) => void;
+  onEditEvent: (event: CalendarEvent) => void;
+  onCreateForDay: (dayKey: string) => void;
+};
+
+function DayCell({
+  day,
+  events,
+  isToday,
+  isSelected,
+  onSelectDay,
+  onEditEvent,
+  onCreateForDay,
+}: DayCellProps) {
+  const [expanded, setExpanded] = useState(false);
+  const overflow = Math.max(events.length - MAX_DESKTOP_ENTRIES, 0);
+  const visibleEvents = expanded
+    ? events
+    : events.slice(0, MAX_DESKTOP_ENTRIES);
+  const dayLabel = formatDayKeyLabel(day.key);
+
+  return (
+    <div
+      role="gridcell"
+      aria-selected={isSelected}
+      aria-current={isToday ? "date" : undefined}
+      className={cn(
+        "group relative flex min-h-14 flex-col border-r border-b border-surface-1 p-1 transition-colors sm:min-h-28 sm:p-1.5",
+        !day.inMonth && "bg-surface-1/40",
+        isSelected ? "bg-brand/10" : "hover:bg-surface-1/50"
+      )}
+    >
+      <button
+        type="button"
+        aria-label={`${dayLabel}${
+          events.length ? `, ${events.length} acara` : ""
+        }${isToday ? ", hari ini" : ""}`}
+        className="flex flex-col items-center gap-1 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-brand/50 sm:items-start"
+        onClick={() => onSelectDay(day.key)}
+      >
+        <span
+          className={cn(
+            "grid size-6 place-items-center rounded-pill font-display text-xs font-semibold sm:size-7 sm:text-sm",
+            isToday
+              ? "bg-brand text-ink"
+              : day.inMonth
+                ? "text-ink"
+                : "text-ink-weak",
+            isSelected && !isToday && "ring-2 ring-brand/60"
+          )}
+        >
+          {day.day}
+        </span>
+        {events.length ? (
+          <span
+            className="flex items-center gap-1 sm:hidden"
+            aria-hidden="true"
+          >
+            {events.slice(0, MAX_MOBILE_MARKERS).map((event) => (
+              <span
+                key={event.id}
+                className="size-1 rounded-pill bg-ink-muted"
+              />
+            ))}
+            {events.length > MAX_MOBILE_MARKERS ? (
+              <span className="font-mono text-xs leading-none text-ink-muted">
+                +{events.length - MAX_MOBILE_MARKERS}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+      </button>
+      <ul className="mt-1 hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
+        {visibleEvents.map((event) => (
+          <li key={event.id} className="min-w-0">
+            <button
+              type="button"
+              className="flex w-full min-w-0 items-baseline gap-1.5 rounded-sm px-1 py-0.5 text-left outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50"
+              onClick={() => onEditEvent(event)}
+            >
+              <time
+                dateTime={event.startAt}
+                className="shrink-0 font-mono text-xs text-ink-soft"
+              >
+                {startTimeLabel(event)}
+              </time>
+              <span className="truncate text-xs font-medium">
+                {event.title}
+              </span>
+            </button>
+          </li>
+        ))}
+        {overflow > 0 ? (
+          <li>
+            <button
+              type="button"
+              aria-expanded={expanded}
+              className="w-full rounded-sm px-1 py-0.5 text-left text-xs text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50"
+              onClick={() => setExpanded((current) => !current)}
+            >
+              {expanded ? "Lebih sedikit" : `+${overflow} lainnya`}
+            </button>
+          </li>
+        ) : null}
+      </ul>
+      <button
+        type="button"
+        aria-label={`Buat acara pada ${dayLabel}`}
+        className="absolute top-1 right-1 hidden size-6 place-items-center rounded-pill text-ink-muted opacity-0 transition-opacity outline-none hover:bg-surface-1 hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-brand/50 sm:grid sm:group-hover:opacity-100"
+        onClick={() => onCreateForDay(day.key)}
+      >
+        <Plus className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export function MonthGrid({
   anchor,
   timeZone,
@@ -342,107 +464,18 @@ export function MonthGrid({
             key={week[0]?.key ?? `week-${week.length}`}
             className="contents"
           >
-            {week.map((day) => {
-              const events = eventsByDay[day.key] ?? [];
-              const isToday = day.key === todayKey;
-              const isSelected = day.key === selectedDay;
-              const dayLabel = formatDayKeyLabel(day.key);
-
-              return (
-                <div
-                  key={day.key}
-                  role="gridcell"
-                  aria-selected={isSelected}
-                  aria-current={isToday ? "date" : undefined}
-                  className={cn(
-                    "group relative flex min-h-14 flex-col border-r border-b border-surface-1 p-1 transition-colors sm:min-h-28 sm:p-1.5",
-                    !day.inMonth && "bg-surface-1/40",
-                    isSelected ? "bg-brand/10" : "hover:bg-surface-1/50"
-                  )}
-                >
-                  <button
-                    type="button"
-                    aria-label={`${dayLabel}${
-                      events.length ? `, ${events.length} acara` : ""
-                    }${isToday ? ", hari ini" : ""}`}
-                    className="flex flex-col items-center gap-1 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-brand/50 sm:items-start"
-                    onClick={() => onSelectDay(day.key)}
-                  >
-                    <span
-                      className={cn(
-                        "grid size-6 place-items-center rounded-pill font-display text-xs font-semibold sm:size-7 sm:text-sm",
-                        isToday
-                          ? "bg-brand text-ink"
-                          : day.inMonth
-                            ? "text-ink"
-                            : "text-ink-weak",
-                        isSelected && !isToday && "ring-2 ring-brand/60"
-                      )}
-                    >
-                      {day.day}
-                    </span>
-                    {events.length ? (
-                      <span
-                        className="flex items-center gap-1 sm:hidden"
-                        aria-hidden="true"
-                      >
-                        {events.slice(0, MAX_MOBILE_MARKERS).map((event) => (
-                          <span
-                            key={event.id}
-                            className="size-1 rounded-pill bg-ink-muted"
-                          />
-                        ))}
-                        {events.length > MAX_MOBILE_MARKERS ? (
-                          <span className="font-mono text-xs leading-none text-ink-muted">
-                            +{events.length - MAX_MOBILE_MARKERS}
-                          </span>
-                        ) : null}
-                      </span>
-                    ) : null}
-                  </button>
-                  <ul className="mt-1 hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
-                    {events.slice(0, MAX_DESKTOP_ENTRIES).map((event) => (
-                      <li key={event.id} className="min-w-0">
-                        <button
-                          type="button"
-                          className="flex w-full min-w-0 items-baseline gap-1.5 rounded-sm px-1 py-0.5 text-left outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50"
-                          onClick={() => onEditEvent(event)}
-                        >
-                          <time
-                            dateTime={event.startAt}
-                            className="shrink-0 font-mono text-xs text-ink-soft"
-                          >
-                            {startTimeLabel(event)}
-                          </time>
-                          <span className="truncate text-xs font-medium">
-                            {event.title}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                    {events.length > MAX_DESKTOP_ENTRIES ? (
-                      <li>
-                        <button
-                          type="button"
-                          className="w-full rounded-sm px-1 py-0.5 text-left text-xs text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50"
-                          onClick={() => onSelectDay(day.key)}
-                        >
-                          +{events.length - MAX_DESKTOP_ENTRIES} lainnya
-                        </button>
-                      </li>
-                    ) : null}
-                  </ul>
-                  <button
-                    type="button"
-                    aria-label={`Buat acara pada ${dayLabel}`}
-                    className="absolute top-1 right-1 hidden size-6 place-items-center rounded-pill text-ink-muted opacity-0 transition-opacity outline-none hover:bg-surface-1 hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-brand/50 sm:grid sm:group-hover:opacity-100"
-                    onClick={() => onCreateForDay(day.key)}
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-                </div>
-              );
-            })}
+            {week.map((day) => (
+              <DayCell
+                key={day.key}
+                day={day}
+                events={eventsByDay[day.key] ?? []}
+                isToday={day.key === todayKey}
+                isSelected={day.key === selectedDay}
+                onSelectDay={onSelectDay}
+                onEditEvent={onEditEvent}
+                onCreateForDay={onCreateForDay}
+              />
+            ))}
           </div>
         ))}
       </div>
