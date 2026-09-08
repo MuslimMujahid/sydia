@@ -122,13 +122,18 @@ export function createPhaseTools(deps: {
         name: 'search_documents',
         label: 'Mencari dokumen',
         description:
-          'Cari isi dokumen pengguna dan kembalikan sumber nama file serta bagian dokumen.',
+          'Wajib digunakan sebelum menjawab pertanyaan yang bergantung pada file pengguna. Cari isi dokumen pengguna dan kembalikan sumber nama file serta bagian dokumen. File yang dilampirkan pada pesan aktif diprioritaskan sebagai cakupan pencarian.',
         parameters: schema({ query: string }, ['query']),
       },
       parseArguments,
-      execute: async ({ userId, arguments: raw }) => ({
+      execute: async ({ userId, sourceMessageId, arguments: raw }) => ({
         sources: (
-          await deps.documents.search(userId, text(record(raw), 'query')!, 6)
+          await deps.documents.searchForMessage(
+            userId,
+            sourceMessageId,
+            text(record(raw), 'query')!,
+            6,
+          )
         ).map((chunk) => ({
           documentId: chunk.documentId,
           filename: chunk.title,

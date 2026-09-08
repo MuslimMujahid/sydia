@@ -19,7 +19,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { SendMessageVariables } from "@/lib/services/api/conversations/conversations.api";
-import type { FileKind } from "@/lib/services/api/documents/documents.api";
+import {
+  getDocument,
+  type FileKind,
+} from "@/lib/services/api/documents/documents.api";
 import { useUploadDocument } from "@/lib/services/api/documents/documents.queries";
 
 export type ComposerAttachment = {
@@ -27,7 +30,7 @@ export type ComposerAttachment = {
   documentId?: string;
   name: string;
   kind: FileKind;
-  status: "queued" | "uploading" | "ready" | "error";
+  status: "queued" | "uploading" | "processing" | "ready" | "error";
   file?: File;
   errorMessage?: string;
 };
@@ -49,6 +52,16 @@ function kindFromFile(file: File): FileKind {
   if (file.type.startsWith("audio/")) return "audio";
 
   return "document";
+}
+
+async function waitForDocument(documentId: string) {
+  for (;;) {
+    const document = await getDocument(documentId);
+    if (document.status === "ready") return document;
+    if (document.status === "failed")
+      throw new Error(document.errorMessage || "File tidak dapat diproses.");
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 2_000));
+  }
 }
 
 function AttachmentIcon({ kind }: { kind: FileKind }) {
@@ -104,7 +117,9 @@ export function ChatComposer({
 
   const hasPendingUpload = attachments.some(
     (attachment) =>
-      attachment.status === "queued" || attachment.status === "uploading"
+      attachment.status === "queued" ||
+      attachment.status === "uploading" ||
+      attachment.status === "processing"
   );
 
   const canSend =
@@ -124,10 +139,22 @@ export function ChatComposer({
     );
 
     try {
-      const document = await uploadMutation.mutateAsync({
+      const uploaded = await uploadMutation.mutateAsync({
         file: attachment.file,
         conversationId,
       });
+
+      setAttachments((current) =>
+        current.map((item) =>
+          item.localId === attachment.localId
+            ? { ...item, documentId: uploaded.id, status: "processing" }
+            : item
+        )
+      );
+      const document =
+        uploaded.status === "ready"
+          ? uploaded
+          : await waitForDocument(uploaded.id);
 
       setAttachments((current) =>
         current.map((item) =>
@@ -265,9 +292,11 @@ export function ChatComposer({
                     ? "Menunggu"
                     : attachment.status === "uploading"
                       ? "Mengunggah"
-                      : attachment.status === "error"
-                        ? "Gagal"
-                        : "Siap"}
+                      : attachment.status === "processing"
+                        ? "Memproses"
+                        : attachment.status === "error"
+                          ? "Gagal"
+                          : "Siap"}
                 </span>
                 {attachment.status === "error" ? (
                   <Button

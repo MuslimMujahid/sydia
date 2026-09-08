@@ -39,6 +39,7 @@ export interface IDocumentRepository {
     },
   ): Promise<void>;
   fail(id: string, message: string): Promise<void>;
+  restart(id: string): Promise<void>;
   replaceChunks(
     documentId: string,
     userId: string,

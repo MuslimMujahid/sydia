@@ -79,10 +79,11 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(found).toEqual({ contacts: [{ id: 'contact-1', name: 'Rina' }] });
   });
   test('returns document provenance from retrieval', async () => {
-    const search = jest
+    const searchForMessage = jest
       .fn<
         (
           userId: string,
+          messageId: string,
           query: string,
           limit: number,
         ) => Promise<
@@ -108,7 +109,7 @@ describe('phase 5 and 6 assistant tools', () => {
       ]);
 
     const result = await tools({
-      documents: { search } as unknown as DocumentService,
+      documents: { searchForMessage } as unknown as DocumentService,
     })
       .find((tool) => tool.definition.name === 'search_documents')
       ?.execute({
@@ -118,6 +119,12 @@ describe('phase 5 and 6 assistant tools', () => {
         arguments: { query: 'total invoice' },
       });
 
+    expect(searchForMessage).toHaveBeenCalledWith(
+      'user-1',
+      'message-1',
+      'total invoice',
+      6,
+    );
     expect(result).toEqual({
       sources: [
         {

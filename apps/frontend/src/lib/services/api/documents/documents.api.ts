@@ -129,6 +129,18 @@ export async function uploadDocument({
   }
 }
 
+export async function retryDocument(documentId: string): Promise<Document> {
+  try {
+    const response = await api.post<ApiResponse<Document>>(
+      `/documents/${encodeURIComponent(documentId)}/retry`
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw toApiError(error, "Pemrosesan file tidak dapat dicoba ulang.");
+  }
+}
+
 export async function deleteDocument(documentId: string): Promise<void> {
   try {
     await api.delete(`/documents/${encodeURIComponent(documentId)}`);

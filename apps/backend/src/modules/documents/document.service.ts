@@ -20,6 +20,13 @@ import { StorageService } from '../../infra/storage';
 
 const CHUNK_SIZE = 1400;
 const CHUNK_OVERLAP = 180;
+const MIN_EXTRACTED_TEXT_LENGTH = 24;
+
+type ParsedChunk = {
+  chunkIndex: number;
+  pageNumber?: number | null;
+  content: string;
+};
 
 function kindFor(mimeType: string): FileKind {
   if (mimeType.startsWith('image/')) return 'image';
@@ -44,6 +51,74 @@ export function chunkText(content: string): string[] {
     chunks.push(normalized.slice(start, start + CHUNK_SIZE));
 
   return chunks;
+}
+
+function diversifyByDocument<T extends { documentId: string }>(
+  candidates: T[],
+  limit: number,
+  perDocument = 2,
+): T[] {
+  const selected: T[] = [];
+  const counts = new Map<string, number>();
+
+  for (const candidate of candidates) {
+    const count = counts.get(candidate.documentId) ?? 0;
+    if (count >= perDocument) continue;
+    selected.push(candidate);
+    counts.set(candidate.documentId, count + 1);
+    if (selected.length === limit) break;
+  }
+
+  return selected;
+}
+
+function keywordScore(content: string, query: string): number {
+  const normalized = content.toLocaleLowerCase();
+  const terms = [
+    ...new Set(
+      query
+        .toLocaleLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((term) => term.length > 2),
+    ),
+  ];
+
+  if (terms.length === 0) return 0;
+
+  return (
+    terms.filter((term) => normalized.includes(term)).length / terms.length
+  );
+}
+
+function fuseCandidates<T extends { id: string; content: string }>(
+  semantic: T[],
+  keyword: T[],
+  query: string,
+): T[] {
+  const byId = new Map<string, { candidate: T; score: number }>();
+  semantic.forEach((candidate, index) => {
+    byId.set(candidate.id, {
+      candidate,
+      score: 1 / (60 + index + 1),
+    });
+  });
+  [...keyword]
+    .sort(
+      (left, right) =>
+        keywordScore(right.content, query) - keywordScore(left.content, query),
+    )
+    .forEach((candidate, index) => {
+      const current = byId.get(candidate.id);
+      const score = 1 / (60 + index + 1);
+      byId.set(candidate.id, {
+        candidate,
+        score: score + (current?.score ?? 0),
+      });
+    });
+
+  return [...byId.values()]
+    .sort((left, right) => right.score - left.score)
+    .map(({ candidate }) => candidate);
 }
 
 @Injectable()
@@ -103,14 +178,7 @@ export class DocumentService {
     if (!record || record.status !== 'processing') return;
     const storageKey = await this.documents.storageKey(userId, documentId);
 
-    if (!storageKey) {
-      await this.documents.fail(
-        documentId,
-        'Berkas tidak ditemukan di penyimpanan.',
-      );
-
-      return;
-    }
+    if (!storageKey) throw new Error('Berkas tidak ditemukan di penyimpanan.');
 
     const buffer = await this.storage.get(storageKey);
     const file = {
@@ -121,94 +189,209 @@ export class DocumentService {
     };
 
     const kind = record.file.kind;
+    let textContent: string | null = null;
+    let transcript: string | null = null;
+    let imageDescription: string | null = null;
+    let parsedChunks: ParsedChunk[] = [];
 
-    try {
-      let textContent: string | null = null;
-      let transcript: string | null = null;
-      let imageDescription: string | null = null;
-      if (kind === 'audio')
-        transcript = await this.media.transcribe(
-          file.buffer,
-          file.originalname,
-          file.mimetype,
-        );
-      else if (kind === 'image')
-        imageDescription = await this.media.describeImage(
-          file.buffer,
-          file.mimetype,
-        );
-      else textContent = await this.parseDocument(file);
-      const searchable = textContent ?? transcript ?? imageDescription ?? '';
-      const chunks = await this.documents.replaceChunks(
-        documentId,
-        userId,
-        chunkText(searchable).map((content, chunkIndex) => ({
-          chunkIndex,
-          content,
-        })),
+    if (kind === 'audio') {
+      transcript = await this.media.transcribe(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
       );
-
-      await Promise.all(
-        chunks.map(async (chunk) => {
-          const embedding = await this.embeddings.embed(chunk.content);
-          if (embedding)
-            await this.documents.setChunkEmbedding(
-              chunk.id,
-              embedding,
-              this.embeddings.modelName(),
-              this.embeddings.version,
-            );
-        }),
+      parsedChunks = this.chunkPages([{ text: transcript ?? '' }]);
+    } else if (kind === 'image') {
+      imageDescription = await this.media.describeImage(
+        file.buffer,
+        file.mimetype,
       );
-      const structuredData = this.extractStructured(searchable);
-      await this.documents.complete(documentId, {
-        textContent,
-        transcript,
-        imageDescription,
-        structuredData,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Pemrosesan file gagal.';
-
-      await this.documents.fail(documentId, message);
+      parsedChunks = this.chunkPages([{ text: imageDescription ?? '' }]);
+    } else if (file.mimetype === 'application/pdf') {
+      const parsed = await this.parsePdf(file);
+      textContent = parsed.text;
+      parsedChunks = parsed.chunks;
+    } else {
+      textContent = this.parseDocument(file);
+      parsedChunks = this.chunkPages([{ text: textContent }]);
     }
+
+    if (parsedChunks.length === 0)
+      throw new Error('Tidak ada isi yang dapat diindeks dari file ini.');
+
+    const embeddings = await Promise.all(
+      parsedChunks.map(({ content }) => this.embeddings.embed(content)),
+    );
+
+    if (embeddings.some((embedding) => !embedding))
+      throw new Error('Layanan embedding belum dikonfigurasi.');
+
+    const chunks = await this.documents.replaceChunks(
+      documentId,
+      userId,
+      parsedChunks,
+    );
+
+    await Promise.all(
+      chunks.map((chunk, index) =>
+        this.documents.setChunkEmbedding(
+          chunk.id,
+          embeddings[index]!,
+          this.embeddings.modelName(),
+          this.embeddings.version,
+        ),
+      ),
+    );
+
+    const searchable = textContent ?? transcript ?? imageDescription ?? '';
+    await this.documents.complete(documentId, {
+      textContent,
+      transcript,
+      imageDescription,
+      structuredData: this.extractStructured(searchable),
+    });
   }
 
-  async search(userId: string, query: string, limit = 6) {
-    const keyword = await this.documents.searchKeyword(userId, query, limit);
+  async markProcessingFailed(
+    documentId: string,
+    error: unknown,
+  ): Promise<void> {
+    const message =
+      error instanceof Error ? error.message : 'Pemrosesan file gagal.';
+
+    await this.documents.fail(documentId, message);
+  }
+
+  async retry(documentId: string, userId: string): Promise<Document | null> {
+    const document = await this.documents.findById(userId, documentId);
+    if (!document || document.status !== 'failed') return null;
+    await this.documents.restart(documentId);
+
+    try {
+      await this.queue.documents.add(
+        'ingest',
+        { documentId, userId },
+        { jobId: `${documentId}-retry-${randomUUID()}` },
+      );
+    } catch (error) {
+      await this.markProcessingFailed(documentId, error);
+      throw error;
+    }
+
+    return this.documents.findById(userId, documentId);
+  }
+
+  async searchForMessage(
+    userId: string,
+    messageId: string,
+    query: string,
+    limit = 6,
+  ) {
+    const attached = await this.documents.findByMessageId(userId, messageId);
+
+    return this.search(
+      userId,
+      query,
+      limit,
+      attached.length ? attached.map(({ id }) => id) : undefined,
+    );
+  }
+
+  async search(
+    userId: string,
+    query: string,
+    limit = 6,
+    documentIds?: string[],
+  ) {
+    const candidateLimit = Math.max(limit * 3, limit);
+    const keyword = await this.documents.searchKeyword(
+      userId,
+      query,
+      candidateLimit,
+      documentIds,
+    );
 
     try {
       const embedding = await this.embeddings.embed(query);
-      if (!embedding) return keyword;
+      if (!embedding) return diversifyByDocument(keyword, limit);
       const semantic = await this.documents.searchVector(
         userId,
         embedding,
-        limit,
+        candidateLimit,
+        documentIds,
       );
 
-      return [
-        ...keyword,
-        ...semantic.filter(
-          (candidate) => !keyword.some((item) => item.id === candidate.id),
-        ),
-      ].slice(0, limit);
+      const merged = fuseCandidates(semantic, keyword, query);
+
+      return diversifyByDocument(merged, limit);
     } catch {
-      return keyword;
+      return diversifyByDocument(keyword, limit);
     }
   }
 
-  private async parseDocument(file: UploadedFile): Promise<string> {
-    if (file.mimetype === 'application/pdf') {
-      const parser = new PDFParse({ data: file.buffer });
+  private chunkPages(
+    pages: Array<{ text: string; pageNumber?: number }>,
+  ): ParsedChunk[] {
+    let chunkIndex = 0;
 
-      try {
-        return (await parser.getText()).text;
-      } finally {
-        await parser.destroy();
-      }
+    return pages.flatMap(({ text, pageNumber }) =>
+      chunkText(text).map((content) => ({
+        chunkIndex: chunkIndex++,
+        pageNumber: pageNumber ?? null,
+        content,
+      })),
+    );
+  }
+
+  private async parsePdf(
+    file: UploadedFile,
+  ): Promise<{ text: string; chunks: ParsedChunk[] }> {
+    const parser = new PDFParse({ data: file.buffer });
+
+    try {
+      const result = await parser.getText();
+      const pages = result.pages.map((page) => ({
+        pageNumber: page.num,
+        text: page.text.trim(),
+      }));
+
+      const extractedLength = pages.reduce(
+        (total, page) => total + page.text.length,
+        0,
+      );
+
+      if (extractedLength >= MIN_EXTRACTED_TEXT_LENGTH)
+        return {
+          text: result.text,
+          chunks: this.chunkPages(pages),
+        };
+
+      const screenshots = await parser.getScreenshot({
+        imageBuffer: true,
+        desiredWidth: 1600,
+      });
+
+      const recognizedPages = await Promise.all(
+        screenshots.pages.map(async (page) => ({
+          pageNumber: page.pageNumber,
+          text:
+            (await this.media.describeImage(
+              Buffer.from(page.data),
+              'image/png',
+            )) ?? '',
+        })),
+      );
+
+      return {
+        text: recognizedPages.map(({ text }) => text).join('\n\n'),
+        chunks: this.chunkPages(recognizedPages),
+      };
+    } finally {
+      await parser.destroy();
     }
+  }
 
+  private parseDocument(file: UploadedFile): string {
     if (
       file.mimetype.startsWith('text/') ||
       file.mimetype === 'application/json'

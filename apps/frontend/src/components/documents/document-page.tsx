@@ -41,6 +41,7 @@ import {
   documentQueryOptions,
   documentsQueryOptions,
   useDeleteDocument,
+  useRetryDocument,
   useUploadDocument,
 } from "@/lib/services/api/documents/documents.queries";
 import { formatDateTime } from "@/lib/utils/date-time";
@@ -139,6 +140,7 @@ function DocumentDetail({
   const documentQuery = useQuery(documentQueryOptions(documentId));
   const ready = documentQuery.data?.status === "ready";
   const deleteMutation = useDeleteDocument();
+  const retryMutation = useRetryDocument();
 
   async function handleDelete() {
     const document = documentQuery.data;
@@ -217,19 +219,28 @@ function DocumentDetail({
       ) : null}
       {document.status === "failed" ? (
         <div
-          className="mt-7 flex items-start gap-3 border-y border-destructive/30 py-5"
+          className="mt-7 flex items-start justify-between gap-4 border-y border-destructive/30 py-5"
           role="alert"
         >
-          <AlertCircle className="mt-0.5 size-5 text-destructive" />
-          <div>
-            <h3 className="font-display font-bold">
-              File tidak dapat diproses
-            </h3>
-            <p className="mt-1 text-sm text-ink-muted">
-              {document.errorMessage ||
-                "Unggah ulang file atau coba format lain."}
-            </p>
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+            <div>
+              <h3 className="font-display font-bold">
+                File tidak dapat diproses
+              </h3>
+              <p className="mt-1 text-sm text-ink-muted">
+                {document.errorMessage || "Pemrosesan gagal sementara."}
+              </p>
+            </div>
           </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={retryMutation.isPending}
+            onClick={() => void retryMutation.mutateAsync(document.id)}
+          >
+            {retryMutation.isPending ? "Mencoba…" : "Coba lagi"}
+          </Button>
         </div>
       ) : null}
       {ready ? <ContentSection document={document} /> : null}

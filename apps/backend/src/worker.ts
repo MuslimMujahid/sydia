@@ -107,7 +107,13 @@ async function bootstrap(): Promise<void> {
   const documentWorker = new Worker<DocumentJob>(
     'documents',
     async (job) => {
-      await documents.processDocument(job.data.documentId, job.data.userId);
+      try {
+        await documents.processDocument(job.data.documentId, job.data.userId);
+      } catch (error) {
+        if (job.attemptsMade + 1 >= (job.opts.attempts ?? 1))
+          await documents.markProcessingFailed(job.data.documentId, error);
+        throw error;
+      }
     },
     { connection },
   );

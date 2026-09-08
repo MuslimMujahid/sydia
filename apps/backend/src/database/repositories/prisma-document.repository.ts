@@ -232,6 +232,16 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     });
   }
 
+  async restart(id: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.documentChunk.deleteMany({ where: { documentId: id } }),
+      this.prisma.document.update({
+        where: { id },
+        data: { status: 'processing', errorMessage: null },
+      }),
+    ]);
+  }
+
   async replaceChunks(
     documentId: string,
     userId: string,
@@ -261,11 +271,23 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     limit: number,
     documentIds?: string[],
   ): Promise<Array<DocumentChunk & { documentId: string; title: string }>> {
+    const terms = [
+      ...new Set(
+        query
+          .toLocaleLowerCase()
+          .split(/[^\p{L}\p{N}]+/u)
+          .filter((term) => term.length > 2),
+      ),
+    ].slice(0, 8);
+
     const rows = await this.prisma.documentChunk.findMany({
       where: {
         userId,
+        document: { status: 'ready' },
         ...(documentIds?.length ? { documentId: { in: documentIds } } : {}),
-        content: { contains: query, mode: 'insensitive' },
+        OR: [query, ...terms].map((term) => ({
+          content: { contains: term, mode: 'insensitive' as const },
+        })),
       },
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -308,7 +330,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return this.prisma.$queryRaw<
       Array<DocumentChunk & { documentId: string; title: string }>
     >(
-      Prisma.sql`SELECT dc.id, dc."documentId", dc."chunkIndex", dc."pageNumber", dc.content, d.title FROM document_chunk dc JOIN document d ON d.id = dc."documentId" WHERE dc."userId" = ${userId} AND dc.embedding IS NOT NULL ${ids} ORDER BY dc.embedding <=> ${vector}::vector LIMIT ${limit}`,
+      Prisma.sql`SELECT dc.id, dc."documentId", dc."chunkIndex", dc."pageNumber", dc.content, d.title FROM document_chunk dc JOIN document d ON d.id = dc."documentId" WHERE dc."userId" = ${userId} AND d.status = 'ready' AND dc.embedding IS NOT NULL ${ids} ORDER BY dc.embedding <=> ${vector}::vector LIMIT ${limit}`,
     );
   }
 

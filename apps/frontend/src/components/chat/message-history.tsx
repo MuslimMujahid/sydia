@@ -24,9 +24,8 @@ function formatMessageTime(value: string): string {
 type DocumentSource = {
   documentId: string;
   documentName: string;
-  pageNumber: number | null;
-  chunkIndex: number | null;
-  excerpt: string | null;
+  locations: string[];
+  excerpts: string[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -36,30 +35,46 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function documentSources(invocations: ToolInvocation[]): DocumentSource[] {
-  return invocations.flatMap((invocation) => {
-    if (invocation.name !== "search_documents") return [];
-    const output = asRecord(invocation.output);
-    if (!Array.isArray(output?.sources)) return [];
+  const grouped = new Map<string, DocumentSource>();
 
-    return output.sources.flatMap((value) => {
+  for (const invocation of invocations) {
+    if (invocation.name !== "search_documents") continue;
+    const output = asRecord(invocation.output);
+    if (!Array.isArray(output?.sources)) continue;
+
+    for (const value of output.sources) {
       const source = asRecord(value);
       if (
         typeof source?.documentId !== "string" ||
         typeof source.filename !== "string"
       )
-        return [];
+        continue;
+      const current = grouped.get(source.documentId) ?? {
+        documentId: source.documentId,
+        documentName: source.filename,
+        locations: [],
+        excerpts: [],
+      };
 
-      return [
-        {
-          documentId: source.documentId,
-          documentName: source.filename,
-          pageNumber: typeof source.page === "number" ? source.page : null,
-          chunkIndex: typeof source.chunk === "number" ? source.chunk : null,
-          excerpt: typeof source.quote === "string" ? source.quote : null,
-        },
-      ];
-    });
-  });
+      const location =
+        typeof source.page === "number"
+          ? `halaman ${source.page}`
+          : typeof source.chunk === "number"
+            ? `bagian ${source.chunk + 1}`
+            : null;
+
+      if (location && !current.locations.includes(location))
+        current.locations.push(location);
+      if (
+        typeof source.quote === "string" &&
+        !current.excerpts.includes(source.quote)
+      )
+        current.excerpts.push(source.quote);
+      grouped.set(source.documentId, current);
+    }
+  }
+
+  return [...grouped.values()];
 }
 
 type TimelineEntry =
@@ -298,22 +313,22 @@ export function MessageHistory({
                     Sumber
                   </p>
                   <ul className="mt-2 space-y-2 text-sm text-ink-muted">
-                    {provenance.map((source, index) => (
+                    {provenance.map((source) => (
                       <li
-                        key={`${source.documentId}-${source.chunkIndex ?? index}`}
+                        key={source.documentId}
                         className="flex items-start gap-2"
                       >
                         <FileText className="mt-0.5 size-4 shrink-0 text-brand-deep" />
                         <span>
                           <span className="font-medium text-ink-soft">
                             {source.documentName}
-                            {source.pageNumber
-                              ? ` · halaman ${source.pageNumber}`
+                            {source.locations.length
+                              ? ` · ${source.locations.join(", ")}`
                               : ""}
                           </span>
-                          {source.excerpt ? (
+                          {source.excerpts[0] ? (
                             <span className="mt-0.5 block line-clamp-2">
-                              {source.excerpt}
+                              {source.excerpts[0]}
                             </span>
                           ) : null}
                         </span>

@@ -9,6 +9,7 @@ import {
   deleteDocument,
   getDocument,
   getDocuments,
+  retryDocument,
   uploadDocument,
   type Document,
 } from "./documents.api";
@@ -42,7 +43,6 @@ export const documentQueryOptions = (documentId: string) =>
       query.state.data?.status === "processing" ? 3_000 : false,
   });
 
-
 function cacheDocument(queryClient: QueryClient, document: Document) {
   queryClient.setQueryData(documentQueryKeys.detail(document.id), document);
 }
@@ -54,11 +54,18 @@ export function useUploadDocument() {
     mutationFn: uploadDocument,
     onSuccess: (document) => cacheDocument(queryClient, document),
     meta: {
-      invalidateQueries: [
-        documentQueryKeys.all,
-        conversationQueryKeys.all,
-      ],
+      invalidateQueries: [documentQueryKeys.all, conversationQueryKeys.all],
     },
+  });
+}
+
+export function useRetryDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: retryDocument,
+    onSuccess: (document) => cacheDocument(queryClient, document),
+    meta: { invalidateQueries: [documentQueryKeys.all] },
   });
 }
 
@@ -73,10 +80,7 @@ export function useDeleteDocument() {
       });
     },
     meta: {
-      invalidateQueries: [
-        documentQueryKeys.all,
-        conversationQueryKeys.all,
-      ],
+      invalidateQueries: [documentQueryKeys.all, conversationQueryKeys.all],
     },
   });
 }

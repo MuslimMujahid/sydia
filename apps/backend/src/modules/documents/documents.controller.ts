@@ -94,6 +94,13 @@ export class DocumentsController {
     return this.service.ingest(session.user.id, file);
   }
 
+  @Post(':id/retry') async retry(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ) {
+    return this.required(await this.service.retry(id, session.user.id));
+  }
+
   @Delete(':id') @HttpCode(HttpStatus.NO_CONTENT) async remove(
     @Session() session: UserSession,
     @Param('id') id: string,
