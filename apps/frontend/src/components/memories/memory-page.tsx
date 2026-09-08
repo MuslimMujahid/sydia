@@ -1,7 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  Archive,
-  ArchiveRestore,
   Bot,
   FileText,
   LoaderCircle,
@@ -51,7 +49,6 @@ import {
   memorySearchQueryOptions,
   useCreateMemory,
   useDeleteMemory,
-  useSetMemoryArchived,
   useSetMemoryPinned,
   useUpdateMemory,
 } from "@/lib/services/api/memories/memories.queries";
@@ -65,14 +62,13 @@ const memorySchema = z.object({
 
 const STATUS_LABELS: Record<MemoryStatus, string> = {
   active: "Aktif",
-  archived: "Diarsipkan",
-  superseded: "Versi lama",
+  superseded: "Digantikan",
 };
 
 const STATUS_FILTERS: Array<{ value: MemoryStatus | "all"; label: string }> = [
   { value: "all", label: "Semua memori" },
   { value: "active", label: STATUS_LABELS.active },
-  { value: "archived", label: STATUS_LABELS.archived },
+  { value: "superseded", label: STATUS_LABELS.superseded },
 ];
 
 const SOURCE_LABELS: Record<MemorySourceType, string> = {
@@ -315,7 +311,6 @@ function MemoryEditorLoader({
 
 function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
   const pinMutation = useSetMemoryPinned();
-  const archiveMutation = useSetMemoryArchived();
   const unavailable =
     memory.status === "superseded" || Boolean(memory.supersededById);
 
@@ -328,13 +323,10 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
               <Pin className="size-3.5" /> Disematkan
             </Badge>
           ) : null}
-          {memory.status === "archived" ? (
-            <Badge dot="ink-weak">{STATUS_LABELS.archived}</Badge>
-          ) : null}
           {memory.status === "superseded" ? (
             <Badge dot="warn">{STATUS_LABELS.superseded}</Badge>
-          ) : unavailable && memory.status !== "archived" ? (
-            <Badge dot="warn">Versi lama</Badge>
+          ) : unavailable ? (
+            <Badge dot="warn">Digantikan</Badge>
           ) : null}
           {memory.category ? <Badge>{memory.category}</Badge> : null}
         </div>
@@ -355,9 +347,9 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
             Diperbarui {formatDateTime(memory.updatedAt)}
           </time>
         </div>
-        {pinMutation.error || archiveMutation.error ? (
+        {pinMutation.error ? (
           <p className="mt-2 text-sm text-destructive" role="alert">
-            {pinMutation.error?.message ?? archiveMutation.error?.message}
+            {pinMutation.error.message}
           </p>
         ) : null}
       </div>
@@ -366,7 +358,7 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
           variant="ghost"
           size="icon-sm"
           aria-label={memory.pinned ? "Lepas sematan" : "Sematkan memori"}
-          disabled={pinMutation.isPending}
+          disabled={pinMutation.isPending || unavailable}
           onClick={() =>
             pinMutation.mutate({ memoryId: memory.id, pinned: !memory.pinned })
           }
@@ -377,28 +369,6 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
             <PinOff />
           ) : (
             <Pin />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={
-            memory.status === "archived" ? "Pulihkan memori" : "Arsipkan memori"
-          }
-          disabled={archiveMutation.isPending || memory.status === "superseded"}
-          onClick={() =>
-            archiveMutation.mutate({
-              memoryId: memory.id,
-              archived: memory.status !== "archived",
-            })
-          }
-        >
-          {archiveMutation.isPending ? (
-            <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-          ) : memory.status === "archived" ? (
-            <ArchiveRestore />
-          ) : (
-            <Archive />
           )}
         </Button>
         <Button variant="ghost" size="sm" onClick={onEdit}>

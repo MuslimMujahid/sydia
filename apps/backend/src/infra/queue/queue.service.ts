@@ -4,6 +4,17 @@ import { Queue } from 'bullmq';
 
 export type ReminderJob = { reminderId: string; idempotencyKey: string };
 export type DocumentJob = { documentId: string; userId: string };
+export type MemoryDreamJob = {
+  kind: 'dream' | 'recover';
+  userId?: string;
+  conversationId?: string;
+  throughMessageId?: string;
+  allowShortSegment?: boolean;
+};
+export type ConversationSummaryJob = {
+  userId: string;
+  conversationId: string;
+};
 export type NotificationJob = {
   userId: string;
   kind: string;
@@ -34,6 +45,8 @@ export type RetentionJob = {
 export class QueueService implements OnModuleDestroy {
   readonly reminders: Queue<ReminderJob>;
   readonly documents: Queue<DocumentJob>;
+  readonly memoryDreams: Queue<MemoryDreamJob>;
+  readonly conversationSummaries: Queue<ConversationSummaryJob>;
   readonly notifications: Queue<NotificationJob>;
   readonly briefings: Queue<BriefingJob>;
   readonly followUps: Queue<FollowUpJob>;
@@ -59,6 +72,17 @@ export class QueueService implements OnModuleDestroy {
       connection,
       defaultJobOptions,
     });
+    this.memoryDreams = new Queue<MemoryDreamJob>('memory-dreams', {
+      connection,
+      defaultJobOptions,
+    });
+    this.conversationSummaries = new Queue<ConversationSummaryJob>(
+      'conversation-summaries',
+      {
+        connection,
+        defaultJobOptions,
+      },
+    );
     this.notifications = new Queue<NotificationJob>('notifications', {
       connection,
       defaultJobOptions,
@@ -81,6 +105,8 @@ export class QueueService implements OnModuleDestroy {
     await Promise.all([
       this.reminders.close(),
       this.documents.close(),
+      this.memoryDreams.close(),
+      this.conversationSummaries.close(),
       this.notifications.close(),
       this.briefings.close(),
       this.followUps.close(),

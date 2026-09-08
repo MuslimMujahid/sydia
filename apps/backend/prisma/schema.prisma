@@ -48,6 +48,8 @@ model User {
   categories             Category[]
   reminders              Reminder[]
   memories               Memory[]
+  memoryDreamRuns        MemoryDreamRun[]
+  memoryDeletionMarkers MemoryDeletionMarker[]
   fileAssets             FileAsset[]
   documents              Document[]
   contacts               Contact[]
@@ -157,6 +159,9 @@ model Conversation {
   messages                Message[]
   summaries               ConversationSummary[]
   assistantRuns           AssistantRun[]
+  memoryDreamRuns         MemoryDreamRun[]
+  memoryDreamThroughMessageId String?
+  memoryDeletionMarkers  MemoryDeletionMarker[]
 
   @@index([userId, lastMessageAt])
   @@map("conversation")
@@ -347,13 +352,18 @@ model Memory {
   confidence       Float?
   sourceType       String                       @default("dashboard")
   sourceMessageId  String?
+  sourceMessageIds String[]                     @default([])
   sourceDocumentId String?
   extractorVersion String?
   supersedesId     String?
   supersededById   String?
+  dreamRunId       String?
+  sourceKey        String?                      @unique
   embedding        Unsupported("vector(1536)")?
   embeddingModel   String?
   embeddingVersion String?
+  lastRetrievedAt  DateTime?
+  retrievalCount   Int                          @default(0)
   createdAt        DateTime                     @default(now())
   updatedAt        DateTime                     @default(now()) @updatedAt
   user             User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -361,6 +371,42 @@ model Memory {
   @@index([userId, status, pinned])
   @@index([userId, updatedAt])
   @@map("memory")
+}
+
+model MemoryDreamRun {
+  id               String       @id @default(cuid())
+  userId           String
+  conversationId   String
+  throughMessageId String
+  dreamerVersion   String
+  status           String       @default("running")
+  candidateCount   Int          @default(0)
+  mutationCount    Int          @default(0)
+  errorMessage     String?
+  startedAt        DateTime     @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @default(now()) @updatedAt
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, throughMessageId, dreamerVersion])
+  @@index([userId, status, createdAt])
+  @@map("memory_dream_run")
+}
+
+model MemoryDeletionMarker {
+  id              String       @id @default(cuid())
+  userId          String
+  conversationId  String?
+  sourceMessageId String
+  createdAt       DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation    Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sourceMessageId])
+  @@index([conversationId])
+  @@map("memory_deletion_marker")
 }
 
 model FileAsset {

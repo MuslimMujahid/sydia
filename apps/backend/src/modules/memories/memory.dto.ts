@@ -16,7 +16,6 @@ export class CreateMemoryDto {
 export class UpdateMemoryDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(8000) content?: string;
   @IsOptional() @IsString() @MaxLength(100) category?: string | null;
-  @IsOptional() @IsIn(MEMORY_STATUSES) status?: MemoryStatus;
   @IsOptional() @IsBoolean() pinned?: boolean;
 }
 export class MemoryFiltersDto {

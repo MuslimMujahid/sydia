@@ -12,11 +12,16 @@ import {
   QueueService,
   type BriefingJob,
   type DocumentJob,
+  type ConversationSummaryJob,
   type FollowUpJob,
+  type MemoryDreamJob,
   type ReminderJob,
   type RetentionJob,
 } from './infra/queue';
 import { DocumentService } from './modules/documents/document.service';
+import { MemoryDreamService } from './modules/memories/memory-dream.service';
+import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-scheduler.service';
+import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
 import {
   DailyBriefingService,
   FollowUpService,
@@ -30,6 +35,9 @@ async function bootstrap(): Promise<void> {
   const reminders = context.get<IReminderRepository>(REMINDER_REPOSITORY);
   const queues = context.get(QueueService);
   const documents = context.get(DocumentService);
+  const memoryDream = context.get(MemoryDreamService);
+  const memoryDreamScheduler = context.get(MemoryDreamSchedulerService);
+  const conversationSummarizer = context.get(ConversationSummarizerService);
   const notifications = context.get(NotificationService);
   const briefings = context.get(DailyBriefingService);
   const followUps = context.get(FollowUpService);
@@ -104,6 +112,50 @@ async function bootstrap(): Promise<void> {
     { connection },
   );
 
+  const memoryDreamWorker = new Worker<MemoryDreamJob>(
+    'memory-dreams',
+    async (job) => {
+      if (job.data.kind === 'recover') {
+        await memoryDreamScheduler.recover();
+
+        return;
+      }
+
+      if (
+        !job.data.userId ||
+        !job.data.conversationId ||
+        !job.data.throughMessageId
+      ) {
+        throw new Error('Memory dream job is missing its segment boundary.');
+      }
+
+      await memoryDream.run(
+        job.data.userId,
+        job.data.conversationId,
+        job.data.throughMessageId,
+        job.data.allowShortSegment,
+      );
+    },
+    { connection },
+  );
+
+  await queues.memoryDreams.upsertJobScheduler(
+    'memory-dream-recovery',
+    { every: 24 * 60 * 60 * 1000 },
+    { name: 'recover', data: { kind: 'recover' } },
+  );
+
+  const conversationSummaryWorker = new Worker<ConversationSummaryJob>(
+    'conversation-summaries',
+    async (job) => {
+      await conversationSummarizer.summarizeIfNeeded(
+        job.data.userId,
+        job.data.conversationId,
+      );
+    },
+    { connection },
+  );
+
   const briefingWorker = new Worker<BriefingJob>(
     'briefings',
     async (job) => briefings.run(job.data.userId, new Date(job.data.date)),
@@ -126,7 +178,9 @@ async function bootstrap(): Promise<void> {
     await Promise.all([
       reminderWorker.close(),
       documentWorker.close(),
+      memoryDreamWorker.close(),
       briefingWorker.close(),
+      conversationSummaryWorker.close(),
       followUpWorker.close(),
       retentionWorker.close(),
     ]);

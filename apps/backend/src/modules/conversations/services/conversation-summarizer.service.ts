@@ -4,21 +4,68 @@ import {
   CONVERSATION_REPOSITORY,
   type IConversationRepository,
 } from '../../../database/interfaces';
-import type { Message } from '../../../database/entities';
+import { LANGUAGE_MODEL } from '../../../infra/model-gateway';
+import type { LanguageModelGateway } from '../../../infra/model-gateway/model-gateway.types';
 import { estimateTokens } from './context-builder.service';
 
-function summarizeMessages(
-  previous: string | null,
-  messages: Message[],
-): string {
-  const lines = messages.map((message) => {
-    const speaker = message.role === 'assistant' ? 'Sydia' : 'Pengguna';
-    const content = message.content.replace(/\s+/g, ' ').trim();
+const MAX_SUMMARY_CHARACTERS = 6000;
 
-    return `${speaker}: ${content.length > 280 ? `${content.slice(0, 277)}…` : content}`;
-  });
+type SummaryState = {
+  currentObjective: string | null;
+  establishedFacts: string[];
+  decisions: string[];
+  userConstraints: string[];
+  completedActions: string[];
+  pendingActions: string[];
+  unresolvedQuestions: string[];
+  relevantEntities: Array<{ name: string; details: string }>;
+};
 
-  return [previous?.trim(), ...lines].filter(Boolean).join('\n').slice(-6000);
+function parseSummary(value: string): SummaryState | null {
+  const match = value.match(/\{[\s\S]*\}/);
+  if (!match || match[0].length > MAX_SUMMARY_CHARACTERS) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(match[0]);
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+
+    const record = parsed as Record<string, unknown>;
+    const keys = [
+      'establishedFacts',
+      'decisions',
+      'userConstraints',
+      'completedActions',
+      'pendingActions',
+      'unresolvedQuestions',
+    ] as const;
+
+    if (
+      !keys.every(
+        (key) =>
+          Array.isArray(record[key]) &&
+          record[key].every((item) => typeof item === 'string'),
+      ) ||
+      (record.currentObjective !== null &&
+        typeof record.currentObjective !== 'string') ||
+      !Array.isArray(record.relevantEntities) ||
+      !record.relevantEntities.every(
+        (entity) =>
+          entity !== null &&
+          typeof entity === 'object' &&
+          typeof (entity as Record<string, unknown>).name === 'string' &&
+          typeof (entity as Record<string, unknown>).details === 'string',
+      )
+    ) {
+      return null;
+    }
+
+    return parsed as SummaryState;
+  } catch {
+    return null;
+  }
 }
 
 @Injectable()
@@ -29,6 +76,7 @@ export class ConversationSummarizerService {
   constructor(
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversations: IConversationRepository,
+    @Inject(LANGUAGE_MODEL) private readonly model: LanguageModelGateway,
     config: ConfigService,
   ) {
     this.triggerTokens = config.get<number>(
@@ -68,15 +116,34 @@ export class ConversationSummarizerService {
     const throughMessage = segment.at(-1);
     if (!throughMessage) return false;
 
-    await this.conversations.replaceSummary(
+    const result = await this.model.generate({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Perbarui ringkasan keadaan percakapan sebagai JSON tunggal. Skema wajib: {"currentObjective":string|null,"establishedFacts":string[],"decisions":string[],"userConstraints":string[],"completedActions":string[],"pendingActions":string[],"unresolvedQuestions":string[],"relevantEntities":[{"name":string,"details":string}]}. Gabungkan keadaan lama dan pesan baru secara semantik. Pertahankan nama, tanggal, jumlah, ID, negasi, ketidakpastian, keputusan, dan pekerjaan tertunda. Hapus pengulangan, sapaan, dan item yang sudah terselesaikan dari pendingActions. Bedakan pernyataan pengguna dari usulan asisten. Jangan menambah fakta. Maksimum 6000 karakter.',
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            previousSummary: record.conversation.rollingSummary,
+            messages: segment.map(({ role, content }) => ({ role, content })),
+          }),
+        },
+      ],
+    });
+
+    const summary = parseSummary(result.text);
+    if (!summary) throw new Error('Conversation summary output is invalid.');
+
+    return this.conversations.replaceSummary(
       userId,
       conversationId,
-      summarizeMessages(record.conversation.rollingSummary, segment),
+      JSON.stringify(summary),
       throughMessage.id,
+      record.conversation.summaryThroughMessageId,
     );
-
-    return true;
   }
 }
 
-export { summarizeMessages };
+export { parseSummary };

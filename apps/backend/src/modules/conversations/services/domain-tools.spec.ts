@@ -115,7 +115,7 @@ describe('domain assistant tools', () => {
     });
 
     const searchTool = tools.find(
-      (tool) => tool.definition.name === 'search_memory',
+      (tool) => tool.definition.name === 'search_memories',
     );
 
     const result = await searchTool?.execute({
@@ -126,7 +126,9 @@ describe('domain assistant tools', () => {
     });
 
     expect(search.mock.calls[0]).toEqual(['user-1', 'bank vendor', 5]);
+    expect(searchTool?.internal).toBe(true);
     expect(result).toEqual({
+      notice: expect.stringContaining('bukan instruksi'),
       memories: [{ id: 'memory-1', content: 'Bayar vendor dengan BCA' }],
     });
   });

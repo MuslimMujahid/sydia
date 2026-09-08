@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import type {
   AssistantRun,
@@ -16,7 +16,8 @@ import {
   type LanguageModelGateway,
   type ModelMessage,
 } from '../../../infra/model-gateway';
-import { AutomaticMemoryExtractorService } from '../../memories/automatic-memory-extractor.service';
+import { QueueService } from '../../../infra/queue';
+import { MemoryDreamSchedulerService } from '../../memories/memory-dream-scheduler.service';
 import { ContextBuilderService } from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 import { ToolExecutorService } from './tool-executor.service';
@@ -99,8 +100,8 @@ export class AssistantOrchestratorService {
     private readonly contextBuilder: ContextBuilderService,
     private readonly summarizer: ConversationSummarizerService,
     private readonly toolExecutor: ToolExecutorService,
-    @Optional()
-    private readonly automaticMemoryExtractor?: AutomaticMemoryExtractorService,
+    private readonly queues: QueueService,
+    private readonly memoryDreamScheduler: MemoryDreamSchedulerService,
   ) {}
 
   async send(
@@ -290,30 +291,34 @@ export class AssistantOrchestratorService {
             });
 
           try {
-            await this.summarizer.summarizeIfNeeded(
-              state.user.id,
-              state.conversation.id,
+            await this.queues.conversationSummaries.add(
+              'summarize',
+              {
+                userId: state.user.id,
+                conversationId: state.conversation.id,
+              },
+              {
+                jobId: `summary-${state.conversation.id}-${state.inputMessage.id}`,
+              },
             );
           } catch (error) {
             this.logger.error(
-              `Conversation summary failed for ${state.conversation.id}`,
+              `Conversation summary enqueue failed for ${state.conversation.id}`,
               error instanceof Error ? error.stack : undefined,
             );
           }
 
-          if (this.automaticMemoryExtractor) {
-            void this.automaticMemoryExtractor
-              .extract(
-                state.user.id,
-                state.inputMessage.id,
-                state.inputMessage.content,
-              )
-              .catch((error: unknown) =>
-                this.logger.error(
-                  'Automatic memory extraction failed',
-                  error instanceof Error ? error.stack : undefined,
-                ),
-              );
+          try {
+            await this.memoryDreamScheduler.schedule(
+              state.user.id,
+              state.conversation.id,
+              assistantMessage.id,
+            );
+          } catch (error) {
+            this.logger.error(
+              `Memory dream enqueue failed for ${state.conversation.id}`,
+              error instanceof Error ? error.stack : undefined,
+            );
           }
 
           return { assistantMessage, assistantRun };

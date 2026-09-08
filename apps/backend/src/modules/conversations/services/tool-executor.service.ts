@@ -31,6 +31,7 @@ export type AssistantTool = {
     deferConfirmation?: boolean;
   }): Promise<Prisma.InputJsonValue>;
   requiresConfirmation?: boolean;
+  internal?: boolean;
 };
 
 export const ASSISTANT_TOOLS = Symbol('AssistantTools');
@@ -81,6 +82,17 @@ export class ToolExecutorService {
             input: unknown,
             options: ToolExecutionOptions<Record<string, unknown>>,
           ) => {
+            if (assistantTool.internal) {
+              const result = await assistantTool.execute({
+                userId,
+                sourceMessageId: inputMessageId,
+                arguments: assistantTool.parseArguments(input),
+                idempotencyKey: `${inputMessageId}:${options.toolCallId}`,
+              });
+
+              return JSON.stringify(result);
+            }
+
             const result = await this.execute(userId, runId, inputMessageId, {
               id: options.toolCallId,
               name: definition.name,

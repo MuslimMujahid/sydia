@@ -5,7 +5,11 @@ import {
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
 import type { Memory, MemoryWrite } from '../entities';
-import type { IMemoryRepository, MemoryFilters } from '../interfaces';
+import type {
+  IMemoryRepository,
+  MemoryFilters,
+  MemoryVectorMatch,
+} from '../interfaces';
 
 const memorySelect = {
   id: true,
@@ -15,6 +19,7 @@ const memorySelect = {
   pinned: true,
   sourceType: true,
   sourceMessageId: true,
+  sourceMessageIds: true,
   sourceDocumentId: true,
   supersedesId: true,
   supersededById: true,
@@ -32,6 +37,7 @@ function present(row: MemoryRow): Memory {
     status: row.status as Memory['status'],
     pinned: row.pinned,
     supersedesId: row.supersedesId,
+    sourceMessageIds: row.sourceMessageIds,
     supersededById: row.supersededById,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -47,7 +53,11 @@ function present(row: MemoryRow): Memory {
 }
 
 function vectorLiteral(values: number[]): string {
-  return `[${values.map((value) => (Number.isFinite(value) ? value : 0)).join(',')}]`;
+  if (values.length === 0 || values.some((value) => !Number.isFinite(value))) {
+    throw new Error('Embedding must contain only finite values.');
+  }
+
+  return `[${values.join(',')}]`;
 }
 
 @Injectable()
@@ -57,7 +67,7 @@ export class PrismaMemoryRepository implements IMemoryRepository {
     const rows = await this.prisma.memory.findMany({
       where: {
         userId,
-        status: filters.status ?? { in: ['active', 'archived'] },
+        status: filters.status ?? 'active',
         pinned: filters.pinned,
       },
       orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
@@ -76,6 +86,18 @@ export class PrismaMemoryRepository implements IMemoryRepository {
     return row ? present(row) : null;
   }
 
+  async findBySourceKey(
+    userId: string,
+    sourceKey: string,
+  ): Promise<Memory | null> {
+    const row = await this.prisma.memory.findFirst({
+      where: { userId, sourceKey },
+      select: memorySelect,
+    });
+
+    return row ? present(row) : null;
+  }
+
   async create(userId: string, input: MemoryWrite): Promise<Memory> {
     const row = await this.prisma.memory.create({
       data: {
@@ -86,10 +108,13 @@ export class PrismaMemoryRepository implements IMemoryRepository {
         pinned: input.pinned,
         sourceType: input.sourceType,
         sourceMessageId: input.sourceMessageId,
+        sourceMessageIds: input.sourceMessageIds,
         sourceDocumentId: input.sourceDocumentId,
         confidence: input.confidence,
         extractorVersion: input.extractorVersion,
         supersedesId: input.supersedesId,
+        dreamRunId: input.dreamRunId,
+        sourceKey: input.sourceKey,
       },
       select: memorySelect,
     });
@@ -140,20 +165,20 @@ export class PrismaMemoryRepository implements IMemoryRepository {
           pinned: input.pinned,
           sourceType: input.sourceType,
           sourceMessageId: input.sourceMessageId,
+          sourceMessageIds: input.sourceMessageIds,
           sourceDocumentId: input.sourceDocumentId,
           confidence: input.confidence,
           extractorVersion: input.extractorVersion,
           supersedesId: id,
+          dreamRunId: input.dreamRunId,
+          sourceKey: input.sourceKey,
         },
         select: memorySelect,
       });
 
       await tx.memory.update({
         where: { id },
-        data: {
-          status: 'superseded',
-          supersededById: created.id,
-        },
+        data: { status: 'superseded', supersededById: created.id },
       });
 
       return created;
@@ -163,10 +188,60 @@ export class PrismaMemoryRepository implements IMemoryRepository {
   }
 
   async delete(userId: string, id: string): Promise<boolean> {
-    return (
-      (await this.prisma.memory.deleteMany({ where: { id, userId } })).count ===
-      1
-    );
+    return this.prisma.$transaction(async (tx) => {
+      const memory = await tx.memory.findFirst({
+        where: { id, userId },
+        select: {
+          id: true,
+          sourceMessageId: true,
+          sourceMessageIds: true,
+          supersedesId: true,
+          supersededById: true,
+        },
+      });
+
+      if (!memory) return false;
+
+      if (memory.supersedesId) {
+        await tx.memory.updateMany({
+          where: { id: memory.supersedesId, userId },
+          data: { supersededById: memory.supersededById },
+        });
+      }
+
+      if (memory.supersededById) {
+        await tx.memory.updateMany({
+          where: { id: memory.supersededById, userId },
+          data: { supersedesId: memory.supersedesId },
+        });
+      }
+
+      const sourceMessageIds = [
+        ...memory.sourceMessageIds,
+        ...(memory.sourceMessageId ? [memory.sourceMessageId] : []),
+      ];
+
+      for (const sourceMessageId of new Set(sourceMessageIds)) {
+        const source = await tx.message.findFirst({
+          where: { id: sourceMessageId, userId },
+          select: { conversationId: true },
+        });
+
+        await tx.memoryDeletionMarker.upsert({
+          where: { userId_sourceMessageId: { userId, sourceMessageId } },
+          create: {
+            userId,
+            sourceMessageId,
+            conversationId: source?.conversationId,
+          },
+          update: {},
+        });
+      }
+
+      await tx.memory.delete({ where: { id } });
+
+      return true;
+    });
   }
 
   async searchKeyword(
@@ -192,17 +267,37 @@ export class PrismaMemoryRepository implements IMemoryRepository {
     userId: string,
     embedding: number[],
     limit: number,
-  ): Promise<Memory[]> {
+    maxCosineDistance: number,
+  ): Promise<MemoryVectorMatch[]> {
     const vector = vectorLiteral(embedding);
-    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(
-      Prisma.sql`SELECT id FROM memory WHERE "userId" = ${userId} AND status = 'active' AND embedding IS NOT NULL ORDER BY embedding <=> ${vector}::vector LIMIT ${limit}`,
+    const rows = await this.prisma.$queryRaw<
+      Array<{ id: string; cosineDistance: number }>
+    >(
+      Prisma.sql`SELECT id, embedding <=> ${vector}::vector AS "cosineDistance" FROM memory WHERE "userId" = ${userId} AND status = 'active' AND embedding IS NOT NULL AND embedding <=> ${vector}::vector <= ${maxCosineDistance} ORDER BY embedding <=> ${vector}::vector LIMIT ${limit}`,
     );
 
     const results = await Promise.all(
-      rows.map((row) => this.findById(userId, row.id)),
+      rows.map(async (row) => ({
+        memory: await this.findById(userId, row.id),
+        cosineDistance: Number(row.cosineDistance),
+      })),
     );
 
-    return results.filter((memory): memory is Memory => memory !== null);
+    return results.filter(
+      (result): result is MemoryVectorMatch => result.memory !== null,
+    );
+  }
+
+  async recordRetrieval(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    await this.prisma.memory.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        lastRetrievedAt: new Date(),
+        retrievalCount: { increment: 1 },
+      },
+    });
   }
 
   async setEmbedding(

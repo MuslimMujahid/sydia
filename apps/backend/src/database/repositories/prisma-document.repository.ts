@@ -86,7 +86,11 @@ function present(row: DocumentRow): Document {
 }
 
 function vectorLiteral(values: number[]): string {
-  return `[${values.map((value) => (Number.isFinite(value) ? value : 0)).join(',')}]`;
+  if (values.length === 0 || values.some((value) => !Number.isFinite(value))) {
+    throw new Error('Embedding must contain only finite values.');
+  }
+
+  return `[${values.join(',')}]`;
 }
 
 @Injectable()

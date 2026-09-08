@@ -36,12 +36,16 @@ import { SydiaLogo } from "@/components/ui/sydia-logo";
 import { SESSION_EXPIRED_EVENT } from "@/lib/services/api/api";
 import { cn } from "@/lib/utils/cn";
 
+const DEBUG_ENABLED = import.meta.env.VITE_DEBUG_ENABLED === "true";
+
 const NAV_ITEMS = [
   { to: "/", label: "Hari ini", icon: Home },
   { to: "/chat", label: "Chat", icon: MessageSquareText },
   { to: "/tasks", label: "Tugas", icon: CheckSquare2 },
   { to: "/reminders", label: "Pengingat", icon: Bell },
-  { to: "/memory", label: "Memori", icon: Brain },
+  ...(DEBUG_ENABLED
+    ? [{ to: "/memory" as const, label: "Memori", icon: Brain }]
+    : []),
   { to: "/files", label: "File", icon: Files },
   { to: "/contacts", label: "Kontak", icon: ContactRound },
   { to: "/calendar", label: "Kalender", icon: CalendarDays },

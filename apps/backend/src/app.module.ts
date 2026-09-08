@@ -49,6 +49,10 @@ function parsePositiveInteger(
     | 'BACKEND_ASSISTANT_CONTEXT_TOKENS'
     | 'BACKEND_SUMMARY_TRIGGER_TOKENS'
     | 'BACKEND_SUMMARY_RETAIN_MESSAGES'
+    | 'BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES'
+    | 'BACKEND_MEMORY_DREAM_MIN_TOKENS'
+    | 'BACKEND_MEMORY_DREAM_IDLE_MS'
+    | 'BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS'
     | 'BACKEND_WHATSAPP_COMMAND_TIMEOUT'
     | 'BACKEND_WHATSAPP_STATUS_POLL_MS',
   defaultValue: number,
@@ -60,6 +64,23 @@ function parsePositiveInteger(
 
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(`${name} must be a positive integer`);
+  }
+
+  return value;
+}
+
+function parseUnitInterval(
+  config: Record<string, unknown>,
+  name: 'BACKEND_MEMORY_MAX_COSINE_DISTANCE',
+  defaultValue: number,
+): number {
+  const value =
+    config[name] === undefined || config[name] === ''
+      ? defaultValue
+      : Number(config[name]);
+
+  if (!Number.isFinite(value) || value < 0 || value > 2) {
+    throw new Error(`${name} must be a number between 0 and 2`);
   }
 
   return value;
@@ -177,6 +198,31 @@ export function validateEnvironment(
       config,
       'BACKEND_SUMMARY_RETAIN_MESSAGES',
       8,
+    ),
+    BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES: parsePositiveInteger(
+      config,
+      'BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES',
+      4,
+    ),
+    BACKEND_MEMORY_DREAM_MIN_TOKENS: parsePositiveInteger(
+      config,
+      'BACKEND_MEMORY_DREAM_MIN_TOKENS',
+      800,
+    ),
+    BACKEND_MEMORY_DREAM_IDLE_MS: parsePositiveInteger(
+      config,
+      'BACKEND_MEMORY_DREAM_IDLE_MS',
+      15 * 60 * 1000,
+    ),
+    BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS: parsePositiveInteger(
+      config,
+      'BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS',
+      6 * 60 * 60 * 1000,
+    ),
+    BACKEND_MEMORY_MAX_COSINE_DISTANCE: parseUnitInterval(
+      config,
+      'BACKEND_MEMORY_MAX_COSINE_DISTANCE',
+      0.3,
     ),
     BACKEND_WHATSAPP_GOWA_URL:
       typeof config.BACKEND_WHATSAPP_GOWA_URL === 'string' &&

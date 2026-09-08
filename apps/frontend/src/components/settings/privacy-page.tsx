@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -75,16 +74,10 @@ export function PrivacySettingsPage() {
                   id="automatic-memory-description"
                   className="mt-2 text-ink-muted"
                 >
-                  Izinkan Sydia memilih informasi berguna dari percakapan untuk
-                  disimpan sebagai memori. Riwayat chat tetap terpisah; setiap
-                  memori dapat diperiksa, dikoreksi, atau dihapus di{" "}
-                  <Link
-                    to="/memory"
-                    className="font-semibold text-link underline underline-offset-2"
-                  >
-                    halaman Memori
-                  </Link>
-                  .
+                  Izinkan Sydia memilih dan menyatukan informasi berguna dari
+                  percakapan secara otomatis. Riwayat chat tetap terpisah, dan
+                  Anda dapat meminta Sydia mengingat, mengoreksi, atau melupakan
+                  informasi melalui chat.
                 </p>
               </div>
               <Switch

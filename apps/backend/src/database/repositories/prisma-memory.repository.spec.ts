@@ -3,7 +3,7 @@ import type { PrismaService } from '../../infra/prisma';
 import { PrismaMemoryRepository } from './prisma-memory.repository';
 
 describe('PrismaMemoryRepository listing', () => {
-  test('limits the default list to user-visible statuses', async () => {
+  test('limits the default list to active memories', async () => {
     const findMany = jest.fn<(input: unknown) => Promise<never[]>>();
     findMany.mockResolvedValue([]);
     const repository = new PrismaMemoryRepository({
@@ -16,7 +16,7 @@ describe('PrismaMemoryRepository listing', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: 'user-1',
-          status: { in: ['active', 'archived'] },
+          status: 'active',
         }),
       }),
     );
@@ -39,5 +39,19 @@ describe('PrismaMemoryRepository listing', () => {
         }),
       }),
     );
+  });
+});
+
+describe('PrismaMemoryRepository embeddings', () => {
+  test('rejects non-finite vector components before issuing SQL', async () => {
+    const executeRaw = jest.fn<() => Promise<number>>();
+    const repository = new PrismaMemoryRepository({
+      $executeRaw: executeRaw,
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.setEmbedding('memory-1', [0.1, Number.NaN], 'model', 'v1'),
+    ).rejects.toThrow('Embedding must contain only finite values.');
+    expect(executeRaw).not.toHaveBeenCalled();
   });
 });

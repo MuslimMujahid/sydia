@@ -59,6 +59,11 @@ function message(id: string, role: Message['role'], content: string): Message {
 type RepositoryOptions = {
   messages?: Message[];
   documents?: Document[];
+  memorySearch?: (
+    userId: string,
+    query: string,
+    limit: number,
+  ) => Promise<never[]>;
 };
 
 function createBuilder(
@@ -83,8 +88,10 @@ function createBuilder(
   return new ContextBuilderService(
     conversations,
     new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: tokenBudget }),
-    undefined,
     documents,
+    options.memorySearch
+      ? ({ search: options.memorySearch } as never)
+      : undefined,
   );
 }
 
@@ -167,5 +174,46 @@ describe('ContextBuilderService attachments', () => {
     );
 
     expect(totalTokens).toBeLessThanOrEqual(tokenBudget);
+  });
+});
+
+describe('ContextBuilderService memory retrieval', () => {
+  it('injects a bounded memory brief for a personal-context request', async () => {
+    const search = jest
+      .fn<(userId: string, query: string, limit: number) => Promise<never[]>>()
+      .mockResolvedValue([{ content: 'Ayu lebih suka rapat pagi.' } as never]);
+
+    const context = await createBuilder(1_000, {
+      messages: [message('message-1', 'user', 'Apa preferensi rapat saya?')],
+      memorySearch: search,
+    }).build(user, 'conversation-1', 'message-1');
+
+    expect(search).toHaveBeenCalledWith(
+      user.id,
+      'Apa preferensi rapat saya?',
+      4,
+    );
+    const memoryContext = context.find(
+      (entry) =>
+        entry.role === 'system' &&
+        typeof entry.content === 'string' &&
+        entry.content.includes('Ayu lebih suka rapat pagi.'),
+    );
+
+    expect(memoryContext).toBeDefined();
+  });
+
+  it('does not retrieve memory for an acknowledgement', async () => {
+    const search =
+      jest.fn<
+        (userId: string, query: string, limit: number) => Promise<never[]>
+      >();
+
+    await createBuilder(1_000, {
+      messages: [message('message-1', 'user', 'iya lanjut')],
+      memorySearch: search,
+    }).build(user, 'conversation-1', 'message-1');
+
+    expect(search).not.toHaveBeenCalled();
   });
 });

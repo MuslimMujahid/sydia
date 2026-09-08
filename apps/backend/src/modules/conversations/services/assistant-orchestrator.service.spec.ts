@@ -103,14 +103,23 @@ describe('AssistantOrchestratorService', () => {
 
     const config = new ConfigService();
     const contextBuilder = new ContextBuilderService(repository, config);
-    const summarizer = new ConversationSummarizerService(repository, config);
+    const summarizer = new ConversationSummarizerService(
+      repository,
+      model,
+      config,
+    );
+
     const toolExecutor = new ToolExecutorService(repository, []);
+    const scheduleMemoryDream = resolved(undefined);
+    const addConversationSummary = resolved({});
     const orchestrator = new AssistantOrchestratorService(
       repository,
       model,
       contextBuilder,
       summarizer,
       toolExecutor,
+      { conversationSummaries: { add: addConversationSummary } } as never,
+      { schedule: scheduleMemoryDream } as never,
     );
 
     const result = await orchestrator.send(user, {
@@ -124,6 +133,16 @@ describe('AssistantOrchestratorService', () => {
         runId: 'run-1',
         content: assistantMessage.content,
       }),
+    );
+    expect(scheduleMemoryDream).toHaveBeenCalledWith(
+      user.id,
+      conversation.id,
+      assistantMessage.id,
+    );
+    expect(addConversationSummary).toHaveBeenCalledWith(
+      'summarize',
+      { userId: user.id, conversationId: conversation.id },
+      { jobId: `summary-${conversation.id}-${userMessage.id}` },
     );
   });
 
@@ -179,12 +198,16 @@ describe('AssistantOrchestratorService', () => {
     };
 
     const config = new ConfigService();
+    const scheduleMemoryDream = resolved(undefined);
+    const addConversationSummary = resolved({});
     const orchestrator = new AssistantOrchestratorService(
       repository,
       model,
       new ContextBuilderService(repository, config),
-      new ConversationSummarizerService(repository, config),
+      new ConversationSummarizerService(repository, model, config),
       new ToolExecutorService(repository, []),
+      { conversationSummaries: { add: addConversationSummary } } as never,
+      { schedule: scheduleMemoryDream } as never,
     );
 
     const result = await orchestrator.send(user, {
@@ -195,6 +218,7 @@ describe('AssistantOrchestratorService', () => {
     expect(generate).toHaveBeenCalledTimes(1);
     expect(completeRun).toHaveBeenCalledTimes(1);
     expect(result.assistantMessage).toEqual(assistantMessage);
+    expect(scheduleMemoryDream).toHaveBeenCalledTimes(1);
   });
 
   it('replays an idempotent message without invoking the model again', async () => {
@@ -222,12 +246,16 @@ describe('AssistantOrchestratorService', () => {
     };
 
     const config = new ConfigService();
+    const scheduleMemoryDream = resolved(undefined);
+    const addConversationSummary = resolved({});
     const orchestrator = new AssistantOrchestratorService(
       repository,
       model,
       new ContextBuilderService(repository, config),
-      new ConversationSummarizerService(repository, config),
+      new ConversationSummarizerService(repository, model, config),
       new ToolExecutorService(repository, []),
+      { conversationSummaries: { add: addConversationSummary } } as never,
+      { schedule: scheduleMemoryDream } as never,
     );
 
     await orchestrator.send(user, {
@@ -237,5 +265,6 @@ describe('AssistantOrchestratorService', () => {
 
     expect(generate).not.toHaveBeenCalled();
     expect('createRun' in repository).toBe(false);
+    expect(scheduleMemoryDream).not.toHaveBeenCalled();
   });
 });

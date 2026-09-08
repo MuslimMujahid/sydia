@@ -90,23 +90,3 @@ export function useSetMemoryPinned() {
     meta: { invalidateQueries: [memoryQueryKeys.all] },
   });
 }
-
-export function useSetMemoryArchived() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      memoryId,
-      archived,
-    }: {
-      memoryId: string;
-      archived: boolean;
-    }) =>
-      updateMemory({
-        memoryId,
-        values: { status: archived ? "archived" : "active" },
-      }),
-    onSuccess: (memory) => cacheMemory(queryClient, memory),
-    meta: { invalidateQueries: [memoryQueryKeys.all] },
-  });
-}

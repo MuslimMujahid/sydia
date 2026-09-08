@@ -9,6 +9,8 @@ import type {
   ConversationContextRecord,
   ConversationDetail,
   ConversationSummary,
+  MemoryDreamRun,
+  MemoryDreamSegment,
   Message,
   ToolInvocationRecord,
   ToolInvocationStatus,
@@ -558,26 +560,207 @@ export class PrismaConversationRepository implements IConversationRepository {
     conversationId: string,
     content: string,
     throughMessageId: string,
-  ): Promise<void> {
-    const conversation = await this.prisma.conversation.findFirst({
-      where: { id: conversationId, userId },
-      select: { id: true },
-    });
-
-    if (!conversation) throw new ConversationNotFoundError();
-
-    await this.prisma.$transaction([
-      this.prisma.conversationSummary.create({
-        data: { conversationId, content, throughMessageId },
-      }),
-      this.prisma.conversation.update({
-        where: { id: conversationId },
+    expectedPreviousThroughMessageId: string | null,
+  ): Promise<boolean> {
+    const replaced = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.conversation.updateMany({
+        where: {
+          id: conversationId,
+          userId,
+          summaryThroughMessageId: expectedPreviousThroughMessageId,
+        },
         data: {
           rollingSummary: content,
           summaryThroughMessageId: throughMessageId,
         },
-      }),
-    ]);
+      });
+
+      if (updated.count !== 1) return false;
+
+      await tx.conversationSummary.create({
+        data: { conversationId, content, throughMessageId },
+      });
+
+      return true;
+    });
+
+    return replaced;
+  }
+
+  async findMemoryDreamSegment(
+    userId: string,
+    conversationId: string,
+    throughMessageId: string,
+  ): Promise<MemoryDreamSegment | null> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, userId },
+      select: {
+        memoryDreamThroughMessageId: true,
+        messages: {
+          where: { role: { in: ['user', 'assistant'] } },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          select: messageSelect,
+        },
+      },
+    });
+
+    const deletionMarkers = await this.prisma.memoryDeletionMarker.findMany({
+      where: { userId, conversationId },
+      select: { sourceMessageId: true },
+    });
+
+    const deletedSourceIds = new Set(
+      deletionMarkers.map(({ sourceMessageId }) => sourceMessageId),
+    );
+
+    if (!conversation) return null;
+    const throughIndex = conversation.messages.findIndex(
+      ({ id }) => id === throughMessageId,
+    );
+
+    if (throughIndex < 0) return null;
+    const previousIndex = conversation.memoryDreamThroughMessageId
+      ? conversation.messages.findIndex(
+          ({ id }) => id === conversation.memoryDreamThroughMessageId,
+        )
+      : -1;
+
+    if (previousIndex >= throughIndex) return null;
+
+    return {
+      userId,
+      conversationId,
+      previousThroughMessageId: conversation.memoryDreamThroughMessageId,
+      throughMessageId,
+      messages: conversation.messages
+        .slice(previousIndex + 1, throughIndex + 1)
+        .filter(({ id }) => !deletedSourceIds.has(id))
+        .map((message) => ({
+          ...message,
+          role: message.role === 'assistant' ? 'assistant' : 'user',
+        })),
+    };
+  }
+
+  async beginMemoryDream(
+    segment: MemoryDreamSegment,
+    dreamerVersion: string,
+  ): Promise<MemoryDreamRun | null> {
+    const existing = await this.prisma.memoryDreamRun.findUnique({
+      where: {
+        conversationId_throughMessageId_dreamerVersion: {
+          conversationId: segment.conversationId,
+          throughMessageId: segment.throughMessageId,
+          dreamerVersion,
+        },
+      },
+    });
+
+    if (existing?.status === 'completed') return null;
+
+    if (
+      existing?.status === 'running' &&
+      existing.startedAt > new Date(Date.now() - 15 * 60 * 1000)
+    ) {
+      return null;
+    }
+
+    const run = existing
+      ? await this.prisma.memoryDreamRun.update({
+          where: { id: existing.id },
+          data: {
+            status: 'running',
+            errorMessage: null,
+            startedAt: new Date(),
+          },
+        })
+      : await this.prisma.memoryDreamRun.create({
+          data: {
+            userId: segment.userId,
+            conversationId: segment.conversationId,
+            throughMessageId: segment.throughMessageId,
+            dreamerVersion,
+          },
+        });
+
+    return run;
+  }
+
+  async completeMemoryDream(
+    runId: string,
+    segment: MemoryDreamSegment,
+    candidateCount: number,
+    mutationCount: number,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const advanced = await tx.conversation.updateMany({
+        where: {
+          id: segment.conversationId,
+          userId: segment.userId,
+          memoryDreamThroughMessageId: segment.previousThroughMessageId,
+        },
+        data: { memoryDreamThroughMessageId: segment.throughMessageId },
+      });
+
+      if (advanced.count !== 1) return false;
+      await tx.memoryDreamRun.update({
+        where: { id: runId },
+        data: {
+          status: 'completed',
+          candidateCount,
+          mutationCount,
+          completedAt: new Date(),
+        },
+      });
+
+      return true;
+    });
+  }
+
+  async failMemoryDream(runId: string, errorMessage: string): Promise<void> {
+    await this.prisma.memoryDreamRun.update({
+      where: { id: runId },
+      data: { status: 'failed', errorMessage, completedAt: new Date() },
+    });
+  }
+
+  async findPendingMemoryDreams(
+    idleBefore: Date,
+  ): Promise<
+    Array<{ userId: string; conversationId: string; throughMessageId: string }>
+  > {
+    const conversations = await this.prisma.conversation.findMany({
+      where: {
+        lastMessageAt: { lte: idleBefore },
+        user: { automaticMemoryEnabled: true },
+      },
+      select: {
+        id: true,
+        userId: true,
+        memoryDreamThroughMessageId: true,
+        messages: {
+          where: { role: { in: ['user', 'assistant'] } },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: { id: true },
+        },
+      },
+    });
+
+    return conversations.flatMap((conversation) => {
+      const throughMessageId = conversation.messages[0]?.id;
+
+      return throughMessageId &&
+        throughMessageId !== conversation.memoryDreamThroughMessageId
+        ? [
+            {
+              userId: conversation.userId,
+              conversationId: conversation.id,
+              throughMessageId,
+            },
+          ]
+        : [];
+    });
   }
 
   async delete(userId: string, conversationId: string): Promise<boolean> {

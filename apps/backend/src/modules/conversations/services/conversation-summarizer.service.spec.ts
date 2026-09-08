@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import type { Message } from '../../../database/entities';
 import type { IConversationRepository } from '../../../database/interfaces';
+import type { LanguageModelGateway } from '../../../infra/model-gateway';
 import { ContextBuilderService } from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 
@@ -56,6 +57,62 @@ describe('conversation context lifecycle', () => {
   });
 
   it('summarizes only the oldest segment and retains recent turns verbatim', async () => {
+    const replaceSummary = jest
+      .fn<IConversationRepository['replaceSummary']>()
+      .mockResolvedValue(true);
+
+    const repository = {
+      findContext: resolved({
+        conversation: {
+          id: 'conversation-1',
+          rollingSummary: null,
+          summaryThroughMessageId: null,
+        },
+        messages,
+      }),
+      replaceSummary,
+    } as unknown as IConversationRepository;
+
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({
+        text: JSON.stringify({
+          currentObjective: 'Menyelesaikan percakapan',
+          establishedFacts: [],
+          decisions: [],
+          userConstraints: [],
+          completedActions: [],
+          pendingActions: ['Lanjutkan pekerjaan'],
+          unresolvedQuestions: [],
+          relevantEntities: [],
+        }),
+        usage: {},
+      });
+
+    const config = new ConfigService({
+      BACKEND_SUMMARY_TRIGGER_TOKENS: 1,
+      BACKEND_SUMMARY_RETAIN_MESSAGES: 4,
+    });
+
+    const summarizer = new ConversationSummarizerService(
+      repository,
+      { provider: 'openrouter', model: 'test-model', generate },
+      config,
+    );
+
+    await expect(
+      summarizer.summarizeIfNeeded('user-1', 'conversation-1'),
+    ).resolves.toBe(true);
+    expect(replaceSummary).toHaveBeenCalledWith(
+      'user-1',
+      'conversation-1',
+      expect.stringContaining('currentObjective'),
+      'message-5',
+      null,
+    );
+  });
+
+  it('does not advance the checkpoint when model output is invalid', async () => {
     const replaceSummary = jest.fn<IConversationRepository['replaceSummary']>();
     const repository = {
       findContext: resolved({
@@ -69,21 +126,22 @@ describe('conversation context lifecycle', () => {
       replaceSummary,
     } as unknown as IConversationRepository;
 
-    const config = new ConfigService({
-      BACKEND_SUMMARY_TRIGGER_TOKENS: 1,
-      BACKEND_SUMMARY_RETAIN_MESSAGES: 4,
-    });
-
-    const summarizer = new ConversationSummarizerService(repository, config);
+    const summarizer = new ConversationSummarizerService(
+      repository,
+      {
+        provider: 'openrouter',
+        model: 'test-model',
+        generate: resolved({ text: 'not-json', usage: {} }),
+      },
+      new ConfigService({
+        BACKEND_SUMMARY_TRIGGER_TOKENS: 1,
+        BACKEND_SUMMARY_RETAIN_MESSAGES: 4,
+      }),
+    );
 
     await expect(
       summarizer.summarizeIfNeeded('user-1', 'conversation-1'),
-    ).resolves.toBe(true);
-    expect(replaceSummary).toHaveBeenCalledWith(
-      'user-1',
-      'conversation-1',
-      expect.any(String),
-      'message-5',
-    );
+    ).rejects.toThrow('Conversation summary output is invalid.');
+    expect(replaceSummary).not.toHaveBeenCalled();
   });
 });
