@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   AlertCircle,
+  Check,
+  ExternalLink,
   FileAudio,
   FileImage,
   FileText,
@@ -18,7 +20,6 @@ import {
   DomainListSkeleton,
   DomainPageHeader,
 } from "@/components/domain/domain-page";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,19 +39,12 @@ import {
   type FileKind,
 } from "@/lib/services/api/documents/documents.api";
 import {
-  documentQueryOptions,
   documentsQueryOptions,
   useDeleteDocument,
-  useRetryDocument,
   useUploadDocument,
 } from "@/lib/services/api/documents/documents.queries";
 import { formatDateTime } from "@/lib/utils/date-time";
-
-const KIND_LABELS: Record<FileKind, string> = {
-  document: "Dokumen",
-  image: "Gambar",
-  audio: "Audio",
-};
+import { cn } from "@/lib/utils/cn";
 
 function formatSize(bytes: number): string {
   if (bytes < 1_024) return `${bytes} B`;
@@ -67,241 +61,55 @@ function FileKindIcon({ kind }: { kind: FileKind }) {
 }
 
 function DocumentStatus({ document }: { document: Document }) {
-  if (document.status === "processing") {
-    return (
-      <Badge dot="warn">
-        <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
-        Sedang diproses
-      </Badge>
-    );
-  }
+  const status =
+    document.status === "processing"
+      ? "Sedang diproses"
+      : document.status === "failed"
+        ? "Pemrosesan gagal"
+        : "Siap digunakan";
 
-  if (document.status === "failed")
-    return <Badge dot="destructive">Pemrosesan gagal</Badge>;
+  const Icon =
+    document.status === "processing"
+      ? LoaderCircle
+      : document.status === "failed"
+        ? AlertCircle
+        : Check;
 
-  return <Badge dot="brand">Siap digunakan</Badge>;
-}
-
-function ContentSection({ document }: { document: Document }) {
-  const primaryContent =
-    document.transcript ?? document.textContent ?? document.imageDescription;
-
-  const label =
-    document.file.kind === "audio"
-      ? "Transkrip"
-      : document.file.kind === "image"
-        ? "Deskripsi gambar"
-        : "Isi dokumen";
+  const colorClass =
+    document.status === "processing"
+      ? "bg-amber-500 text-white"
+      : document.status === "failed"
+        ? "bg-destructive text-white"
+        : "bg-emerald-600 text-white";
 
   return (
-    <section
-      aria-labelledby="file-content-heading"
-      className="mt-7 border-t border-surface-1 pt-6"
-    >
-      <h3
-        id="file-content-heading"
-        className="font-display text-[17px] font-semibold"
-      >
-        {label}
-      </h3>
-      {primaryContent ? (
-        <p className="mt-3 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-ink-soft">
-          {primaryContent}
-        </p>
-      ) : document.chunks?.length ? (
-        <div className="mt-3 max-h-72 space-y-4 overflow-y-auto text-sm leading-6 text-ink-soft">
-          {document.chunks.map((chunk) => (
-            <p key={chunk.id}>
-              {chunk.pageNumber ? (
-                <span className="font-display font-semibold">
-                  Halaman {chunk.pageNumber}:{" "}
-                </span>
-              ) : null}
-              {chunk.content}
-            </p>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-3 text-sm text-ink-muted">
-          Tidak ada teks yang dapat ditampilkan.
-        </p>
+    <span
+      className={cn(
+        "absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full ring-2 ring-canvas",
+        colorClass
       )}
-    </section>
-  );
-}
-
-function DocumentDetail({
-  documentId,
-  onClose,
-}: {
-  documentId: string;
-  onClose: () => void;
-}) {
-  const documentQuery = useQuery(documentQueryOptions(documentId));
-  const ready = documentQuery.data?.status === "ready";
-  const deleteMutation = useDeleteDocument();
-  const retryMutation = useRetryDocument();
-
-  async function handleDelete() {
-    const document = documentQuery.data;
-    if (
-      !document ||
-      !window.confirm(
-        `Hapus ${document.file.originalName}? File dan hasil pemrosesannya tidak dapat dipulihkan.`
-      )
-    )
-      return;
-    await deleteMutation.mutateAsync(document.id);
-    onClose();
-  }
-
-  if (documentQuery.isPending) {
-    return (
-      <DialogContent>
-        <DialogTitle>Rincian file</DialogTitle>
-        <DialogDescription className="mt-2">
-          Memuat metadata dan hasil pemrosesan…
-        </DialogDescription>
-        <DomainListSkeleton label="Memuat rincian file" />
-      </DialogContent>
-    );
-  }
-
-  if (documentQuery.isError) {
-    return (
-      <DialogContent>
-        <DialogTitle>File tidak dapat dimuat</DialogTitle>
-        <DialogDescription className="mt-2">
-          {documentQuery.error.message}
-        </DialogDescription>
-        <Button
-          variant="secondary"
-          className="mt-6"
-          onClick={() => void documentQuery.refetch()}
-        >
-          Coba lagi
-        </Button>
-      </DialogContent>
-    );
-  }
-
-  const document = documentQuery.data;
-
-  return (
-    <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
-      <DialogTitle>{document.title}</DialogTitle>
-      <DialogDescription className="mt-2 break-all">
-        {document.file.originalName}
-      </DialogDescription>
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <DocumentStatus document={document} />
-        <Badge>{KIND_LABELS[document.file.kind]}</Badge>
-        <span className="text-sm text-ink-muted">
-          {formatSize(document.file.size)} ·{" "}
-          {formatDateTime(document.createdAt)}
-        </span>
-      </div>
-      {document.status === "processing" ? (
-        <div
-          className="mt-7 flex items-start gap-3 border-y border-surface-1 py-5"
-          role="status"
-        >
-          <LoaderCircle className="mt-0.5 size-5 animate-spin text-brand-deep motion-reduce:animate-none" />
-          <div>
-            <h3 className="font-display font-bold">
-              Sydia sedang membaca file ini
-            </h3>
-            <p className="mt-1 text-sm text-ink-muted">
-              Rincian akan diperbarui otomatis setelah pemrosesan selesai.
-            </p>
-          </div>
-        </div>
-      ) : null}
-      {document.status === "failed" ? (
-        <div
-          className="mt-7 flex items-start justify-between gap-4 border-y border-destructive/30 py-5"
-          role="alert"
-        >
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
-            <div>
-              <h3 className="font-display font-bold">
-                File tidak dapat diproses
-              </h3>
-              <p className="mt-1 text-sm text-ink-muted">
-                {document.errorMessage || "Pemrosesan gagal sementara."}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={retryMutation.isPending}
-            onClick={() => void retryMutation.mutateAsync(document.id)}
-          >
-            {retryMutation.isPending ? "Mencoba…" : "Coba lagi"}
-          </Button>
-        </div>
-      ) : null}
-      {ready ? <ContentSection document={document} /> : null}
-      {ready ? (
-        <Button
-          nativeButton={false}
-          variant="secondary"
-          size="sm"
-          className="mt-5"
-          render={
-            <a
-              href={getDocumentContentUrl(document.id)}
-              target="_blank"
-              rel="noreferrer"
-            />
-          }
-        >
-          Buka file asli
-        </Button>
-      ) : null}
-      {document.structuredData ? (
-        <details className="mt-6 border-t border-surface-1 pt-5">
-          <summary className="cursor-pointer font-display font-semibold outline-none focus-visible:ring-3 focus-visible:ring-brand/40">
-            Data terstruktur
-          </summary>
-          <pre className="mt-3 max-h-56 overflow-auto rounded-md bg-editorial p-4 font-mono text-xs text-canvas">
-            {JSON.stringify(document.structuredData, null, 2)}
-          </pre>
-        </details>
-      ) : null}
-      <div className="mt-7 flex flex-col-reverse gap-3 border-t border-surface-1 pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <Button
-          variant="ghost"
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          disabled={deleteMutation.isPending}
-          onClick={() => void handleDelete()}
-        >
-          <Trash2 /> {deleteMutation.isPending ? "Menghapus…" : "Hapus file"}
-        </Button>
-        <Button
-          nativeButton={false}
-          render={<Link to="/" search={{ attachment: document.id }} />}
-          disabled={document.status !== "ready"}
-        >
-          <MessageSquareText /> Tanyakan di chat
-        </Button>
-      </div>
-      {deleteMutation.error ? (
-        <p className="mt-3 text-sm text-destructive" role="alert">
-          {deleteMutation.error.message}
-        </p>
-      ) : null}
-    </DialogContent>
+      title={status}
+      aria-label={status}
+    >
+      <Icon
+        className={cn(
+          "size-2.5",
+          document.status === "processing" &&
+            "animate-spin motion-reduce:animate-none"
+        )}
+        aria-hidden="true"
+      />
+      <span className="sr-only">{status}</span>
+    </span>
   );
 }
 
 export function DocumentPage() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
   const query = useQuery(documentsQueryOptions());
   const uploadMutation = useUploadDocument();
+  const deleteMutation = useDeleteDocument();
 
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -313,6 +121,17 @@ export function DocumentPage() {
       } catch {
         break;
       }
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+
+    try {
+      await deleteMutation.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch {
+      // The mutation error remains visible in the confirmation dialog.
     }
   }
 
@@ -335,8 +154,7 @@ export function DocumentPage() {
               onClick={() => inputRef.current?.click()}
               disabled={uploadMutation.isPending}
             >
-              <Upload />{" "}
-              {uploadMutation.isPending ? "Mengunggah…" : "Unggah file"}
+              <Upload /> {uploadMutation.isPending ? "Mengunggah…" : "Unggah file"}
             </Button>
           </>
         }
@@ -380,28 +198,17 @@ export function DocumentPage() {
         <ul className="divide-y divide-surface-1 border-y border-surface-1">
           {query.data.map((document) => (
             <li key={document.id} className="flex items-center gap-4 py-5">
-              <span className="grid size-10 shrink-0 place-items-center rounded-md bg-surface-1">
+              <span className="relative grid size-10 shrink-0 place-items-center rounded-md bg-surface-1">
                 <FileKindIcon kind={document.file.kind} />
+                <DocumentStatus document={document} />
               </span>
-              <button
-                type="button"
-                className="min-w-0 flex-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
-                onClick={() => setSelectedId(document.id)}
-              >
+              <div className="min-w-0 flex-1">
                 <span className="block truncate font-display font-bold text-ink">
                   {document.title}
                 </span>
                 <span className="mt-1 block truncate text-sm text-ink-muted">
-                  {document.file.originalName} ·{" "}
-                  {formatSize(document.file.size)} ·{" "}
-                  {formatDateTime(document.createdAt)}
+                  {formatSize(document.file.size)} · {formatDateTime(document.createdAt)}
                 </span>
-                <span className="mt-2 block sm:hidden">
-                  <DocumentStatus document={document} />
-                </span>
-              </button>
-              <div className="hidden sm:block">
-                <DocumentStatus document={document} />
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -416,8 +223,26 @@ export function DocumentPage() {
                   <MoreHorizontal />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setSelectedId(document.id)}>
-                    Lihat rincian
+                  <DropdownMenuItem
+                    render={
+                      <a
+                        href={getDocumentContentUrl(document.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                      />
+                    }
+                  >
+                    <ExternalLink /> Buka
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    destructive
+                    disabled={deleteMutation.isPending}
+                    onClick={() => {
+                      deleteMutation.reset();
+                      setDeleteTarget(document);
+                    }}
+                  >
+                    <Trash2 /> Hapus
                   </DropdownMenuItem>
                   {document.status === "ready" ? (
                     <DropdownMenuItem
@@ -435,15 +260,45 @@ export function DocumentPage() {
         </ul>
       ) : null}
       <Dialog
-        open={Boolean(selectedId)}
-        onOpenChange={(open) => !open && setSelectedId(null)}
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) {
+            setDeleteTarget(null);
+            deleteMutation.reset();
+          }
+        }}
       >
-        {selectedId ? (
-          <DocumentDetail
-            documentId={selectedId}
-            onClose={() => setSelectedId(null)}
-          />
-        ) : null}
+        <DialogContent>
+          <DialogTitle>Hapus file ini?</DialogTitle>
+          <DialogDescription className="mt-3 break-all">
+            &ldquo;{deleteTarget?.file.originalName}&rdquo; beserta hasil
+            pemrosesannya akan dihapus permanen. Tindakan ini tidak dapat
+            dibatalkan.
+          </DialogDescription>
+          {deleteMutation.error ? (
+            <p className="mt-4 text-sm text-destructive" role="alert">
+              {deleteMutation.error.message} File tidak dihapus. Coba lagi.
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeleteTarget(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteMutation.isPending}
+              onClick={() => void handleDelete()}
+            >
+              {deleteMutation.isPending ? "Menghapus…" : "Hapus permanen"}
+            </Button>
+          </div>
+        </DialogContent>
       </Dialog>
     </div>
   );
