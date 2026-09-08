@@ -13,6 +13,7 @@ import {
 import { FormError, TextField } from "@/components/forms/form-fields";
 import { exportUserData } from "@/lib/services/api/users/account.api";
 import { useDeleteCurrentAccount } from "@/lib/services/api/users/account.queries";
+import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
 import { SettingsPageHeader } from "./settings-nav";
 
 const CONFIRMATION_TEXT = "HAPUS";
@@ -106,9 +107,10 @@ function DeleteAccountCard() {
           </h2>
           <p className="mt-2 text-ink-muted">
             Menghapus akun Anda secara permanen: seluruh percakapan, tugas,
-            pengingat, memori, dokumen, dan integrasi (termasuk tautan WhatsApp
-            dan Google Calendar) ikut dicabut dan dihapus. Tindakan ini tidak
-            dapat dibatalkan.
+            pengingat, memori, dokumen, dan integrasi (termasuk tautan
+            {WHATSAPP_INTEGRATION_ENABLED ? " WhatsApp dan" : ""} Google
+            Calendar) ikut dicabut dan dihapus. Tindakan ini tidak dapat
+            dibatalkan.
           </p>
         </div>
         <Dialog

@@ -1,15 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { UserTelegramSettingsPage } from "@/components/settings/telegram-page";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/settings/telegram")({
-  head: () => ({
-    meta: [
-      { title: "Telegram · Sydia" },
-      {
-        name: "description",
-        content: "Tautkan akun Telegram pribadi Anda ke akun Sydia.",
-      },
-    ],
-  }),
-  component: UserTelegramSettingsPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/settings/integrations" });
+  },
 });

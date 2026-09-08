@@ -164,202 +164,6 @@ function EnforcementNotice({
   );
 }
 
-function LinkedIdentityCard({ status }: { status: WhatsAppStatus }) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const unlinkMutation = useUnlinkWhatsApp();
-  const externalId = status.externalId;
-  const contact = status.contact;
-
-  async function handleUnlink() {
-    await unlinkMutation.mutateAsync();
-    setDialogOpen(false);
-  }
-
-  return (
-    <Card className="p-6 sm:p-8">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-xl">
-          <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-            Identitas tertaut
-          </h2>
-          <dl className="mt-4 space-y-3 text-[15px]">
-            {externalId ? (
-              <>
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <dt className="text-ink-muted">Nomor WhatsApp</dt>
-                  <dd className="font-semibold text-ink">
-                    {phoneFromJid(externalId)}
-                  </dd>
-                </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <dt className="text-ink-muted">JID</dt>
-                  <dd className="font-mono text-sm text-ink-muted">
-                    {externalId}
-                  </dd>
-                </div>
-              </>
-            ) : null}
-            {contact?.lastInboundAt ? (
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                <dt className="text-ink-muted">Pesan masuk terakhir</dt>
-                <dd className="text-ink">
-                  <time dateTime={contact.lastInboundAt}>
-                    {formatDateTime(contact.lastInboundAt)}
-                  </time>
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger
-            render={
-              <Button variant="dark-outline" size="sm" className="shrink-0" />
-            }
-          >
-            {" "}
-            <Unplug /> Putuskan tautan
-          </DialogTrigger>
-          <DialogContent>
-            <DialogTitle>Putuskan tautan WhatsApp?</DialogTitle>
-            <DialogDescription className="mt-3">
-              Sydia berhenti mengaitkan pesan dari nomor pribadi ini dengan akun
-              Anda dan tidak akan mengirim pesan proaktif ke nomor tersebut.
-              Nomor layanan Sydia tetap sama dan tetap tersedia bagi pengguna
-              lain. Anda dapat menautkan ulang kapan pun dengan kode baru.
-            </DialogDescription>
-            {unlinkMutation.error ? (
-              <div className="mt-4">
-                <FormError message={unlinkMutation.error.message} />
-              </div>
-            ) : null}
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={unlinkMutation.isPending}
-                onClick={() => setDialogOpen(false)}
-              >
-                Batal
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={unlinkMutation.isPending}
-                onClick={() => void handleUnlink()}
-              >
-                {unlinkMutation.isPending
-                  ? "Memutuskan…"
-                  : "Ya, putuskan tautan"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-      {contact?.optedOutAt ? (
-        <div
-          className="mt-6 border-l-2 border-destructive bg-destructive/5 px-4 py-3"
-          role="alert"
-        >
-          <p className="text-sm text-ink">
-            Anda mengirim STOP pada {formatDateTime(contact.optedOutAt)}. Sydia
-            tidak akan mengirim pesan keluar ke nomor Anda sampai Anda mengirim
-            pesan baru ke Sydia terlebih dahulu.
-          </p>
-        </div>
-      ) : null}
-    </Card>
-  );
-}
-
-function LinkCodeCard({
-  status,
-  linkCode,
-  codeActive,
-  onCodeCreated,
-}: {
-  status: WhatsAppStatus;
-  linkCode: WhatsAppLinkCode | null;
-  codeActive: boolean;
-  onCodeCreated: (code: WhatsAppLinkCode | null) => void;
-}) {
-  const linkCodeMutation = useCreateWhatsAppLinkCode();
-
-  const enforcementActive =
-    status.gateway.sendingPaused ||
-    status.gateway.status === "enforced" ||
-    Boolean(status.gateway.enforcementReason);
-
-  async function handleCreateCode() {
-    const code = await linkCodeMutation.mutateAsync();
-    onCodeCreated(code);
-  }
-
-  return (
-    <Card className="p-6 sm:p-8">
-      <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-        Tautkan akun WhatsApp Anda
-      </h2>
-      <ol className="mt-4 list-decimal space-y-2 pl-5 text-[15px] text-ink-muted">
-        <li>Buat kode tautan sekali pakai di bawah.</li>
-        <li>
-          Kirim kode tersebut sebagai pesan WhatsApp dari nomor Anda ke nomor
-          Sydia.
-        </li>
-        <li>Status di halaman ini diperbarui otomatis begitu kode diterima.</li>
-      </ol>
-      <p className="mt-4 text-sm text-ink-muted">
-        Demi keamanan, kode hanya berlaku beberapa menit dan hanya dapat dipakai
-        dari pesan masuk WhatsApp — bukan dari web.
-      </p>
-      {codeActive && linkCode ? (
-        <div className="mt-6 space-y-3" aria-live="polite">
-          <p className="text-sm font-semibold text-ink">Kode tautan Anda</p>
-          <p className="w-fit rounded-md border border-ink/16 bg-surface-1 px-5 py-3 font-mono text-2xl font-bold tracking-[0.3em]">
-            {linkCode.code}
-          </p>
-          <p className="text-sm text-ink-muted">
-            Berlaku sampai pukul{" "}
-            <time dateTime={linkCode.expiresAt}>
-              {formatClock(linkCode.expiresAt)}
-            </time>
-            . Menunggu kode dikirim dari WhatsApp Anda…
-          </p>
-        </div>
-      ) : null}
-      {linkCode && !codeActive && !status.linked ? (
-        <p className="mt-6 text-sm text-ink-muted" role="status">
-          Kode sebelumnya kedaluwarsa. Buat kode baru untuk melanjutkan.
-        </p>
-      ) : null}
-      <div className="mt-6 flex flex-wrap items-center gap-4">
-        <Button
-          size="sm"
-          disabled={linkCodeMutation.isPending || enforcementActive}
-          onClick={() => void handleCreateCode()}
-        >
-          <Link2 />
-          {linkCodeMutation.isPending
-            ? "Membuat kode…"
-            : codeActive
-              ? "Buat kode baru"
-              : "Buat kode tautan"}
-        </Button>
-        {enforcementActive ? (
-          <p className="text-sm text-ink-muted">
-            Pembuatan kode dijeda selama penegakan aktif.
-          </p>
-        ) : null}
-      </div>
-      {linkCodeMutation.error ? (
-        <div className="mt-4">
-          <FormError message={linkCodeMutation.error.message} />
-        </div>
-      ) : null}
-    </Card>
-  );
-}
-
 function SydiaNumberSetupCard({ status }: { status: WhatsAppStatus }) {
   const pairMutation = usePairWhatsAppCompanion();
   const [phone, setPhone] = useState("");
@@ -461,15 +265,24 @@ function SydiaNumberSetupCard({ status }: { status: WhatsAppStatus }) {
   );
 }
 
-export function UserWhatsAppSettingsPage() {
+export function WhatsAppIntegrationCard() {
   const [linkCode, setLinkCode] = useState<WhatsAppLinkCode | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const unlinkMutation = useUnlinkWhatsApp();
+  const linkCodeMutation = useCreateWhatsAppLinkCode();
   const codeAwaitingLink = Boolean(
     linkCode && Date.parse(linkCode.expiresAt) > now
   );
 
   const statusQuery = useQuery(whatsappStatusQueryOptions(codeAwaitingLink));
   const status = statusQuery.data;
+  const linked = status?.linked ?? false;
+  const codeBlocked = status
+    ? status.gateway.sendingPaused ||
+      status.gateway.status === "enforced" ||
+      Boolean(status.gateway.enforcementReason)
+    : false;
 
   useEffect(() => {
     if (!codeAwaitingLink) return;
@@ -478,57 +291,241 @@ export function UserWhatsAppSettingsPage() {
     return () => window.clearInterval(timer);
   }, [codeAwaitingLink]);
 
+  async function handleUnlink() {
+    await unlinkMutation.mutateAsync();
+    setDialogOpen(false);
+  }
+
+  async function handleCreateCode() {
+    setLinkCode(await linkCodeMutation.mutateAsync());
+  }
+
   return (
-    <div className="max-w-3xl space-y-10">
-      <SettingsPageHeader
-        section="WhatsApp"
-        title="Akun WhatsApp Anda"
-        description="Tautkan nomor WhatsApp pribadi Anda sebagai identitas akun. Setelah tertaut, kirim pesan ke satu nomor WhatsApp Sydia yang digunakan bersama oleh semua pengguna."
-      />
-      {statusQuery.isPending ? <StatusSkeleton /> : null}
+    <Card className="p-6 sm:p-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-xl">
+          <div className="flex items-center gap-3">
+            <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
+              <MessageSquareText className="size-5 text-brand-deep" /> WhatsApp
+            </h2>
+            {status ? (
+              <Badge dot={linked ? "brand" : "ink-weak"}>
+                {linked ? "Tertaut" : "Belum tertaut"}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="mt-2 text-sm leading-[1.6] text-ink-muted">
+            Tautkan nomor WhatsApp pribadi Anda untuk mengobrol dan menerima
+            pengingat. Sydia memakai satu nomor layanan yang sama untuk semua
+            pengguna — tautan hanya mengaitkan pesan dari nomor Anda dengan
+            akun ini.
+          </p>
+        </div>
+        {status?.linked ? (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger
+              render={
+                <Button variant="dark-outline" size="sm" className="shrink-0" />
+              }
+            >
+              <Unplug /> Putuskan tautan
+            </DialogTrigger>
+            <DialogContent>
+              <DialogTitle>Putuskan tautan WhatsApp?</DialogTitle>
+              <DialogDescription className="mt-3">
+                Sydia berhenti mengaitkan pesan dari nomor pribadi ini dengan
+                akun Anda dan tidak akan mengirim pesan proaktif ke nomor
+                tersebut. Nomor layanan Sydia tetap sama dan tetap tersedia
+                bagi pengguna lain. Anda dapat menautkan ulang kapan pun dengan
+                kode baru.
+              </DialogDescription>
+              {unlinkMutation.error ? (
+                <div className="mt-4">
+                  <FormError message={unlinkMutation.error.message} />
+                </div>
+              ) : null}
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={unlinkMutation.isPending}
+                  onClick={() => setDialogOpen(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={unlinkMutation.isPending}
+                  onClick={() => void handleUnlink()}
+                >
+                  {unlinkMutation.isPending
+                    ? "Memutuskan…"
+                    : "Ya, putuskan tautan"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        ) : null}
+      </div>
+      {statusQuery.isPending ? (
+        <p className="mt-3 text-sm text-ink-muted" role="status">
+          Memeriksa koneksi…
+        </p>
+      ) : null}
       {statusQuery.isError ? (
-        <DomainInlineError
-          title="Status WhatsApp tidak dapat dimuat"
-          message={statusQuery.error.message}
-          onRetry={() => void statusQuery.refetch()}
-        />
+        <div className="mt-4">
+          <p className="text-sm text-destructive" role="alert">
+            Status WhatsApp tidak dapat dimuat: {statusQuery.error.message}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-3"
+            onClick={() => void statusQuery.refetch()}
+          >
+            Coba lagi
+          </Button>
+        </div>
       ) : null}
       {status ? (
         <>
-          <Badge dot={status.linked ? "brand" : "ink-weak"}>
-            {status.linked
-              ? "Nomor pribadi tertaut"
-              : "Nomor pribadi belum tertaut"}
-          </Badge>
-          {status.linked ? (
-            <LinkedIdentityCard status={status} />
-          ) : (
-            <LinkCodeCard
-              status={status}
-              linkCode={linkCode}
-              codeActive={codeAwaitingLink}
-              onCodeCreated={setLinkCode}
-            />
-          )}
-          <Card className="p-6 sm:p-8">
-            <div className="flex items-start gap-3">
-              <MessageSquareText className="mt-0.5 size-5 shrink-0 text-brand-deep" />
-              <div>
-                <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-                  Cara kerja nomor WhatsApp
-                </h2>
-                <p className="mt-2 text-ink-muted">
-                  Sydia memiliki satu nomor layanan. Tautan ini hanya memberi
-                  tahu Sydia bahwa pesan dari nomor pribadi Anda adalah milik
-                  akun ini. Nomor layanan Sydia tidak berubah dan tidak dibuat
-                  khusus untuk Anda.
-                </p>
-              </div>
+          {status.gateway.enforcementReason ||
+          status.gateway.recoveryReason ? (
+            <div className="mt-6 space-y-3">
+              {status.gateway.enforcementReason ? (
+                <div
+                  className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3"
+                  role="alert"
+                >
+                  <p className="text-sm font-semibold text-ink">
+                    Pengiriman WhatsApp dijeda
+                  </p>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    {status.gateway.enforcementReason} Pesan dari Sydia tetap
+                    dijeda sampai operator memulihkan nomor layanan.
+                  </p>
+                </div>
+              ) : null}
+              {status.gateway.recoveryReason ? (
+                <div
+                  className="rounded-md border border-warn/30 bg-warn/5 px-4 py-3"
+                  role="alert"
+                >
+                  <p className="text-sm font-semibold text-ink">
+                    Koneksi perlu dipulihkan
+                  </p>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    {status.gateway.recoveryReason} Anda tidak perlu menautkan
+                    ulang nomor pribadi — operator Sydia sedang menangani
+                    koneksi layanan.
+                  </p>
+                </div>
+              ) : null}
             </div>
-          </Card>
+          ) : null}
+          {linked && status.externalId ? (
+            <dl className="mt-6 space-y-3 text-[15px]">
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                <dt className="text-ink-muted">Nomor WhatsApp</dt>
+                <dd className="font-semibold text-ink">
+                  {phoneFromJid(status.externalId)}
+                </dd>
+              </div>
+              {status.contact?.lastInboundAt ? (
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <dt className="text-ink-muted">Pesan masuk terakhir</dt>
+                  <dd className="text-ink">
+                    <time dateTime={status.contact.lastInboundAt}>
+                      {formatDateTime(status.contact.lastInboundAt)}
+                    </time>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          {status.contact?.optedOutAt ? (
+            <div
+              className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3"
+              role="alert"
+            >
+              <p className="text-sm text-ink">
+                Anda mengirim STOP pada{" "}
+                {formatDateTime(status.contact.optedOutAt)}. Sydia tidak akan
+                mengirim pesan keluar ke nomor Anda sampai Anda mengirim pesan
+                baru ke Sydia terlebih dahulu.
+              </p>
+            </div>
+          ) : null}
+          {!linked ? (
+            <div className="mt-6 border-t border-surface-1 pt-6">
+              <h3 className="text-[15px] font-semibold text-ink">
+                Tautkan akun WhatsApp Anda
+              </h3>
+              <ol className="mt-3 list-decimal space-y-2 pl-5 text-[15px] text-ink-muted">
+                <li>Buat kode tautan sekali pakai.</li>
+                <li>
+                  Kirim kode sebagai pesan WhatsApp dari nomor Anda ke nomor
+                  Sydia.
+                </li>
+                <li>Status diperbarui otomatis begitu kode diterima.</li>
+              </ol>
+              <p className="mt-3 text-sm text-ink-muted">
+                Demi keamanan, kode hanya berlaku beberapa menit dan hanya
+                dapat dipakai dari pesan masuk WhatsApp — bukan dari web.
+              </p>
+              {codeAwaitingLink && linkCode ? (
+                <div className="mt-5 space-y-3" aria-live="polite">
+                  <p className="text-sm font-semibold text-ink">
+                    Kode tautan Anda
+                  </p>
+                  <p className="w-fit rounded-md border border-ink/16 bg-surface-1 px-5 py-3 font-mono text-2xl font-bold tracking-[0.3em]">
+                    {linkCode.code}
+                  </p>
+                  <p className="text-sm text-ink-muted">
+                    Berlaku sampai pukul{" "}
+                    <time dateTime={linkCode.expiresAt}>
+                      {formatClock(linkCode.expiresAt)}
+                    </time>
+                    . Menunggu kode dikirim dari WhatsApp Anda…
+                  </p>
+                </div>
+              ) : null}
+              {linkCode && !codeAwaitingLink ? (
+                <p className="mt-5 text-sm text-ink-muted" role="status">
+                  Kode sebelumnya kedaluwarsa. Buat kode baru untuk
+                  melanjutkan.
+                </p>
+              ) : null}
+              <div className="mt-5 flex flex-wrap items-center gap-4">
+                <Button
+                  size="sm"
+                  disabled={linkCodeMutation.isPending || codeBlocked}
+                  onClick={() => void handleCreateCode()}
+                >
+                  <Link2 />
+                  {linkCodeMutation.isPending
+                    ? "Membuat kode…"
+                    : codeAwaitingLink
+                      ? "Buat kode baru"
+                      : "Buat kode tautan"}
+                </Button>
+                {codeBlocked ? (
+                  <p className="text-sm text-ink-muted">
+                    Pembuatan kode dijeda selama penegakan aktif.
+                  </p>
+                ) : null}
+              </div>
+              {linkCodeMutation.error ? (
+                <div className="mt-4">
+                  <FormError message={linkCodeMutation.error.message} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : null}
-    </div>
+    </Card>
   );
 }
 

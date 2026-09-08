@@ -10,6 +10,7 @@ import {
   userPreferencesQueryOptions,
   useUpdateUserPreferences,
 } from "@/lib/services/api/users/preferences.queries";
+import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
 import { SettingsPageHeader } from "./settings-nav";
 
 function PreferenceSwitch({
@@ -53,7 +54,11 @@ function PreferenceSwitch({
 
 export function NotificationSettingsPage() {
   const preferencesQuery = useQuery(userPreferencesQueryOptions());
-  const whatsappStatusQuery = useQuery(whatsappStatusQueryOptions());
+  const whatsappStatusQuery = useQuery({
+    ...whatsappStatusQueryOptions(),
+    enabled: WHATSAPP_INTEGRATION_ENABLED,
+  });
+
   const updateMutation = useUpdateUserPreferences();
   const preferences = preferencesQuery.data;
   const controlsDisabled = preferencesQuery.isError || updateMutation.isPending;
@@ -122,34 +127,36 @@ export function NotificationSettingsPage() {
                   updateMutation.mutate({ emailNotificationsEnabled: checked })
                 }
               />
-              <div>
-                <PreferenceSwitch
-                  id="channel-whatsapp"
-                  label="Notifikasi WhatsApp"
-                  description="Pengingat dan briefing dikirim ke nomor WhatsApp tertaut."
-                  checked={
-                    preferences.whatsappNotificationsEnabled && whatsappLinked
-                  }
-                  disabled={controlsDisabled || !whatsappLinked}
-                  onChange={(checked) =>
-                    updateMutation.mutate({
-                      whatsappNotificationsEnabled: checked,
-                    })
-                  }
-                />
-                {!whatsappLinked ? (
-                  <p className="pb-4 text-sm text-ink-muted">
-                    Tautkan nomor Anda di{" "}
-                    <Link
-                      to="/settings/whatsapp"
-                      className="font-semibold text-link underline underline-offset-2"
-                    >
-                      pengaturan WhatsApp
-                    </Link>{" "}
-                    untuk mengaktifkan kanal ini.
-                  </p>
-                ) : null}
-              </div>
+              {WHATSAPP_INTEGRATION_ENABLED ? (
+                <div>
+                  <PreferenceSwitch
+                    id="channel-whatsapp"
+                    label="Notifikasi WhatsApp"
+                    description="Pengingat dan briefing dikirim ke nomor WhatsApp tertaut."
+                    checked={
+                      preferences.whatsappNotificationsEnabled && whatsappLinked
+                    }
+                    disabled={controlsDisabled || !whatsappLinked}
+                    onChange={(checked) =>
+                      updateMutation.mutate({
+                        whatsappNotificationsEnabled: checked,
+                      })
+                    }
+                  />
+                  {!whatsappLinked ? (
+                    <p className="pb-4 text-sm text-ink-muted">
+                      Tautkan nomor Anda di{" "}
+                      <Link
+                        to="/settings/integrations"
+                        className="font-semibold text-link underline underline-offset-2"
+                      >
+                        pengaturan integrasi
+                      </Link>{" "}
+                      untuk mengaktifkan kanal ini.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </Card>
           <Card className="p-6 sm:p-8" aria-label="Briefing harian">

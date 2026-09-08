@@ -14,6 +14,7 @@ import {
   userPreferencesQueryOptions,
   useUpdateUserPreferences,
 } from "@/lib/services/api/users/preferences.queries";
+import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
 import { SettingsPageHeader } from "./settings-nav";
 
 const PERSONA_OPTIONS: {
@@ -91,7 +92,11 @@ export function AssistantSettingsPage() {
       <SettingsPageHeader
         section="Asisten"
         title="Pengaturan asisten"
-        description="Atur nada, gaya bahasa, dan panjang jawaban Sydia. Perubahan berlaku mulai pesan Anda berikutnya, di web maupun WhatsApp."
+        description={
+          WHATSAPP_INTEGRATION_ENABLED
+            ? "Atur nada, gaya bahasa, dan panjang jawaban Sydia. Perubahan berlaku mulai pesan Anda berikutnya, di web maupun WhatsApp."
+            : "Atur nada, gaya bahasa, dan panjang jawaban Sydia. Perubahan berlaku mulai pesan Anda berikutnya."
+        }
       />
       {preferencesQuery.isError ? (
         <div className="border-y border-destructive/30 py-6" role="alert">

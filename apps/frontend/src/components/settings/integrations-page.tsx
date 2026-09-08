@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { CalendarDays, MessageSquareText, Send, Unplug } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CalendarDays, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -18,118 +16,10 @@ import {
   calendarStatusQueryOptions,
   useDisconnectCalendar,
 } from "@/lib/services/api/calendar/calendar.queries";
-import { whatsappStatusQueryOptions } from "@/lib/services/api/whatsapp/whatsapp.queries";
-import { telegramStatusQueryOptions } from "@/lib/services/api/telegram/telegram.queries";
+import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
+import { WhatsAppIntegrationCard } from "./whatsapp-page";
+import { TelegramIntegrationCard } from "./telegram-page";
 import { SettingsPageHeader } from "./settings-nav";
-
-function TelegramIntegrationCard() {
-  const statusQuery = useQuery(telegramStatusQueryOptions());
-  const status = statusQuery.data;
-
-  return (
-    <Card className="p-6 sm:p-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-xl">
-          <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
-            <Send className="size-5 text-brand-deep" /> Telegram
-          </h2>
-          {statusQuery.isPending ? (
-            <p className="mt-2 text-sm text-ink-muted" role="status">
-              Memeriksa koneksi…
-            </p>
-          ) : null}
-          {statusQuery.isError ? (
-            <p className="mt-2 text-sm text-destructive" role="alert">
-              {statusQuery.error.message}
-            </p>
-          ) : null}
-          {status ? (
-            <>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge dot={status.linked ? "brand" : "ink-weak"}>
-                  {status.linked ? "Tertaut" : "Belum tertaut"}
-                </Badge>
-              </div>
-              <p className="mt-3 text-sm text-ink-muted">
-                {status.linked
-                  ? `Terhubung ke ${status.username ? `@${status.username}` : (status.firstName ?? "akun Anda")}. Pesan dan balasan berjalan melalui bot Telegram Sydia.`
-                  : "Tautkan akun Anda untuk mengobrol dengan Sydia lewat Telegram."}
-              </p>
-            </>
-          ) : null}
-        </div>
-        <Button
-          variant="dark-outline"
-          size="sm"
-          nativeButton={false}
-          className="shrink-0"
-          render={<Link to="/settings/telegram" />}
-        >
-          Kelola Telegram
-        </Button>
-      </div>
-      {status?.available === false ? (
-        <p className="mt-4 text-sm text-ink-muted">
-          Integrasi Telegram belum tersedia di server ini.
-        </p>
-      ) : null}
-    </Card>
-  );
-}
-
-function WhatsAppIntegrationCard() {
-  const statusQuery = useQuery(whatsappStatusQueryOptions());
-  const status = statusQuery.data;
-
-  return (
-    <Card className="p-6 sm:p-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-xl">
-          <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
-            <MessageSquareText className="size-5 text-brand-deep" /> WhatsApp
-          </h2>
-          {statusQuery.isPending ? (
-            <p className="mt-2 text-sm text-ink-muted" role="status">
-              Memeriksa koneksi…
-            </p>
-          ) : null}
-          {statusQuery.isError ? (
-            <p className="mt-2 text-sm text-destructive" role="alert">
-              {statusQuery.error.message}
-            </p>
-          ) : null}
-          {status ? (
-            <>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge dot={status.linked ? "brand" : "ink-weak"}>
-                  {status.linked ? "Tertaut" : "Belum tertaut"}
-                </Badge>
-                {status.gateway.enforcementReason ||
-                status.gateway.sendingPaused ? (
-                  <Badge dot="destructive">Pengiriman dijeda</Badge>
-                ) : null}
-              </div>
-              <p className="mt-3 text-sm text-ink-muted">
-                {status.linked
-                  ? `Terhubung ke ${status.externalId ? status.externalId.split("@")[0]?.split(":")[0] : "nomor Anda"}. Pengingat dan balasan berjalan melalui WhatsApp.`
-                  : "Tautkan nomor Anda untuk membalas dan menerima pengingat lewat WhatsApp."}
-              </p>
-            </>
-          ) : null}
-        </div>
-        <Button
-          variant="dark-outline"
-          size="sm"
-          nativeButton={false}
-          className="shrink-0"
-          render={<Link to="/settings/whatsapp" />}
-        >
-          Kelola WhatsApp
-        </Button>
-      </div>
-    </Card>
-  );
-}
 
 function GoogleCalendarIntegrationCard() {
   const statusQuery = useQuery(calendarStatusQueryOptions());
@@ -164,9 +54,17 @@ function GoogleCalendarIntegrationCard() {
     <Card className="p-6 sm:p-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-xl">
-          <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
-            <CalendarDays className="size-5 text-brand-deep" /> Google Calendar
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
+              <CalendarDays className="size-5 text-brand-deep" /> Google
+              Calendar
+            </h2>
+            {status ? (
+              <span className="text-sm font-semibold text-ink-muted">
+                {status.connected ? "Terhubung" : "Belum terhubung"}
+              </span>
+            ) : null}
+          </div>
           {statusQuery.isPending ? (
             <p className="mt-2 text-sm text-ink-muted" role="status">
               Memeriksa koneksi…
@@ -178,10 +76,10 @@ function GoogleCalendarIntegrationCard() {
             </p>
           ) : null}
           {status ? (
-            <p className="mt-2 text-sm text-ink-muted">
+            <p className="mt-2 text-sm leading-[1.6] text-ink-muted">
               {status.connected
-                ? `Terhubung${status.calendarId ? ` ke ${status.calendarId}` : ""}. Acara disinkronkan dua arah.`
-                : "Belum terhubung. Agenda lokal Sydia tetap berfungsi."}
+                ? `Sinkronisasi dua arah dengan${status.calendarId ? ` ${status.calendarId}` : " kalender Google Anda"}.`
+                : "Hubungkan untuk menyinkronkan agenda Anda. Agenda lokal Sydia tetap berfungsi tanpa koneksi."}
             </p>
           ) : null}
         </div>
@@ -239,7 +137,7 @@ function GoogleCalendarIntegrationCard() {
         )}
       </div>
       {status?.available === false ? (
-        <p className="mt-4 text-sm text-ink-muted">
+        <p className="mt-4 text-sm text-ink-muted" role="status">
           Integrasi Google belum tersedia di server ini.
         </p>
       ) : null}
@@ -258,9 +156,9 @@ export function IntegrationSettingsPage() {
       <SettingsPageHeader
         section="Integrasi"
         title="Integrasi"
-        description="Layanan yang terhubung ke akun Sydia Anda. Mencabut integrasi menghentikan sinkronisasi tanpa menghapus data yang sudah tersimpan."
+        description="Kanal pesan dan layanan yang terhubung ke akun Sydia. Mencabut tautan menghentikan pesan dan sinkronisasi tanpa menghapus data yang sudah tersimpan."
       />
-      <WhatsAppIntegrationCard />
+      {WHATSAPP_INTEGRATION_ENABLED ? <WhatsAppIntegrationCard /> : null}
       <TelegramIntegrationCard />
       <GoogleCalendarIntegrationCard />
     </div>
