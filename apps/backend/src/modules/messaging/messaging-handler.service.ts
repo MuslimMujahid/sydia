@@ -17,7 +17,7 @@ export class MessagingHandlerService {
   constructor(private readonly assistant: AssistantOrchestratorService) {}
 
   async handle(input: InboundMessageInput): Promise<boolean> {
-    const turn = await this.assistant.send(input.user, {
+    const turn = await this.assistant.sendAndWait(input.user, {
       content: input.content,
       idempotencyKey: `${input.message.provider}:${input.message.providerMessageId}`,
       attachmentIds: input.attachmentIds,

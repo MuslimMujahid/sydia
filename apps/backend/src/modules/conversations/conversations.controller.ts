@@ -77,7 +77,7 @@ export class ConversationsController {
     if (!user) throw this.notFound();
 
     try {
-      return await this.orchestrator.send(user, input);
+      return await this.orchestrator.sendQueued(user, input);
     } catch (error) {
       if (error instanceof ConversationNotFoundError) throw this.notFound();
       throw error;

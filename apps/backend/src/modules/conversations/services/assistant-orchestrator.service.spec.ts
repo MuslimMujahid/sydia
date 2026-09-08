@@ -17,6 +17,15 @@ function resolved<T>(value: T) {
   return jest.fn<() => Promise<T>>().mockResolvedValue(value);
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 const now = new Date('2026-09-06T00:00:00.000Z');
 const conversation: Conversation = {
   id: 'conversation-1',
@@ -90,10 +99,14 @@ describe('AssistantOrchestratorService', () => {
       replaceSummary: jest.fn(),
     } as unknown as IConversationRepository;
 
-    const generate = resolved({
-      text: assistantMessage.content,
-      usage: {},
-    });
+    const generation = deferred<{
+      text: string;
+      usage: Record<string, never>;
+    }>();
+
+    const generate = jest.fn<LanguageModelGateway['generate']>(
+      () => generation.promise,
+    );
 
     const model: LanguageModelGateway = {
       provider: 'openrouter',
@@ -122,12 +135,19 @@ describe('AssistantOrchestratorService', () => {
       { schedule: scheduleMemoryDream } as never,
     );
 
-    const result = await orchestrator.send(user, {
+    const result = await orchestrator.sendQueued(user, {
       content: 'Halo',
       idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
     });
 
-    expect(result.assistantMessage).toEqual(assistantMessage);
+    expect(result.assistantMessage).toBeNull();
+    expect(result.assistantRun).toEqual(
+      expect.objectContaining({ status: 'queued' }),
+    );
+
+    generation.resolve({ text: assistantMessage.content, usage: {} });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
     expect(completeRun).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: 'run-1',
@@ -210,14 +230,18 @@ describe('AssistantOrchestratorService', () => {
       { schedule: scheduleMemoryDream } as never,
     );
 
-    const result = await orchestrator.send(user, {
+    const result = await orchestrator.sendQueued(user, {
       content: 'Halo',
       idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
     });
 
+    expect(result.assistantMessage).toBeNull();
+    expect(result.assistantRun).toEqual(queuedRun);
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
     expect(generate).toHaveBeenCalledTimes(1);
     expect(completeRun).toHaveBeenCalledTimes(1);
-    expect(result.assistantMessage).toEqual(assistantMessage);
     expect(scheduleMemoryDream).toHaveBeenCalledTimes(1);
   });
 
@@ -258,7 +282,7 @@ describe('AssistantOrchestratorService', () => {
       { schedule: scheduleMemoryDream } as never,
     );
 
-    await orchestrator.send(user, {
+    await orchestrator.sendQueued(user, {
       content: 'Halo',
       idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
     });

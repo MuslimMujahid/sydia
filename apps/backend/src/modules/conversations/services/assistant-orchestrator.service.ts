@@ -104,7 +104,7 @@ export class AssistantOrchestratorService {
     private readonly memoryDreamScheduler: MemoryDreamSchedulerService,
   ) {}
 
-  async send(
+  async sendQueued(
     user: TurnUser,
     input: {
       conversationId?: string;
@@ -113,6 +113,65 @@ export class AssistantOrchestratorService {
       attachmentIds?: string[];
     },
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
+    const prepared = await this.prepareSend(user, input);
+
+    if (prepared.completedResult) return prepared.completedResult;
+
+    this.scheduleExecution(
+      user,
+      prepared.conversation,
+      prepared.userMessage,
+      prepared.run,
+    );
+
+    return {
+      conversation: prepared.conversation,
+      userMessage: prepared.userMessage,
+      assistantMessage: null,
+      assistantRun: prepared.run,
+      toolInvocations: [],
+    };
+  }
+
+  async sendAndWait(
+    user: TurnUser,
+    input: {
+      conversationId?: string;
+      content: string;
+      idempotencyKey: string;
+      attachmentIds?: string[];
+    },
+  ): Promise<AssistantTurnResult & { userMessage: Message }> {
+    const prepared = await this.prepareSend(user, input);
+
+    if (prepared.completedResult) return prepared.completedResult;
+
+    return {
+      conversation: prepared.conversation,
+      userMessage: prepared.userMessage,
+      ...(await this.execute(
+        user,
+        prepared.conversation,
+        prepared.userMessage,
+        prepared.run,
+      )),
+    };
+  }
+
+  private async prepareSend(
+    user: TurnUser,
+    input: {
+      conversationId?: string;
+      content: string;
+      idempotencyKey: string;
+      attachmentIds?: string[];
+    },
+  ): Promise<{
+    conversation: Conversation;
+    userMessage: Message;
+    run: AssistantRun;
+    completedResult?: AssistantTurnResult & { userMessage: Message };
+  }> {
     const write = await this.conversations.writeUserMessage({
       userId: user.id,
       conversationId: input.conversationId,
@@ -144,24 +203,24 @@ export class AssistantOrchestratorService {
         return {
           conversation: write.conversation,
           userMessage: write.userMessage,
-          assistantMessage,
-          assistantRun: existingRun,
-          toolInvocations:
-            detail?.toolInvocations.filter(
-              (invocation) => invocation.assistantRunId === existingRun.id,
-            ) ?? [],
+          run: existingRun,
+          completedResult: {
+            conversation: write.conversation,
+            userMessage: write.userMessage,
+            assistantMessage,
+            assistantRun: existingRun,
+            toolInvocations:
+              detail?.toolInvocations.filter(
+                (invocation) => invocation.assistantRunId === existingRun.id,
+              ) ?? [],
+          },
         };
       }
 
       return {
         conversation: write.conversation,
         userMessage: write.userMessage,
-        ...(await this.execute(
-          user,
-          write.conversation,
-          write.userMessage,
-          existingRun,
-        )),
+        run: existingRun,
       };
     }
 
@@ -176,8 +235,37 @@ export class AssistantOrchestratorService {
     return {
       conversation: write.conversation,
       userMessage: write.userMessage,
-      ...(await this.execute(user, write.conversation, write.userMessage, run)),
+      run,
     };
+  }
+
+  private scheduleExecution(
+    user: TurnUser,
+    conversation: Conversation,
+    inputMessage: Message,
+    run: AssistantRun,
+  ): void {
+    void this.execute(user, conversation, inputMessage, run).catch(
+      async (error: unknown) => {
+        this.logger.error(
+          `Assistant run execution failed for ${run.id}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+
+        try {
+          await this.conversations.updateRun(run.id, {
+            status: 'failed',
+            errorMessage: SAFE_FAILURE_MESSAGE,
+            completedAt: new Date(),
+          });
+        } catch (failureError) {
+          this.logger.error(
+            `Assistant run failure persistence failed for ${run.id}`,
+            failureError instanceof Error ? failureError.stack : undefined,
+          );
+        }
+      },
+    );
   }
 
   async retry(
