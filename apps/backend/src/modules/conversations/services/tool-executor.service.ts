@@ -66,6 +66,10 @@ export class ToolExecutorService {
     );
   }
 
+  activityLabel(toolName: string): string | null {
+    return this.toolsByName[toolName]?.definition.label ?? null;
+  }
+
   aiTools(
     userId: string,
     runId: string,

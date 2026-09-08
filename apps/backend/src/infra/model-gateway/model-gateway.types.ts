@@ -5,6 +5,8 @@ export type { ModelMessage, ToolSet } from 'ai';
 export type GenerateRequest = {
   messages: ModelMessage[];
   tools?: ToolSet;
+  onTextDelta?: (delta: string) => void;
+  onToolCall?: (toolName: string) => void;
 };
 
 export type GenerateResult = {

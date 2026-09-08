@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
+import { createUIMessageStream } from 'ai';
+import type { InferUIMessageChunk, UIMessage } from 'ai';
 import type {
   AssistantRun,
   Conversation,
@@ -11,11 +13,11 @@ import {
   CONVERSATION_REPOSITORY,
   type IConversationRepository,
 } from '../../../database/interfaces';
-import {
-  LANGUAGE_MODEL,
-  type LanguageModelGateway,
-  type ModelMessage,
-} from '../../../infra/model-gateway';
+import { LANGUAGE_MODEL } from '../../../infra/model-gateway';
+import type {
+  LanguageModelGateway,
+  ModelMessage,
+} from '../../../infra/model-gateway/model-gateway.types';
 import { QueueService } from '../../../infra/queue';
 import { MemoryDreamSchedulerService } from '../../memories/memory-dream-scheduler.service';
 import { ContextBuilderService } from './context-builder.service';
@@ -44,6 +46,23 @@ type GenerationUsage = {
   inputTokens?: number;
   outputTokens?: number;
   costUsd?: number;
+};
+
+export type AssistantActivityPhase =
+  'queued' | 'preparing' | 'executing_tool' | 'awaiting_confirmation';
+
+export type AssistantStreamMessage = UIMessage<
+  never,
+  {
+    activity: { phase: AssistantActivityPhase; label: string };
+    turn: AssistantTurnResult & { userMessage: Message };
+  }
+>;
+
+type ExecutionObserver = {
+  onTextDelta(delta: string): void;
+  onToolCall(label: string): void;
+  onToolResult(invocation: ToolInvocation): void;
 };
 
 const AssistantTurnState = Annotation.Root({
@@ -131,6 +150,117 @@ export class AssistantOrchestratorService {
       assistantRun: prepared.run,
       toolInvocations: [],
     };
+  }
+
+  stream(
+    user: TurnUser,
+    input: {
+      conversationId?: string;
+      content: string;
+      idempotencyKey: string;
+      attachmentIds?: string[];
+    },
+  ): ReadableStream<InferUIMessageChunk<AssistantStreamMessage>> {
+    return createUIMessageStream<AssistantStreamMessage>({
+      execute: async ({ writer }) => {
+        writer.write({ type: 'start' });
+        writer.write({
+          type: 'data-activity',
+          data: { phase: 'queued', label: 'Menunggu giliran…' },
+          transient: true,
+        });
+
+        const prepared = await this.prepareSend(user, input);
+        writer.write({
+          type: 'data-turn',
+          id: prepared.run.id,
+          data: prepared.completedResult ?? {
+            conversation: prepared.conversation,
+            userMessage: prepared.userMessage,
+            assistantMessage: null,
+            assistantRun: prepared.run,
+            toolInvocations: [],
+          },
+        });
+
+        if (prepared.completedResult) {
+          writer.write({ type: 'finish', finishReason: 'stop' });
+
+          return;
+        }
+
+        writer.write({
+          type: 'data-activity',
+          data: {
+            phase: 'preparing',
+            label: 'Sydia sedang menyiapkan jawaban…',
+          },
+          transient: true,
+        });
+
+        const textId = `answer-${prepared.run.id}`;
+        let textStarted = false;
+        const result = await this.execute(
+          user,
+          prepared.conversation,
+          prepared.userMessage,
+          prepared.run,
+          {
+            onTextDelta: (delta) => {
+              if (!textStarted) {
+                writer.write({ type: 'text-start', id: textId });
+                textStarted = true;
+              }
+
+              writer.write({ type: 'text-delta', id: textId, delta });
+            },
+            onToolCall: (label) => {
+              writer.write({
+                type: 'data-activity',
+                data: {
+                  phase: 'executing_tool',
+                  label: `Sydia sedang ${label.toLocaleLowerCase('id-ID')}…`,
+                },
+                transient: true,
+              });
+            },
+            onToolResult: (invocation) => {
+              if (invocation.status !== 'awaiting_confirmation') return;
+              writer.write({
+                type: 'data-activity',
+                data: {
+                  phase: 'awaiting_confirmation',
+                  label: 'Butuh persetujuan Anda untuk melanjutkan',
+                },
+                transient: true,
+              });
+            },
+          },
+        );
+
+        if (textStarted) writer.write({ type: 'text-end', id: textId });
+        writer.write({
+          type: 'data-turn',
+          id: prepared.run.id,
+          data: {
+            conversation: prepared.conversation,
+            userMessage: prepared.userMessage,
+            ...result,
+          },
+        });
+
+        if (result.assistantRun.status === 'failed') {
+          writer.write({ type: 'error', errorText: SAFE_FAILURE_MESSAGE });
+        }
+
+        writer.write({
+          type: 'finish',
+          finishReason:
+            result.assistantRun.status === 'failed' ? 'error' : 'stop',
+        });
+      },
+      onError: () => SAFE_FAILURE_MESSAGE,
+    });
   }
 
   async sendAndWait(
@@ -304,6 +434,7 @@ export class AssistantOrchestratorService {
     conversation: Conversation,
     inputMessage: Message,
     run: AssistantRun,
+    observer?: ExecutionObserver,
   ): Promise<Omit<AssistantTurnResult, 'conversation' | 'userMessage'>> {
     const staleBefore = new Date(Date.now() - RUN_STALE_AFTER_MS);
     const claimed = await this.conversations.claimRun(run.id, staleBefore);
@@ -342,15 +473,26 @@ export class AssistantOrchestratorService {
         if (state.errorMessage) return {};
 
         try {
-          const generation = await this.languageModel.generate({
+          const generationRequest = {
             messages: state.context,
             tools: this.toolExecutor.aiTools(
               state.user.id,
               state.run.id,
               state.inputMessage.id,
-              (result) => toolInvocations.push(result.invocation),
+              (result) => {
+                toolInvocations.push(result.invocation);
+                observer?.onToolResult(result.invocation);
+              },
             ),
-          });
+            onTextDelta: (delta: string) => observer?.onTextDelta(delta),
+            onToolCall: (toolName: string) => {
+              const label = this.toolExecutor.activityLabel(toolName);
+              if (label) observer?.onToolCall(label);
+            },
+          };
+
+          const generation =
+            await this.languageModel.generate(generationRequest);
 
           return {
             text: generation.text || toolConfirmation(toolInvocations) || '',

@@ -1,6 +1,6 @@
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +8,10 @@ import {
   useRetryAssistantRun,
   useSendConversationMessage,
 } from "@/lib/services/api/conversations/conversations.queries";
-import type { SendMessageVariables } from "@/lib/services/api/conversations/conversations.api";
+import type {
+  AssistantActivity,
+  SendMessageVariables,
+} from "@/lib/services/api/conversations/conversations.api";
 import { ChatComposer } from "./chat-composer";
 import { MessageHistory } from "./message-history";
 import { TodayAgenda } from "./today-agenda";
@@ -77,7 +80,33 @@ export function ChatPage({
     conversationQueryOptions(conversationId ?? "")
   );
 
-  const sendMutation = useSendConversationMessage();
+  const [streamedActivity, setStreamedActivity] = useState<AssistantActivity>();
+  const [streamedText, setStreamedText] = useState("");
+  const [streamCompleted, setStreamCompleted] = useState(false);
+  const sendMutation = useSendConversationMessage({
+    onActivity: setStreamedActivity,
+    onTextDelta: (delta) => setStreamedText((text) => text + delta),
+    onTurn: (result) => {
+      if (!conversationId) {
+        void navigate({
+          to: "/",
+          search: {
+            conversation: result.conversation.id,
+            attachment: undefined,
+          },
+          replace: true,
+        });
+      }
+
+      if (
+        result.assistantRun.status === "completed" ||
+        result.assistantRun.status === "failed"
+      ) {
+        setStreamCompleted(true);
+      }
+    },
+  });
+
   const retryMutation = useRetryAssistantRun();
   const messages = conversationQuery.data?.messages ?? [];
   const assistantRuns = conversationQuery.data?.assistantRuns ?? [];
@@ -92,15 +121,13 @@ export function ChatPage({
   }, [newestMessageId, newestRunUpdate, sendMutation.isPending]);
 
   async function handleSend(values: SendMessageVariables) {
-    const result = await sendMutation.mutateAsync(values);
-
-    if (!conversationId) {
-      await navigate({
-        to: "/",
-        search: { conversation: result.conversation.id, attachment: undefined },
-        replace: true,
-      });
-    }
+    setStreamedText("");
+    setStreamCompleted(false);
+    setStreamedActivity({
+      phase: "queued",
+      label: "Menunggu giliran…",
+    });
+    await sendMutation.mutateAsync(values);
   }
 
   function handleRetry(runId: string) {
@@ -128,12 +155,13 @@ export function ChatPage({
         ? "Muat ulang percakapan sebelum mengirim pesan."
         : undefined;
 
-  const optimisticMessage = sendMutation.isPending
-    ? {
-        content: sendMutation.variables.content,
-        attachmentCount: sendMutation.variables.attachmentIds?.length ?? 0,
-      }
-    : undefined;
+  const optimisticMessage =
+    sendMutation.isPending && !hasActiveRun && !streamCompleted
+      ? {
+          content: sendMutation.variables.content,
+          attachmentCount: sendMutation.variables.attachmentIds?.length ?? 0,
+        }
+      : undefined;
 
   const retryingRunId = retryMutation.isPending
     ? retryMutation.variables.runId
@@ -185,8 +213,9 @@ export function ChatPage({
             messages={[]}
             assistantRuns={[]}
             toolInvocations={[]}
-            optimisticMessage={optimisticMessage}
-            isSending
+            isSending={!streamCompleted}
+            streamedActivity={streamedActivity}
+            streamedText={streamedText}
             onRetry={handleRetry}
           />
         ) : null}
@@ -205,7 +234,9 @@ export function ChatPage({
             assistantRuns={assistantRuns}
             toolInvocations={toolInvocations}
             optimisticMessage={optimisticMessage}
-            isSending={sendMutation.isPending}
+            isSending={sendMutation.isPending && !streamCompleted}
+            streamedActivity={streamedActivity}
+            streamedText={streamedText}
             retryingRunId={retryingRunId}
             retryErrorRunId={retryErrorRunId}
             retryErrorMessage={retryMutation.error?.message}

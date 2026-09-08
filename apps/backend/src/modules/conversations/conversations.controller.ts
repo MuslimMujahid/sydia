@@ -7,7 +7,10 @@ import {
   Inject,
   Param,
   Post,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { pipeUIMessageStreamToResponse } from 'ai';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   CONVERSATION_REPOSITORY,
@@ -82,6 +85,21 @@ export class ConversationsController {
       if (error instanceof ConversationNotFoundError) throw this.notFound();
       throw error;
     }
+  }
+
+  @Post('messages/stream')
+  async stream(
+    @Session() session: UserSession,
+    @Body() input: SendMessageDto,
+    @Res() response: Response,
+  ): Promise<void> {
+    const user = await this.users.findById(session.user.id);
+    if (!user) throw this.notFound();
+
+    await pipeUIMessageStreamToResponse({
+      response,
+      stream: this.orchestrator.stream(user, input),
+    });
   }
 
   @Post(':conversationId/runs/:runId/retry')

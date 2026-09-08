@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { generateText, stepCountIs } from 'ai';
+import { generateText, stepCountIs, streamText } from 'ai';
 import type { LanguageModel as AiLanguageModel } from 'ai';
 import type {
   GenerateRequest,
@@ -73,7 +73,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     }
 
     try {
-      const result = await generateText({
+      const options = {
         model: this.languageModel,
         messages: request.messages,
         allowSystemInMessages: true,
@@ -85,7 +85,37 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
             : undefined,
         maxRetries: 0,
-      });
+      } as const;
+
+      if (request.onTextDelta || request.onToolCall) {
+        const result = streamText({
+          ...options,
+          onChunk: ({ chunk }) => {
+            if (chunk.type === 'text-delta') {
+              request.onTextDelta?.(chunk.text);
+            } else if (chunk.type === 'tool-call') {
+              request.onToolCall?.(chunk.toolName);
+            }
+          },
+        });
+
+        const [text, usage, providerMetadata] = await Promise.all([
+          result.text,
+          result.usage,
+          result.providerMetadata,
+        ]);
+
+        return {
+          text: text.trim(),
+          usage: {
+            inputTokens: tokenCount(usage.inputTokens),
+            outputTokens: tokenCount(usage.outputTokens),
+            costUsd: openRouterCost(providerMetadata),
+          },
+        };
+      }
+
+      const result = await generateText(options);
 
       return {
         text: result.text.trim(),

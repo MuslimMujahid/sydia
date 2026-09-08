@@ -245,6 +245,89 @@ describe('AssistantOrchestratorService', () => {
     expect(scheduleMemoryDream).toHaveBeenCalledTimes(1);
   });
 
+  it('streams activity and text while preserving the completed turn', async () => {
+    const completedRun = createRun('completed');
+    const assistantMessage: Message = {
+      ...userMessage,
+      id: 'message-2',
+      role: 'assistant',
+      content: 'Halo, Ayu.',
+    };
+
+    const repository = {
+      writeUserMessage: resolved({
+        conversation,
+        userMessage,
+        replayed: false,
+      }),
+      findLatestRunForMessage: resolved(null),
+      createRun: resolved(createRun()),
+      claimRun: resolved(true),
+      findContext: resolved({
+        conversation: {
+          id: conversation.id,
+          rollingSummary: null,
+          summaryThroughMessageId: null,
+        },
+        messages: [userMessage],
+      }),
+      completeRun: resolved({ assistantMessage, assistantRun: completedRun }),
+      updateRun: resolved(completedRun),
+      replaceSummary: jest.fn(),
+    } as unknown as IConversationRepository;
+
+    const generate = jest.fn<LanguageModelGateway['generate']>((request) => {
+      request.onTextDelta?.('Halo, ');
+      request.onTextDelta?.('Ayu.');
+
+      return Promise.resolve({ text: assistantMessage.content, usage: {} });
+    });
+
+    const model: LanguageModelGateway = {
+      provider: 'openrouter',
+      model: 'test-model',
+      generate,
+    };
+
+    const config = new ConfigService();
+    const orchestrator = new AssistantOrchestratorService(
+      repository,
+      model,
+      new ContextBuilderService(repository, config),
+      new ConversationSummarizerService(repository, model, config),
+      new ToolExecutorService(repository, []),
+      { conversationSummaries: { add: resolved({}) } } as never,
+      { schedule: resolved(undefined) } as never,
+    );
+
+    const chunks: Array<{ type: string; data?: unknown; delta?: string }> = [];
+
+    for await (const chunk of orchestrator.stream(user, {
+      content: 'Halo',
+      idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
+    })) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'data-activity',
+          data: expect.objectContaining({ phase: 'queued' }) as unknown,
+        }),
+        expect.objectContaining({ type: 'text-delta', delta: 'Halo, ' }),
+        expect.objectContaining({ type: 'text-delta', delta: 'Ayu.' }),
+        expect.objectContaining({
+          type: 'data-turn',
+          data: expect.objectContaining({
+            assistantMessage,
+            assistantRun: completedRun,
+          }) as unknown,
+        }),
+      ]),
+    );
+  });
+
   it('replays an idempotent message without invoking the model again', async () => {
     const run = createRun('completed');
     const repository = {

@@ -13,6 +13,7 @@ import {
   type AssistantRun,
   type ConversationDetail,
   type ConversationMessage,
+  type ConversationStreamHandlers,
   type RetryAssistantRunResult,
   type SendMessageResult,
   type ToolInvocation,
@@ -105,12 +106,22 @@ function cacheRetryResult(
   );
 }
 
-export function useSendConversationMessage() {
+export function useSendConversationMessage(
+  handlers: Omit<ConversationStreamHandlers, "onTurn"> & {
+    onTurn?(result: SendMessageResult): void;
+  }
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: sendConversationMessage,
-    onSuccess: (result) => cacheSendResult(queryClient, result),
+    mutationFn: (values: Parameters<typeof sendConversationMessage>[0]) =>
+      sendConversationMessage(values, {
+        ...handlers,
+        onTurn: (result) => {
+          cacheSendResult(queryClient, result);
+          handlers.onTurn?.(result);
+        },
+      }),
     meta: { invalidateQueries: [conversationQueryKeys.all] },
   });
 }

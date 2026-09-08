@@ -3,11 +3,11 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
 import type {
+  AssistantActivity,
   AssistantRun,
   ConversationMessage,
   ToolInvocation,
 } from "@/lib/services/api/conversations/conversations.api";
-import { AssistantActivity } from "./assistant-activity";
 import { AssistantMarkdown } from "./assistant-markdown";
 import { ChatActionCards } from "./action-cards";
 
@@ -81,15 +81,44 @@ type TimelineEntry =
   | { type: "message"; timestamp: string; message: ConversationMessage }
   | { type: "run"; timestamp: string; run: AssistantRun };
 
+function currentActivity(
+  run: AssistantRun,
+  toolInvocations: ToolInvocation[]
+): AssistantActivity {
+  const latestTool = toolInvocations.at(-1);
+
+  if (latestTool?.status === "awaiting_confirmation") {
+    return {
+      phase: "awaiting_confirmation",
+      label: "Butuh persetujuan Anda untuk melanjutkan",
+    };
+  }
+
+  if (
+    latestTool &&
+    (latestTool.status === "pending" || latestTool.status === "running")
+  ) {
+    return {
+      phase: "executing_tool",
+      label: `Sydia sedang ${latestTool.label.toLocaleLowerCase("id-ID")}…`,
+    };
+  }
+
+  return run.status === "queued"
+    ? { phase: "queued", label: "Menunggu giliran…" }
+    : {
+        phase: "preparing",
+        label: "Sydia sedang menyiapkan jawaban…",
+      };
+}
+
 function FailedRun({
   run,
-  toolInvocations,
   isRetrying,
   retryErrorMessage,
   onRetry,
 }: {
   run: AssistantRun;
-  toolInvocations: ToolInvocation[];
   isRetrying: boolean;
   retryErrorMessage?: string;
   onRetry: (runId: string) => void;
@@ -125,33 +154,38 @@ function FailedRun({
           </Button>
         </div>
       </div>
-      <AssistantActivity run={run} toolInvocations={toolInvocations} />
     </div>
   );
 }
 
 function PendingAssistant({
-  run,
-  toolInvocations,
+  activity,
+  streamedText,
 }: {
-  run?: AssistantRun;
-  toolInvocations: ToolInvocation[];
+  activity?: AssistantActivity;
+  streamedText?: string;
 }) {
   return (
-    <div className="max-w-xl" role="status" aria-live="polite">
-      <div className="flex items-center gap-3 text-ink-muted">
+    <article className="max-w-xl" aria-label="Jawaban Sydia">
+      <div className="mb-3 flex items-center gap-3">
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-canvas ring-1 ring-surface-1">
           <SydiaLogo className="h-4" />
         </span>
-        <span className="flex items-center gap-2 text-sm">
-          <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
-          Sydia sedang menyiapkan jawaban…
-        </span>
+        <span className="font-display text-sm font-bold">Sydia</span>
       </div>
-      {run ? (
-        <AssistantActivity run={run} toolInvocations={toolInvocations} />
-      ) : null}
-    </div>
+      {streamedText ? (
+        <AssistantMarkdown content={streamedText} />
+      ) : (
+        <div
+          className="flex items-center gap-2 text-sm text-ink-muted"
+          role="status"
+          aria-live="polite"
+        >
+          <LoaderCircle className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
+          <span>{activity?.label ?? "Sydia sedang menyiapkan jawaban…"}</span>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -161,6 +195,8 @@ export function MessageHistory({
   toolInvocations,
   optimisticMessage,
   isSending,
+  streamedActivity,
+  streamedText,
   retryErrorRunId,
   retryingRunId,
   retryErrorMessage,
@@ -171,6 +207,8 @@ export function MessageHistory({
   toolInvocations: ToolInvocation[];
   optimisticMessage?: { content: string; attachmentCount?: number };
   isSending: boolean;
+  streamedActivity?: AssistantActivity;
+  streamedText?: string;
   retryingRunId?: string;
   retryErrorRunId?: string;
   retryErrorMessage?: string;
@@ -216,6 +254,10 @@ export function MessageHistory({
     );
   }, [assistantRuns, messages]);
 
+  const hasActiveRun = assistantRuns.some(
+    (run) => run.status === "queued" || run.status === "running"
+  );
+
   return (
     <ol className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
       {timeline.map((entry) => {
@@ -225,7 +267,6 @@ export function MessageHistory({
               <li key={`run-${entry.run.id}`}>
                 <FailedRun
                   run={entry.run}
-                  toolInvocations={toolsByRunId[entry.run.id] ?? []}
                   isRetrying={retryingRunId === entry.run.id}
                   retryErrorMessage={
                     retryErrorRunId === entry.run.id
@@ -239,11 +280,15 @@ export function MessageHistory({
           }
 
           if (entry.run.status === "queued" || entry.run.status === "running") {
+            const activity =
+              streamedActivity ??
+              currentActivity(entry.run, toolsByRunId[entry.run.id] ?? []);
+
             return (
               <li key={`run-${entry.run.id}`}>
                 <PendingAssistant
-                  run={entry.run}
-                  toolInvocations={toolsByRunId[entry.run.id] ?? []}
+                  activity={activity}
+                  streamedText={streamedText}
                 />
               </li>
             );
@@ -340,12 +385,6 @@ export function MessageHistory({
               {!isUser && run ? (
                 <ChatActionCards invocations={toolsByRunId[run.id] ?? []} />
               ) : null}
-              {!isUser && run ? (
-                <AssistantActivity
-                  run={run}
-                  toolInvocations={toolsByRunId[run.id] ?? []}
-                />
-              ) : null}
             </article>
           </li>
         );
@@ -377,9 +416,12 @@ export function MessageHistory({
         </li>
       ) : null}
 
-      {isSending ? (
+      {isSending && !hasActiveRun ? (
         <li>
-          <PendingAssistant toolInvocations={[]} />
+          <PendingAssistant
+            activity={streamedActivity}
+            streamedText={streamedText}
+          />
         </li>
       ) : null}
     </ol>
