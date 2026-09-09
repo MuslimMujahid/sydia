@@ -476,6 +476,7 @@ export class AssistantOrchestratorService {
         try {
           const generationRequest = {
             messages: state.context,
+            userId: state.user.id,
             conversationId: state.conversation.id,
             runId: state.run.id,
             tools: this.toolExecutor.aiTools(

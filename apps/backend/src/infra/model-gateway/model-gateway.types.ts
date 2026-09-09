@@ -4,6 +4,7 @@ export type { ModelMessage, ToolSet } from 'ai';
 
 export type GenerateRequest = {
   messages: ModelMessage[];
+  userId?: string;
   conversationId?: string;
   runId?: string;
   tools?: ToolSet;

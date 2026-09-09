@@ -1,8 +1,49 @@
 # Development-only services. Run from the repository root:
 #   docker compose --env-file .env -f docker/docker-compose.dev.yml up -d
-# The shared root .env supplies the BACKEND_DB_* values below.
+# Sydia infrastructure and the self-hosted Langfuse stack persist independently.
 
 name: sydia
+
+x-langfuse-environment: &langfuse-environment
+  NEXTAUTH_URL: http://localhost:3100
+  DATABASE_URL: postgresql://langfuse:langfuse-dev@langfuse-postgres:5432/langfuse
+  SALT: sydia-langfuse-development-salt
+  ENCRYPTION_KEY: 6a387d3847f39b9d52c4bb292bc0ce855f96f50d19b84361d1f3449ce914f62f
+  TELEMETRY_ENABLED: "false"
+  LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+  CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+  CLICKHOUSE_USER: langfuse
+  CLICKHOUSE_PASSWORD: langfuse-dev
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  REDIS_HOST: langfuse-redis
+  REDIS_PORT: 6379
+  REDIS_AUTH: langfuse-dev
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: langfuse-dev
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: langfuse
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: langfuse-dev
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+
+x-langfuse-depends-on: &langfuse-depends-on
+  langfuse-postgres:
+    condition: service_healthy
+  langfuse-redis:
+    condition: service_healthy
+  langfuse-clickhouse:
+    condition: service_healthy
+  langfuse-minio:
+    condition: service_healthy
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -20,17 +61,131 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
   redis:
     image: redis:8-alpine
     restart: unless-stopped
     ports:
       - "${BACKEND_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:4
+    restart: unless-stopped
+    depends_on: *langfuse-depends-on
+    ports:
+      - "127.0.0.1:3100:3000"
+    environment:
+      <<: *langfuse-environment
+      NEXTAUTH_SECRET: sydia-langfuse-development-nextauth-secret
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9090
+      LANGFUSE_S3_MEDIA_UPLOAD_INTERNAL_ENDPOINT: http://langfuse-minio:9000
+      LANGFUSE_INIT_ORG_ID: sydia-local
+      LANGFUSE_INIT_ORG_NAME: Sydia Local
+      LANGFUSE_INIT_PROJECT_ID: sydia-local
+      LANGFUSE_INIT_PROJECT_NAME: Sydia Local
+      # Fixed development-only credentials for the separate local Langfuse UI.
+      # These must not come from BACKEND_LANGFUSE_* (which target Cloud).
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-sydia-local
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-sydia-local
+      LANGFUSE_INIT_USER_EMAIL: dev@sydia.local
+      LANGFUSE_INIT_USER_NAME: Sydia Developer
+      LANGFUSE_INIT_USER_PASSWORD: sydia-langfuse-dev-password
+
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:4
+    restart: unless-stopped
+    depends_on: *langfuse-depends-on
+    environment: *langfuse-environment
+
+  langfuse-postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse-dev
+      POSTGRES_DB: langfuse
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - langfuse-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  langfuse-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "langfuse-dev",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
+    volumes:
+      - langfuse-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "langfuse-dev", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:25.12
+    restart: unless-stopped
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: langfuse-dev
+    volumes:
+      - langfuse-clickhouse-data:/var/lib/clickhouse
+      - langfuse-clickhouse-logs:/var/log/clickhouse-server
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 1s
+
+  langfuse-minio:
+    image: cgr.dev/chainguard/minio
+    restart: unless-stopped
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: langfuse
+      MINIO_ROOT_PASSWORD: langfuse-dev
+    ports:
+      - "127.0.0.1:9090:9000"
+    volumes:
+      - langfuse-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
+
 volumes:
-  redis-data:
   postgres-data:
+  redis-data:
+  langfuse-postgres-data:
+  langfuse-redis-data:
+  langfuse-clickhouse-data:
+  langfuse-clickhouse-logs:
+  langfuse-minio-data:

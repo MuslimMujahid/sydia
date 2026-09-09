@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import {
@@ -8,6 +8,7 @@ import {
   streamText,
 } from 'ai';
 import type { LanguageModel as AiLanguageModel } from 'ai';
+import { ObservabilityService, type GenerationTracer } from '../observability';
 import type {
   GenerateRequest,
   GenerateResult,
@@ -57,7 +58,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
   private readonly languageModel: AiLanguageModel;
   private readonly logger = new Logger(OpenRouterLanguageModel.name);
 
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    @Inject(ObservabilityService)
+    private readonly observability: GenerationTracer = ObservabilityService.disabled(),
+  ) {
     this.apiKey =
       config.get<string>('BACKEND_MODEL_API_KEY')?.trim() || undefined;
     this.model =
@@ -98,95 +103,126 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       maxRetries: 0,
     });
 
-    try {
-      if (request.onTextDelta || request.onToolCall) {
-        for (let attempt = 1; attempt <= 2; attempt += 1) {
-          let streamError: unknown;
-          let toolCallCount = 0;
+    const streaming = Boolean(request.onTextDelta || request.onToolCall);
+    let lastToolCallCount = 0;
 
-          try {
-            const result = streamText({
-              ...options(),
-              onChunk: ({ chunk }) => {
-                if (chunk.type === 'tool-call') {
-                  toolCallCount += 1;
-                  request.onToolCall?.(chunk.toolName);
-                }
-              },
-              onError: ({ error }) => {
-                streamError = error;
-              },
-            });
+    const runAttempt = async (attempt: number): Promise<GenerateResult> => {
+      let toolCallCount = 0;
+      lastToolCallCount = 0;
 
-            const [text, usage, providerMetadata] = await Promise.all([
-              result.text,
-              result.usage,
-              result.providerMetadata,
-            ]);
+      return this.observability
+        .traceGeneration(
+          {
+            provider: this.provider,
+            model: this.model,
+            messages: request.messages,
+            userId: request.userId,
+            conversationId: request.conversationId,
+            runId: request.runId,
+            attempt,
+          },
+          async (trace) => {
+            if (streaming) {
+              let streamError: unknown;
+              const result = streamText({
+                ...options(),
+                onChunk: ({ chunk }) => {
+                  if (chunk.type === 'tool-call') {
+                    toolCallCount += 1;
+                    lastToolCallCount = toolCallCount;
+                    request.onToolCall?.(chunk.toolName);
+                  }
+                },
+                onError: ({ error }) => {
+                  streamError = error;
+                },
+              });
 
-            if (streamError) throw errorObject(streamError);
-            const finalText = text.trim();
-            if (finalText) request.onTextDelta?.(finalText);
+              const [text, usage, providerMetadata] = await Promise.all([
+                result.text,
+                result.usage,
+                result.providerMetadata,
+              ]);
 
-            if (attempt === 2) {
-              this.logger.log(
-                JSON.stringify({
-                  event: 'assistant_generation_retry_succeeded',
-                  conversationId: request.conversationId ?? null,
-                  runId: request.runId ?? null,
-                  attempt,
-                }),
-              );
-            }
+              if (streamError) throw errorObject(streamError);
 
-            return {
-              text: finalText,
-              usage: {
+              const finalText = text.trim();
+              if (finalText) request.onTextDelta?.(finalText);
+              const normalizedUsage = {
                 inputTokens: tokenCount(usage.inputTokens),
                 outputTokens: tokenCount(usage.outputTokens),
                 costUsd: openRouterCost(providerMetadata),
-              },
-            };
-          } catch (error) {
-            const noOutput = NoOutputGeneratedError.isInstance(error);
-            const retry = attempt === 1 && noOutput && toolCallCount === 0;
-            this.logger.warn(
-              JSON.stringify({
-                event: 'assistant_generation_failed',
-                conversationId: request.conversationId ?? null,
-                runId: request.runId ?? null,
-                attempt,
-                errorName: error instanceof Error ? error.name : 'UnknownError',
-                toolCallCount,
-                retry,
-              }),
-            );
-            if (!retry) throw errorObject(error);
-          }
-        }
+              };
 
-        throw new NoOutputGeneratedError();
-      }
+              trace.update({
+                output: finalText,
+                inputTokens: normalizedUsage.inputTokens,
+                outputTokens: normalizedUsage.outputTokens,
+                costUsd: normalizedUsage.costUsd,
+              });
 
-      for (let attempt = 1; attempt <= 2; attempt += 1) {
-        try {
-          const result = await generateText(options());
+              if (attempt === 2) {
+                this.logger.log(
+                  JSON.stringify({
+                    event: 'assistant_generation_retry_succeeded',
+                    conversationId: request.conversationId ?? null,
+                    runId: request.runId ?? null,
+                    attempt,
+                  }),
+                );
+              }
 
-          return {
-            text: result.text.trim(),
-            usage: {
+              return { text: finalText, usage: normalizedUsage };
+            }
+
+            const result = await generateText(options());
+            const finalText = result.text.trim();
+            const normalizedUsage = {
               inputTokens: tokenCount(result.usage.inputTokens),
               outputTokens: tokenCount(result.usage.outputTokens),
               costUsd: openRouterCost(result.providerMetadata),
-            },
-          };
+            };
+
+            trace.update({
+              output: finalText,
+              inputTokens: normalizedUsage.inputTokens,
+              outputTokens: normalizedUsage.outputTokens,
+              costUsd: normalizedUsage.costUsd,
+            });
+
+            return { text: finalText, usage: normalizedUsage };
+          },
+        )
+        .catch((error: unknown) => {
+          this.logger.warn(
+            JSON.stringify({
+              event: 'assistant_generation_failed',
+              conversationId: request.conversationId ?? null,
+              runId: request.runId ?? null,
+              attempt,
+              errorName: error instanceof Error ? error.name : 'UnknownError',
+              toolCallCount,
+              retry:
+                attempt === 1 &&
+                NoOutputGeneratedError.isInstance(error) &&
+                (streaming ? toolCallCount === 0 : request.tools === undefined),
+            }),
+          );
+          throw error;
+        });
+    };
+
+    try {
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          return await runAttempt(attempt);
         } catch (error) {
-          if (
-            attempt === 2 ||
-            request.tools !== undefined ||
-            !NoOutputGeneratedError.isInstance(error)
-          )
-            throw error;
+          const canRetry =
+            attempt === 1 &&
+            NoOutputGeneratedError.isInstance(error) &&
+            (streaming ? lastToolCallCount === 0 : request.tools === undefined);
+
+          if (!canRetry) throw error;
         }
       }
 
@@ -206,7 +242,6 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       this.logger.error(
         `OpenRouter request failed (${errorName}${statusCode === undefined ? '' : `, status ${statusCode}`})`,
       );
-
       throw new ModelGatewayError('Model assistant tidak dapat dihubungi.');
     }
   }

@@ -98,11 +98,19 @@ export class MemoryDreamService {
     if (!run) return { status: 'skipped' };
 
     try {
-      const candidates = await this.extractCandidates(segment);
+      const candidates = await this.extractCandidates(segment, run.id);
       let mutationCount = 0;
 
       for (const [index, candidate] of candidates.entries()) {
-        if (await this.applyCandidate(userId, run.id, index, candidate)) {
+        if (
+          await this.applyCandidate(
+            userId,
+            segment.conversationId,
+            run.id,
+            index,
+            candidate,
+          )
+        ) {
           mutationCount += 1;
         }
       }
@@ -132,8 +140,12 @@ export class MemoryDreamService {
 
   private async extractCandidates(
     segment: MemoryDreamSegment,
+    runId: string,
   ): Promise<Candidate[]> {
     const result = await this.model.generate({
+      userId: segment.userId,
+      conversationId: segment.conversationId,
+      runId,
       messages: [
         {
           role: 'system',
@@ -213,6 +225,7 @@ export class MemoryDreamService {
 
   private async applyCandidate(
     userId: string,
+    conversationId: string,
     dreamRunId: string,
     _index: number,
     candidate: Candidate,
@@ -232,7 +245,13 @@ export class MemoryDreamService {
 
     if (exact) return false;
 
-    const consolidation = await this.consolidate(candidate.content, existing);
+    const consolidation = await this.consolidate(
+      userId,
+      conversationId,
+      dreamRunId,
+      candidate.content,
+      existing,
+    );
 
     if (
       consolidation.action === 'ignore' ||
@@ -279,11 +298,17 @@ export class MemoryDreamService {
   }
 
   private async consolidate(
+    userId: string,
+    conversationId: string,
+    runId: string,
     candidate: string,
     existing: Memory[],
   ): Promise<Consolidation> {
     if (existing.length === 0) return { action: 'create' };
     const result = await this.model.generate({
+      userId,
+      conversationId,
+      runId,
       messages: [
         {
           role: 'system',

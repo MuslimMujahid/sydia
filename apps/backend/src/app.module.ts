@@ -25,6 +25,7 @@ import { TelegramInfraModule } from './infra/telegram';
 import { TelegramModule } from './modules/telegram';
 import { NotificationsModule } from './modules/notifications';
 import { AppController } from './app.controller';
+import { ObservabilityModule } from './infra/observability';
 import { AppService } from './app.service';
 
 function parsePort(
@@ -138,6 +139,46 @@ export function validateEnvironment(
   const backendPort = parsePort(config, 'BACKEND_PORT', 5000);
   const frontendPort = parsePort(config, 'FRONTEND_PORT', 3000);
   const authUrl = config.BACKEND_AUTH_URL;
+  const langfusePublicKey =
+    typeof config.BACKEND_LANGFUSE_PUBLIC_KEY === 'string'
+      ? config.BACKEND_LANGFUSE_PUBLIC_KEY.trim()
+      : '';
+
+  const langfuseSecretKey =
+    typeof config.BACKEND_LANGFUSE_SECRET_KEY === 'string'
+      ? config.BACKEND_LANGFUSE_SECRET_KEY.trim()
+      : '';
+
+  const langfuseBaseUrl =
+    typeof config.BACKEND_LANGFUSE_BASE_URL === 'string' &&
+    config.BACKEND_LANGFUSE_BASE_URL.trim() !== ''
+      ? config.BACKEND_LANGFUSE_BASE_URL.trim()
+      : 'https://cloud.langfuse.com';
+
+  if (Boolean(langfusePublicKey) !== Boolean(langfuseSecretKey)) {
+    throw new Error(
+      'BACKEND_LANGFUSE_PUBLIC_KEY and BACKEND_LANGFUSE_SECRET_KEY must be provided together',
+    );
+  }
+
+  let parsedLangfuseBaseUrl: URL;
+
+  try {
+    parsedLangfuseBaseUrl = new URL(langfuseBaseUrl);
+  } catch {
+    throw new Error(
+      'BACKEND_LANGFUSE_BASE_URL must be an absolute http or https URL',
+    );
+  }
+
+  if (
+    parsedLangfuseBaseUrl.protocol !== 'http:' &&
+    parsedLangfuseBaseUrl.protocol !== 'https:'
+  ) {
+    throw new Error(
+      'BACKEND_LANGFUSE_BASE_URL must be an absolute http or https URL',
+    );
+  }
 
   return {
     ...config,
@@ -160,6 +201,9 @@ export function validateEnvironment(
       typeof authUrl === 'string' && authUrl.trim() !== ''
         ? authUrl
         : `http://localhost:${backendPort}`,
+    BACKEND_LANGFUSE_PUBLIC_KEY: langfusePublicKey,
+    BACKEND_LANGFUSE_SECRET_KEY: langfuseSecretKey,
+    BACKEND_LANGFUSE_BASE_URL: langfuseBaseUrl,
     BACKEND_MODEL_API_KEY:
       typeof config.BACKEND_MODEL_API_KEY === 'string'
         ? config.BACKEND_MODEL_API_KEY.trim()
@@ -294,6 +338,7 @@ export function validateEnvironment(
     WhatsAppInfraModule,
     TelegramInfraModule,
     NotificationsModule,
+    ObservabilityModule,
     WhatsAppModule,
     TelegramModule,
   ],

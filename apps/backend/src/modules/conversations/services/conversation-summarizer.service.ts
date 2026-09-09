@@ -115,8 +115,9 @@ export class ConversationSummarizerService {
 
     const throughMessage = segment.at(-1);
     if (!throughMessage) return false;
-
     const result = await this.model.generate({
+      userId,
+      conversationId,
       messages: [
         {
           role: 'system',

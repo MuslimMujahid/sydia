@@ -7,8 +7,48 @@ import {
   OpenRouterLanguageModel,
 } from './openrouter-language-model';
 
-function model(values: Record<string, string> = {}) {
-  return new OpenRouterLanguageModel(new ConfigService(values));
+import type {
+  GenerationTrace,
+  GenerationTraceRequest,
+  GenerationTraceUpdate,
+  GenerationTracer,
+} from '../observability';
+
+type TracingSpy = {
+  calls: GenerationTraceRequest[];
+  updates: GenerationTraceUpdate[];
+  errors: unknown[];
+  observability: GenerationTracer;
+};
+
+function tracingSpy(): TracingSpy {
+  const calls: GenerationTraceRequest[] = [];
+  const updates: GenerationTraceUpdate[] = [];
+  const errors: unknown[] = [];
+  const observability: GenerationTracer = {
+    traceGeneration: async <T>(
+      request: GenerationTraceRequest,
+      operation: (trace: GenerationTrace) => Promise<T>,
+    ): Promise<T> => {
+      calls.push(request);
+
+      try {
+        return await operation({ update: (update) => updates.push(update) });
+      } catch (error) {
+        errors.push(error);
+        throw error;
+      }
+    },
+  };
+
+  return { calls, updates, errors, observability };
+}
+
+function model(
+  values: Record<string, string> = {},
+  observability?: GenerationTracer,
+) {
+  return new OpenRouterLanguageModel(new ConfigService(values), observability);
 }
 
 describe('OpenRouterLanguageModel', () => {
@@ -21,16 +61,72 @@ describe('OpenRouterLanguageModel', () => {
     expect(gateway.model).toBe('z-ai/glm-5.3-flash');
   });
 
-  it('rejects missing API keys without calling the provider', async () => {
+  it('rejects missing API keys without tracing or calling the provider', async () => {
     const fetch = jest.spyOn(globalThis, 'fetch');
+    const tracing = tracingSpy();
 
     await expect(
-      model().generate({ messages: [{ role: 'user', content: 'Halo' }] }),
+      model({}, tracing.observability).generate({
+        messages: [{ role: 'user', content: 'Halo' }],
+      }),
     ).rejects.toThrow(
       'Model assistant belum dikonfigurasi. Tetapkan BACKEND_MODEL_API_KEY.',
     );
 
     expect(fetch).not.toHaveBeenCalled();
+    expect(tracing.calls).toHaveLength(0);
+    expect(tracing.updates).toHaveLength(0);
+  });
+
+  it('records normalized successful output and usage in the tracing seam', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'response-1',
+          choices: [
+            {
+              message: { role: 'assistant', content: '  Halo kembali.  ' },
+              finish_reason: 'stop',
+            },
+          ],
+          usage: { prompt_tokens: 11, completion_tokens: 7, total_tokens: 18 },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    const tracing = tracingSpy();
+
+    await expect(
+      model(
+        { BACKEND_MODEL_API_KEY: 'test-key' },
+        tracing.observability,
+      ).generate({
+        userId: 'user-1',
+        conversationId: 'conversation-1',
+        runId: 'run-1',
+        messages: [{ role: 'user', content: 'Halo' }],
+      }),
+    ).resolves.toEqual({
+      text: 'Halo kembali.',
+      usage: { inputTokens: 11, outputTokens: 7 },
+    });
+
+    expect(tracing.calls).toEqual([
+      expect.objectContaining({
+        provider: 'openrouter',
+        model: 'z-ai/glm-5.3-flash',
+        userId: 'user-1',
+        conversationId: 'conversation-1',
+        runId: 'run-1',
+        attempt: 1,
+      }),
+    ]);
+    expect(tracing.updates).toContainEqual({
+      output: 'Halo kembali.',
+      inputTokens: 11,
+      outputTokens: 7,
+      costUsd: undefined,
+    });
   });
 
   it('normalizes text and token usage from a provider response', async () => {
@@ -110,12 +206,18 @@ describe('OpenRouterLanguageModel', () => {
       },
     });
 
-    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
+    const tracing = tracingSpy();
+    const gateway = model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    );
+
     Object.defineProperty(gateway, 'languageModel', { value: languageModel });
     const onTextDelta = jest.fn<(delta: string) => void>();
 
     await expect(
       gateway.generate({
+        userId: 'user-1',
         conversationId: 'conversation-1',
         runId: 'run-1',
         messages: [{ role: 'user', content: 'Ringkas dokumen.' }],
@@ -126,6 +228,17 @@ describe('OpenRouterLanguageModel', () => {
       usage: { inputTokens: 3, outputTokens: 4 },
     });
     expect(attempt).toBe(2);
+    expect(tracing.calls.map(({ attempt: value }) => value)).toEqual([1, 2]);
+    expect(tracing.calls[1]).toMatchObject({
+      userId: 'user-1',
+      conversationId: 'conversation-1',
+      runId: 'run-1',
+    });
+    expect(tracing.updates.at(-1)).toMatchObject({
+      output: 'Ringkasan dokumen.',
+      inputTokens: 3,
+      outputTokens: 4,
+    });
     expect(onTextDelta).toHaveBeenCalledTimes(1);
     expect(onTextDelta).toHaveBeenCalledWith('Ringkasan dokumen.');
   });
