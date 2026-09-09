@@ -174,7 +174,7 @@ function TaskActionCard({ invocation }: { invocation: ToolInvocation }) {
           size="sm"
           variant="ghost"
           nativeButton={false}
-          render={<Link to="/tasks" />}
+          render={<Link to="/tasks" search={{ id: object.id }} />}
         >
           Lihat tugas
         </Button>

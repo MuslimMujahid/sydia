@@ -83,6 +83,11 @@ import {
 } from "@/lib/utils/date-time";
 import { cn } from "@/lib/utils/cn";
 
+export type TaskPageProps = {
+  taskId?: string;
+  onTaskIdChange: (taskId: string | undefined) => void;
+};
+
 const taskSchema = z.object({
   title: z.string().trim().min(1, "Masukkan judul tugas."),
   description: z.string(),
@@ -920,12 +925,12 @@ function TaskColumn({
   );
 }
 
-export function TaskPage() {
+export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
   const [due, setDue] = useState<TaskDueFilter | "all">("all");
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [editor, setEditor] = useState<Task | "new" | null>(null);
+  const [newEditorOpen, setNewEditorOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const statusMutation = useSetTaskStatus();
   const sensors = useSensors(
@@ -953,9 +958,7 @@ export function TaskPage() {
   function moveTask(event: DragEndEvent) {
     const destination = event.over?.id as TaskStatus | undefined;
     const current = event.active.data.current?.status as TaskStatus | undefined;
-
     if (!destination || !current || destination === current) return;
-
     statusMutation.mutate({
       taskId: String(event.active.id),
       status: destination,
@@ -968,7 +971,7 @@ export function TaskPage() {
         title="Tugas"
         description="Pantau setiap tugas dari tangkapan awal sampai selesai—atau batalkan dengan jelas saat rencana berubah."
         action={
-          <Button onClick={() => setEditor("new")}>
+          <Button onClick={() => setNewEditorOpen(true)}>
             <Plus /> Tugas baru
           </Button>
         }
@@ -1059,9 +1062,7 @@ export function TaskPage() {
           </Button>
         </div>
       </fieldset>
-      {query.isPending ? (
-        <DomainListSkeleton label="Memuat papan tugas" />
-      ) : null}
+      {query.isPending ? <DomainListSkeleton label="Memuat papan tugas" /> : null}
       {query.isError ? (
         <DomainInlineError
           title="Tugas tidak dapat dimuat"
@@ -1090,8 +1091,8 @@ export function TaskPage() {
                     (task) => task.status === column.status
                   )}
                   filtered={filtered}
-                  onEdit={setEditor}
-                  onCreate={() => setEditor("new")}
+                  onEdit={(task) => onTaskIdChange(task.id)}
+                  onCreate={() => setNewEditorOpen(true)}
                 />
               ))}
             </div>
@@ -1099,21 +1100,22 @@ export function TaskPage() {
         </section>
       ) : null}
       <Dialog
-        open={editor !== null}
+        open={newEditorOpen || taskId !== undefined}
         onOpenChange={(open) => {
-          if (!open) setEditor(null);
+          if (!open) {
+            if (newEditorOpen) setNewEditorOpen(false);
+            if (taskId !== undefined) onTaskIdChange(undefined);
+          }
         }}
       >
-        {editor ? (
-          editor === "new" ? (
-            <TaskEditor key="new" onClose={() => setEditor(null)} />
-          ) : (
-            <TaskEditorLoader
-              key={editor.id}
-              taskId={editor.id}
-              onClose={() => setEditor(null)}
-            />
-          )
+        {newEditorOpen ? (
+          <TaskEditor key="new" onClose={() => setNewEditorOpen(false)} />
+        ) : taskId ? (
+          <TaskEditorLoader
+            key={taskId}
+            taskId={taskId}
+            onClose={() => onTaskIdChange(undefined)}
+          />
         ) : null}
       </Dialog>
       <Dialog
