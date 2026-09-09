@@ -36,11 +36,6 @@ export type FollowUpJob = {
   sourceId: string;
   idempotencyKey: string;
 };
-export type RetentionJob = {
-  userId: string;
-  cutoff: string;
-  idempotencyKey: string;
-};
 @Injectable()
 export class QueueService implements OnModuleDestroy {
   readonly reminders: Queue<ReminderJob>;
@@ -50,7 +45,6 @@ export class QueueService implements OnModuleDestroy {
   readonly notifications: Queue<NotificationJob>;
   readonly briefings: Queue<BriefingJob>;
   readonly followUps: Queue<FollowUpJob>;
-  readonly retention: Queue<RetentionJob>;
   constructor(config: ConfigService) {
     const connection = {
       host: config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
@@ -95,10 +89,6 @@ export class QueueService implements OnModuleDestroy {
       connection,
       defaultJobOptions,
     });
-    this.retention = new Queue<RetentionJob>('retention', {
-      connection,
-      defaultJobOptions,
-    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -110,7 +100,6 @@ export class QueueService implements OnModuleDestroy {
       this.notifications.close(),
       this.briefings.close(),
       this.followUps.close(),
-      this.retention.close(),
     ]);
   }
 }

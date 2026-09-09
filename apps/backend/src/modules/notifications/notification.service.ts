@@ -19,7 +19,7 @@ export type NotificationIntent = {
 export type NotificationEnqueueResult = {
   delivery: NotificationDelivery;
   replayed: boolean;
-  policyOutcome: 'queued' | 'paused';
+  policyOutcome: 'queued';
 };
 
 @Injectable()
@@ -37,42 +37,18 @@ export class NotificationService {
     );
 
     if (existing) {
-      if (
-        existing.status !== 'delivered' &&
-        existing.status !== 'skipped_paused'
-      ) {
+      if (existing.status !== 'delivered') {
         await this.queueIntent(input);
       }
 
       return {
         delivery: existing,
         replayed: true,
-        policyOutcome:
-          existing.policyOutcome === 'paused' ? 'paused' : 'queued',
+        policyOutcome: 'queued',
       };
     }
 
-    const preferences = await this.notifications.getPreferences(input.userId);
-    const paused = input.proactive && preferences?.proactivePaused === true;
     const delivery = await this.notifications.createDelivery(input);
-
-    if (paused) {
-      const updated = await this.notifications.updateDelivery(
-        input.userId,
-        delivery.id,
-        { status: 'skipped_paused', policyOutcome: 'paused' },
-      );
-
-      return {
-        delivery: updated ?? {
-          ...delivery,
-          status: 'skipped_paused',
-          policyOutcome: 'paused',
-        },
-        replayed: false,
-        policyOutcome: 'paused',
-      };
-    }
 
     await this.queueIntent(input);
 

@@ -55,10 +55,10 @@ export class DailyBriefingService {
     const user = await this.users.findById(userId);
     if (!user) return { status: 'skipped_user_missing' as const };
     const preferences = await this.preferences.getPreferences(userId);
-    if (!preferences?.briefingEnabled)
+    if (preferences?.briefingEnabled === false)
       return { status: 'skipped_disabled' as const };
 
-    if (!dueNow(now, user.timezone, preferences.briefingTime)) {
+    if (!dueNow(now, user.timezone, preferences?.briefingTime ?? null)) {
       return { status: 'skipped_not_due' as const };
     }
 
@@ -112,7 +112,7 @@ export class DailyBriefingService {
     });
 
     return {
-      status: result.policyOutcome === 'paused' ? 'skipped_paused' : 'queued',
+      status: 'queued',
       delivery: result.delivery,
       replayed: result.replayed,
       date: window.date,
@@ -124,8 +124,6 @@ export class DailyBriefingService {
 export class FollowUpService {
   constructor(
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
-    @Inject(NOTIFICATION_REPOSITORY)
-    private readonly preferences: INotificationRepository,
     @Inject(TASK_REPOSITORY) private readonly tasks: ITaskRepository,
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
@@ -136,11 +134,6 @@ export class FollowUpService {
     const user = await this.users.findById(userId);
     if (!user)
       return { status: 'skipped_user_missing' as const, deliveries: [] };
-    const preferences = await this.preferences.getPreferences(userId);
-
-    if (preferences?.proactivePaused) {
-      return { status: 'skipped_paused' as const, deliveries: [] };
-    }
 
     const window = dayWindow(now, user.timezone);
     const [todayTasks, overdueTasks, todayReminders, overdueReminders] =

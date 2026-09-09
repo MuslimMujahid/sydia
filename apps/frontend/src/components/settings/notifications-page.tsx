@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, PauseCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -67,9 +66,8 @@ export function NotificationSettingsPage() {
   return (
     <div className="max-w-3xl space-y-10">
       <SettingsPageHeader
-        section="Notifikasi"
         title="Notifikasi & briefing"
-        description="Pilih kanal pengiriman pengingat dan briefing harian, serta kendalikan pesan proaktif Sydia."
+        description="Pilih kanal pengiriman pengingat dan briefing harian Sydia."
       />
       {preferencesQuery.isPending ? (
         <div
@@ -77,7 +75,7 @@ export function NotificationSettingsPage() {
           aria-busy="true"
           aria-label="Memuat preferensi notifikasi"
         >
-          {[0, 1, 2].map((row) => (
+          {[0, 1].map((row) => (
             <span
               key={row}
               className="block h-24 animate-pulse rounded-lg bg-surface-1 motion-reduce:animate-none"
@@ -115,16 +113,6 @@ export function NotificationSettingsPage() {
                 disabled={controlsDisabled}
                 onChange={(checked) =>
                   updateMutation.mutate({ webNotificationsEnabled: checked })
-                }
-              />
-              <PreferenceSwitch
-                id="channel-email"
-                label="Notifikasi email"
-                description="Pengingat dan briefing juga dikirim ke alamat email akun Anda."
-                checked={preferences.emailNotificationsEnabled}
-                disabled={controlsDisabled}
-                onChange={(checked) =>
-                  updateMutation.mutate({ emailNotificationsEnabled: checked })
                 }
               />
               {WHATSAPP_INTEGRATION_ENABLED ? (
@@ -203,38 +191,6 @@ export function NotificationSettingsPage() {
                   }}
                 />
               </div>
-            </div>
-          </Card>
-          <Card className="p-6 sm:p-8" aria-label="Pesan proaktif">
-            <div className="flex items-start justify-between gap-6">
-              <div className="max-w-xl">
-                <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-                  Pesan proaktif
-                </h2>
-                <p
-                  id="proactive-pause-description"
-                  className="mt-2 text-ink-muted"
-                >
-                  Saat dijeda, Sydia tidak mengirim briefing, tindak lanjut,
-                  atau pengingat keluar sama sekali. Pesan yang Anda kirim tetap
-                  dijawab seperti biasa.
-                </p>
-                {preferences.proactivePaused ? (
-                  <Badge dot="warn" className="mt-3" role="status">
-                    <PauseCircle className="size-3.5" aria-hidden="true" />
-                    Pesan proaktif sedang dijeda
-                  </Badge>
-                ) : null}
-              </div>
-              <Switch
-                aria-label="Jeda pesan proaktif"
-                aria-describedby="proactive-pause-description"
-                checked={preferences.proactivePaused}
-                disabled={controlsDisabled}
-                onCheckedChange={(checked) =>
-                  updateMutation.mutate({ proactivePaused: checked })
-                }
-              />
             </div>
           </Card>
         </>

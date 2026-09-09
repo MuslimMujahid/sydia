@@ -93,7 +93,6 @@ export function AssistantSettingsPage() {
   return (
     <div className="max-w-3xl space-y-10">
       <SettingsPageHeader
-        section="Asisten"
         title="Pengaturan asisten"
         description={
           WHATSAPP_INTEGRATION_ENABLED

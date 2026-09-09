@@ -158,7 +158,6 @@ export function senderCanReceiveProactive(input: {
   unansweredProactiveCount: number;
   now: Date;
   timezone: string;
-  proactivePaused: boolean;
 }): boolean {
   const repliedToLatestProactive =
     input.lastProactiveSentAt === null ||
@@ -171,7 +170,6 @@ export function senderCanReceiveProactive(input: {
     !input.optedOutAt &&
     repliedToLatestProactive &&
     input.unansweredProactiveCount < MAX_UNANSWERED_PROACTIVE &&
-    !input.proactivePaused &&
     !inQuietHours(input.now, input.timezone),
   );
 }

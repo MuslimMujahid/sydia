@@ -154,7 +154,6 @@ export function IntegrationSettingsPage() {
   return (
     <div className="max-w-3xl space-y-10">
       <SettingsPageHeader
-        section="Integrasi"
         title="Integrasi"
         description="Kanal pesan dan layanan yang terhubung ke akun Sydia. Mencabut tautan menghentikan pesan dan sinkronisasi tanpa menghapus data yang sudah tersimpan."
       />

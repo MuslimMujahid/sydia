@@ -6,4 +6,3 @@ export {
   DailyBriefingService,
   FollowUpService,
 } from '../../notifications/proactive.service';
-export { RetentionService } from '../../notifications/retention.service';

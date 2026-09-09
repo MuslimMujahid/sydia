@@ -40,9 +40,6 @@ const preferenceSelect = {
   briefingTime: true,
   webNotificationsEnabled: true,
   whatsappNotificationsEnabled: true,
-  emailNotificationsEnabled: true,
-  proactivePaused: true,
-  retentionDays: true,
   createdAt: true,
   updatedAt: true,
 } as const;

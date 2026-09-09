@@ -14,9 +14,6 @@ const storedPreference: UserPreference = {
   briefingTime: '09:30',
   webNotificationsEnabled: true,
   whatsappNotificationsEnabled: false,
-  emailNotificationsEnabled: true,
-  proactivePaused: false,
-  retentionDays: 30,
   createdAt: new Date(0),
   updatedAt: new Date(0),
 };
@@ -80,12 +77,19 @@ describe('UserPreferencesService', () => {
       briefingTime: '09:30',
       webNotificationsEnabled: true,
       whatsappNotificationsEnabled: false,
-      emailNotificationsEnabled: true,
-      proactivePaused: false,
-      retentionDays: 30,
     });
     expect(result).not.toHaveProperty('assistantVerbosity');
     expect(result).not.toHaveProperty('assistantStyle');
+  });
+
+  test('enables daily briefing when preferences do not exist', async () => {
+    const { repository } = createRepository(null);
+    const service = new UserPreferencesService(repository);
+
+    const result = await service.get(user);
+
+    expect(result.briefingEnabled).toBe(true);
+    expect(result.briefingTime).toBe('08:00');
   });
 
   test('updates persona canonically and persists only notification preferences', async () => {
@@ -106,7 +110,6 @@ describe('UserPreferencesService', () => {
       {
         persona: 'creative_partner',
         briefingEnabled: false,
-        retentionDays: 14,
       },
       updateUser,
     );
@@ -114,7 +117,6 @@ describe('UserPreferencesService', () => {
     expect(updateUser).toHaveBeenCalledWith({ persona: 'creative_partner' });
     expect(savePreferences).toHaveBeenCalledWith('user-1', {
       briefingEnabled: false,
-      retentionDays: 14,
     });
     expect(result?.persona).toBe('creative_partner');
     expect(result).not.toHaveProperty('assistantVerbosity');

@@ -11,12 +11,11 @@ import {
 import {
   QueueService,
   type BriefingJob,
+  type ReminderJob,
   type DocumentJob,
   type ConversationSummaryJob,
   type FollowUpJob,
   type MemoryDreamJob,
-  type ReminderJob,
-  type RetentionJob,
 } from './infra/queue';
 import { DocumentService } from './modules/documents/document.service';
 import { MemoryDreamService } from './modules/memories/memory-dream.service';
@@ -26,7 +25,6 @@ import {
   DailyBriefingService,
   FollowUpService,
   NotificationService,
-  RetentionService,
 } from './modules/notifications';
 
 async function bootstrap(): Promise<void> {
@@ -41,7 +39,6 @@ async function bootstrap(): Promise<void> {
   const notifications = context.get(NotificationService);
   const briefings = context.get(DailyBriefingService);
   const followUps = context.get(FollowUpService);
-  const retention = context.get(RetentionService);
   const connection = {
     host: config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
     port: config.get<number>('BACKEND_REDIS_PORT', 6379),
@@ -174,12 +171,6 @@ async function bootstrap(): Promise<void> {
     { connection },
   );
 
-  const retentionWorker = new Worker<RetentionJob>(
-    'retention',
-    async (job) => retention.run(job.data.userId, new Date(job.data.cutoff)),
-    { connection },
-  );
-
   const close = async () => {
     await Promise.all([
       reminderWorker.close(),
@@ -188,7 +179,6 @@ async function bootstrap(): Promise<void> {
       briefingWorker.close(),
       conversationSummaryWorker.close(),
       followUpWorker.close(),
-      retentionWorker.close(),
     ]);
     await context.close();
   };

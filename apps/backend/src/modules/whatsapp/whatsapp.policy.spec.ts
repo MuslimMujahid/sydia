@@ -35,7 +35,6 @@ describe('WhatsApp safety policy', () => {
       lastProactiveReplyAt: null,
       now,
       timezone: 'UTC',
-      proactivePaused: false,
     };
 
     expect(

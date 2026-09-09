@@ -13,9 +13,6 @@ export const ASSISTANT_PERSONAS = [
 export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
 
 export const DEFAULT_ASSISTANT_PERSONA: AssistantPersona = "personal_assistant";
-
-export const RETENTION_DAY_OPTIONS = [30, 90, 180, 365] as const;
-
 export type UserPreferences = {
   automaticMemoryEnabled: boolean;
   persona: AssistantPersona;
@@ -24,9 +21,6 @@ export type UserPreferences = {
   briefingTime: string;
   webNotificationsEnabled: boolean;
   whatsappNotificationsEnabled: boolean;
-  emailNotificationsEnabled: boolean;
-  proactivePaused: boolean;
-  retentionDays: number;
 };
 
 export type UpdateUserPreferencesInput = Partial<UserPreferences>;

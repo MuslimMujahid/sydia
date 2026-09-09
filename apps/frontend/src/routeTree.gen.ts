@@ -27,10 +27,8 @@ import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
 import { Route as AdminWhatsappRouteImport } from './routes/admin_.whatsapp'
 import { Route as AppSettingsAssistantRouteImport } from './routes/_app.settings.assistant'
-import { Route as AppSettingsDataRouteImport } from './routes/_app.settings.data'
 import { Route as AppSettingsIntegrationsRouteImport } from './routes/_app.settings.integrations'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/_app.settings.notifications'
-import { Route as AppSettingsPrivacyRouteImport } from './routes/_app.settings.privacy'
 import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
 import { Route as AppSettingsTelegramRouteImport } from './routes/_app.settings.telegram'
 import { Route as AppSettingsWhatsappRouteImport } from './routes/_app.settings.whatsapp'
@@ -124,11 +122,6 @@ const AppSettingsAssistantRoute = AppSettingsAssistantRouteImport.update({
   path: '/assistant',
   getParentRoute: () => AppSettingsRoute,
 } as any)
-const AppSettingsDataRoute = AppSettingsDataRouteImport.update({
-  id: '/data',
-  path: '/data',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
 const AppSettingsIntegrationsRoute = AppSettingsIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -140,11 +133,6 @@ const AppSettingsNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AppSettingsRoute,
   } as any)
-const AppSettingsPrivacyRoute = AppSettingsPrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
 const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -179,10 +167,8 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/settings/assistant': typeof AppSettingsAssistantRoute
-  '/settings/data': typeof AppSettingsDataRoute
   '/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/settings/notifications': typeof AppSettingsNotificationsRoute
-  '/settings/privacy': typeof AppSettingsPrivacyRoute
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/telegram': typeof AppSettingsTelegramRoute
   '/settings/whatsapp': typeof AppSettingsWhatsappRoute
@@ -205,10 +191,8 @@ export interface FileRoutesByTo {
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/': typeof AppIndexRoute
   '/settings/assistant': typeof AppSettingsAssistantRoute
-  '/settings/data': typeof AppSettingsDataRoute
   '/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/settings/notifications': typeof AppSettingsNotificationsRoute
-  '/settings/privacy': typeof AppSettingsPrivacyRoute
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/telegram': typeof AppSettingsTelegramRoute
   '/settings/whatsapp': typeof AppSettingsWhatsappRoute
@@ -233,10 +217,8 @@ export interface FileRoutesById {
   '/admin_/whatsapp': typeof AdminWhatsappRoute
   '/_app/': typeof AppIndexRoute
   '/_app/settings/assistant': typeof AppSettingsAssistantRoute
-  '/_app/settings/data': typeof AppSettingsDataRoute
   '/_app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
-  '/_app/settings/privacy': typeof AppSettingsPrivacyRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
   '/_app/settings/telegram': typeof AppSettingsTelegramRoute
   '/_app/settings/whatsapp': typeof AppSettingsWhatsappRoute
@@ -261,10 +243,8 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/whatsapp'
     | '/settings/assistant'
-    | '/settings/data'
     | '/settings/integrations'
     | '/settings/notifications'
-    | '/settings/privacy'
     | '/settings/profile'
     | '/settings/telegram'
     | '/settings/whatsapp'
@@ -287,10 +267,8 @@ export interface FileRouteTypes {
     | '/admin/whatsapp'
     | '/'
     | '/settings/assistant'
-    | '/settings/data'
     | '/settings/integrations'
     | '/settings/notifications'
-    | '/settings/privacy'
     | '/settings/profile'
     | '/settings/telegram'
     | '/settings/whatsapp'
@@ -314,10 +292,8 @@ export interface FileRouteTypes {
     | '/admin_/whatsapp'
     | '/_app/'
     | '/_app/settings/assistant'
-    | '/_app/settings/data'
     | '/_app/settings/integrations'
     | '/_app/settings/notifications'
-    | '/_app/settings/privacy'
     | '/_app/settings/profile'
     | '/_app/settings/telegram'
     | '/_app/settings/whatsapp'
@@ -462,13 +438,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsAssistantRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/data': {
-      id: '/_app/settings/data'
-      path: '/data'
-      fullPath: '/settings/data'
-      preLoaderRoute: typeof AppSettingsDataRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
     '/_app/settings/integrations': {
       id: '/_app/settings/integrations'
       path: '/integrations'
@@ -481,13 +450,6 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/settings/notifications'
       preLoaderRoute: typeof AppSettingsNotificationsRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/privacy': {
-      id: '/_app/settings/privacy'
-      path: '/privacy'
-      fullPath: '/settings/privacy'
-      preLoaderRoute: typeof AppSettingsPrivacyRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/profile': {
@@ -516,10 +478,8 @@ declare module '@tanstack/react-router' {
 
 interface AppSettingsRouteChildren {
   AppSettingsAssistantRoute: typeof AppSettingsAssistantRoute
-  AppSettingsDataRoute: typeof AppSettingsDataRoute
   AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
-  AppSettingsPrivacyRoute: typeof AppSettingsPrivacyRoute
   AppSettingsProfileRoute: typeof AppSettingsProfileRoute
   AppSettingsTelegramRoute: typeof AppSettingsTelegramRoute
   AppSettingsWhatsappRoute: typeof AppSettingsWhatsappRoute
@@ -527,10 +487,8 @@ interface AppSettingsRouteChildren {
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAssistantRoute: AppSettingsAssistantRoute,
-  AppSettingsDataRoute: AppSettingsDataRoute,
   AppSettingsIntegrationsRoute: AppSettingsIntegrationsRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
-  AppSettingsPrivacyRoute: AppSettingsPrivacyRoute,
   AppSettingsProfileRoute: AppSettingsProfileRoute,
   AppSettingsTelegramRoute: AppSettingsTelegramRoute,
   AppSettingsWhatsappRoute: AppSettingsWhatsappRoute,

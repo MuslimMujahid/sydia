@@ -26,9 +26,6 @@ export const USER_EXPORT_SELECT = {
       briefingTime: true,
       webNotificationsEnabled: true,
       whatsappNotificationsEnabled: true,
-      emailNotificationsEnabled: true,
-      proactivePaused: true,
-      retentionDays: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -318,7 +315,6 @@ export interface IUserPrivacyRepository {
   exportData(userId: string): Promise<UserExportData | null>;
   deleteConversation(userId: string, conversationId: string): Promise<boolean>;
   storageKeys(userId: string): Promise<string[]>;
-  purgeExpired(userId: string, cutoff: Date): Promise<string[]>;
   deleteAccount(userId: string): Promise<boolean>;
 }
 

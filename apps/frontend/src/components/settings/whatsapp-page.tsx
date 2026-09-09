@@ -536,7 +536,6 @@ export function AdminWhatsAppPage() {
   return (
     <div className="max-w-3xl space-y-10">
       <SettingsPageHeader
-        section="Operasi WhatsApp"
         title="Nomor WhatsApp Sydia"
         description="Hubungkan dan pantau satu nomor WhatsApp layanan yang digunakan bersama oleh seluruh pengguna Sydia."
       />

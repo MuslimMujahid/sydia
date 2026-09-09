@@ -18,9 +18,6 @@ export type PublicUserPreferences = {
   briefingTime: string;
   webNotificationsEnabled: boolean;
   whatsappNotificationsEnabled: boolean;
-  emailNotificationsEnabled: boolean;
-  proactivePaused: boolean;
-  retentionDays: number;
 };
 
 type PreferenceInput = UserPreferenceUpdate & {
@@ -39,13 +36,10 @@ function normalizePreferredAddress(
 }
 
 const defaults = {
-  briefingEnabled: false,
+  briefingEnabled: true,
   briefingTime: '08:00',
   webNotificationsEnabled: true,
   whatsappNotificationsEnabled: true,
-  emailNotificationsEnabled: false,
-  proactivePaused: false,
-  retentionDays: 90,
 } as const;
 
 @Injectable()
@@ -135,10 +129,6 @@ export class UserPreferencesService {
       whatsappNotificationsEnabled:
         stored?.whatsappNotificationsEnabled ??
         defaults.whatsappNotificationsEnabled,
-      emailNotificationsEnabled:
-        stored?.emailNotificationsEnabled ?? defaults.emailNotificationsEnabled,
-      proactivePaused: stored?.proactivePaused ?? defaults.proactivePaused,
-      retentionDays: stored?.retentionDays ?? defaults.retentionDays,
     };
   }
 }

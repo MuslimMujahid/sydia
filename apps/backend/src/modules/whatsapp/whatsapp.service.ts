@@ -466,14 +466,12 @@ export class WhatsAppService implements OnModuleInit {
         if (
           !state ||
           !user ||
-          !preferences ||
-          preferences.whatsappNotificationsEnabled === false ||
+          preferences?.whatsappNotificationsEnabled === false ||
           !traffic ||
           !senderCanReceiveProactive({
             ...state,
             now,
             timezone: user.timezone,
-            proactivePaused: preferences.proactivePaused,
           }) ||
           !proactiveShareAllowed(
             traffic.inboundCount,

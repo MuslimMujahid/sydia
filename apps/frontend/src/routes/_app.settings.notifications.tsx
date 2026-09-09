@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_app/settings/notifications")({
       {
         name: "description",
         content:
-          "Kelola kanal notifikasi, briefing harian, dan pesan proaktif Sydia.",
+          "Kelola kanal notifikasi dan briefing harian Sydia.",
       },
     ],
   }),

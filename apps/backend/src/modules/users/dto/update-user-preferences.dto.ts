@@ -2,13 +2,10 @@ import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
-  IsInt,
   IsOptional,
   IsString,
   Matches,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
 import {
   ASSISTANT_PERSONAS,
@@ -51,18 +48,4 @@ export class UpdateUserPreferencesDto {
   @IsOptional()
   @IsBoolean()
   whatsappNotificationsEnabled?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  emailNotificationsEnabled?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  proactivePaused?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(3650)
-  retentionDays?: number;
 }

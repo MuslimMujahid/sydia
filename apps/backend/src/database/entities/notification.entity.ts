@@ -45,9 +45,6 @@ export type UserPreference = Pick<
   | 'briefingTime'
   | 'webNotificationsEnabled'
   | 'whatsappNotificationsEnabled'
-  | 'emailNotificationsEnabled'
-  | 'proactivePaused'
-  | 'retentionDays'
   | 'createdAt'
   | 'updatedAt'
 >;

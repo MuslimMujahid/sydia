@@ -1,8 +1,6 @@
 import {
   Bell,
-  Brain,
   Cable,
-  Database,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -14,8 +12,6 @@ const SETTINGS_NAV_ITEMS = [
   { to: "/settings/assistant", label: "Asisten", icon: Sparkles },
   { to: "/settings/notifications", label: "Notifikasi", icon: Bell },
   { to: "/settings/integrations", label: "Integrasi", icon: Cable },
-  { to: "/settings/privacy", label: "Memori & privasi", icon: Brain },
-  { to: "/settings/data", label: "Data & akun", icon: Database },
 ] as const;
 
 export function SettingsNav() {
@@ -53,19 +49,14 @@ export function SettingsNav() {
 }
 
 export function SettingsPageHeader({
-  section,
   title,
   description,
 }: {
-  section: string;
   title: string;
   description: string;
 }) {
   return (
     <header className="space-y-4">
-      <p className="font-mono text-[13px] font-medium tracking-widest text-ink-muted uppercase">
-        Pengaturan / {section}
-      </p>
       <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
         {title}
       </h1>
