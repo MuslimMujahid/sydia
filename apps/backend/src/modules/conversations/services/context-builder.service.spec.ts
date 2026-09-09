@@ -115,10 +115,13 @@ function attachmentMessageContent(context: ModelMessage[]): string {
 
 describe('ContextBuilderService personas', () => {
   it.each([
-    ['personal_assistant', 'praktis, terorganisir, dan efisien'],
+    [
+      'personal_assistant',
+      'praktis, terorganisir, dan berfokus pada efisiensi',
+    ],
     ['friend', 'teman dekat'],
     ['mentor', 'berperan sebagai pembimbing'],
-    ['creative_partner', 'teman kreatif'],
+    ['creative_partner', 'teman berdiskusi dan partner kreatif'],
   ] as const)('injects the %s persona prompt', async (persona, marker) => {
     const { messages } = await createBuilder(10_000).build(
       { ...user, persona },

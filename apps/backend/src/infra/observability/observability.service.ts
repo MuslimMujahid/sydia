@@ -27,11 +27,20 @@ export type GenerationTraceRequest = {
   attempt: number;
 };
 
+export type GenerationTraceError = {
+  name: string;
+  statusCode?: number;
+  retryable?: boolean;
+  providerErrorType?: string;
+  providerMessage?: string;
+};
+
 export type GenerationTraceUpdate = {
   output?: string;
   inputTokens?: number;
   outputTokens?: number;
   costUsd?: number;
+  error?: GenerationTraceError;
 };
 
 export interface GenerationTracer {
@@ -169,6 +178,7 @@ export class ObservabilityService
           { asType: 'generation' },
         );
 
+        let errorReported = false;
         const trace: GenerationTrace = {
           update: (update) => {
             const attributes: Parameters<LangfuseGeneration['update']>[0] = {};
@@ -195,6 +205,29 @@ export class ObservabilityService
               attributes.costDetails = { totalCost: update.costUsd };
             }
 
+            if (update.error !== undefined) {
+              errorReported = true;
+              attributes.level = 'ERROR';
+              attributes.statusMessage = update.error.name;
+              attributes.output = {
+                error: update.error.name,
+                ...(update.error.statusCode === undefined
+                  ? {}
+                  : { statusCode: update.error.statusCode }),
+                ...(update.error.retryable === undefined
+                  ? {}
+                  : { retryable: update.error.retryable }),
+                ...(update.error.providerErrorType === undefined
+                  ? {}
+                  : { providerErrorType: update.error.providerErrorType }),
+                ...(update.error.providerMessage === undefined
+                  ? {}
+                  : {
+                      providerMessage: traceText(update.error.providerMessage),
+                    }),
+              };
+            }
+
             generation.update(attributes);
           },
         };
@@ -202,11 +235,14 @@ export class ObservabilityService
         try {
           return await operation(trace);
         } catch (error) {
-          generation.update({
-            level: 'ERROR',
-            statusMessage: errorName(error),
-            output: { error: errorName(error) },
-          });
+          if (!errorReported) {
+            generation.update({
+              level: 'ERROR',
+              statusMessage: errorName(error),
+              output: { error: errorName(error) },
+            });
+          }
+
           throw error;
         } finally {
           generation.end();

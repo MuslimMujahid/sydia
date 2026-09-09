@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
-import { simulateReadableStream } from 'ai';
+import { APICallError, simulateReadableStream } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import {
   ModelGatewayError,
@@ -204,6 +204,7 @@ describe('OpenRouterLanguageModel', () => {
           }),
         }),
     });
+
     const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
     Object.defineProperty(gateway, 'languageModel', { value: languageModel });
 
@@ -212,9 +213,11 @@ describe('OpenRouterLanguageModel', () => {
     const firstDelta = new Promise<void>((resolve) => {
       resolveFirstDelta = resolve;
     });
+
     const onTextDelta = jest.fn<(delta: string) => void>((delta) => {
       if (delta === 'Halo ') resolveFirstDelta();
     });
+
     const generation = gateway
       .generate({
         messages: [{ role: 'user', content: 'Halo' }],
@@ -319,6 +322,169 @@ describe('OpenRouterLanguageModel', () => {
     expect(onTextDelta).toHaveBeenCalledTimes(1);
     expect(onTextDelta).toHaveBeenCalledWith('Ringkasan dokumen.');
   });
+  it('retries a retryable API error once and records sanitized diagnostics', async () => {
+    const fetch = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                error_type: 'provider_timeout',
+                message: 'provider said: do not expose this whole body',
+                api_key: 'secret-key',
+              },
+            }),
+            {
+              status: 503,
+              headers: {
+                'Content-Type': 'application/json',
+                'Retry-After': '0',
+              },
+            },
+          ),
+        ),
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'response-2',
+              choices: [
+                {
+                  message: { role: 'assistant', content: 'Recovered.' },
+                  finish_reason: 'stop',
+                },
+              ],
+              usage: {
+                prompt_tokens: 2,
+                completion_tokens: 1,
+                total_tokens: 3,
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+      );
+
+    const tracing = tracingSpy();
+
+    await expect(
+      model(
+        { BACKEND_MODEL_API_KEY: 'test-key' },
+        tracing.observability,
+      ).generate({ messages: [{ role: 'user', content: 'Hello' }] }),
+    ).resolves.toEqual({
+      text: 'Recovered.',
+      usage: { inputTokens: 2, outputTokens: 1 },
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(tracing.calls.map(({ attempt: value }) => value)).toEqual([1, 2]);
+    const failedUpdate = tracing.updates.find((update) => update.error);
+    expect(failedUpdate?.error).toMatchObject({
+      name: 'AI_APICallError',
+      statusCode: 503,
+      retryable: true,
+      providerErrorType: 'provider_timeout',
+    });
+    const diagnostic = failedUpdate?.error;
+    expect(JSON.stringify(diagnostic)).not.toContain('secret-key');
+    expect(JSON.stringify(diagnostic)).not.toContain('api_key');
+    expect(diagnostic?.providerMessage?.length).toBeLessThanOrEqual(12_000);
+  });
+
+  it('does not retry a non-retryable API error', async () => {
+    const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            error_type: 'invalid_request',
+            message: 'sensitive details',
+          },
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    const tracing = tracingSpy();
+
+    await expect(
+      model(
+        { BACKEND_MODEL_API_KEY: 'test-key' },
+        tracing.observability,
+      ).generate({ messages: [{ role: 'user', content: 'Hello' }] }),
+    ).rejects.toBeInstanceOf(ModelGatewayError);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(tracing.calls.map(({ attempt: value }) => value)).toEqual([1]);
+  });
+
+  it.each([
+    [
+      'text delta',
+      { type: 'text-delta', id: 'text-1', delta: 'Already sent.' },
+    ],
+    [
+      'tool call',
+      {
+        type: 'tool-call',
+        toolCallId: 'call-1',
+        toolName: 'lookup',
+        input: '{}',
+      },
+    ],
+  ] as const)(
+    'does not retry a retryable stream error after a %s',
+    async (_label, emitted) => {
+      const apiError = new APICallError({
+        message: 'stream failed',
+        url: 'https://openrouter.ai/api/v1/chat/completions',
+        requestBodyValues: {},
+        statusCode: 503,
+        responseBody: JSON.stringify({
+          error: {
+            error_type: 'upstream_unavailable',
+            message: 'secret provider detail',
+          },
+        }),
+        isRetryable: true,
+      });
+
+      const languageModel = new MockLanguageModelV4({
+        doStream: () =>
+          Promise.resolve({
+            stream: simulateReadableStream({
+              chunks: [emitted, { type: 'error' as const, error: apiError }],
+            }),
+          }),
+      });
+
+      const tracing = tracingSpy();
+      const onTextDelta = jest.fn();
+      const onToolCall = jest.fn();
+      const gateway = model(
+        { BACKEND_MODEL_API_KEY: 'test-key' },
+        tracing.observability,
+      );
+
+      Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+      await expect(
+        gateway.generate({
+          messages: [{ role: 'user', content: 'Hello' }],
+          onTextDelta,
+          onToolCall,
+        }),
+      ).rejects.toBeInstanceOf(ModelGatewayError);
+      expect(tracing.calls).toHaveLength(1);
+
+      if (emitted.type === 'text-delta') {
+        expect(onTextDelta).toHaveBeenCalledWith('Already sent.');
+      } else {
+        expect(onToolCall).toHaveBeenCalledWith('lookup');
+      }
+    },
+  );
 
   it('hides provider failure details behind a stable gateway error', async () => {
     jest
