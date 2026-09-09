@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -14,6 +16,7 @@ const SYSTEM_POLICY = `Anda adalah Sydia, asisten pribadi yang ringkas dan dapat
 const ATTACHMENT_HEADER = 'File terlampir pada pesan ini (metadata saja):\n';
 const MEMORY_BUDGET_SHARE = 0.15;
 const MEMORY_LIMIT = 4;
+const CONTEXT_RESERVE_SHARE = 0.25;
 
 function shouldRetrieveMemories(content: string): boolean {
   return /\b(ingat|biasanya|preferensi|kesukaan|sebelumnya|dulu|proyek|project|keputusan|kebiasaan|rutinitas|saya|aku|gue|kami|kita|my|remember|prefer|previously|used to)\b/i.test(
@@ -21,20 +24,33 @@ function shouldRetrieveMemories(content: string): boolean {
   );
 }
 
-const PERSONA_INSTRUCTIONS = {
-  professional:
-    'Profesional: baku, tenang, ringkas, terstruktur; tanpa slang, emoji, atau basa-basi.',
-  casual:
-    'Gaul: slang Indonesia kuat dengan gue/lo; tetap jelas untuk error, konfirmasi, dan hal sensitif.',
-  supportive:
-    'Suportif: hangat, tidak menghakimi, lalu beri langkah kecil; tanpa diagnosis, terapi, atau pujian berlebihan.',
-  firm: 'Tegas: instruksi dan koreksi langsung. Sindiran ringan hanya untuk alasan praktis berisiko rendah, bukan identitas, kemampuan, kesehatan, duka, kekerasan, krisis, kegagalan berat, atau kerentanan; hentikan jika diminta.',
-  motivator:
-    'Motivator: optimistis, sorot progres nyata, pecah target, dan beri ajakan spesifik; tanpa slogan atau hype kosong.',
-} satisfies Record<AssistantPersona, string>;
+const PERSONA_FILES: Record<AssistantPersona, string> = {
+  personal_assistant: 'personal_assistant.md',
+  friend: 'friend.md',
+  mentor: 'mentor.md',
+  creative_partner: 'creative_partner.md',
+};
 
-const PERSONA_BOUNDARY =
-  'Gaya ini tidak mengubah fakta, penalaran, kemampuan, alat, izin, konfirmasi, atau keselamatan.';
+function loadPersonaPrompt(persona: AssistantPersona): string {
+  const filename = PERSONA_FILES[persona];
+
+  if (!filename) {
+    throw new Error(`Unsupported assistant persona: ${String(persona)}`);
+  }
+
+  const path =
+    typeof __dirname === 'string'
+      ? join(__dirname, '../personas', filename)
+      : join(process.cwd(), 'src/modules/conversations/personas', filename);
+
+  try {
+    return readFileSync(path, 'utf8').trim();
+  } catch (error) {
+    throw new Error(`Failed to load persona prompt ${filename} from ${path}`, {
+      cause: error,
+    });
+  }
+}
 
 function estimateTokens(content: string): number {
   return Math.ceil(content.length / 4);
@@ -82,7 +98,10 @@ export class ContextBuilderService {
   }
 
   async build(
-    user: Pick<User, 'id' | 'name' | 'timezone' | 'locale' | 'persona'>,
+    user: Pick<
+      User,
+      'id' | 'name' | 'timezone' | 'locale' | 'persona' | 'preferredAddress'
+    >,
     conversationId: string,
     inputMessageId?: string,
   ): Promise<BuiltContext> {
@@ -105,7 +124,26 @@ export class ContextBuilderService {
     if (!record) return { messages: [], tokenUsage };
 
     const profile = `Profil pengguna: nama ${user.name}; zona waktu ${user.timezone}; bahasa ${user.locale}.`;
-    const persona = `Gaya respons terpilih:\n${PERSONA_INSTRUCTIONS[user.persona]}\n${PERSONA_BOUNDARY}`;
+    const personaHeader = 'Persona terpilih:\n';
+    const addressInstruction = user.preferredAddress
+      ? `Panggilan pengguna: ${user.preferredAddress}. Gunakan panggilan ini secara natural ketika menyapa atau merujuk pengguna.`
+      : '';
+
+    const personaBudget = Math.max(
+      0,
+      this.tokenBudget -
+        estimateTokens(SYSTEM_POLICY) -
+        estimateTokens(profile) -
+        estimateTokens(personaHeader) -
+        estimateTokens(addressInstruction) -
+        Math.ceil(this.tokenBudget * CONTEXT_RESERVE_SHARE),
+    );
+
+    const persona = `${personaHeader}${truncateToTokens(
+      loadPersonaPrompt(user.persona),
+      personaBudget,
+    )}${addressInstruction ? `\n${addressInstruction}` : ''}`;
+
     const messages: ModelMessage[] = [
       { role: 'system', content: SYSTEM_POLICY },
       { role: 'system', content: persona },

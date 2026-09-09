@@ -44,7 +44,10 @@ function toolConfirmation(invocations: ToolInvocation[]): string | null {
     .join(' ');
 }
 
-type TurnUser = Pick<User, 'id' | 'name' | 'timezone' | 'locale' | 'persona'>;
+type TurnUser = Pick<
+  User,
+  'id' | 'name' | 'timezone' | 'locale' | 'persona' | 'preferredAddress'
+>;
 type GenerationUsage = {
   inputTokens?: number;
   outputTokens?: number;

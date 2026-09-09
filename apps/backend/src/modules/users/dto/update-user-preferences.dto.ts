@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
@@ -6,15 +7,13 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 import {
   ASSISTANT_PERSONAS,
   type AssistantPersona,
 } from '../../../database/entities';
-
-const ASSISTANT_VERBOSITIES = ['concise', 'balanced', 'detailed'] as const;
-const ASSISTANT_STYLES = ASSISTANT_PERSONAS;
 
 export class UpdateUserPreferencesDto {
   @IsOptional()
@@ -26,12 +25,15 @@ export class UpdateUserPreferencesDto {
   persona?: AssistantPersona;
 
   @IsOptional()
-  @IsIn(ASSISTANT_VERBOSITIES)
-  assistantVerbosity?: (typeof ASSISTANT_VERBOSITIES)[number];
+  @IsString()
+  @MaxLength(50)
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
 
-  @IsOptional()
-  @IsIn(ASSISTANT_STYLES)
-  assistantStyle?: AssistantPersona;
+    return trimmed.length > 0 ? trimmed : null;
+  })
+  preferredAddress?: string | null;
 
   @IsOptional()
   @IsBoolean()

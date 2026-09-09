@@ -16,7 +16,8 @@ const user = {
   name: 'Ayu',
   timezone: 'Asia/Jakarta',
   locale: 'id',
-  persona: 'supportive' as const,
+  persona: 'personal_assistant' as const,
+  preferredAddress: null,
 };
 
 function resolved<T>(value: T) {
@@ -113,9 +114,32 @@ function attachmentMessageContent(context: ModelMessage[]): string {
 }
 
 describe('ContextBuilderService personas', () => {
-  it('injects the selected persona without changing assistant authority', async () => {
-    const { messages } = await createBuilder(1_000).build(
-      { ...user, persona: 'casual' },
+  it.each([
+    ['personal_assistant', 'praktis, terorganisir, dan efisien'],
+    ['friend', 'teman dekat'],
+    ['mentor', 'berperan sebagai pembimbing'],
+    ['creative_partner', 'teman kreatif'],
+  ] as const)('injects the %s persona prompt', async (persona, marker) => {
+    const { messages } = await createBuilder(10_000).build(
+      { ...user, persona },
+      'conversation-1',
+    );
+
+    const selected = messages.find(
+      (entry) =>
+        entry.role === 'system' &&
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('Persona terpilih:'),
+    );
+
+    expect(selected?.content).toContain(marker);
+  });
+});
+
+describe('ContextBuilderService preferred address', () => {
+  it('adds the natural address instruction to the persona message', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      { ...user, preferredAddress: 'Kak Raka' },
       'conversation-1',
     );
 
@@ -123,12 +147,27 @@ describe('ContextBuilderService personas', () => {
       (entry) =>
         entry.role === 'system' &&
         typeof entry.content === 'string' &&
-        entry.content.startsWith('Gaya respons terpilih:'),
+        entry.content.startsWith('Persona terpilih:'),
     );
 
-    expect(persona?.content).toContain('gue/lo');
-    expect(persona?.content).toContain('tidak mengubah fakta');
-    expect(persona?.content).toContain('kemampuan, alat, izin');
+    expect(persona?.content).toContain(
+      'Panggilan pengguna: Kak Raka. Gunakan panggilan ini secara natural ketika menyapa atau merujuk pengguna.',
+    );
+  });
+
+  it('omits the address instruction when no preferred address is set', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+    );
+
+    expect(
+      messages.some(
+        (entry) =>
+          typeof entry.content === 'string' &&
+          entry.content.includes('Panggilan pengguna:'),
+      ),
+    ).toBe(false);
   });
 });
 describe('ContextBuilderService attachments', () => {

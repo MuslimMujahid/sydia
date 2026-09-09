@@ -4,11 +4,10 @@ export const SUPPORTED_LOCALES = ['id', 'en'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 export const ASSISTANT_PERSONAS = [
-  'professional',
-  'casual',
-  'supportive',
-  'firm',
-  'motivator',
+  'personal_assistant',
+  'friend',
+  'mentor',
+  'creative_partner',
 ] as const;
 export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
 
@@ -27,6 +26,7 @@ export type User = Pick<
   | 'onboardingCompleted'
   | 'automaticMemoryEnabled'
   | 'persona'
+  | 'preferredAddress'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -40,5 +40,6 @@ export type UserProfileUpdate = Partial<
     | 'onboardingCompleted'
     | 'automaticMemoryEnabled'
     | 'persona'
+    | 'preferredAddress'
   >
 >;

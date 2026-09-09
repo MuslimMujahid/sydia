@@ -47,8 +47,12 @@ const user = {
   name: 'Ayu',
   timezone: 'Asia/Jakarta',
   locale: 'id',
-  persona: 'supportive',
-} satisfies Pick<User, 'id' | 'name' | 'timezone' | 'locale' | 'persona'>;
+  persona: 'personal_assistant',
+  preferredAddress: null,
+} satisfies Pick<
+  User,
+  'id' | 'name' | 'timezone' | 'locale' | 'persona' | 'preferredAddress'
+>;
 
 function createRun(status = 'queued'): AssistantRun {
   return {

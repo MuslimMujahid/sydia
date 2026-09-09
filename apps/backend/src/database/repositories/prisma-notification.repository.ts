@@ -36,8 +36,6 @@ const attemptSelect = {
 
 const preferenceSelect = {
   userId: true,
-  assistantVerbosity: true,
-  assistantStyle: true,
   briefingEnabled: true,
   briefingTime: true,
   webNotificationsEnabled: true,

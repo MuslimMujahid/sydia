@@ -17,12 +17,11 @@ export const USER_EXPORT_SELECT = {
   onboardingCompleted: true,
   automaticMemoryEnabled: true,
   persona: true,
+  preferredAddress: true,
   createdAt: true,
   updatedAt: true,
   userPreference: {
     select: {
-      assistantVerbosity: true,
-      assistantStyle: true,
       briefingEnabled: true,
       briefingTime: true,
       webNotificationsEnabled: true,

@@ -41,8 +41,6 @@ export type NotificationDeliveryAttempt = Pick<
 export type UserPreference = Pick<
   PrismaUserPreference,
   | 'userId'
-  | 'assistantVerbosity'
-  | 'assistantStyle'
   | 'briefingEnabled'
   | 'briefingTime'
   | 'webNotificationsEnabled'

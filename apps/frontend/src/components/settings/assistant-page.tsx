@@ -1,72 +1,62 @@
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
+import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import {
-  ASSISTANT_VERBOSITIES,
   DEFAULT_ASSISTANT_PERSONA,
-  DEFAULT_ASSISTANT_VERBOSITY,
   type AssistantPersona,
-  type AssistantVerbosity,
 } from "@/lib/services/api/users/preferences.api";
 import {
   userPreferencesQueryOptions,
   useUpdateUserPreferences,
 } from "@/lib/services/api/users/preferences.queries";
 import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
+import { cn } from "@/lib/utils/cn";
 import { SettingsPageHeader } from "./settings-nav";
 
 const PERSONA_OPTIONS: {
   value: AssistantPersona;
   label: string;
   description: string;
+  image: string;
+  imageAlt: string;
 }[] = [
   {
-    value: "professional",
-    label: "Profesional",
-    description: "Formal dan terstruktur; jawaban rapi dengan bahasa baku.",
-  },
-  {
-    value: "casual",
-    label: "Gaul",
-    description: "Santai dengan slang Indonesia khas gue/lo.",
-  },
-  {
-    value: "supportive",
-    label: "Suportif",
-    description: "Hangat dan memahami, tanpa terasa seperti sesi terapi.",
-  },
-  {
-    value: "firm",
-    label: "Tegas",
+    value: "personal_assistant",
+    label: "Asisten Pribadi",
     description:
-      "Langsung dan blak-blakan, dengan sarkasme ringan yang tetap aman.",
+      "Praktis, terorganisir, dan efisien; langsung mengurus apa yang Anda butuhkan.",
+    image: "/images/personas/personal-assistant.webp",
+    imageAlt: "Asisten mengatur kalender, tugas, dan dokumen.",
   },
   {
-    value: "motivator",
-    label: "Motivator",
-    description: "Penuh semangat dan selalu ditutup langkah konkret.",
+    value: "friend",
+    label: "Teman",
+    description:
+      "Santai, personal, dan natural; seperti ngobrol dengan teman dekat yang memahami konteks Anda.",
+    image: "/images/personas/friend.webp",
+    imageAlt: "Dua teman berbincang dengan hangat.",
+  },
+  {
+    value: "mentor",
+    label: "Mentor",
+    description:
+      "Membimbing Anda mengambil keputusan lebih baik dan menjalankan rencana dengan lebih terarah.",
+    image: "/images/personas/mentor.webp",
+    imageAlt: "Mentor membimbing seseorang menuju tujuan.",
+  },
+  {
+    value: "creative_partner",
+    label: "Partner Kreatif",
+    description:
+      "Mengeksplorasi ide dan kemungkinan bersama Anda, lalu mengubahnya menjadi tindakan konkret.",
+    image: "/images/personas/creative-partner.webp",
+    imageAlt: "Dua partner mengembangkan berbagai ide kreatif.",
   },
 ];
-
-const VERBOSITY_LABELS: Record<
-  AssistantVerbosity,
-  { label: string; description: string }
-> = {
-  concise: {
-    label: "Ringkas",
-    description: "Jawaban singkat dan langsung ke intinya.",
-  },
-  balanced: {
-    label: "Seimbang",
-    description: "Cukup konteks tanpa bertele-tele.",
-  },
-  detailed: {
-    label: "Mendetail",
-    description: "Penjelasan lengkap dengan latar dan langkah.",
-  },
-};
 
 export function AssistantSettingsPage() {
   const preferencesQuery = useQuery(userPreferencesQueryOptions());
@@ -78,14 +68,27 @@ export function AssistantSettingsPage() {
     preferencesQuery.data?.persona ??
     DEFAULT_ASSISTANT_PERSONA;
 
-  const selectedVerbosity =
-    (updateMutation.isPending
-      ? updateMutation.variables?.assistantVerbosity
-      : undefined) ??
-    preferencesQuery.data?.assistantVerbosity ??
-    DEFAULT_ASSISTANT_VERBOSITY;
-
   const controlsDisabled = preferencesQuery.isError || updateMutation.isPending;
+  const [addressDraft, setAddressDraft] = useState<string>();
+  const addressValue =
+    addressDraft ?? preferencesQuery.data?.preferredAddress ?? "";
+
+  const addressControlsDisabled =
+    preferencesQuery.isPending || controlsDisabled;
+
+  const addressSaving =
+    updateMutation.isPending &&
+    updateMutation.variables !== undefined &&
+    "preferredAddress" in updateMutation.variables;
+
+  const handleAddressSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = addressValue.trim();
+    setAddressDraft(trimmed);
+    updateMutation.mutate({
+      preferredAddress: trimmed === "" ? null : trimmed,
+    });
+  };
 
   return (
     <div className="max-w-3xl space-y-10">
@@ -94,8 +97,8 @@ export function AssistantSettingsPage() {
         title="Pengaturan asisten"
         description={
           WHATSAPP_INTEGRATION_ENABLED
-            ? "Atur nada, gaya bahasa, dan panjang jawaban Sydia. Perubahan berlaku mulai pesan Anda berikutnya, di web maupun WhatsApp."
-            : "Atur nada, gaya bahasa, dan panjang jawaban Sydia. Perubahan berlaku mulai pesan Anda berikutnya."
+            ? "Atur persona Sydia sesuai cara Anda ingin berinteraksi. Perubahan berlaku mulai pesan Anda berikutnya, di web maupun WhatsApp."
+            : "Atur persona Sydia sesuai cara Anda ingin berinteraksi. Perubahan berlaku mulai pesan Anda berikutnya."
         }
       />
       {preferencesQuery.isError ? (
@@ -116,107 +119,122 @@ export function AssistantSettingsPage() {
       <Card className="p-6 sm:p-8">
         <div className="max-w-xl">
           <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-            Gaya respons
+            Panggilan Pengguna
+          </h2>
+          <p id="preferred-address-description" className="mt-2 text-ink-muted">
+            Nama atau sapaan yang Sydia gunakan saat menyapa atau merujuk Anda.
+            Kosongkan jika Anda ingin Sydia memilih sapaan secara natural.
+          </p>
+        </div>
+        {preferencesQuery.isPending ? (
+          <div
+            className="mt-6 max-w-sm"
+            aria-label="Memuat preferensi panggilan"
+          >
+            <span className="block h-11 animate-pulse rounded-sm bg-hairline motion-reduce:animate-none" />
+          </div>
+        ) : (
+          <form className="mt-6 max-w-sm" onSubmit={handleAddressSubmit}>
+            <label
+              htmlFor="preferred-address"
+              className="block font-sans text-sm font-semibold text-ink"
+            >
+              Panggilan
+            </label>
+            <Input
+              id="preferred-address"
+              className="mt-2"
+              aria-describedby="preferred-address-description preferred-address-count"
+              value={addressValue}
+              maxLength={50}
+              placeholder="Mis. Kak Dipa, Bu Ratri"
+              autoComplete="off"
+              disabled={addressControlsDisabled}
+              onChange={(event) => setAddressDraft(event.target.value)}
+            />
+            <p
+              id="preferred-address-count"
+              className="mt-1.5 text-xs text-ink-muted"
+            >
+              {addressValue.length}/50 karakter
+            </p>
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+              disabled={addressControlsDisabled}
+            >
+              {addressSaving ? "Menyimpan…" : "Simpan panggilan"}
+            </Button>
+          </form>
+        )}
+      </Card>
+      <Card className="p-6 sm:p-8">
+        <div className="max-w-xl">
+          <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
+            Persona
           </h2>
           <p id="persona-description" className="mt-2 text-ink-muted">
-            Menentukan nada dan gaya bahasa respons Sydia. Kemampuan, alat, dan
+            Menentukan cara Sydia berinteraksi dengan Anda. Kemampuan, alat, dan
             standar keakuratan tidak berubah.
           </p>
         </div>
         {preferencesQuery.isPending ? (
           <div
-            className="mt-6 space-y-3"
-            aria-label="Memuat preferensi gaya respons"
+            className="mt-6 grid gap-4 sm:grid-cols-2"
+            aria-label="Memuat preferensi persona"
           >
-            {[0, 1, 2].map((row) => (
+            {[0, 1, 2, 3].map((item) => (
               <span
-                key={row}
-                className="block h-10 animate-pulse rounded-sm bg-hairline motion-reduce:animate-none"
+                key={item}
+                className="block aspect-[4/3] animate-pulse rounded-md bg-hairline motion-reduce:animate-none"
               />
             ))}
           </div>
         ) : (
           <RadioGroup
-            aria-label="Gaya respons asisten"
+            aria-label="Persona asisten"
             aria-describedby="persona-description"
-            className="mt-6 space-y-1"
+            className="mt-6 grid gap-4 sm:grid-cols-2"
             value={selectedPersona}
             disabled={controlsDisabled}
             onValueChange={(value) =>
               updateMutation.mutate({ persona: value as AssistantPersona })
             }
           >
-            {PERSONA_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                className="flex items-start gap-3 rounded-sm px-3 py-2.5"
-              >
-                <Radio value={option.value} className="mt-1" />
-                <span>
-                  <span className="block font-sans text-[15px] font-medium text-ink">
-                    {option.label}
+            {PERSONA_OPTIONS.map((option) => {
+              const selected = selectedPersona === option.value;
+
+              return (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "group relative flex cursor-pointer flex-col overflow-hidden rounded-md border border-ink/8 bg-canvas transition-[border-color,background-color,box-shadow,transform] duration-160 hover:-translate-y-0.5 hover:border-ink/16 hover:shadow-sm has-[[data-focused]]:outline-2 has-[[data-focused]]:outline-offset-2 has-[[data-focused]]:outline-brand/50",
+                    selected && "border-brand bg-brand/4 shadow-sm"
+                  )}
+                >
+                  <span className="relative block aspect-[4/3] overflow-hidden bg-canvas-subtle">
+                    <img
+                      src={option.image}
+                      alt={option.imageAlt}
+                      className="size-full object-cover transition-transform duration-160 motion-safe:group-hover:scale-[1.02]"
+                    />
+                    <span className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
+                      <Radio value={option.value} />
+                    </span>
                   </span>
-                  <span className="mt-0.5 block text-sm text-ink-muted">
-                    {option.description}
+                  <span className="flex flex-1 flex-col p-4">
+                    <span className="block font-display text-[16px] leading-6 font-semibold text-ink">
+                      {option.label}
+                    </span>
+                    <span className="mt-1 block text-sm leading-5 text-ink-muted">
+                      {option.description}
+                    </span>
                   </span>
-                </span>
-              </label>
-            ))}
-          </RadioGroup>
-        )}
-      </Card>
-      <Card className="p-6 sm:p-8">
-        <div className="max-w-xl">
-          <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-            Panjang jawaban
-          </h2>
-          <p id="verbosity-description" className="mt-2 text-ink-muted">
-            Menentukan seberapa ringkas atau mendetail jawaban Sydia secara
-            bawaan. Anda tetap dapat meminta jawaban lebih panjang atau lebih
-            singkat kapan pun.
-          </p>
-        </div>
-        {preferencesQuery.isPending ? (
-          <div
-            className="mt-6 space-y-3"
-            aria-label="Memuat preferensi panjang jawaban"
-          >
-            {[0, 1, 2].map((row) => (
-              <span
-                key={row}
-                className="block h-10 animate-pulse rounded-sm bg-hairline motion-reduce:animate-none"
-              />
-            ))}
-          </div>
-        ) : (
-          <RadioGroup
-            aria-label="Panjang jawaban asisten"
-            aria-describedby="verbosity-description"
-            className="mt-6 space-y-1"
-            value={selectedVerbosity}
-            disabled={controlsDisabled}
-            onValueChange={(value) =>
-              updateMutation.mutate({
-                assistantVerbosity: value as AssistantVerbosity,
-              })
-            }
-          >
-            {ASSISTANT_VERBOSITIES.map((value) => (
-              <label
-                key={value}
-                className="flex items-start gap-3 rounded-sm px-3 py-2.5"
-              >
-                <Radio value={value} className="mt-1" />
-                <span>
-                  <span className="block font-sans text-[15px] font-medium text-ink">
-                    {VERBOSITY_LABELS[value].label}
-                  </span>
-                  <span className="mt-0.5 block text-sm text-ink-muted">
-                    {VERBOSITY_LABELS[value].description}
-                  </span>
-                </span>
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </RadioGroup>
         )}
       </Card>

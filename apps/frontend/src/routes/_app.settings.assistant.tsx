@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_app/settings/assistant")({
       { title: "Asisten · Sydia" },
       {
         name: "description",
-        content: "Atur gaya respons dan panjang jawaban asisten Sydia.",
+        content: "Atur persona asisten Sydia.",
       },
     ],
   }),

@@ -4,6 +4,7 @@ import {
   type INotificationRepository,
 } from '../../../database/interfaces';
 import type {
+  AssistantPersona,
   UserPreference,
   UserPreferenceUpdate,
   UserProfileUpdate,
@@ -11,9 +12,8 @@ import type {
 
 export type PublicUserPreferences = {
   automaticMemoryEnabled: boolean;
-  persona: string;
-  assistantVerbosity: string;
-  assistantStyle: string;
+  persona: AssistantPersona;
+  preferredAddress: string | null;
   briefingEnabled: boolean;
   briefingTime: string;
   webNotificationsEnabled: boolean;
@@ -26,11 +26,19 @@ export type PublicUserPreferences = {
 type PreferenceInput = UserPreferenceUpdate & {
   automaticMemoryEnabled?: boolean;
   persona?: UserProfileUpdate['persona'];
+  preferredAddress?: UserProfileUpdate['preferredAddress'];
 };
 
+function normalizePreferredAddress(
+  value: string | null | undefined,
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 const defaults = {
-  assistantVerbosity: 'balanced',
-  assistantStyle: 'supportive',
   briefingEnabled: false,
   briefingTime: '08:00',
   webNotificationsEnabled: true,
@@ -50,7 +58,8 @@ export class UserPreferencesService {
   async get(user: {
     id: string;
     automaticMemoryEnabled: boolean;
-    persona: string;
+    persona: AssistantPersona;
+    preferredAddress: string | null;
   }): Promise<PublicUserPreferences> {
     return this.present(user, await this.preferences.getPreferences(user.id));
   }
@@ -59,24 +68,41 @@ export class UserPreferencesService {
     user: {
       id: string;
       automaticMemoryEnabled: boolean;
-      persona: string;
+      persona: AssistantPersona;
+      preferredAddress: string | null;
     },
     input: PreferenceInput,
     updateUser: (input: UserProfileUpdate) => Promise<{
       automaticMemoryEnabled: boolean;
-      persona: string;
+      persona: AssistantPersona;
+      preferredAddress: string | null;
     } | null>,
   ): Promise<PublicUserPreferences | null> {
-    const { automaticMemoryEnabled, persona, ...preferenceInput } = input;
+    const {
+      automaticMemoryEnabled,
+      persona,
+      preferredAddress,
+      ...preferenceInput
+    } = input;
+
+    const normalizedPreferredAddress =
+      normalizePreferredAddress(preferredAddress);
 
     let currentUser = user;
 
-    if (automaticMemoryEnabled !== undefined || persona !== undefined) {
+    if (
+      automaticMemoryEnabled !== undefined ||
+      persona !== undefined ||
+      normalizedPreferredAddress !== undefined
+    ) {
       const updatedUser = await updateUser({
         ...(automaticMemoryEnabled !== undefined
           ? { automaticMemoryEnabled }
           : {}),
         ...(persona !== undefined ? { persona } : {}),
+        ...(normalizedPreferredAddress !== undefined
+          ? { preferredAddress: normalizedPreferredAddress }
+          : {}),
       });
 
       if (!updatedUser) return null;
@@ -91,15 +117,17 @@ export class UserPreferencesService {
   }
 
   present(
-    user: { automaticMemoryEnabled: boolean; persona: string },
+    user: {
+      automaticMemoryEnabled: boolean;
+      persona: AssistantPersona;
+      preferredAddress: string | null;
+    },
     stored: UserPreference | null,
   ): PublicUserPreferences {
     return {
       automaticMemoryEnabled: user.automaticMemoryEnabled,
       persona: user.persona,
-      assistantVerbosity:
-        stored?.assistantVerbosity ?? defaults.assistantVerbosity,
-      assistantStyle: stored?.assistantStyle ?? defaults.assistantStyle,
+      preferredAddress: user.preferredAddress,
       briefingEnabled: stored?.briefingEnabled ?? defaults.briefingEnabled,
       briefingTime: stored?.briefingTime ?? defaults.briefingTime,
       webNotificationsEnabled:

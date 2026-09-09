@@ -40,7 +40,8 @@ describe('conversation context lifecycle', () => {
         name: 'Ayu',
         timezone: 'Asia/Jakarta',
         locale: 'id',
-        persona: 'supportive',
+        persona: 'personal_assistant',
+        preferredAddress: null,
       },
       'conversation-1',
     );

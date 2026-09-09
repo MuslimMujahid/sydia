@@ -15,6 +15,7 @@ const userSelect = {
   onboardingCompleted: true,
   automaticMemoryEnabled: true,
   persona: true,
+  preferredAddress: true,
   createdAt: true,
   updatedAt: true,
 } as const;
