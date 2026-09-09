@@ -126,10 +126,28 @@ export function ChatPage({
     viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
   }, [newestMessageId, newestRunUpdate, sendMutation.isPending]);
 
+  const isSubmissionForCurrentConversation =
+    submissionConversationId === conversationId ||
+    (!conversationId && sendMutation.variables?.conversationId === undefined);
+
+  const isSending =
+    sendMutation.isPending && isSubmissionForCurrentConversation;
+
   const sendErrorMessage =
-    sendMutation.isError && submissionConversationId === conversationId
+    sendMutation.isError && isSubmissionForCurrentConversation
       ? sendMutation.error.message
       : undefined;
+
+  const streamedActivityForCurrentConversation =
+    isSubmissionForCurrentConversation ? streamedActivity : undefined;
+
+  const streamedTextForCurrentConversation = isSubmissionForCurrentConversation
+    ? streamedText
+    : undefined;
+
+  function handleDraftChange() {
+    if (isSubmissionForCurrentConversation) sendMutation.reset();
+  }
 
   async function handleSend(values: SendMessageVariables) {
     setSubmissionConversationId(values.conversationId);
@@ -168,7 +186,7 @@ export function ChatPage({
         : undefined;
 
   const optimisticMessage =
-    sendMutation.isPending && !hasActiveRun && !streamCompleted
+    isSending && !hasActiveRun && !streamCompleted
       ? {
           content: sendMutation.variables.content,
           attachmentCount: sendMutation.variables.attachmentIds?.length ?? 0,
@@ -199,7 +217,7 @@ export function ChatPage({
         ref={scrollViewportRef}
         className="min-h-0 flex-1 overflow-y-auto scroll-smooth"
       >
-        {isNewConversation && !sendMutation.isPending ? (
+        {isNewConversation && !isSending ? (
           <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8">
             <div className="w-full max-w-3xl -translate-y-[4vh] text-center">
               <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] sm:text-[32px]">
@@ -209,9 +227,9 @@ export function ChatPage({
                 <ChatComposer
                   key="new-home"
                   initialAttachmentId={initialAttachmentId}
-                  isSending={sendMutation.isPending}
+                  isSending={isSending}
                   errorMessage={sendErrorMessage}
-                  onDraftChange={() => sendMutation.reset()}
+                  onDraftChange={handleDraftChange}
                   onSend={handleSend}
                   embedded
                 />
@@ -220,14 +238,14 @@ export function ChatPage({
             </div>
           </div>
         ) : null}
-        {isNewConversation && sendMutation.isPending ? (
+        {isNewConversation && isSending ? (
           <MessageHistory
             messages={[]}
             assistantRuns={[]}
             toolInvocations={[]}
             isSending={!streamCompleted}
-            streamedActivity={streamedActivity}
-            streamedText={streamedText}
+            streamedActivity={streamedActivityForCurrentConversation}
+            streamedText={streamedTextForCurrentConversation}
             onRetry={handleRetry}
           />
         ) : null}
@@ -246,9 +264,9 @@ export function ChatPage({
             assistantRuns={assistantRuns}
             toolInvocations={toolInvocations}
             optimisticMessage={optimisticMessage}
-            isSending={sendMutation.isPending && !streamCompleted}
-            streamedActivity={streamedActivity}
-            streamedText={streamedText}
+            isSending={isSending && !streamCompleted}
+            streamedActivity={streamedActivityForCurrentConversation}
+            streamedText={streamedTextForCurrentConversation}
             retryingRunId={retryingRunId}
             retryErrorRunId={retryErrorRunId}
             retryErrorMessage={retryMutation.error?.message}
@@ -257,16 +275,16 @@ export function ChatPage({
         ) : null}
       </div>
 
-      {!isNewConversation || sendMutation.isPending ? (
+      {!isNewConversation || isSending ? (
         <ChatComposer
           key={conversationId ?? "new-sending"}
           conversationId={conversationId}
           initialAttachmentId={initialAttachmentId}
           disabled={composerDisabled}
           disabledReason={composerDisabledReason}
-          isSending={sendMutation.isPending}
+          isSending={isSending}
           errorMessage={sendErrorMessage}
-          onDraftChange={() => sendMutation.reset()}
+          onDraftChange={handleDraftChange}
           onSend={handleSend}
         />
       ) : null}

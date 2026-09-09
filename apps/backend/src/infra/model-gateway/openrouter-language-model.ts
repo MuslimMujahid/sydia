@@ -189,10 +189,12 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       tools: request.tools,
       stopWhen: stepCountIs(15),
       timeout: REQUEST_TIMEOUT_MS,
-      abortSignal:
-        typeof AbortSignal.timeout === 'function'
-          ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-          : undefined,
+      abortSignal: request.abortSignal
+        ? AbortSignal.any([
+            request.abortSignal,
+            AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          ])
+        : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       maxRetries: 0,
     });
 

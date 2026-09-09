@@ -75,6 +75,8 @@ export class ToolExecutorService {
     runId: string,
     inputMessageId: string,
     onExecution?: (result: ToolExecutionResult) => void,
+    toolsReady?: Promise<void>,
+    abortSignal?: AbortSignal,
   ): ToolSet {
     const documentSearches = new Map<string, Promise<ToolExecutionResult>>();
 
@@ -88,6 +90,9 @@ export class ToolExecutorService {
             input: unknown,
             options: ToolExecutionOptions<Record<string, unknown>>,
           ) => {
+            if (toolsReady) await toolsReady;
+            if (abortSignal?.aborted) throw abortSignal.reason;
+
             if (assistantTool.internal) {
               const result = await assistantTool.execute({
                 userId,

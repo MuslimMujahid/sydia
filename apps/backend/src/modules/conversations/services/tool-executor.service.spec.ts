@@ -209,4 +209,77 @@ describe('ToolExecutorService', () => {
     await executor.resolveConfirmation('user-1', pending.id, true);
     expect(execute).toHaveBeenCalledTimes(1);
   });
+
+  it('waits for the burst gate before executing a tool', async () => {
+    let release!: () => void;
+    const toolsReady = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const pending = {
+      id: 'tool-1',
+      assistantRunId: 'run-1',
+      name: 'save_note',
+      label: 'Simpan catatan',
+      status: 'pending',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const completed = {
+      ...pending,
+      status: 'completed',
+      result: { saved: true },
+    };
+
+    const execute = resolved({ saved: true });
+    const repository = {
+      createToolInvocation: resolved(pending),
+      claimToolInvocation: resolved(true),
+      updateToolInvocation: resolved(completed),
+    } as unknown as IConversationRepository;
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'save_note',
+          label: 'Simpan catatan',
+          description: 'Simpan.',
+          parameters: { type: 'object' },
+        },
+        parseArguments: (value) => value as never,
+        execute,
+      },
+    ]);
+
+    const save = executor.aiTools(
+      'user-1',
+      'run-1',
+      'message-1',
+      undefined,
+      toolsReady,
+    ).save_note;
+
+    if (!save?.execute) throw new Error('Tool is not executable.');
+    const executeSave = save.execute as (
+      input: unknown,
+      options: unknown,
+    ) => Promise<unknown>;
+
+    const operation = executeSave(
+      {},
+      {
+        toolCallId: 'call-1',
+        messages: [],
+        abortSignal: undefined,
+      },
+    );
+
+    await Promise.resolve();
+    expect(execute).not.toHaveBeenCalled();
+    release();
+    await expect(operation).resolves.toBe('{"saved":true}');
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
 });

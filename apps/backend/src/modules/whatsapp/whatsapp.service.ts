@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import {
   AUDIT_EVENT_REPOSITORY,
   USER_REPOSITORY,
@@ -78,9 +79,36 @@ export class WhatsAppService implements OnModuleInit {
     @Inject(WHATSAPP_SLEEP) private readonly sleep: Sleep,
   ) {}
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     this.gateway.on('inbound', (message) => void this.handleInbound(message));
     this.gateway.on('receipt', (receipt) => void this.handleReceipt(receipt));
+    await this.messages.registerAdapter('whatsapp', {
+      prepare: (userId, message) => this.ingestInboundMedia(userId, message),
+      send: async (user, _identityId, message, content) => {
+        const identity = await this.whatsapp.findIdentityByExternalId(
+          message.senderExternalId,
+        );
+
+        const contact = identity
+          ? await this.whatsapp.ensureContactState(identity.id)
+          : null;
+
+        await this.sendOutbound({
+          userId: user.id,
+          externalId: identity?.externalId ?? message.senderExternalId,
+          content: contact?.firstResponseAt
+            ? content
+            : `Hi, this is ${user.name}'s AI assistant. ${content} Reply STOP to opt out.`,
+          proactive: false,
+          inbound: message,
+          contactState: contact,
+        });
+        if (identity && !contact?.firstResponseAt)
+          await this.whatsapp.updateContactState(identity.id, {
+            firstResponseAt: this.clock(),
+          });
+      },
+    });
   }
 
   async status(userId: string): Promise<WhatsAppStatusResponse> {
@@ -323,31 +351,12 @@ export class WhatsAppService implements OnModuleInit {
 
       const user = await this.users.findById(identity.userId);
       if (!user) return;
-      const input = await this.ingestInboundMedia(user.id, message);
-      const responded = await this.messages.handle({
+      await this.messages.handle({
         message,
         user,
-        content: input.content,
-        attachmentIds: input.attachmentIds,
-        transformResponse: (content) =>
-          state.firstResponseAt
-            ? content
-            : `Hi, this is ${user.name}'s AI assistant. ${content} Reply STOP to opt out.`,
-        send: async (content) => {
-          await this.sendOutbound({
-            userId: user.id,
-            externalId: identity.externalId,
-            content,
-            proactive: false,
-            inbound: message,
-            contactState: state,
-          });
-        },
+        externalIdentityId: identity.id,
       });
-
-      if (!responded) return;
       await this.whatsapp.updateContactState(identity.id, {
-        firstResponseAt: state.firstResponseAt ?? now,
         optedOutAt: null,
       });
     } catch (error) {
@@ -403,7 +412,15 @@ export class WhatsAppService implements OnModuleInit {
     if (!message.mediaMessage || message.kind === 'unknown')
       return { content: message.text };
     const downloaded = await this.gateway.download(message.raw);
-    const buffer = await readFile(downloaded);
+    let buffer: Buffer;
+
+    try {
+      buffer = await readFile(downloaded);
+    } catch (error) {
+      await rm(dirname(downloaded), { recursive: true, force: true });
+      throw error;
+    }
+
     const media = message.mediaMessage;
     const mimeType =
       typeof media.mimetype === 'string'
@@ -419,6 +436,26 @@ export class WhatsAppService implements OnModuleInit {
         ? media.fileName
         : `${message.providerMessageId}.${message.kind === 'voice' ? 'ogg' : 'bin'}`;
 
+    if (message.kind === 'voice') {
+      try {
+        const transcript = await this.media.transcribe(
+          buffer,
+          filename,
+          mimeType,
+        );
+
+        return {
+          content:
+            [message.text, transcript].filter(Boolean).join('\n') ||
+            'The user sent a voice message.',
+        };
+      } finally {
+        await rm(dirname(downloaded), { recursive: true, force: true });
+      }
+    }
+
+    await rm(dirname(downloaded), { recursive: true, force: true });
+
     const document = await this.documents.ingest(userId, {
       originalname: filename,
       mimetype: mimeType,
@@ -426,19 +463,10 @@ export class WhatsAppService implements OnModuleInit {
       buffer,
     });
 
-    let content = message.text;
-    if (message.kind === 'image')
-      content = [content, await this.media.describeImage(buffer, mimeType)]
-        .filter(Boolean)
-        .join('\n');
-    if (message.kind === 'voice')
-      content = [
-        content,
-        await this.media.transcribe(buffer, filename, mimeType),
-      ]
-        .filter(Boolean)
-        .join('\n');
-    if (!content) content = `The user sent a ${message.kind}.`;
+    const ready = await this.documents.waitUntilReady(userId, document.id);
+    const content =
+      [message.text, ready.imageDescription].filter(Boolean).join('\n') ||
+      `The user sent a ${message.kind}.`;
 
     return { content, attachmentIds: [document.file.id] };
   }

@@ -49,14 +49,14 @@ model User {
   reminders              Reminder[]
   memories               Memory[]
   memoryDreamRuns        MemoryDreamRun[]
-  memoryDeletionMarkers MemoryDeletionMarker[]
+  memoryDeletionMarkers  MemoryDeletionMarker[]
   fileAssets             FileAsset[]
   documents              Document[]
   contacts               Contact[]
   calendarIntegrations   CalendarIntegration[]
   calendarEvents         CalendarEvent[]
   whatsappLinkCodes      WhatsAppLinkCode[]
-  telegramLinkTokens    TelegramLinkToken[]
+  telegramLinkTokens     TelegramLinkToken[]
   notificationDeliveries NotificationDelivery[]
   userPreference         UserPreference?
 
@@ -66,18 +66,19 @@ model User {
 }
 
 model ExternalIdentity {
-  id              String                   @id @default(cuid())
-  userId          String
-  provider        String
-  externalId      String
-  verifiedAt      DateTime?
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @default(now()) @updatedAt
-  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  whatsappState   WhatsAppContactState?
-  telegramProfile  TelegramProfile?
-  telegramMessages TelegramInboundMessage[]
-  inboundMessages WhatsAppInboundMessage[]
+  id                   String                   @id @default(cuid())
+  userId               String
+  provider             String
+  externalId           String
+  verifiedAt           DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @default(now()) @updatedAt
+  user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsappState        WhatsAppContactState?
+  telegramProfile      TelegramProfile?
+  telegramMessages     TelegramInboundMessage[]
+  inboundMessages      WhatsAppInboundMessage[]
+  channelConversations ChannelConversation[]
 
   @@unique([provider, externalId])
   @@index([userId])
@@ -146,25 +147,67 @@ model Verification {
 }
 
 model Conversation {
-  id                      String                @id @default(cuid())
-  userId                  String
-  channel                 String                @default("web")
-  title                   String?
-  rollingSummary          String?
-  summaryThroughMessageId String?
-  lastMessageAt           DateTime              @default(now())
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @default(now()) @updatedAt
-  user                    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages                Message[]
-  summaries               ConversationSummary[]
-  assistantRuns           AssistantRun[]
-  memoryDreamRuns         MemoryDreamRun[]
+  id                          String                 @id @default(cuid())
+  userId                      String
+  channel                     String                 @default("web")
+  title                       String?
+  rollingSummary              String?
+  summaryThroughMessageId     String?
+  lastMessageAt               DateTime               @default(now())
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @default(now()) @updatedAt
+  user                        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages                    Message[]
+  summaries                   ConversationSummary[]
+  assistantRuns               AssistantRun[]
+  memoryDreamRuns             MemoryDreamRun[]
   memoryDreamThroughMessageId String?
-  memoryDeletionMarkers  MemoryDeletionMarker[]
+  memoryDeletionMarkers       MemoryDeletionMarker[]
+  channelConversations        ChannelConversation[]
 
   @@index([userId, lastMessageAt])
   @@map("conversation")
+}
+
+model ChannelConversation {
+  id                 String           @id @default(cuid())
+  provider           String
+  externalIdentityId String
+  chatExternalId     String
+  conversationId     String           @unique
+  lastInboundAt      DateTime
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @default(now()) @updatedAt
+  externalIdentity   ExternalIdentity @relation(fields: [externalIdentityId], references: [id], onDelete: Cascade)
+  conversation       Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  turns              ChannelTurn[]
+
+  @@unique([provider, externalIdentityId, chatExternalId])
+  @@index([provider, lastInboundAt])
+  @@map("channel_conversation")
+}
+
+model ChannelTurn {
+  id                      String              @id @default(cuid())
+  channelConversationId   String
+  providerMessageId       String
+  message                 Json
+  batchKey                String
+  status                  String              @default("queued")
+  availableAt             DateTime            @default(now())
+  processingStartedAt     DateTime?
+  leaseUntil              DateTime?
+  cancellationRequestedAt DateTime?
+  completedAt             DateTime?
+  errorMessage            String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @default(now()) @updatedAt
+  channelConversation     ChannelConversation @relation(fields: [channelConversationId], references: [id], onDelete: Cascade)
+
+  @@unique([channelConversationId, providerMessageId])
+  @@index([channelConversationId, status, availableAt, createdAt])
+  @@index([status, leaseUntil])
+  @@map("channel_turn")
 }
 
 model Message {
@@ -396,12 +439,12 @@ model MemoryDreamRun {
 }
 
 model MemoryDeletionMarker {
-  id              String       @id @default(cuid())
+  id              String        @id @default(cuid())
   userId          String
   conversationId  String?
   sourceMessageId String
-  createdAt       DateTime     @default(now())
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation    Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sourceMessageId])

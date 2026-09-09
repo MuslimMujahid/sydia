@@ -55,6 +55,7 @@ import {
   exports: [
     AssistantOrchestratorService,
     CONVERSATION_REPOSITORY,
+    ToolExecutorService,
     USER_REPOSITORY,
   ],
 })

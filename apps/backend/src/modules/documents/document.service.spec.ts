@@ -268,6 +268,35 @@ describe('DocumentService ingest', () => {
   });
 });
 
+describe('DocumentService readiness', () => {
+  test('waits until queued processing marks the document ready', async () => {
+    const { service, documents } = dependencies();
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValueOnce(document('processing'))
+      .mockResolvedValueOnce(document('ready'));
+
+    await expect(
+      service.waitUntilReady(userId, 'document-1', 2_000),
+    ).resolves.toMatchObject({ status: 'ready' });
+    expect(documents.findById).toHaveBeenCalledTimes(2);
+  });
+
+  test('fails immediately when document processing fails', async () => {
+    const { service, documents } = dependencies();
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document('failed'),
+        errorMessage: 'Tidak dapat membaca file.',
+      });
+
+    await expect(service.waitUntilReady(userId, 'document-1')).rejects.toThrow(
+      'Tidak dapat membaca file.',
+    );
+  });
+});
+
 describe('DocumentService processDocument', () => {
   test('parses, embeds, and completes a processing document', async () => {
     const { service, storage, documents } = dependencies();

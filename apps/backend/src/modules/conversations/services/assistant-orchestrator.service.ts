@@ -268,6 +268,8 @@ export class AssistantOrchestratorService {
       content: string;
       idempotencyKey: string;
       attachmentIds?: string[];
+      abortSignal?: AbortSignal;
+      toolsReady?: Promise<void>;
     },
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
     const prepared = await this.prepareSend(user, input);
@@ -282,6 +284,9 @@ export class AssistantOrchestratorService {
         prepared.conversation,
         prepared.userMessage,
         prepared.run,
+        undefined,
+        input.abortSignal,
+        input.toolsReady,
       )),
     };
   }
@@ -433,6 +438,8 @@ export class AssistantOrchestratorService {
     inputMessage: Message,
     run: AssistantRun,
     observer?: ExecutionObserver,
+    abortSignal?: AbortSignal,
+    toolsReady?: Promise<void>,
   ): Promise<Omit<AssistantTurnResult, 'conversation' | 'userMessage'>> {
     const staleBefore = new Date(Date.now() - RUN_STALE_AFTER_MS);
     const claimed = await this.conversations.claimRun(run.id, staleBefore);
@@ -452,6 +459,13 @@ export class AssistantOrchestratorService {
     }
 
     const toolInvocations: ToolInvocation[] = [];
+    let aborted = abortSignal?.aborted ?? false;
+
+    const onAbort = () => {
+      aborted = true;
+    };
+
+    abortSignal?.addEventListener('abort', onAbort, { once: true });
 
     const graph = new StateGraph(AssistantTurnState)
       .addNode('buildContext', async (state) => {
@@ -474,11 +488,12 @@ export class AssistantOrchestratorService {
         if (state.errorMessage) return {};
 
         try {
-          const generationRequest = {
+          const generation = await this.languageModel.generate({
             messages: state.context,
             userId: state.user.id,
             conversationId: state.conversation.id,
             runId: state.run.id,
+            abortSignal,
             tools: this.toolExecutor.aiTools(
               state.user.id,
               state.run.id,
@@ -487,16 +502,15 @@ export class AssistantOrchestratorService {
                 toolInvocations.push(result.invocation);
                 observer?.onToolResult(result.invocation);
               },
+              toolsReady,
+              abortSignal,
             ),
             onTextDelta: (delta: string) => observer?.onTextDelta(delta),
             onToolCall: (toolName: string) => {
               const label = this.toolExecutor.activityLabel(toolName);
               if (label) observer?.onToolCall(label);
             },
-          };
-
-          const generation =
-            await this.languageModel.generate(generationRequest);
+          });
 
           this.logger.debug(
             JSON.stringify({
@@ -521,8 +535,14 @@ export class AssistantOrchestratorService {
         }
       })
       .addNode('persistSuccess', async (state) => {
-        if (state.errorMessage || !state.text) {
-          return { errorMessage: state.errorMessage ?? SAFE_FAILURE_MESSAGE };
+        if (toolsReady) await toolsReady;
+
+        if (state.errorMessage || !state.text || aborted) {
+          return {
+            errorMessage:
+              state.errorMessage ??
+              (aborted ? 'Assistant run superseded.' : SAFE_FAILURE_MESSAGE),
+          };
         }
 
         try {
@@ -577,7 +597,7 @@ export class AssistantOrchestratorService {
         assistantMessage: null,
         assistantRun: await this.conversations.updateRun(state.run.id, {
           status: 'failed',
-          errorMessage: SAFE_FAILURE_MESSAGE,
+          errorMessage: state.errorMessage ?? SAFE_FAILURE_MESSAGE,
           completedAt: new Date(),
         }),
       }))
@@ -601,27 +621,22 @@ export class AssistantOrchestratorService {
       .compile();
 
     try {
-      const result = await graph.invoke({
+      const final = await graph.invoke({
         user,
         conversation,
         inputMessage,
         run,
-        toolInvocations,
+        context: [],
+        toolInvocations: [],
       });
 
       return {
-        assistantMessage: result.assistantMessage,
-        assistantRun: result.assistantRun,
-        toolInvocations,
+        assistantMessage: final.assistantMessage ?? null,
+        assistantRun: final.assistantRun ?? run,
+        toolInvocations: final.toolInvocations ?? [],
       };
-    } catch {
-      const assistantRun = await this.conversations.updateRun(run.id, {
-        status: 'failed',
-        errorMessage: SAFE_FAILURE_MESSAGE,
-        completedAt: new Date(),
-      });
-
-      return { assistantMessage: null, assistantRun, toolInvocations };
+    } finally {
+      abortSignal?.removeEventListener('abort', onAbort);
     }
   }
 }

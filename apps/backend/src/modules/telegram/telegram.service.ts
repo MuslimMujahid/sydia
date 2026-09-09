@@ -31,8 +31,13 @@ export class TelegramService implements OnModuleInit {
     private readonly media: OpenRouterMediaService,
   ) {}
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     this.gateway.setInboundHandler((ctx) => this.handleContext(ctx));
+    await this.messages.registerAdapter('telegram', {
+      prepare: (userId, message) => this.ingestMedia(userId, message),
+      send: (_user, _identityId, message, content) =>
+        this.send(message, content),
+    });
   }
 
   async status(userId: string) {
@@ -132,13 +137,10 @@ export class TelegramService implements OnModuleInit {
       await this.updateProfile(identity.id, ctx, message.receivedAt);
       const user = await this.users.findById(identity.userId);
       if (!user) return;
-      const input = await this.ingestMedia(user.id, message);
       await this.messages.handle({
         message,
         user,
-        content: input.content,
-        attachmentIds: input.attachmentIds,
-        send: (content) => this.send(message, content),
+        externalIdentityId: identity.id,
       });
     } catch (error) {
       this.logger.error(
@@ -252,6 +254,20 @@ export class TelegramService implements OnModuleInit {
         ? message.mediaMessage.fileName
         : message.providerMessageId;
 
+    if (message.kind === 'voice') {
+      const transcript = await this.media.transcribe(
+        buffer,
+        filename,
+        mimeType,
+      );
+
+      return {
+        content:
+          [message.text, transcript].filter(Boolean).join('\n') ||
+          'The user sent a voice message.',
+      };
+    }
+
     const document = await this.documents.ingest(userId, {
       originalname: filename,
       mimetype: mimeType,
@@ -259,19 +275,10 @@ export class TelegramService implements OnModuleInit {
       buffer,
     });
 
-    let content = message.text;
-    if (message.kind === 'image')
-      content = [content, await this.media.describeImage(buffer, mimeType)]
-        .filter(Boolean)
-        .join('\n');
-    if (message.kind === 'voice')
-      content = [
-        content,
-        await this.media.transcribe(buffer, filename, mimeType),
-      ]
-        .filter(Boolean)
-        .join('\n');
-    if (!content) content = `The user sent a ${message.kind}.`;
+    const ready = await this.documents.waitUntilReady(userId, document.id);
+    const content =
+      [message.text, ready.imageDescription].filter(Boolean).join('\n') ||
+      `The user sent a ${message.kind}.`;
 
     return { content, attachmentIds: [document.file.id] };
   }

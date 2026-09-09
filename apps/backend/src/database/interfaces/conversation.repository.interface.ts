@@ -1,4 +1,5 @@
 import type { Prisma } from '../../generated/prisma/client';
+import type { NormalizedInboundMessage } from '../../shared/messaging';
 import type {
   AssistantRun,
   AssistantRunStatus,
@@ -22,12 +23,52 @@ export type UserMessageWrite = {
   content: string;
   idempotencyKey: string;
   attachmentIds?: string[];
+  channel?: string;
 };
 
 export type UserMessageWriteResult = {
   conversation: Conversation;
   userMessage: Message;
   replayed: boolean;
+};
+
+export type ChannelConversationInput = {
+  provider: 'whatsapp' | 'telegram';
+  externalIdentityId: string;
+  chatExternalId: string;
+  userId: string;
+  title: string;
+  activeAfter: Date;
+  receivedAt: Date;
+};
+
+export type QueuedChannelMessage = {
+  message: NormalizedInboundMessage;
+};
+
+export type ChannelConversationResolution = {
+  channelConversationId: string;
+  conversation: Conversation;
+};
+
+export type ChannelTurnRecord = {
+  id: string;
+  channelConversationId: string;
+  providerMessageId: string;
+  message: QueuedChannelMessage;
+  status: string;
+  availableAt: Date;
+  processingStartedAt: Date | null;
+  cancellationRequestedAt: Date | null;
+};
+
+export type ClaimedChannelTurns = {
+  channelConversationId: string;
+  conversationId: string;
+  userId: string;
+  externalIdentityId: string;
+  provider: 'whatsapp' | 'telegram';
+  turns: ChannelTurnRecord[];
 };
 
 export interface IConversationRepository {
@@ -40,6 +81,59 @@ export interface IConversationRepository {
     userId: string,
     conversationId: string,
   ): Promise<ConversationContextRecord | null>;
+  resolveChannelConversation(
+    input: ChannelConversationInput,
+  ): Promise<ChannelConversationResolution>;
+  enqueueChannelTurn(
+    channelConversationId: string,
+    providerMessageId: string,
+    message: Prisma.InputJsonValue,
+    now: Date,
+    burstWindowMs: number,
+  ): Promise<{ turn: ChannelTurnRecord; supersededTurnId: string | null }>;
+  claimChannelTurns(
+    channelConversationId: string,
+    now: Date,
+    staleBefore: Date,
+    leaseUntil: Date,
+  ): Promise<ClaimedChannelTurns | null>;
+  nextChannelTurnAvailableAt(
+    channelConversationId: string,
+  ): Promise<Date | null>;
+  channelTurnCancellationRequested(turnId: string): Promise<boolean>;
+  renewChannelTurnLeases(turnIds: string[], leaseUntil: Date): Promise<void>;
+  completeChannelTurns(turnIds: string[], now: Date): Promise<void>;
+  failChannelTurns(
+    turnIds: string[],
+    message: string,
+    now: Date,
+  ): Promise<void>;
+  sealChannelTurns(
+    channelConversationId: string,
+    turnIds: string[],
+  ): Promise<boolean>;
+  cancelChannelTurns(
+    channelConversationId: string,
+    now: Date,
+  ): Promise<string[]>;
+  requeueChannelTurns(turnIds: string[], availableAt: Date): Promise<void>;
+  findRecoverableChannelConversationIds(
+    provider?: 'whatsapp' | 'telegram',
+  ): Promise<string[]>;
+  resetChannelConversation(
+    provider: 'whatsapp' | 'telegram',
+    externalIdentityId: string,
+    chatExternalId: string,
+  ): Promise<void>;
+  rejectPendingToolInvocations(
+    userId: string,
+    conversationId: string,
+    now: Date,
+  ): Promise<void>;
+  findLatestPendingToolInvocation(
+    userId: string,
+    conversationId: string,
+  ): Promise<ToolInvocationRecord | null>;
   writeUserMessage(input: UserMessageWrite): Promise<UserMessageWriteResult>;
   findRun(
     userId: string,

@@ -17,6 +17,10 @@ import type {
 } from '../entities';
 import {
   ConversationNotFoundError,
+  type ChannelConversationInput,
+  type ChannelConversationResolution,
+  type ChannelTurnRecord,
+  type ClaimedChannelTurns,
   type IConversationRepository,
   type UserMessageWrite,
   type UserMessageWriteResult,
@@ -127,6 +131,31 @@ function titleFromContent(content: string): string {
   return firstLine.length <= 72 ? firstLine : `${firstLine.slice(0, 69)}…`;
 }
 
+function presentChannelTurn(row: {
+  id: string;
+  channelConversationId: string;
+  providerMessageId: string;
+  batchKey: string;
+  message: Prisma.JsonValue;
+  status: string;
+  availableAt: Date;
+  processingStartedAt: Date | null;
+  cancellationRequestedAt: Date | null;
+}): ChannelTurnRecord {
+  const message = row.message as unknown as ChannelTurnRecord['message'];
+
+  return {
+    ...row,
+    message: {
+      ...message,
+      message: {
+        ...message.message,
+        receivedAt: new Date(message.message.receivedAt),
+      },
+    },
+  };
+}
+
 @Injectable()
 export class PrismaConversationRepository implements IConversationRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -213,6 +242,446 @@ export class PrismaConversationRepository implements IConversationRepository {
     return { conversation, messages };
   }
 
+  async resolveChannelConversation(
+    input: ChannelConversationInput,
+  ): Promise<ChannelConversationResolution> {
+    return this.prisma.$transaction(async (transaction) => {
+      const lockKey = `${input.provider}:${input.externalIdentityId}:${input.chatExternalId}`;
+      await transaction.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
+      `;
+      const existing = await transaction.channelConversation.findUnique({
+        where: {
+          provider_externalIdentityId_chatExternalId: {
+            provider: input.provider,
+            externalIdentityId: input.externalIdentityId,
+            chatExternalId: input.chatExternalId,
+          },
+        },
+        select: {
+          id: true,
+          lastInboundAt: true,
+          conversation: { select: conversationSelect },
+        },
+      });
+
+      if (existing && existing.lastInboundAt >= input.activeAfter) {
+        await transaction.channelConversation.updateMany({
+          where: {
+            id: existing.id,
+            lastInboundAt: { lt: input.receivedAt },
+          },
+          data: { lastInboundAt: input.receivedAt },
+        });
+
+        return {
+          channelConversationId: existing.id,
+          conversation: existing.conversation,
+        };
+      }
+
+      const conversation = await transaction.conversation.create({
+        data: {
+          userId: input.userId,
+          channel: input.provider,
+          title: titleFromContent(input.title),
+        },
+        select: conversationSelect,
+      });
+
+      const mapping = await transaction.channelConversation.upsert({
+        where: {
+          provider_externalIdentityId_chatExternalId: {
+            provider: input.provider,
+            externalIdentityId: input.externalIdentityId,
+            chatExternalId: input.chatExternalId,
+          },
+        },
+        create: {
+          provider: input.provider,
+          externalIdentityId: input.externalIdentityId,
+          chatExternalId: input.chatExternalId,
+          conversationId: conversation.id,
+          lastInboundAt: input.receivedAt,
+        },
+        update: {
+          conversationId: conversation.id,
+          lastInboundAt: input.receivedAt,
+        },
+        select: { id: true },
+      });
+
+      return { channelConversationId: mapping.id, conversation };
+    });
+  }
+
+  async enqueueChannelTurn(
+    channelConversationId: string,
+    providerMessageId: string,
+    message: Prisma.InputJsonValue,
+    now: Date,
+    burstWindowMs: number,
+  ): Promise<{ turn: ChannelTurnRecord; supersededTurnId: string | null }> {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${channelConversationId}, 0))
+      `;
+      const active = await transaction.channelTurn.findFirst({
+        where: { channelConversationId, status: 'processing' },
+        orderBy: { processingStartedAt: 'desc' },
+      });
+
+      const pendingBurst = await transaction.channelTurn.findFirst({
+        where: {
+          channelConversationId,
+          status: 'queued',
+          availableAt: { gt: now },
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      });
+
+      const superseded =
+        active?.processingStartedAt &&
+        active.processingStartedAt.getTime() >= now.getTime() - burstWindowMs
+          ? active
+          : null;
+
+      const batchKey =
+        superseded?.batchKey ?? pendingBurst?.batchKey ?? providerMessageId;
+
+      if (superseded) {
+        await transaction.channelTurn.update({
+          where: { id: superseded.id },
+          data: { cancellationRequestedAt: now },
+        });
+      }
+
+      if (superseded || pendingBurst) {
+        await transaction.channelTurn.updateMany({
+          where: { channelConversationId, status: 'queued' },
+          data: {
+            batchKey,
+            availableAt: new Date(now.getTime() + burstWindowMs),
+          },
+        });
+      }
+
+      const turn = await transaction.channelTurn.upsert({
+        where: {
+          channelConversationId_providerMessageId: {
+            channelConversationId,
+            providerMessageId,
+          },
+        },
+        create: {
+          channelConversationId,
+          providerMessageId,
+          message,
+          batchKey,
+          availableAt:
+            superseded || pendingBurst
+              ? new Date(now.getTime() + burstWindowMs)
+              : now,
+        },
+        update: {},
+      });
+
+      return {
+        turn: presentChannelTurn(turn),
+        supersededTurnId: superseded?.id ?? null,
+      };
+    });
+  }
+
+  async claimChannelTurns(
+    channelConversationId: string,
+    now: Date,
+    staleBefore: Date,
+    leaseUntil: Date,
+  ): Promise<ClaimedChannelTurns | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${channelConversationId}, 0))
+      `;
+      const processing = await transaction.channelTurn.findFirst({
+        where: {
+          channelConversationId,
+          status: { in: ['processing', 'sealed'] },
+          leaseUntil: { gt: now },
+        },
+        select: { id: true },
+      });
+
+      if (processing) return null;
+      await transaction.channelTurn.updateMany({
+        where: {
+          channelConversationId,
+          status: { in: ['processing', 'sealed'] },
+          OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }],
+          processingStartedAt: { lte: staleBefore },
+        },
+        data: { status: 'queued', leaseUntil: null },
+      });
+      const first = await transaction.channelTurn.findFirst({
+        where: { channelConversationId, status: 'queued' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+
+      if (!first || first.availableAt > now) return null;
+      const batch = await transaction.channelTurn.findMany({
+        where: {
+          channelConversationId,
+          status: 'queued',
+          batchKey: first.batchKey,
+          availableAt: { lte: now },
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+
+      const ids = batch.map(({ id }) => id);
+      await transaction.channelTurn.updateMany({
+        where: { id: { in: ids }, status: 'queued' },
+        data: {
+          status: 'processing',
+          processingStartedAt: now,
+          leaseUntil,
+          cancellationRequestedAt: null,
+        },
+      });
+      const channel = await transaction.channelConversation.findUniqueOrThrow({
+        where: { id: channelConversationId },
+        select: {
+          id: true,
+          provider: true,
+          externalIdentityId: true,
+          conversationId: true,
+          externalIdentity: { select: { userId: true } },
+        },
+      });
+
+      return {
+        channelConversationId: channel.id,
+        conversationId: channel.conversationId,
+        userId: channel.externalIdentity.userId,
+        externalIdentityId: channel.externalIdentityId,
+        provider: channel.provider as 'whatsapp' | 'telegram',
+        turns: batch.map(presentChannelTurn),
+      };
+    });
+  }
+
+  async nextChannelTurnAvailableAt(
+    channelConversationId: string,
+  ): Promise<Date | null> {
+    const now = new Date();
+    const processing = await this.prisma.channelTurn.findFirst({
+      where: {
+        channelConversationId,
+        status: { in: ['processing', 'sealed'] },
+        leaseUntil: { gt: now },
+      },
+      orderBy: { leaseUntil: 'asc' },
+      select: { leaseUntil: true },
+    });
+
+    if (processing?.leaseUntil)
+      return new Date(
+        Math.min(processing.leaseUntil.getTime(), now.getTime() + 1_000),
+      );
+
+    return (
+      (
+        await this.prisma.channelTurn.findFirst({
+          where: { channelConversationId, status: 'queued' },
+          orderBy: [{ availableAt: 'asc' }, { createdAt: 'asc' }],
+          select: { availableAt: true },
+        })
+      )?.availableAt ?? null
+    );
+  }
+
+  async channelTurnCancellationRequested(turnId: string): Promise<boolean> {
+    return Boolean(
+      (
+        await this.prisma.channelTurn.findUnique({
+          where: { id: turnId },
+          select: { cancellationRequestedAt: true },
+        })
+      )?.cancellationRequestedAt,
+    );
+  }
+
+  async renewChannelTurnLeases(
+    turnIds: string[],
+    leaseUntil: Date,
+  ): Promise<void> {
+    await this.prisma.channelTurn.updateMany({
+      where: {
+        id: { in: turnIds },
+        status: { in: ['processing', 'sealed'] },
+      },
+      data: { leaseUntil },
+    });
+  }
+
+  async completeChannelTurns(turnIds: string[], now: Date): Promise<void> {
+    await this.prisma.channelTurn.updateMany({
+      where: { id: { in: turnIds }, status: { in: ['processing', 'sealed'] } },
+      data: { status: 'completed', completedAt: now, leaseUntil: null },
+    });
+  }
+
+  async failChannelTurns(
+    turnIds: string[],
+    message: string,
+    now: Date,
+  ): Promise<void> {
+    await this.prisma.channelTurn.updateMany({
+      where: { id: { in: turnIds }, status: 'processing' },
+      data: {
+        status: 'failed',
+        errorMessage: message,
+        completedAt: now,
+        leaseUntil: null,
+      },
+    });
+  }
+
+  async sealChannelTurns(
+    channelConversationId: string,
+    turnIds: string[],
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${channelConversationId}, 0))
+      `;
+      const cancelled = await transaction.channelTurn.findFirst({
+        where: { id: { in: turnIds }, cancellationRequestedAt: { not: null } },
+        select: { id: true },
+      });
+
+      if (cancelled) return false;
+      const result = await transaction.channelTurn.updateMany({
+        where: { id: { in: turnIds }, status: 'processing' },
+        data: { status: 'sealed' },
+      });
+
+      return result.count === turnIds.length;
+    });
+  }
+
+  async requeueChannelTurns(
+    turnIds: string[],
+    availableAt: Date,
+  ): Promise<void> {
+    await this.prisma.channelTurn.updateMany({
+      where: {
+        id: { in: turnIds },
+        status: { in: ['processing', 'sealed'] },
+      },
+      data: {
+        status: 'queued',
+        availableAt,
+        processingStartedAt: null,
+        leaseUntil: null,
+        cancellationRequestedAt: null,
+      },
+    });
+  }
+
+  async cancelChannelTurns(
+    channelConversationId: string,
+    now: Date,
+  ): Promise<string[]> {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${channelConversationId}, 0))
+      `;
+      const active = await transaction.channelTurn.findMany({
+        where: {
+          channelConversationId,
+          status: { in: ['processing', 'sealed'] },
+        },
+        select: { id: true },
+      });
+
+      await transaction.channelTurn.updateMany({
+        where: {
+          channelConversationId,
+          status: { in: ['queued', 'processing', 'sealed'] },
+        },
+        data: {
+          status: 'cancelled',
+          cancellationRequestedAt: now,
+          completedAt: now,
+          leaseUntil: null,
+        },
+      });
+
+      return active.map(({ id }) => id);
+    });
+  }
+
+  async findRecoverableChannelConversationIds(
+    provider?: 'whatsapp' | 'telegram',
+  ): Promise<string[]> {
+    const rows = await this.prisma.channelTurn.findMany({
+      where: {
+        status: { in: ['queued', 'processing', 'sealed'] },
+        ...(provider ? { channelConversation: { provider } } : {}),
+      },
+      distinct: ['channelConversationId'],
+      select: { channelConversationId: true },
+    });
+
+    return rows.map(({ channelConversationId }) => channelConversationId);
+  }
+
+  async rejectPendingToolInvocations(
+    userId: string,
+    conversationId: string,
+    now: Date,
+  ): Promise<void> {
+    await this.prisma.toolInvocation.updateMany({
+      where: {
+        status: 'awaiting_confirmation',
+        assistantRun: { conversationId, conversation: { userId } },
+      },
+      data: {
+        status: 'rejected',
+        errorMessage: 'Dibatalkan oleh pesan atau percakapan baru.',
+        completedAt: now,
+      },
+    });
+  }
+
+  async resetChannelConversation(
+    provider: 'whatsapp' | 'telegram',
+    externalIdentityId: string,
+    chatExternalId: string,
+  ): Promise<void> {
+    await this.prisma.channelConversation.updateMany({
+      where: { provider, externalIdentityId, chatExternalId },
+      data: { lastInboundAt: new Date(0) },
+    });
+  }
+
+  async findLatestPendingToolInvocation(
+    userId: string,
+    conversationId: string,
+  ): Promise<ToolInvocationRecord | null> {
+    const invocation = await this.prisma.toolInvocation.findFirst({
+      where: {
+        status: 'awaiting_confirmation',
+        assistantRun: { conversationId, conversation: { userId } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: toolInvocationSelect,
+    });
+
+    return invocation ? presentInvocation(invocation) : null;
+  }
+
   async writeUserMessage(
     input: UserMessageWrite,
   ): Promise<UserMessageWriteResult> {
@@ -253,7 +722,7 @@ export class PrismaConversationRepository implements IConversationRepository {
           conversation = await transaction.conversation.create({
             data: {
               userId: input.userId,
-              channel: 'web',
+              channel: input.channel ?? 'web',
               title: titleFromContent(input.content),
             },
             select: conversationSelect,

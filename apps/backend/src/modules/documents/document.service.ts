@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Injectable } from '@nestjs/common';
 
 type UploadedFile = {
@@ -176,6 +177,25 @@ export class DocumentService {
     }
 
     return document;
+  }
+
+  async waitUntilReady(
+    userId: string,
+    documentId: string,
+    timeoutMs = 120_000,
+  ): Promise<Document> {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      const document = await this.documents.findById(userId, documentId);
+      if (!document) throw new Error('Dokumen tidak ditemukan.');
+      if (document.status === 'ready') return document;
+      if (document.status === 'failed')
+        throw new Error(document.errorMessage ?? 'Pemrosesan dokumen gagal.');
+      await sleep(500);
+    }
+
+    throw new Error('Pemrosesan dokumen melewati batas waktu.');
   }
 
   async processDocument(documentId: string, userId: string): Promise<void> {
