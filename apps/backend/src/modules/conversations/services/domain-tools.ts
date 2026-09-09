@@ -84,6 +84,43 @@ export function createDomainTools(deps: {
   scheduler: ReminderSchedulerService;
   users: IUserRepository;
 }): AssistantTool[] {
+  const getCurrentDateTime: AssistantTool = {
+    definition: {
+      name: 'get_current_datetime',
+      label: 'Melihat waktu saat ini',
+      description:
+        'Dapatkan tanggal dan waktu saat ini dalam zona waktu pengguna. Gunakan untuk memahami hari ini, besok, waktu relatif, atau sebelum membuat jadwal.',
+      parameters: schema({}),
+    },
+    internal: true,
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId }) => {
+      const user = await deps.users.findById(userId);
+      const timezone = user?.timezone ?? 'Asia/Jakarta';
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(now);
+
+      const part = (type: Intl.DateTimeFormatPartTypes): string =>
+        parts.find((value) => value.type === type)?.value ?? '';
+
+      return {
+        timezone,
+        date: `${part('year')}-${part('month')}-${part('day')}`,
+        time: `${part('hour')}:${part('minute')}:${part('second')}`,
+        utcInstant: now.toISOString(),
+      };
+    },
+  };
+
   const createTask: AssistantTool = {
     definition: {
       name: 'create_task',
@@ -610,6 +647,7 @@ export function createDomainTools(deps: {
   };
 
   return [
+    getCurrentDateTime,
     createTask,
     updateTask,
     listTasks,

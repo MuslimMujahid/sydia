@@ -132,4 +132,42 @@ describe('domain assistant tools', () => {
       memories: [{ id: 'memory-1', content: 'Bayar vendor dengan BCA' }],
     });
   });
+  test('returns the current date and time in the user timezone', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-09T08:15:30.000Z'));
+
+    try {
+      const tools = createDomainTools({
+        tasks: {} as ITaskRepository,
+        categories: {} as ICategoryRepository,
+        reminders: {} as IReminderRepository,
+        memories: {} as IMemoryRepository,
+        memoryService: {} as MemoryService,
+        scheduler: {} as ReminderSchedulerService,
+        users: {
+          findById: resolved({ timezone: 'Asia/Jakarta' }),
+        } as unknown as IUserRepository,
+      });
+
+      const clock = tools.find(
+        (tool) => tool.definition.name === 'get_current_datetime',
+      );
+
+      const result = await clock?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-4',
+        arguments: {},
+        idempotencyKey: 'four',
+      });
+
+      expect(clock?.internal).toBe(true);
+      expect(result).toEqual({
+        timezone: 'Asia/Jakarta',
+        date: '2026-09-09',
+        time: '15:15:30',
+        utcInstant: '2026-09-09T08:15:30.000Z',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
