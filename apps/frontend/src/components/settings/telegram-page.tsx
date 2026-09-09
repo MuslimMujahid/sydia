@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { ExternalLink, Link2, Send, Unplug } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, RefreshCw, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,130 +19,107 @@ import {
 } from "@/lib/services/api/telegram/telegram.queries";
 import type { TelegramLink } from "@/lib/services/api/telegram/telegram.api";
 
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+type TelegramConnectionState =
+  "disconnected" | "pending" | "connected" | "expired";
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function formatClock(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+function telegramUrl(username: string): string {
+  return `https://t.me/${username.replace(/^@/, "")}`;
 }
 
 export function TelegramIntegrationCard() {
   const [link, setLink] = useState<TelegramLink | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showOpenFallback, setShowOpenFallback] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const previousConnectionState = useRef<TelegramConnectionState | null>(null);
+  const connectedMessageRef = useRef<HTMLParagraphElement>(null);
+  const connectButtonRef = useRef<HTMLButtonElement>(null);
   const unlinkMutation = useUnlinkTelegram();
   const linkMutation = useCreateTelegramLink();
-  const linkAwaitingLink = Boolean(link && Date.parse(link.expiresAt) > now);
+  const linkAwaitingConfirmation = Boolean(
+    link && Date.parse(link.expiresAt) > now
+  );
 
-  const statusQuery = useQuery(telegramStatusQueryOptions(linkAwaitingLink));
+  const statusQuery = useQuery(
+    telegramStatusQueryOptions(linkAwaitingConfirmation)
+  );
+
   const status = statusQuery.data;
-  const linked = status?.linked ?? false;
+  const botUsername = status?.botUsername;
+  const connectionState: TelegramConnectionState = status?.linked
+    ? "connected"
+    : linkAwaitingConfirmation
+      ? "pending"
+      : link
+        ? "expired"
+        : "disconnected";
 
   useEffect(() => {
-    if (!linkAwaitingLink) return;
+    if (!linkAwaitingConfirmation) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
 
     return () => window.clearInterval(timer);
-  }, [linkAwaitingLink]);
+  }, [linkAwaitingConfirmation]);
+
+  useEffect(() => {
+    const previous = previousConnectionState.current;
+
+    if (previous === "pending" && connectionState === "connected") {
+      connectedMessageRef.current?.focus();
+    } else if (previous === "connected" && connectionState === "disconnected") {
+      connectButtonRef.current?.focus();
+    }
+
+    previousConnectionState.current = connectionState;
+  }, [connectionState]);
 
   async function handleUnlink() {
     await unlinkMutation.mutateAsync();
     setDialogOpen(false);
+    setLink(null);
   }
 
   async function handleCreateLink() {
+    setShowOpenFallback(false);
     setLink(await linkMutation.mutateAsync());
   }
 
+  const telegramLink =
+    connectionState === "connected" && botUsername
+      ? telegramUrl(botUsername)
+      : link?.url;
+
   return (
     <Card className="p-6 sm:p-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-xl">
-          <div className="flex items-center gap-3">
-            <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
-              <Send className="size-5 text-brand-deep" /> Telegram
-            </h2>
-            {status ? (
-              <Badge dot={linked ? "brand" : "ink-weak"}>
-                {linked ? "Tertaut" : "Belum tertaut"}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="mt-2 text-sm leading-[1.6] text-ink-muted">
-            Tautkan akun Telegram pribadi Anda untuk mengobrol dengan Sydia
-            melalui bot Telegram
-            {status?.botUsername ? ` @${status.botUsername}` : ""}. Bot ini
-            dipakai bersama oleh semua pengguna — tautan hanya mengaitkan
-            pesan dari akun Anda dengan akun ini.
-          </p>
-        </div>
-        {status?.linked ? (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger
-              render={
-                <Button variant="dark-outline" size="sm" className="shrink-0" />
-              }
-            >
-              <Unplug /> Putuskan tautan
-            </DialogTrigger>
-            <DialogContent>
-              <DialogTitle>Putuskan tautan Telegram?</DialogTitle>
-              <DialogDescription className="mt-3">
-                Sydia berhenti mengaitkan pesan dari akun Telegram ini dengan
-                akun Anda dan tidak akan mengirim pesan proaktif ke akun
-                tersebut. Bot Sydia tetap tersedia dan Anda dapat menautkan
-                ulang kapan pun dengan tautan baru.
-              </DialogDescription>
-              {unlinkMutation.error ? (
-                <div className="mt-4">
-                  <FormError message={unlinkMutation.error.message} />
-                </div>
-              ) : null}
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={unlinkMutation.isPending}
-                  onClick={() => setDialogOpen(false)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={unlinkMutation.isPending}
-                  onClick={() => void handleUnlink()}
-                >
-                  {unlinkMutation.isPending
-                    ? "Memutuskan…"
-                    : "Ya, putuskan tautan"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
+          <Send className="size-5 text-brand-deep" /> Telegram
+        </h2>
+        {status ? (
+          <Badge
+            dot={
+              connectionState === "connected"
+                ? "brand"
+                : connectionState === "pending"
+                  ? "warn"
+                  : "ink-weak"
+            }
+          >
+            {connectionState === "connected"
+              ? "Terhubung"
+              : connectionState === "pending"
+                ? "Menunggu konfirmasi"
+                : "Belum terhubung"}
+          </Badge>
         ) : null}
       </div>
+
       {statusQuery.isPending ? (
         <p className="mt-3 text-sm text-ink-muted" role="status">
           Memeriksa koneksi…
         </p>
       ) : null}
+
       {statusQuery.isError ? (
         <div className="mt-4">
           <p className="text-sm text-destructive" role="alert">
@@ -158,115 +135,191 @@ export function TelegramIntegrationCard() {
           </Button>
         </div>
       ) : null}
+
       {status ? (
-        <>
-          {linked ? (
-            <dl className="mt-6 space-y-3 text-[15px]">
-              {status.username ? (
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <dt className="text-ink-muted">Nama pengguna</dt>
-                  <dd className="font-semibold text-ink">@{status.username}</dd>
-                </div>
-              ) : null}
-              {status.firstName ? (
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <dt className="text-ink-muted">Nama</dt>
-                  <dd className="text-ink">{status.firstName}</dd>
-                </div>
-              ) : null}
-              {status.lastInboundAt ? (
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <dt className="text-ink-muted">Pesan masuk terakhir</dt>
-                  <dd className="text-ink">
-                    <time dateTime={status.lastInboundAt}>
-                      {formatDateTime(status.lastInboundAt)}
-                    </time>
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          ) : null}
-          {!linked ? (
-            status.available === false ? (
-              <p className="mt-6 text-sm text-ink-muted" role="status">
-                Integrasi Telegram belum tersedia di server ini.
-              </p>
-            ) : (
-              <div className="mt-6 border-t border-surface-1 pt-6">
-                <h3 className="text-[15px] font-semibold text-ink">
-                  Tautkan akun Telegram Anda
-                </h3>
-                <ol className="mt-3 list-decimal space-y-2 pl-5 text-[15px] text-ink-muted">
-                  <li>Buat tautan sekali pakai.</li>
-                  <li>
-                    Buka tautan tersebut — Telegram terbuka pada percakapan
-                    dengan bot Sydia
-                    {status.botUsername ? ` (@${status.botUsername})` : ""}.
-                  </li>
-                  <li>
-                    Tekan Mulai. Status diperbarui otomatis begitu akun
-                    tertaut.
-                  </li>
-                </ol>
-                <p className="mt-3 text-sm text-ink-muted">
-                  Demi keamanan, tautan hanya berlaku beberapa menit dan hanya
-                  dapat dipakai sekali. Bot Sydia tidak pernah meminta kata
-                  sandi Anda.
+        status.available === false && connectionState !== "connected" ? (
+          <p className="mt-4 text-sm text-ink-muted" role="status">
+            Integrasi Telegram belum tersedia di server ini.
+          </p>
+        ) : (
+          <div className="mt-3 max-w-xl">
+            <p className="sr-only" aria-live="polite">
+              {connectionState === "connected"
+                ? "Telegram berhasil terhubung."
+                : connectionState === "pending"
+                  ? "Menunggu konfirmasi dari Telegram."
+                  : connectionState === "expired"
+                    ? "Tautan penghubung Telegram telah kedaluwarsa."
+                    : "Telegram belum terhubung."}
+            </p>
+            {connectionState === "disconnected" ? (
+              <>
+                <p className="text-sm leading-[1.6] text-ink-muted">
+                  {botUsername
+                    ? `Hubungkan Telegram untuk mengobrol dengan Sydia melalui @${botUsername.replace(/^@/, "")}.`
+                    : "Hubungkan Telegram untuk mengobrol dengan Sydia."}
                 </p>
-                {linkAwaitingLink && link ? (
-                  <div className="mt-5 space-y-4" aria-live="polite">
+                <Button
+                  ref={connectButtonRef}
+                  size="sm"
+                  className="mt-6"
+                  disabled={linkMutation.isPending}
+                  onClick={() => void handleCreateLink()}
+                >
+                  <Send />
+                  {linkMutation.isPending
+                    ? "Menghubungkan…"
+                    : "Hubungkan Telegram"}
+                </Button>
+              </>
+            ) : null}
+
+            {connectionState === "pending" && telegramLink ? (
+              <div>
+                <p className="text-sm leading-[1.6] text-ink-muted">
+                  Selesaikan penghubungan akun di Telegram.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-6"
+                  nativeButton={false}
+                  render={
+                    <a
+                      href={telegramLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowOpenFallback(true)}
+                      aria-label="Buka Telegram di tab baru"
+                    />
+                  }
+                >
+                  <ExternalLink /> Buka Telegram
+                </Button>
+                <p
+                  className="mt-5 text-sm leading-[1.6] text-ink-muted"
+                  role="status"
+                >
+                  Menunggu konfirmasi dari Telegram…
+                  <br />
+                  Halaman ini akan diperbarui otomatis.
+                </p>
+                {showOpenFallback ? (
+                  <p className="mt-3 text-sm text-ink-muted">
+                    Tidak berhasil membuka Telegram?{" "}
+                    <a
+                      href={telegramLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Buka Telegram di tab baru"
+                    >
+                      Buka Telegram
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {connectionState === "connected" ? (
+              <>
+                <p
+                  ref={connectedMessageRef}
+                  tabIndex={-1}
+                  className="text-sm leading-[1.6] text-ink-muted outline-none"
+                >
+                  {status.username
+                    ? `Terhubung sebagai @${status.username.replace(/^@/, "")}.`
+                    : "Akun Telegram telah terhubung."}
+                  <br />
+                  Anda sekarang dapat mengobrol dengan Sydia melalui Telegram.
+                </p>
+                <div className="mt-6 flex flex-wrap items-center gap-2">
+                  {telegramLink ? (
                     <Button
                       size="sm"
                       nativeButton={false}
                       render={
                         <a
-                          href={link.url}
+                          href={telegramLink}
                           target="_blank"
                           rel="noopener noreferrer"
+                          aria-label="Buka Telegram di tab baru"
                         />
                       }
                     >
                       <ExternalLink /> Buka Telegram
                     </Button>
-                    <p className="text-sm text-ink-muted">
-                      Tautan berlaku sampai pukul{" "}
-                      <time dateTime={link.expiresAt}>
-                        {formatClock(link.expiresAt)}
-                      </time>
-                      . Menunggu akun Telegram Anda tertaut…
-                    </p>
-                  </div>
-                ) : null}
-                {link && !linkAwaitingLink ? (
-                  <p className="mt-5 text-sm text-ink-muted" role="status">
-                    Tautan sebelumnya kedaluwarsa. Buat tautan baru untuk
-                    melanjutkan.
-                  </p>
-                ) : null}
-                <div className="mt-5 flex flex-wrap items-center gap-4">
-                  <Button
-                    variant={linkAwaitingLink ? "dark-outline" : "primary"}
-                    size="sm"
-                    disabled={linkMutation.isPending}
-                    onClick={() => void handleCreateLink()}
-                  >
-                    <Link2 />
-                    {linkMutation.isPending
-                      ? "Membuat tautan…"
-                      : linkAwaitingLink
-                        ? "Buat tautan baru"
-                        : "Buat tautan Telegram"}
-                  </Button>
+                  ) : null}
+                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger
+                      render={<Button variant="ghost" size="sm" />}
+                    >
+                      Putuskan
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogTitle>Putuskan Telegram?</DialogTitle>
+                      <DialogDescription className="mt-3">
+                        Sydia berhenti mengaitkan pesan dari akun Telegram ini
+                        dengan akun Anda. Anda dapat menghubungkannya kembali
+                        kapan saja.
+                      </DialogDescription>
+                      {unlinkMutation.error ? (
+                        <div className="mt-4">
+                          <FormError message={unlinkMutation.error.message} />
+                        </div>
+                      ) : null}
+                      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={unlinkMutation.isPending}
+                          onClick={() => setDialogOpen(false)}
+                        >
+                          Batal
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={unlinkMutation.isPending}
+                          onClick={() => void handleUnlink()}
+                        >
+                          {unlinkMutation.isPending
+                            ? "Memutuskan…"
+                            : "Ya, putuskan"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-                {linkMutation.error ? (
-                  <div className="mt-4">
-                    <FormError message={linkMutation.error.message} />
-                  </div>
-                ) : null}
+              </>
+            ) : null}
+
+            {connectionState === "expired" ? (
+              <>
+                <p
+                  className="text-sm leading-[1.6] text-ink-muted"
+                  role="status"
+                >
+                  Tautan penghubung sebelumnya telah kedaluwarsa.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-6"
+                  disabled={linkMutation.isPending}
+                  onClick={() => void handleCreateLink()}
+                >
+                  <RefreshCw />
+                  {linkMutation.isPending ? "Mencoba lagi…" : "Coba lagi"}
+                </Button>
+              </>
+            ) : null}
+
+            {linkMutation.error ? (
+              <div className="mt-4">
+                <FormError message={linkMutation.error.message} />
               </div>
-            )
-          ) : null}
-        </>
+            ) : null}
+          </div>
+        )
       ) : null}
     </Card>
   );
