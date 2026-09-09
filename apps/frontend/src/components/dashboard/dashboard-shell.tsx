@@ -11,7 +11,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  UserRound,
   X,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -60,7 +59,6 @@ const NAV_ITEMS = [
   ...(DEBUG_ENABLED
     ? [{ to: "/memory" as const, label: "Memori", icon: Brain }]
     : []),
-  { to: "/settings/profile", label: "Pengaturan", icon: Settings },
 ] as const;
 
 function initialsFor(name: string): string {
@@ -171,7 +169,7 @@ export function DashboardShell({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem render={<Link to="/settings/profile" />}>
-          <UserRound /> Profil & preferensi
+          <Settings /> Pengaturan
         </DropdownMenuItem>
         <DropdownMenuItem
           destructive
@@ -238,10 +236,7 @@ export function DashboardShell({
         </Link>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const active =
-            item.to === "/settings/profile"
-              ? activePath.startsWith("/settings")
-              : activePath.startsWith(item.to);
+          const active = activePath.startsWith(item.to);
 
           return (
             <Link

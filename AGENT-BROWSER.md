@@ -10,7 +10,7 @@
 - `agent-browser screenshot <path>` ignores the positional path in this setup — files land in `~/.agent-browser/tmp/screenshots/`; copy them out afterward.
 - UI is Bahasa Indonesia: Masuk = sign in, Chat = chat, File = files, Kirim pesan = send, Percakapan baru = new conversation, Tambahkan file = attach file.
 - A Vite dev error overlay (tanstack-router code-splitter parse error in `__root.tsx:21`) may appear in the accessibility tree as bogus file-path links; the page still renders and works. Ignore those links.
-- Main nav (Hari ini / Chat / Tugas / Pengingat / Memori / File / Kontak / Kalender / Pengaturan) is behind the "Buka navigasi" button (collapsed by default at small viewport); refs change every snapshot — re-snapshot after each navigation.
+- Main nav (Hari ini / Chat / Tugas / Pengingat / Memori / File / Kontak / Kalender) is behind the "Buka navigasi" button (collapsed by default at small viewport); refs change every snapshot — re-snapshot after each navigation. "Pengaturan" lives in the account menu at the sidebar bottom ("Buka menu akun").
 - API fetches from `eval` need `{ credentials: 'include' }` against localhost:5000.
 - Long assistant responses stream into `article[aria-label="Jawaban Sydia"]`; read full text via eval in slices (tool output truncates ~768 chars).
 
