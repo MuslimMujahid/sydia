@@ -6,8 +6,9 @@
 - Demo account: `demo.user@example.test` / `DemoSeed1!` (seeded). Sign-in at `/sign-in?redirect=%2F&reason=required`.
 - **"Masuk" (and other) submit buttons sit BELOW the default headless viewport fold (~493px tall); a plain `click @eN` reports success but hits nothing.** Working path: `agent-browser scrollintoview @eN` first, then `click @eN`. No Enter key needed.
 - **Private Chrome must be launched detached (`setsid nohup google-chrome --headless=new --remote-debugging-port=<port> --user-data-dir=/tmp/<dir> ... &`)** — a plain backgrounded `&` chrome is killed when the launching shell exits. Drive with `agent-browser --cdp <port>`.
-- **Multiple agents may share the default agent-browser daemon/browser** — tabs get navigated under you (observed: drift to 127.0.0.1:3100/chat, extra tabs, foreign sites). For exclusive control, use the private-Chrome recipe above.
-- `agent-browser screenshot <path>` ignores the positional path in this setup — files land in `~/.agent-browser/tmp/screenshots/`; copy them out afterward.
+- **The shared agent-browser daemon can deadlock mid-session** (CLI fails with "Resource temporarily unavailable (os error 11)... daemon may be busy or unresponsive"; subsequent commands hang). Recovery that preserves work: launch a detached private Chrome on a fixed port and drive it with `agent-browser --cdp <port>` — CDP mode responds even while the shared daemon is wedged. Kill the private Chrome with `pkill -f "user-data-dir=/tmp/<dir>"` when done.
+- **`--session <name>` does NOT isolate browsers** — named sessions share the daemon's single browser; foreign tabs appear (observed 2026-09-09: a "Google Gemini" chrome://glic tab spawned in-session) and your tab can vanish from the browser entirely while sibling tabs survive. For exclusive control, use the private-Chrome recipe above.
+- `agent-browser screenshot <path>` honored the explicit path when driven via `--cdp` mode (saved directly to the given path). (Older note: via the shared daemon the path was ignored and files landed in `~/.agent-browser/tmp/screenshots/`.)
 - UI is Bahasa Indonesia: Masuk = sign in, Chat = chat, File = files, Kirim pesan = send, Percakapan baru = new conversation, Tambahkan file = attach file.
 - A Vite dev error overlay (tanstack-router code-splitter parse error in `__root.tsx:21`) may appear in the accessibility tree as bogus file-path links; the page still renders and works. Ignore those links.
 - Main nav (Hari ini / Chat / Tugas / Pengingat / Memori / File / Kontak / Kalender) is behind the "Buka navigasi" button (collapsed by default at small viewport); refs change every snapshot — re-snapshot after each navigation. "Pengaturan" lives in the account menu at the sidebar bottom ("Buka menu akun").
@@ -17,7 +18,7 @@
 ## /sign-in
 
 - Fields: textbox "Email", textbox "Kata sandi", button "Masuk" (below fold — scrollintoview before click, see General).
-- Fresh profile (new browser) lands on `/onboarding` after login ("Atur zona waktu dan bahasa Anda."); click "Simpan dan lanjutkan" (also below fold — scrollintoview first) to reach `/`. Returning users with saved preferences go straight to `/`.
+- Fresh profile (new browser) may land on `/onboarding` after login ("Atur zona waktu dan bahasa Anda."); click "Simpan dan lanjutkan" (also below fold — scrollintoview first) to reach `/`. Returning users with saved preferences go straight to `/`. (Observed 2026-09-09: a brand-new private profile went straight to `/` — onboarding apparently skipped when preferences already seeded server-side for the account.)
 
 ## /onboarding
 
@@ -39,10 +40,14 @@
 ## /chat
 
 - `/chat` with no id loads the MOST RECENT conversation (messages append there). For a fresh conversation, click "Buka daftar percakapan" -> "Percakapan baru" (inside the drawer; heading becomes "Percakapan baru").
+- Opening an existing conversation: click its preview button in the sidebar list (shows "HH.MM" timestamp + answer preview) — lands on `/?conversation=<id>`.
+- **Conversation list previews show the latest persisted assistant answer text** — enough to confirm an answer persisted (and roughly its content) without opening the conversation.
 - Composer: file input appears as button "Choose File" (no file chosen); `agent-browser upload @eN <path>` on it works — attachment shows as chip "Hapus lampiran <filename>". "Kirim pesan" is disabled until text is entered; textbox label "Pesan untuk Sydia".
+- While a run is pending: textbox + "Tambahkan file" disabled, send button label flips to "Mengirim pesan" (disabled); the new answer article shows activity labels, e.g. document-summary run (ordered `read_document` path, verified 2026-09-09): "Sydia sedang mendaftar file…" -> "Sydia sedang membaca dokumen…".
 - Sent messages render text only — attachment is NOT shown as a chip inside the sent message bubble (assistant still sees the filename).
-- Conversation list shows previews as buttons with "HH.MM" timestamps.
-- Response completion indicator: "Jawaban selesai" inside the answer article.
+- Response completion indicator: "Jawaban selesai" inside the answer article (transient — not present in a later re-render of a persisted conversation; absence is NOT a failure signal).
+- Completed answers carry a "Sumber" section listing source documents with page numbers (e.g. "AI-Powered Multilingual Assistant Deck.pdf · halaman 1, halaman 2, …").
+- The whole-document summary run (15-step ordered read) terminated well within 150 s (~60 s to persisted answer, verified 2026-09-09).
 
 ## /files
 

@@ -76,6 +76,8 @@ export class ToolExecutorService {
     inputMessageId: string,
     onExecution?: (result: ToolExecutionResult) => void,
   ): ToolSet {
+    const documentSearches = new Map<string, Promise<ToolExecutionResult>>();
+
     return Object.fromEntries(
       Object.values(this.toolsByName).map((assistantTool) => {
         const { definition } = assistantTool;
@@ -97,13 +99,37 @@ export class ToolExecutorService {
               return JSON.stringify(result);
             }
 
-            const result = await this.execute(userId, runId, inputMessageId, {
+            const call = {
               id: options.toolCallId,
               name: definition.name,
               arguments: input,
-            });
+            };
 
-            onExecution?.(result);
+            const searchKey =
+              definition.name === 'search_documents'
+                ? JSON.stringify(assistantTool.parseArguments(input))
+                : null;
+
+            const existingSearch = searchKey
+              ? documentSearches.get(searchKey)
+              : undefined;
+
+            const result = existingSearch
+              ? await existingSearch
+              : await (() => {
+                  const execution = this.execute(
+                    userId,
+                    runId,
+                    inputMessageId,
+                    call,
+                  );
+
+                  if (searchKey) documentSearches.set(searchKey, execution);
+
+                  return execution;
+                })();
+
+            if (!existingSearch) onExecution?.(result);
 
             return result.content;
           },

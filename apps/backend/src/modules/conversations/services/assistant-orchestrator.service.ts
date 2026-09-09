@@ -32,18 +32,6 @@ const SAFE_FAILURE_MESSAGE =
 
 const RUN_STALE_AFTER_MS = 60_000;
 
-function toolConfirmation(invocations: ToolInvocation[]): string | null {
-  const completed = invocations.filter(
-    (invocation) => invocation.status === 'completed',
-  );
-
-  if (completed.length === 0) return null;
-
-  return completed
-    .map((invocation) => `${invocation.label} berhasil.`)
-    .join(' ');
-}
-
 type TurnUser = Pick<
   User,
   'id' | 'name' | 'timezone' | 'locale' | 'persona' | 'preferredAddress'
@@ -488,6 +476,8 @@ export class AssistantOrchestratorService {
         try {
           const generationRequest = {
             messages: state.context,
+            conversationId: state.conversation.id,
+            runId: state.run.id,
             tools: this.toolExecutor.aiTools(
               state.user.id,
               state.run.id,
@@ -521,7 +511,7 @@ export class AssistantOrchestratorService {
           );
 
           return {
-            text: generation.text || toolConfirmation(toolInvocations) || '',
+            text: generation.text,
             usage: generation.usage,
             toolInvocations,
           };

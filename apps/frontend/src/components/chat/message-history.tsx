@@ -34,20 +34,35 @@ function documentSources(invocations: ToolInvocation[]): DocumentSource[] {
   const grouped = new Map<string, DocumentSource>();
 
   for (const invocation of invocations) {
-    if (invocation.name !== "search_documents") continue;
+    if (
+      invocation.name !== "search_documents" &&
+      invocation.name !== "read_document"
+    )
+      continue;
     const output = asRecord(invocation.output);
-    if (!Array.isArray(output?.sources)) continue;
+    const values =
+      invocation.name === "search_documents" ? output?.sources : output?.chunks;
 
-    for (const value of output.sources) {
+    if (!Array.isArray(values)) continue;
+    const documentId =
+      typeof output?.documentId === "string" ? output.documentId : null;
+
+    const filename =
+      typeof output?.filename === "string" ? output.filename : null;
+
+    for (const value of values) {
       const source = asRecord(value);
-      if (
-        typeof source?.documentId !== "string" ||
-        typeof source.filename !== "string"
-      )
-        continue;
-      const current = grouped.get(source.documentId) ?? {
-        documentId: source.documentId,
-        documentName: source.filename,
+      if (!source) continue;
+      const sourceDocumentId =
+        typeof source?.documentId === "string" ? source.documentId : documentId;
+
+      const sourceFilename =
+        typeof source?.filename === "string" ? source.filename : filename;
+
+      if (!sourceDocumentId || !sourceFilename) continue;
+      const current = grouped.get(sourceDocumentId) ?? {
+        documentId: sourceDocumentId,
+        documentName: sourceFilename,
         locations: [],
         excerpts: [],
       };
@@ -61,12 +76,16 @@ function documentSources(invocations: ToolInvocation[]): DocumentSource[] {
 
       if (location && !current.locations.includes(location))
         current.locations.push(location);
-      if (
-        typeof source.quote === "string" &&
-        !current.excerpts.includes(source.quote)
-      )
-        current.excerpts.push(source.quote);
-      grouped.set(source.documentId, current);
+      const excerpt =
+        typeof source.quote === "string"
+          ? source.quote
+          : typeof source.content === "string"
+            ? source.content
+            : null;
+
+      if (excerpt && !current.excerpts.includes(excerpt))
+        current.excerpts.push(excerpt);
+      grouped.set(sourceDocumentId, current);
     }
   }
 

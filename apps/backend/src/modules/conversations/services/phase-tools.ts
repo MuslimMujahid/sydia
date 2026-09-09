@@ -41,6 +41,18 @@ function text(
   return found.trim();
 }
 
+function integer(
+  value: Record<string, unknown>,
+  key: string,
+  fallback: number,
+): number {
+  const found = value[key] ?? fallback;
+  if (typeof found !== 'number' || !Number.isInteger(found))
+    throw new Error(`${key} wajib berupa bilangan bulat.`);
+
+  return found;
+}
+
 function date(
   value: Record<string, unknown>,
   key: string,
@@ -122,7 +134,7 @@ export function createPhaseTools(deps: {
         name: 'list_documents',
         label: 'Mendaftar file',
         description:
-          'Gunakan untuk menjawab file atau dokumen apa saja yang dimiliki pengguna, menemukan file berdasarkan nama, atau melihat status file. Mengembalikan metadata saja tanpa membaca isi file.',
+          'Daftar metadata dokumen milik pengguna, termasuk ID, nama file, jenis, ukuran, status pemrosesan, dan waktu dibuat. Tidak mengembalikan isi dokumen.',
         parameters: schema({}),
       },
       parseArguments,
@@ -141,10 +153,56 @@ export function createPhaseTools(deps: {
     },
     {
       definition: {
+        name: 'read_document',
+        label: 'Membaca dokumen',
+        description:
+          'Baca potongan isi dari satu dokumen secara berurutan. Menerima ID dokumen, cursor awal, dan jumlah potongan. Mengembalikan metadata dokumen, potongan beserta posisi halaman, cursor berikutnya, dan penanda apakah masih ada isi.',
+        parameters: schema(
+          {
+            documentId: string,
+            cursor: { type: 'integer', minimum: 0 },
+            limit: { type: 'integer', minimum: 1, maximum: 20 },
+          },
+          ['documentId'],
+        ),
+      },
+      parseArguments,
+      execute: async ({ userId, arguments: raw }) => {
+        const a = record(raw);
+        const cursor = integer(a, 'cursor', 0);
+        const limit = integer(a, 'limit', 8);
+        if (cursor < 0 || limit < 1 || limit > 20)
+          throw new Error('Rentang pembacaan dokumen tidak valid.');
+
+        const result = await deps.documents.read(
+          userId,
+          text(a, 'documentId')!,
+          cursor,
+          limit,
+        );
+
+        if (!result) throw new Error('Dokumen tidak ditemukan.');
+
+        return {
+          documentId: result.document.id,
+          filename: result.document.file.originalName,
+          status: result.document.status,
+          chunks: result.chunks.map((chunk) => ({
+            chunk: chunk.chunkIndex,
+            page: chunk.pageNumber,
+            content: chunk.content,
+          })),
+          nextCursor: result.nextCursor,
+          hasMore: result.nextCursor !== null,
+        };
+      },
+    },
+    {
+      definition: {
         name: 'save_attached_files',
         label: 'Menyimpan file lampiran',
         description:
-          'Simpan semua file yang dilampirkan pada pesan aktif. Selalu gunakan alat ini ketika pengguna meminta file lampiran disimpan.',
+          'Simpan semua file yang dilampirkan pada pesan aktif ke koleksi dokumen pengguna.',
         parameters: schema({}),
       },
       parseArguments,
@@ -165,7 +223,7 @@ export function createPhaseTools(deps: {
         name: 'search_documents',
         label: 'Mencari dokumen',
         description:
-          'Wajib digunakan sebelum menjawab pertanyaan yang bergantung pada file pengguna. Cari isi dokumen pengguna dan kembalikan sumber nama file serta bagian dokumen. File yang dilampirkan pada pesan aktif diprioritaskan sebagai cakupan pencarian.',
+          'Cari potongan dokumen yang relevan dengan kueri semantik. Mengembalikan maksimal 6 hasil berperingkat relevansi dengan identitas dokumen, nama file, posisi halaman atau potongan, dan kutipan. Hasil tidak menjamin cakupan seluruh dokumen.',
         parameters: schema({ query: string }, ['query']),
       },
       parseArguments,

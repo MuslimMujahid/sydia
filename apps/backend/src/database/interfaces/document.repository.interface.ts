@@ -34,6 +34,16 @@ export interface IDocumentRepository {
     messageId: string,
   ): Promise<DocumentMetadata[]>;
   findByAssetIds(userId: string, assetIds: string[]): Promise<Document[]>;
+  readChunks(
+    userId: string,
+    documentId: string,
+    cursor: number,
+    limit: number,
+  ): Promise<{
+    document: DocumentMetadata;
+    chunks: DocumentChunk[];
+    nextCursor: number | null;
+  } | null>;
   storageKey(userId: string, id: string): Promise<string | null>;
   complete(
     id: string,

@@ -239,6 +239,40 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     ).map(present);
   }
 
+  async readChunks(
+    userId: string,
+    documentId: string,
+    cursor: number,
+    limit: number,
+  ): Promise<{
+    document: DocumentMetadata;
+    chunks: DocumentChunk[];
+    nextCursor: number | null;
+  } | null> {
+    const row = await this.prisma.document.findFirst({
+      where: { id: documentId, userId },
+      select: {
+        ...documentMetadataSelect,
+        chunks: {
+          where: { chunkIndex: { gte: cursor } },
+          orderBy: { chunkIndex: 'asc' },
+          take: limit + 1,
+          select: chunkSelect,
+        },
+      },
+    });
+
+    if (!row) return null;
+    const hasMore = row.chunks.length > limit;
+    const chunks = row.chunks.slice(0, limit);
+
+    return {
+      document: presentMetadata(row),
+      chunks,
+      nextCursor: hasMore ? (chunks.at(-1)?.chunkIndex ?? cursor) + 1 : null,
+    };
+  }
+
   async storageKey(userId: string, id: string): Promise<string | null> {
     return (
       (

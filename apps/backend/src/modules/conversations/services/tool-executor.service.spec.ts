@@ -82,6 +82,73 @@ describe('ToolExecutorService', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('reuses identical document searches within one model run', async () => {
+    const pending = {
+      id: 'tool-1',
+      assistantRunId: 'run-1',
+      name: 'search_documents',
+      label: 'Mencari dokumen',
+      status: 'pending',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const completed = {
+      ...pending,
+      status: 'completed',
+      result: { sources: [{ documentId: 'document-1' }] },
+    };
+
+    const createToolInvocation = resolved(pending);
+    const execute = resolved(completed.result);
+    const repository = {
+      createToolInvocation,
+      claimToolInvocation: resolved(true),
+      updateToolInvocation: resolved(completed),
+    } as unknown as IConversationRepository;
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'search_documents',
+          label: 'Mencari dokumen',
+          description: 'Cari dokumen pengguna.',
+          parameters: { type: 'object' },
+        },
+        parseArguments: (value) => value as never,
+        execute,
+      },
+    ]);
+
+    const search = executor.aiTools(
+      'user-1',
+      'run-1',
+      'message-1',
+    ).search_documents;
+
+    if (!search?.execute) throw new Error('Search tool is not executable.');
+    const executeSearch = search.execute;
+    const firstOptions = {
+      toolCallId: 'call-1',
+      messages: [],
+      abortSignal: undefined,
+    } as never;
+
+    await expect(
+      executeSearch({ query: 'ringkasan' }, firstOptions),
+    ).resolves.toBe('{"sources":[{"documentId":"document-1"}]}');
+    await expect(
+      executeSearch({ query: 'ringkasan' }, {
+        toolCallId: 'call-2',
+        messages: [],
+        abortSignal: undefined,
+      } as never),
+    ).resolves.toBe('{"sources":[{"documentId":"document-1"}]}');
+    expect(createToolInvocation).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
   it('defers confirmed tools and executes only after approval', async () => {
     const pending = {
       id: 'tool-category',

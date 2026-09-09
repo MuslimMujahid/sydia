@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
+import { simulateReadableStream } from 'ai';
+import { MockLanguageModelV4 } from 'ai/test';
 import {
   ModelGatewayError,
   OpenRouterLanguageModel,
@@ -60,6 +62,72 @@ describe('OpenRouterLanguageModel', () => {
       text: 'Halo kembali.',
       usage: { inputTokens: 11, outputTokens: 7 },
     });
+  });
+
+  it('retries one no-output stream before any tool call', async () => {
+    let attempt = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        attempt += 1;
+
+        return Promise.resolve({
+          stream: simulateReadableStream({
+            chunks:
+              attempt === 1
+                ? []
+                : [
+                    { type: 'text-start' as const, id: 'text-1' },
+                    {
+                      type: 'text-delta' as const,
+                      id: 'text-1',
+                      delta: 'Ringkasan dokumen.',
+                    },
+                    { type: 'text-end' as const, id: 'text-1' },
+                    {
+                      type: 'finish' as const,
+                      finishReason: {
+                        unified: 'stop' as const,
+                        raw: undefined,
+                      },
+                      logprobs: undefined,
+                      usage: {
+                        inputTokens: {
+                          total: 3,
+                          noCache: 3,
+                          cacheRead: undefined,
+                          cacheWrite: undefined,
+                        },
+                        outputTokens: {
+                          total: 4,
+                          text: 4,
+                          reasoning: undefined,
+                        },
+                      },
+                    },
+                  ],
+          }),
+        });
+      },
+    });
+
+    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+    const onTextDelta = jest.fn<(delta: string) => void>();
+
+    await expect(
+      gateway.generate({
+        conversationId: 'conversation-1',
+        runId: 'run-1',
+        messages: [{ role: 'user', content: 'Ringkas dokumen.' }],
+        onTextDelta,
+      }),
+    ).resolves.toEqual({
+      text: 'Ringkasan dokumen.',
+      usage: { inputTokens: 3, outputTokens: 4 },
+    });
+    expect(attempt).toBe(2);
+    expect(onTextDelta).toHaveBeenCalledTimes(1);
+    expect(onTextDelta).toHaveBeenCalledWith('Ringkasan dokumen.');
   });
 
   it('hides provider failure details behind a stable gateway error', async () => {

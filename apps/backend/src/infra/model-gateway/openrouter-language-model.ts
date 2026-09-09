@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { generateText, stepCountIs, streamText } from 'ai';
+import {
+  generateText,
+  NoOutputGeneratedError,
+  stepCountIs,
+  streamText,
+} from 'ai';
 import type { LanguageModel as AiLanguageModel } from 'ai';
 import type {
   GenerateRequest,
@@ -11,7 +16,7 @@ import type {
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'z-ai/glm-5.3-flash';
-const REQUEST_TIMEOUT_MS = 60_000;
+const REQUEST_TIMEOUT_MS = 180_000;
 
 export class ModelGatewayError extends Error {
   constructor(message: string) {
@@ -30,10 +35,17 @@ function openRouterCost(metadata: unknown): number | undefined {
   if (!metadata || typeof metadata !== 'object') return undefined;
   const openrouter = (metadata as Record<string, unknown>).openrouter;
   if (!openrouter || typeof openrouter !== 'object') return undefined;
+
   const usage = (openrouter as Record<string, unknown>).usage;
   if (!usage || typeof usage !== 'object') return undefined;
 
   return tokenCount((usage as Record<string, unknown>).cost);
+}
+
+function errorObject(value: unknown): Error {
+  return value instanceof Error
+    ? value
+    : new Error('Unknown model error.', { cause: value });
 }
 
 @Injectable()
@@ -72,59 +84,113 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       );
     }
 
+    const options = () => ({
+      model: this.languageModel,
+      messages: request.messages,
+      allowSystemInMessages: true as const,
+      tools: request.tools,
+      stopWhen: stepCountIs(15),
+      timeout: REQUEST_TIMEOUT_MS,
+      abortSignal:
+        typeof AbortSignal.timeout === 'function'
+          ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+          : undefined,
+      maxRetries: 0,
+    });
+
     try {
-      const options = {
-        model: this.languageModel,
-        messages: request.messages,
-        allowSystemInMessages: true,
-        tools: request.tools,
-        stopWhen: stepCountIs(3),
-        timeout: REQUEST_TIMEOUT_MS,
-        abortSignal:
-          typeof AbortSignal.timeout === 'function'
-            ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-            : undefined,
-        maxRetries: 0,
-      } as const;
-
       if (request.onTextDelta || request.onToolCall) {
-        const result = streamText({
-          ...options,
-          onChunk: ({ chunk }) => {
-            if (chunk.type === 'text-delta') {
-              request.onTextDelta?.(chunk.text);
-            } else if (chunk.type === 'tool-call') {
-              request.onToolCall?.(chunk.toolName);
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          let streamError: unknown;
+          let toolCallCount = 0;
+
+          try {
+            const result = streamText({
+              ...options(),
+              onChunk: ({ chunk }) => {
+                if (chunk.type === 'tool-call') {
+                  toolCallCount += 1;
+                  request.onToolCall?.(chunk.toolName);
+                }
+              },
+              onError: ({ error }) => {
+                streamError = error;
+              },
+            });
+
+            const [text, usage, providerMetadata] = await Promise.all([
+              result.text,
+              result.usage,
+              result.providerMetadata,
+            ]);
+
+            if (streamError) throw errorObject(streamError);
+            const finalText = text.trim();
+            if (finalText) request.onTextDelta?.(finalText);
+
+            if (attempt === 2) {
+              this.logger.log(
+                JSON.stringify({
+                  event: 'assistant_generation_retry_succeeded',
+                  conversationId: request.conversationId ?? null,
+                  runId: request.runId ?? null,
+                  attempt,
+                }),
+              );
             }
-          },
-        });
 
-        const [text, usage, providerMetadata] = await Promise.all([
-          result.text,
-          result.usage,
-          result.providerMetadata,
-        ]);
+            return {
+              text: finalText,
+              usage: {
+                inputTokens: tokenCount(usage.inputTokens),
+                outputTokens: tokenCount(usage.outputTokens),
+                costUsd: openRouterCost(providerMetadata),
+              },
+            };
+          } catch (error) {
+            const noOutput = NoOutputGeneratedError.isInstance(error);
+            const retry = attempt === 1 && noOutput && toolCallCount === 0;
+            this.logger.warn(
+              JSON.stringify({
+                event: 'assistant_generation_failed',
+                conversationId: request.conversationId ?? null,
+                runId: request.runId ?? null,
+                attempt,
+                errorName: error instanceof Error ? error.name : 'UnknownError',
+                toolCallCount,
+                retry,
+              }),
+            );
+            if (!retry) throw errorObject(error);
+          }
+        }
 
-        return {
-          text: text.trim(),
-          usage: {
-            inputTokens: tokenCount(usage.inputTokens),
-            outputTokens: tokenCount(usage.outputTokens),
-            costUsd: openRouterCost(providerMetadata),
-          },
-        };
+        throw new NoOutputGeneratedError();
       }
 
-      const result = await generateText(options);
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          const result = await generateText(options());
 
-      return {
-        text: result.text.trim(),
-        usage: {
-          inputTokens: tokenCount(result.usage.inputTokens),
-          outputTokens: tokenCount(result.usage.outputTokens),
-          costUsd: openRouterCost(result.providerMetadata),
-        },
-      };
+          return {
+            text: result.text.trim(),
+            usage: {
+              inputTokens: tokenCount(result.usage.inputTokens),
+              outputTokens: tokenCount(result.usage.outputTokens),
+              costUsd: openRouterCost(result.providerMetadata),
+            },
+          };
+        } catch (error) {
+          if (
+            attempt === 2 ||
+            request.tools !== undefined ||
+            !NoOutputGeneratedError.isInstance(error)
+          )
+            throw error;
+        }
+      }
+
+      throw new NoOutputGeneratedError();
     } catch (error) {
       if (error instanceof ModelGatewayError) throw error;
 

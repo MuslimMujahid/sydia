@@ -66,7 +66,7 @@ export type ToolInvocation = {
   status: ToolInvocationStatus;
   objectId: string | null;
   objectType: "task" | "reminder" | "category" | "category_confirmation" | null;
-  state: Record<string, string | number | boolean | null> | null;
+  state: Record<string, JsonValue> | null;
   output: JsonValue;
   createdAt: string;
   updatedAt: string;
@@ -245,12 +245,7 @@ const toolInvocationSchema = z.object({
   objectType: z
     .enum(["task", "reminder", "category", "category_confirmation"])
     .nullable(),
-  state: z
-    .record(
-      z.string(),
-      z.union([z.string(), z.number(), z.boolean(), z.null()])
-    )
-    .nullable(),
+  state: z.record(z.string(), z.json()).nullable(),
   output: z.json(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -271,7 +266,7 @@ const streamPartSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("error"), errorText: z.string() }),
 ]);
 
-async function consumeUIMessageStream(
+export async function consumeUIMessageStream(
   stream: ReadableStream<Uint8Array>,
   handlers: ConversationStreamHandlers
 ): Promise<void> {
@@ -306,6 +301,72 @@ async function consumeUIMessageStream(
   }
 }
 
+export function requireTerminalTurn(
+  result: SendMessageResult | undefined
+): SendMessageResult {
+  if (
+    !result ||
+    (result.assistantRun.status !== "completed" &&
+      result.assistantRun.status !== "failed")
+  )
+    throw new Error("Respons Sydia tidak lengkap.");
+
+  return result;
+}
+
+async function reconcileTerminalTurn(
+  streamed: SendMessageResult | undefined
+): Promise<SendMessageResult | undefined> {
+  if (!streamed) return undefined;
+  if (
+    streamed.assistantRun.status === "completed" ||
+    streamed.assistantRun.status === "failed"
+  )
+    return streamed;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      const detail = await getConversation(streamed.conversation.id);
+      const assistantRun = detail.assistantRuns.find(
+        (run) => run.id === streamed.assistantRun.id
+      );
+
+      if (
+        assistantRun?.status === "completed" ||
+        assistantRun?.status === "failed"
+      ) {
+        const assistantMessage = assistantRun.assistantMessageId
+          ? (detail.messages.find(
+              (message) => message.id === assistantRun.assistantMessageId
+            ) ?? null)
+          : null;
+
+        return {
+          conversation: detail.conversation,
+          userMessage:
+            detail.messages.find(
+              (message) => message.id === streamed.userMessage.id
+            ) ?? streamed.userMessage,
+          assistantMessage,
+          assistantRun,
+          toolInvocations: detail.toolInvocations.filter(
+            (invocation) => invocation.assistantRunId === assistantRun.id
+          ),
+        };
+      }
+    } catch {
+      // Preserve the stream failure when persisted state cannot be read.
+    }
+
+    if (attempt < 4)
+      await new Promise<void>((resolve) =>
+        globalThis.setTimeout(resolve, 1_000)
+      );
+  }
+
+  return streamed;
+}
+
 export async function sendConversationMessage(
   values: SendMessageVariables,
   handlers: ConversationStreamHandlers
@@ -319,16 +380,29 @@ export async function sendConversationMessage(
       { adapter: "fetch", responseType: "stream" }
     );
 
-    await consumeUIMessageStream(response.data, {
-      ...handlers,
-      onTurn: (result) => {
-        finalResult = result;
-        handlers.onTurn(result);
-      },
-    });
-    if (!finalResult) throw new Error("Respons Sydia tidak lengkap.");
+    let streamError: unknown;
 
-    return finalResult;
+    try {
+      await consumeUIMessageStream(response.data, {
+        ...handlers,
+        onTurn: (result) => {
+          finalResult = result;
+          handlers.onTurn(result);
+        },
+      });
+    } catch (error) {
+      streamError = error;
+    }
+
+    const reconciled = await reconcileTerminalTurn(finalResult);
+    if (
+      reconciled &&
+      reconciled.assistantRun.status !== finalResult?.assistantRun.status
+    )
+      handlers.onTurn(reconciled);
+    if (streamError && !reconciled) throw streamError;
+
+    return requireTerminalTurn(reconciled);
   } catch (error) {
     throw toApiError(
       error,

@@ -128,6 +128,76 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(JSON.stringify(result)).not.toContain('textContent');
   });
 
+  test('reads ordered document chunks with pagination metadata', async () => {
+    const document = {
+      id: 'doc-1',
+      title: 'deck.pdf',
+      status: 'ready' as const,
+      createdAt: new Date('2026-09-01T00:00:00Z'),
+      updatedAt: new Date('2026-09-01T00:00:00Z'),
+      file: {
+        id: 'file-1',
+        originalName: 'deck.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        kind: 'document' as const,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+      },
+    };
+
+    const read = jest
+      .fn<
+        (
+          userId: string,
+          documentId: string,
+          cursor: number,
+          limit: number,
+        ) => Promise<{
+          document: typeof document;
+          chunks: Array<{
+            id: string;
+            chunkIndex: number;
+            pageNumber: number;
+            content: string;
+          }>;
+          nextCursor: number | null;
+        }>
+      >()
+      .mockResolvedValue({
+        document,
+        chunks: [
+          {
+            id: 'chunk-3',
+            chunkIndex: 3,
+            pageNumber: 2,
+            content: 'Bagian kedua dokumen.',
+          },
+        ],
+        nextCursor: 4,
+      });
+
+    const result = await tools({
+      documents: { read } as unknown as DocumentService,
+    })
+      .find((tool) => tool.definition.name === 'read_document')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'read-document',
+        arguments: { documentId: 'doc-1', cursor: 3, limit: 1 },
+      });
+
+    expect(read).toHaveBeenCalledWith('user-1', 'doc-1', 3, 1);
+    expect(result).toEqual({
+      documentId: 'doc-1',
+      filename: 'deck.pdf',
+      status: 'ready',
+      chunks: [{ chunk: 3, page: 2, content: 'Bagian kedua dokumen.' }],
+      nextCursor: 4,
+      hasMore: true,
+    });
+  });
+
   test('saves every file attached to the source message', async () => {
     const attached = [
       { id: 'doc-1', title: 'invoice.pdf' },

@@ -83,10 +83,16 @@ export function ChatPage({
   const [streamedActivity, setStreamedActivity] = useState<AssistantActivity>();
   const [streamedText, setStreamedText] = useState("");
   const [streamCompleted, setStreamCompleted] = useState(false);
+  const [submissionConversationId, setSubmissionConversationId] = useState<
+    string | undefined
+  >();
+
   const sendMutation = useSendConversationMessage({
     onActivity: setStreamedActivity,
     onTextDelta: (delta) => setStreamedText((text) => text + delta),
     onTurn: (result) => {
+      setSubmissionConversationId(result.conversation.id);
+
       if (!conversationId) {
         void navigate({
           to: "/",
@@ -120,7 +126,13 @@ export function ChatPage({
     viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
   }, [newestMessageId, newestRunUpdate, sendMutation.isPending]);
 
+  const sendErrorMessage =
+    sendMutation.isError && submissionConversationId === conversationId
+      ? sendMutation.error.message
+      : undefined;
+
   async function handleSend(values: SendMessageVariables) {
+    setSubmissionConversationId(values.conversationId);
     setStreamedText("");
     setStreamCompleted(false);
     setStreamedActivity({
@@ -198,7 +210,7 @@ export function ChatPage({
                   key="new-home"
                   initialAttachmentId={initialAttachmentId}
                   isSending={sendMutation.isPending}
-                  errorMessage={sendMutation.error?.message}
+                  errorMessage={sendErrorMessage}
                   onDraftChange={() => sendMutation.reset()}
                   onSend={handleSend}
                   embedded
@@ -253,7 +265,7 @@ export function ChatPage({
           disabled={composerDisabled}
           disabledReason={composerDisabledReason}
           isSending={sendMutation.isPending}
-          errorMessage={sendMutation.error?.message}
+          errorMessage={sendErrorMessage}
           onDraftChange={() => sendMutation.reset()}
           onSend={handleSend}
         />

@@ -249,7 +249,7 @@ describe('AssistantOrchestratorService', () => {
     expect(scheduleMemoryDream).toHaveBeenCalledTimes(1);
   });
 
-  it('streams activity and text while preserving the completed turn', async () => {
+  it('streams only the final model text while preserving the completed turn', async () => {
     const completedRun = createRun('completed');
     const assistantMessage: Message = {
       ...userMessage,
@@ -281,8 +281,8 @@ describe('AssistantOrchestratorService', () => {
     } as unknown as IConversationRepository;
 
     const generate = jest.fn<LanguageModelGateway['generate']>((request) => {
-      request.onTextDelta?.('Halo, ');
-      request.onTextDelta?.('Ayu.');
+      request.onToolCall?.('search_documents');
+      request.onTextDelta?.(assistantMessage.content);
 
       return Promise.resolve({ text: assistantMessage.content, usage: {} });
     });
@@ -319,8 +319,10 @@ describe('AssistantOrchestratorService', () => {
           type: 'data-activity',
           data: expect.objectContaining({ phase: 'queued' }) as unknown,
         }),
-        expect.objectContaining({ type: 'text-delta', delta: 'Halo, ' }),
-        expect.objectContaining({ type: 'text-delta', delta: 'Ayu.' }),
+        expect.objectContaining({
+          type: 'text-delta',
+          delta: assistantMessage.content,
+        }),
         expect.objectContaining({
           type: 'data-turn',
           data: expect.objectContaining({
@@ -329,6 +331,91 @@ describe('AssistantOrchestratorService', () => {
           }) as unknown,
         }),
       ]),
+    );
+  });
+
+  it('fails instead of persisting tool confirmations as an answer', async () => {
+    const failedRun = createRun('failed');
+    const completeRun = jest.fn();
+    const updateRun = resolved(failedRun);
+    const repository = {
+      writeUserMessage: resolved({
+        conversation,
+        userMessage,
+        replayed: false,
+      }),
+      findLatestRunForMessage: resolved(null),
+      createRun: resolved(createRun()),
+      claimRun: resolved(true),
+      findContext: resolved({
+        conversation: {
+          id: conversation.id,
+          rollingSummary: null,
+          summaryThroughMessageId: null,
+        },
+        messages: [userMessage],
+      }),
+      completeRun,
+      updateRun,
+      replaceSummary: jest.fn(),
+    } as unknown as IConversationRepository;
+
+    const invocation = {
+      id: 'tool-1',
+      assistantRunId: 'run-1',
+      name: 'search_documents',
+      label: 'Mencari dokumen',
+      status: 'completed',
+      objectId: null,
+      objectType: null,
+      state: null,
+      output: { sources: [] },
+      createdAt: now,
+      updatedAt: now,
+    } as never;
+
+    const toolExecutor = {
+      aiTools: (
+        _userId: string,
+        _runId: string,
+        _messageId: string,
+        onExecution: (result: { invocation: typeof invocation }) => void,
+      ) => {
+        onExecution({ invocation });
+
+        return {};
+      },
+      activityLabel: () => 'Mencari dokumen',
+    } as unknown as ToolExecutorService;
+
+    const model: LanguageModelGateway = {
+      provider: 'openrouter',
+      model: 'test-model',
+      generate: resolved({ text: '', usage: {} }),
+    };
+
+    const config = new ConfigService();
+    const orchestrator = new AssistantOrchestratorService(
+      repository,
+      model,
+      new ContextBuilderService(repository, config),
+      new ConversationSummarizerService(repository, model, config),
+      toolExecutor,
+      { conversationSummaries: { add: resolved({}) } } as never,
+      { schedule: resolved(undefined) } as never,
+    );
+
+    const result = await orchestrator.sendAndWait(user, {
+      content: 'Ringkas dokumennya',
+      idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
+    });
+
+    expect(result.assistantMessage).toBeNull();
+    expect(result.assistantRun.status).toBe('failed');
+    expect(completeRun).not.toHaveBeenCalled();
+    expect(updateRun).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ status: 'failed' }),
     );
   });
 

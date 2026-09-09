@@ -14,6 +14,7 @@ import {
 import { PDFParse } from 'pdf-parse';
 import type {
   Document,
+  DocumentChunk,
   DocumentMetadata,
   FileKind,
 } from '../../database/entities';
@@ -298,6 +299,19 @@ export class DocumentService {
     messageId: string,
   ): Promise<DocumentMetadata[]> {
     return this.documents.findMetadataByMessageId(userId, messageId);
+  }
+
+  async read(
+    userId: string,
+    documentId: string,
+    cursor = 0,
+    limit = 8,
+  ): Promise<{
+    document: DocumentMetadata;
+    chunks: DocumentChunk[];
+    nextCursor: number | null;
+  } | null> {
+    return this.documents.readChunks(userId, documentId, cursor, limit);
   }
 
   async searchForMessage(

@@ -66,9 +66,6 @@ function ProfileSettingsPage() {
   return (
     <div className="max-w-3xl space-y-10">
       <header className="space-y-4">
-        <p className="font-mono text-[13px] font-medium tracking-widest text-ink-muted uppercase">
-          Pengaturan / Profil
-        </p>
         <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
           Profil
         </h1>
