@@ -160,6 +160,83 @@ describe('OpenRouterLanguageModel', () => {
     });
   });
 
+  it('dispatches each text delta before the stream completes', async () => {
+    const languageModel = new MockLanguageModelV4({
+      doStream: () =>
+        Promise.resolve({
+          stream: simulateReadableStream({
+            chunkDelayInMs: 25,
+            chunks: [
+              { type: 'text-start' as const, id: 'text-1' },
+              {
+                type: 'text-delta' as const,
+                id: 'text-1',
+                delta: 'Halo ',
+              },
+              {
+                type: 'text-delta' as const,
+                id: 'text-1',
+                delta: 'kembali.',
+              },
+              { type: 'text-end' as const, id: 'text-1' },
+              {
+                type: 'finish' as const,
+                finishReason: {
+                  unified: 'stop' as const,
+                  raw: undefined,
+                },
+                logprobs: undefined,
+                usage: {
+                  inputTokens: {
+                    total: 11,
+                    noCache: 11,
+                    cacheRead: undefined,
+                    cacheWrite: undefined,
+                  },
+                  outputTokens: {
+                    total: 7,
+                    text: 7,
+                    reasoning: undefined,
+                  },
+                },
+              },
+            ],
+          }),
+        }),
+    });
+    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+    let completed = false;
+    let resolveFirstDelta!: () => void;
+    const firstDelta = new Promise<void>((resolve) => {
+      resolveFirstDelta = resolve;
+    });
+    const onTextDelta = jest.fn<(delta: string) => void>((delta) => {
+      if (delta === 'Halo ') resolveFirstDelta();
+    });
+    const generation = gateway
+      .generate({
+        messages: [{ role: 'user', content: 'Halo' }],
+        onTextDelta,
+      })
+      .finally(() => {
+        completed = true;
+      });
+
+    await firstDelta;
+    expect(completed).toBe(false);
+    expect(onTextDelta).toHaveBeenCalledTimes(1);
+    expect(onTextDelta).toHaveBeenLastCalledWith('Halo ');
+
+    await expect(generation).resolves.toEqual({
+      text: 'Halo kembali.',
+      usage: { inputTokens: 11, outputTokens: 7 },
+    });
+    expect(onTextDelta).toHaveBeenCalledTimes(2);
+    expect(onTextDelta).toHaveBeenNthCalledWith(2, 'kembali.');
+  });
+
   it('retries one no-output stream before any tool call', async () => {
     let attempt = 0;
     const languageModel = new MockLanguageModelV4({

@@ -124,33 +124,41 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
           async (trace) => {
             if (streaming) {
               let streamError: unknown;
+              let text = '';
+              let usage:
+                { inputTokens?: unknown; outputTokens?: unknown } | undefined;
+              let providerMetadata: unknown;
               const result = streamText({
                 ...options(),
-                onChunk: ({ chunk }) => {
-                  if (chunk.type === 'tool-call') {
-                    toolCallCount += 1;
-                    lastToolCallCount = toolCallCount;
-                    request.onToolCall?.(chunk.toolName);
-                  }
-                },
                 onError: ({ error }) => {
                   streamError = error;
                 },
               });
 
-              const [text, usage, providerMetadata] = await Promise.all([
-                result.text,
-                result.usage,
-                result.providerMetadata,
-              ]);
+              for await (const chunk of result.stream) {
+                if (chunk.type === 'text-delta') {
+                  if (chunk.text) {
+                    text += chunk.text;
+                    request.onTextDelta?.(chunk.text);
+                  }
+                } else if (chunk.type === 'tool-call') {
+                  toolCallCount += 1;
+                  lastToolCallCount = toolCallCount;
+                  request.onToolCall?.(chunk.toolName);
+                } else if (chunk.type === 'finish-step') {
+                  usage = chunk.usage;
+                  providerMetadata = chunk.providerMetadata;
+                } else if (chunk.type === 'finish') {
+                  usage = chunk.totalUsage;
+                }
+              }
 
               if (streamError) throw errorObject(streamError);
 
               const finalText = text.trim();
-              if (finalText) request.onTextDelta?.(finalText);
               const normalizedUsage = {
-                inputTokens: tokenCount(usage.inputTokens),
-                outputTokens: tokenCount(usage.outputTokens),
+                inputTokens: tokenCount(usage?.inputTokens),
+                outputTokens: tokenCount(usage?.outputTokens),
                 costUsd: openRouterCost(providerMetadata),
               };
 
