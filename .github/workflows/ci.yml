@@ -95,6 +95,7 @@ jobs:
     env:
       BACKEND_DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/sydia_e2e
       BACKEND_AUTH_SECRET: ci-e2e-secret-that-is-at-least-32-characters
+      BACKEND_SECRET_ENCRYPTION_KEY: ci-e2e-encryption-key-that-is-at-least-32-characters
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       PLAYWRIGHT_BACKEND_URL: http://127.0.0.1:5000
     steps:
@@ -106,6 +107,8 @@ jobs:
           bun-version: 1.3.14
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Build workspace
+        run: bun run build
       - name: Apply database migrations
         run: bun --cwd apps/backend run db:migrate:deploy
       - name: Install Chromium

@@ -1,0 +1,28 @@
+name: dev
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: dev-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/reusable-deploy.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      environment_name: dev
+      image_tag: dev
+      vite_api_url: ${{ vars.DEV_VITE_API_URL || vars.VITE_API_URL }}
+      frontend_cache_scope: frontend-dev
+      backend_cache_scope: backend-dev
+    secrets:
+      coolify_webhook: ${{ secrets.DEV_COOLIFY_WEBHOOK || secrets.COOLIFY_WEBHOOK }}
+      coolify_token: ${{ secrets.DEV_COOLIFY_TOKEN || secrets.COOLIFY_TOKEN }}

@@ -1,0 +1,27 @@
+name: prod
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: prod-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/reusable-deploy.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      environment_name: prod
+      image_tag: main
+      vite_api_url: ${{ vars.PROD_VITE_API_URL || vars.VITE_API_URL }}
+      frontend_cache_scope: frontend-prod
+      backend_cache_scope: backend-prod
+    secrets:
+      coolify_webhook: ${{ secrets.PROD_COOLIFY_WEBHOOK || secrets.COOLIFY_WEBHOOK }}
+      coolify_token: ${{ secrets.PROD_COOLIFY_TOKEN || secrets.COOLIFY_TOKEN }}
