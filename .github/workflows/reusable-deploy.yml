@@ -42,6 +42,16 @@ jobs:
         shell: bash
         run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate Vite API URL
+        shell: bash
+        env:
+          VITE_API_URL: ${{ inputs.vite_api_url }}
+        run: |
+          if [[ -z "${VITE_API_URL//[[:space:]]/}" ]]; then
+            echo 'VITE API URL is required. Configure PROD_VITE_API_URL, DEV_VITE_API_URL, or shared VITE_API_URL for the caller.' >&2
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

@@ -39,7 +39,7 @@ FROM oven/bun:1.3 AS prod-deps
 WORKDIR /app
 COPY --from=prune /app/out/json/ .
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile --production --linker hoisted
+    bun install --frozen-lockfile --production --linker hoisted --ignore-scripts
 
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
