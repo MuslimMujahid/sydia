@@ -137,12 +137,11 @@ export function SecretRevealPage() {
           <Card>
             <ShieldCheck className="mb-4 size-6 text-brand-deep" />
             <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
-              Rahasia dibagikan kepada Anda
+              Pesan terenkripsi
             </h1>
             <p className="mt-2 text-ink-muted">
-              Seseorang membagikan rahasia terenkripsi melalui Sydia. Nilai
-              hanya dapat ditampilkan satu kali — setelah Anda membukanya,
-              tautan ini tidak berlaku lagi.
+              Pesan aman telah dibagikan melalui Sydia. Demi keamanan, tautan
+              ini hanya berlaku satu kali setelah anda membukanya.
             </p>
             <Button
               className="mt-6"
@@ -154,7 +153,7 @@ export function SecretRevealPage() {
               ) : (
                 <Eye />
               )}
-              {state.status === "revealing" ? "Membuka…" : "Tampilkan rahasia"}
+              {state.status === "revealing" ? "Membuka…" : "Buka"}
             </Button>
           </Card>
         ) : null}
@@ -213,10 +212,6 @@ export function SecretRevealPage() {
               Tautan tidak dapat dibuka
             </h1>
             <p className="mt-2 text-ink-muted">{state.message}</p>
-            <p className="mt-2 text-ink-muted">
-              Jika tautan sudah kedaluwarsa atau sudah digunakan, minta pengirim
-              membuat tautan ungkap baru.
-            </p>
             <Button
               variant="secondary"
               className="mt-6"

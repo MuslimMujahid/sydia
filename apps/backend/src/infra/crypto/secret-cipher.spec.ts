@@ -17,6 +17,13 @@ describe('SecretCipher', () => {
     expect(encrypted).not.toContain('123');
     expect(subject.decrypt(encrypted)).toBe('ATM_NUM:123 | ATM_PASSWORD:456');
   });
+  it('round-trips newline-separated values exactly', () => {
+    const subject = cipher('a-distinct-secret-key-with-at-least-32-characters');
+    const plaintext = 'alice@example.com\nS3cret value\nline with spaces';
+    const encrypted = subject.encrypt(plaintext);
+
+    expect(subject.decrypt(encrypted)).toBe(plaintext);
+  });
 
   it('rejects ciphertext encrypted with another key', () => {
     const encrypted = cipher(

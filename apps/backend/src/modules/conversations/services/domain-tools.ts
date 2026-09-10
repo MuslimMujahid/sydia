@@ -31,7 +31,7 @@ function text(
   if (typeof value !== 'string' || !value.trim())
     throw new Error(`${key} must be text.`);
 
-  return value.trim();
+  return key === 'value' ? value : value.trim();
 }
 
 function optionalDate(
@@ -81,7 +81,8 @@ function schema(
     iconKey: 'Category icon selected from the allowed icon values.',
     taskCount: 'Non-negative number of tasks associated with the category.',
     label: 'Human-readable label for the secret.',
-    value: 'Secret value to store securely.',
+    value:
+      'Secret value to store securely. Preserve it exactly; for multiple values, use newline characters (\\n), never slashes, labels, bullets, or other separators.',
     due: 'Due-date filter: today, upcoming, overdue, or none.',
   };
 
@@ -867,7 +868,9 @@ Parameters: required name; optional taskCount.`,
 
 Use it when the user explicitly asks to save a credential, token, key, or other secret for later use.
 
-Do not use it for ordinary notes or memories, and do not expose a secret value in responses or unrelated tool calls.
+Do not use it for ordinary notes or memories, and do not expose a secret value in responses or unrelated tool calls. The model must provide the structured label and value; do not infer or extract either field from the source message.
+
+Preserve the secret value exactly as provided. When a secret contains multiple values (for example, a username and password), put each value on its own line using a newline character (\\n). Do not join values with slashes, labels, bullets, or other separators, and do not parse or reformat the value.
 
 The operation is sensitive and requires secret storage to be configured. label and value are required; the result returns only a non-sensitive identifier and label, not the stored value.
 

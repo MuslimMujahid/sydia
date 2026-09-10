@@ -8,7 +8,7 @@ import type {
 import type { SecretCipher } from '../../infra/crypto';
 import { SecretsService } from './secrets.service';
 
-function createService(source: string) {
+function createService(source: string | null) {
   const maskUserMessage = jest.fn<
     (userId: string, messageId: string, replacement: string) => Promise<boolean>
   >(() => Promise.resolve(true));
@@ -17,17 +17,31 @@ function createService(source: string) {
     (userId: string, messageId: string, replacement: string) => Promise<void>
   >(() => Promise.resolve());
 
+  const create = jest.fn<
+    (
+      userId: string,
+      input: { label: string; encryptedValue: string },
+    ) => Promise<{
+      id: string;
+      label: string;
+      createdAt: Date;
+      updatedAt: Date;
+      lastRevealedAt: Date | null;
+      revealCount: number;
+    }>
+  >(() =>
+    Promise.resolve({
+      id: 'secret-1',
+      label: 'Facebook account',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastRevealedAt: null,
+      revealCount: 0,
+    }),
+  );
+
   const secrets = {
-    create: jest.fn(() =>
-      Promise.resolve({
-        id: 'secret-1',
-        label: 'Facebook account',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastRevealedAt: null,
-        revealCount: 0,
-      }),
-    ),
+    create,
   } as unknown as ISecretRepository;
 
   const conversations = {
@@ -52,23 +66,31 @@ function createService(source: string) {
     new ConfigService({ FRONTEND_URL: 'http://localhost:3000' }),
   );
 
-  return { service, maskUserMessage, maskActiveChannelTurns };
+  return { service, create, maskUserMessage, maskActiveChannelTurns, cipher };
 }
 
 describe('SecretsService', () => {
-  it('preserves the original message while masking every compact value', async () => {
-    const { service, maskUserMessage, maskActiveChannelTurns } = createService(
-      'Tolong simpan username foo@example.com dan password Pass-9274 untuk Facebook',
-    );
+  it('accepts LLM-provided structured input regardless of source wording', async () => {
+    const source =
+      'I was discussing recipes, not secret storage: foo@example.com\nPass-9274';
+
+    const { service, create, cipher, maskUserMessage, maskActiveChannelTurns } =
+      createService(source);
+
+    const value = 'foo@example.com\nPass-9274';
 
     await service.createFromChat('user-1', 'message-1', {
       label: 'Facebook account',
-      value: 'USERNAME:<foo@example.com> | PASSWORD:<Pass-9274>',
+      value,
     });
 
-    const masked =
-      'Tolong simpan username **** dan password **** untuk Facebook';
+    expect(cipher.encrypt).toHaveBeenCalledWith(value);
+    expect(create).toHaveBeenCalledWith('user-1', {
+      label: 'Facebook account',
+      encryptedValue: 'encrypted',
+    });
 
+    const masked = 'I was discussing recipes, not secret storage: ****';
     expect(maskUserMessage).toHaveBeenCalledWith('user-1', 'message-1', masked);
     expect(maskActiveChannelTurns).toHaveBeenCalledWith(
       'user-1',
@@ -77,16 +99,37 @@ describe('SecretsService', () => {
     );
   });
 
-  it('does not store when save intent is absent', async () => {
-    const { service } = createService(
-      'Username Facebook saya foo@example.com dan password Pass-9274',
-    );
+  it('masks the exact multiline value without splitting fields', async () => {
+    const value = 'foo@example.com\nPass-9274';
+    const source = `Unrelated wording:\n${value}\nKeep this context.`;
+    const { service, maskUserMessage } = createService(source);
 
-    await expect(
-      service.createFromChat('user-1', 'message-1', {
-        label: 'Facebook account',
-        value: 'USERNAME:<foo@example.com> | PASSWORD:<Pass-9274>',
-      }),
-    ).rejects.toThrow('Instruksi eksplisit');
+    await service.createFromChat('user-1', 'message-1', {
+      label: 'Facebook account',
+      value,
+    });
+
+    expect(maskUserMessage).toHaveBeenCalledWith(
+      'user-1',
+      'message-1',
+      'Unrelated wording:\n****\nKeep this context.',
+    );
+  });
+
+  it('creates the secret when the source message is unavailable', async () => {
+    const { service, create, maskUserMessage, maskActiveChannelTurns } =
+      createService(null);
+
+    await service.createFromChat('user-1', 'missing-message', {
+      label: 'Facebook account',
+      value: 'foo@example.com\nPass-9274',
+    });
+
+    expect(create).toHaveBeenCalledWith('user-1', {
+      label: 'Facebook account',
+      encryptedValue: 'encrypted',
+    });
+    expect(maskUserMessage).not.toHaveBeenCalled();
+    expect(maskActiveChannelTurns).not.toHaveBeenCalled();
   });
 });

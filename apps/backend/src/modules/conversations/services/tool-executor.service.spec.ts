@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import type { Prisma } from '../../../generated/prisma/client';
 import type { IConversationRepository } from '../../../database/interfaces';
 import { ToolExecutorService } from './tool-executor.service';
 
@@ -282,6 +283,107 @@ describe('ToolExecutorService', () => {
     await expect(operation).resolves.toBe('{"saved":true}');
     expect(execute).toHaveBeenCalledTimes(1);
   });
+  it('executes structured store_secret calls without persisting sensitive data', async () => {
+    const pending = {
+      id: 'tool-store-secret',
+      assistantRunId: 'run-1',
+      name: 'store_secret',
+      label: 'Store secret',
+      status: 'pending',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const value = 'first line\nsecond line\n\nfinal line  ';
+
+    const argumentsValue = { label: 'VPN credentials', value };
+
+    const createToolInvocation = resolved(pending);
+
+    const updateToolInvocation = jest
+      .fn()
+      .mockImplementation((_id: unknown, update: unknown) =>
+        Promise.resolve({ ...pending, ...(update as object) }),
+      );
+
+    const execute = jest.fn<
+      (input: {
+        userId: string;
+        sourceMessageId: string;
+        arguments: Prisma.InputJsonValue;
+        idempotencyKey: string;
+      }) => Promise<Prisma.InputJsonValue>
+    >(() =>
+      Promise.resolve({
+        objectType: 'secret',
+        object: { id: 'secret-1', label: 'VPN credentials' },
+      }),
+    );
+
+    const repository = {
+      createToolInvocation,
+      claimToolInvocation: resolved(true),
+      updateToolInvocation,
+    } as unknown as IConversationRepository;
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'store_secret',
+          label: 'Store secret',
+          description: 'Store a structured secret.',
+          parameters: {
+            type: 'object',
+            properties: {
+              label: { type: 'string' },
+              value: { type: 'string' },
+            },
+            required: ['label', 'value'],
+          },
+        },
+        sensitive: true,
+        parseArguments: (input) => input as never,
+        execute,
+      },
+    ]);
+
+    const result = await executor.execute(
+      'user-1',
+      'run-1',
+      'arbitrary-source-text',
+      {
+        id: 'call-store-secret',
+        name: 'store_secret',
+        arguments: argumentsValue,
+      },
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceMessageId: 'arbitrary-source-text',
+        arguments: argumentsValue,
+      }),
+    );
+    expect(createToolInvocation).toHaveBeenCalledWith(
+      expect.objectContaining({ arguments: {} }),
+    );
+    expect(updateToolInvocation).toHaveBeenCalledWith(
+      'tool-store-secret',
+      expect.objectContaining({
+        result: {
+          objectType: 'secret',
+          object: { id: 'secret-1', label: 'VPN credentials' },
+        },
+      }),
+    );
+    expect(result.content).toBe(
+      '{"objectType":"secret","object":{"id":"secret-1","label":"VPN credentials"}}',
+    );
+    expect(JSON.stringify(result.invocation)).not.toContain(value);
+    expect(JSON.stringify(result.invocation)).not.toContain('second line');
+  });
+
   it('never persists sensitive tool arguments or transient reveal tokens', async () => {
     const pending = {
       id: 'tool-secret',

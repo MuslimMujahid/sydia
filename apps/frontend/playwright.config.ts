@@ -20,6 +20,9 @@ const backendEnvironment = {
   BACKEND_DB_USER: process.env.BACKEND_DB_USER ?? "postgres",
   BACKEND_DB_PASSWORD: process.env.BACKEND_DB_PASSWORD ?? "postgres",
   BACKEND_DB_NAME: process.env.BACKEND_DB_NAME ?? "app",
+  BACKEND_SECRET_ENCRYPTION_KEY:
+    process.env.BACKEND_SECRET_ENCRYPTION_KEY ??
+    "playwright-local-secret-encryption-key-at-least-32-characters",
 };
 
 export default defineConfig({

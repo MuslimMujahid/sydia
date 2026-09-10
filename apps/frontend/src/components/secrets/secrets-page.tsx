@@ -118,7 +118,7 @@ function SecretCreator({ onClose }: { onClose: () => void }) {
             <FieldShell
               id="secret-value"
               label="Nilai rahasia"
-              description="Nilai hanya dikirim sekali untuk disimpan dan tidak dapat dilihat lagi dari halaman ini."
+              description="Masukkan satu nilai per baris, misalnya email di baris pertama dan kata sandi di baris kedua. Baris baru akan disimpan persis seperti yang dimasukkan."
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (
@@ -126,6 +126,8 @@ function SecretCreator({ onClose }: { onClose: () => void }) {
                   id="secret-value"
                   autoComplete="off"
                   spellCheck={false}
+                  rows={4}
+                  placeholder={"user@gmail.com\nPassword123"}
                   value={field.state.value}
                   aria-describedby={describedBy}
                   aria-invalid={invalid}
@@ -303,7 +305,13 @@ function DirectRevealDialog({
 
   return (
     <DialogContent className="max-w-xl">
-      <DialogTitle>{revealed ? secret.label : unlocked ? "Membuka rahasia…" : "Tampilkan rahasia"}</DialogTitle>
+      <DialogTitle>
+        {revealed
+          ? secret.label
+          : unlocked
+            ? "Membuka rahasia…"
+            : "Tampilkan rahasia"}
+      </DialogTitle>
       <DialogDescription className="mt-2">
         {unlocked
           ? "Nilai sedang dibuka dan akan disembunyikan otomatis setelah 30 detik."
@@ -327,7 +335,10 @@ function DirectRevealDialog({
           </div>
         </>
       ) : unlocked ? (
-        <div className="mt-6 flex items-center gap-3 text-ink-muted" aria-live="polite">
+        <div
+          className="mt-6 flex items-center gap-3 text-ink-muted"
+          aria-live="polite"
+        >
           <LoaderCircle className="animate-spin motion-reduce:animate-none" />
           Membuka nilai rahasia…
           <FormError message={revealMutation.error?.message} />
@@ -335,7 +346,10 @@ function DirectRevealDialog({
       ) : (
         <div className="mt-6 space-y-4">
           <div>
-            <label htmlFor="vault-password" className="mb-2 block font-semibold">
+            <label
+              htmlFor="vault-password"
+              className="mb-2 block font-semibold"
+            >
               Kata sandi akun
             </label>
             <Input
@@ -348,7 +362,9 @@ function DirectRevealDialog({
           </div>
           <FormError message={error?.message} />
           <div className="flex justify-end gap-3">
-            <Button variant="dark-outline" onClick={close}>Batal</Button>
+            <Button variant="dark-outline" onClick={close}>
+              Batal
+            </Button>
             <Button
               disabled={!password || unlockMutation.isPending}
               onClick={() => void reveal()}
@@ -475,12 +491,7 @@ export function SecretsPage() {
       {query.isSuccess && !query.data.length ? (
         <EmptyState
           title="Belum ada rahasia"
-          message="Kirim kata sandi atau catatan sensitif lewat chat, atau tambahkan langsung dari sini. Anda membagikannya nanti lewat tautan ungkap satu kali."
-          action={
-            <Button variant="secondary" onClick={() => setCreating(true)}>
-              <Plus /> Tambah rahasia pertama
-            </Button>
-          }
+          message="Kirim kata sandi atau catatan sensitif lewat chat, atau gunakan aksi Tambah rahasia di bagian atas. Anda membagikannya nanti lewat tautan ungkap satu kali."
         />
       ) : null}
       {query.isSuccess && query.data.length ? (

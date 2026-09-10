@@ -8,6 +8,7 @@ import type {
 } from '../../../database/interfaces';
 import type { MemoryService } from '../../memories/memory.service';
 import type { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
+import type { SecretsService } from '../../secrets/secrets.service';
 import { createDomainTools } from './domain-tools';
 
 function resolved<T>(value: T) {
@@ -170,6 +171,66 @@ describe('domain assistant tools', () => {
       jest.useRealTimers();
     }
   });
+  test('registers and executes store_secret when SecretsService is wired', async () => {
+    const createFromChat = jest.fn<
+      (
+        userId: string,
+        sourceMessageId: string,
+        input: { label: string; value: string },
+      ) => Promise<{ id: string; label: string }>
+    >(() =>
+      Promise.resolve({
+        id: 'secret-1',
+        label: 'Facebook account',
+      }),
+    );
+
+    const tools = createDomainTools({
+      tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: {} as IReminderRepository,
+      memories: {} as IMemoryRepository,
+      memoryService: {} as MemoryService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {} as IUserRepository,
+      secrets: { createFromChat } as unknown as SecretsService,
+    });
+
+    const storeSecret = tools.find(
+      (tool) => tool.definition.name === 'store_secret',
+    );
+
+    expect(storeSecret).toBeDefined();
+    expect(storeSecret?.sensitive).toBe(true);
+    expect(storeSecret?.definition.parameters).toEqual(
+      expect.objectContaining({
+        required: ['label', 'value'],
+      }),
+    );
+    const result = await storeSecret?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-with-arbitrary-user-text',
+      arguments: {
+        label: 'Facebook account',
+        value: 'test@gmail.com\nDemo1234!',
+      },
+      idempotencyKey: 'store-secret-1',
+    });
+
+    expect(createFromChat).toHaveBeenCalledWith(
+      'user-1',
+      'message-with-arbitrary-user-text',
+      {
+        label: 'Facebook account',
+        value: 'test@gmail.com\nDemo1234!',
+      },
+    );
+    expect(result).toEqual({
+      objectType: 'secret',
+      object: { id: 'secret-1', label: 'Facebook account' },
+    });
+  });
+
   test('documents every domain tool and parameter in English', () => {
     const available = createDomainTools({
       tasks: {} as ITaskRepository,

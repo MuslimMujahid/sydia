@@ -13,11 +13,6 @@ import type { Secret } from '../../database/entities';
 import { SecretCipher } from '../../infra/crypto';
 
 const REVEAL_TTL_MS = 5 * 60_000;
-const EXPLICIT_SAVE_INTENT =
-  /\b(save|store|remember|keep|add|simpan|catat|ingat|masukkan)\b[\s\S]{0,80}\b(secret|password|passcode|pin|cvv|cvc|kata sandi|sandi|rahasia|kode)\b|\b(secret|password|passcode|pin|cvv|cvc|kata sandi|sandi|rahasia|kode)\b[\s\S]{0,80}\b(save|store|remember|keep|add|simpan|catat|ingat|masukkan)\b/i;
-
-const NEGATED_SAVE_INTENT =
-  /\b(don't|do not|never|jangan|tidak usah|nggak usah|ga usah)\b[\s\S]{0,40}\b(save|store|remember|keep|simpan|catat|ingat)\b/i;
 
 export type SecretRevealLink = { url: string; expiresAt: Date };
 export type RevealedSecret = { label: string; value: string; expiresAt: Date };
@@ -65,27 +60,21 @@ export class SecretsService {
     sourceMessageId: string,
     input: { label: string; value: string },
   ): Promise<Secret> {
+    const secret = await this.create(userId, input);
     const source = await this.conversations.findUserMessageContent(
       userId,
       sourceMessageId,
     );
 
-    if (
-      !source ||
-      !EXPLICIT_SAVE_INTENT.test(source) ||
-      NEGATED_SAVE_INTENT.test(source)
-    ) {
-      throw new Error('Instruksi eksplisit untuk menyimpan secret diperlukan.');
+    if (source) {
+      const masked = this.maskStoredValue(source, input.value);
+      await this.conversations.maskUserMessage(userId, sourceMessageId, masked);
+      await this.conversations.maskActiveChannelTurns(
+        userId,
+        sourceMessageId,
+        masked,
+      );
     }
-
-    const secret = await this.create(userId, input);
-    const masked = this.maskStoredValue(source, input.value);
-    await this.conversations.maskUserMessage(userId, sourceMessageId, masked);
-    await this.conversations.maskActiveChannelTurns(
-      userId,
-      sourceMessageId,
-      masked,
-    );
 
     return secret;
   }
@@ -199,25 +188,11 @@ export class SecretsService {
   }
 
   private maskStoredValue(source: string, value: string): string {
-    const fields = value
-      .split(/\s*\|\s*/)
-      .map((part) => {
-        const field = part.includes(':')
-          ? part.slice(part.indexOf(':') + 1).trim()
-          : part.trim();
+    if (!value) return source;
 
-        return field.startsWith('<') && field.endsWith('>')
-          ? field.slice(1, -1).trim()
-          : field;
-      })
-      .filter(Boolean)
-      .sort((left, right) => right.length - left.length);
+    const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    return fields.reduce((masked, field) => {
-      const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-      return masked.replace(new RegExp(escaped, 'gi'), '****');
-    }, source);
+    return source.replace(new RegExp(escaped, 'g'), '****');
   }
 
   private hashToken(token: string): string {
