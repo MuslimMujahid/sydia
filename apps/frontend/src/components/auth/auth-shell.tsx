@@ -2,13 +2,11 @@ import type { ReactNode } from "react";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
 
 export function AuthShell({
-  eyebrow,
   title,
   description,
   children,
   footer,
 }: {
-  eyebrow: string;
   title: string;
   description: string;
   children: ReactNode;
@@ -24,21 +22,15 @@ export function AuthShell({
           <SydiaLogo className="h-6" />
           Sydia
         </div>
-        <div className="max-w-lg space-y-6">
-          <p className="font-mono text-[11px] font-medium tracking-[0.12em] text-canvas uppercase">
-            Aktivitas pribadi, tertata jelas
-          </p>
+        <div className="max-w-lg space-y-6 flex-1 justify-center flex flex-col">
           <p className="font-display text-[32px] leading-[1.1] font-bold tracking-[-0.03em]">
-            Catat lewat percakapan. Kelola dengan tenang di satu tempat.
+            Asisten pintar di saku anda.
           </p>
           <p className="text-[17px] leading-[1.6] text-canvas">
-            Sydia mengubah pesan menjadi informasi yang dapat Anda tinjau,
-            sementara Anda tetap mengendalikan apa yang disimpan dan diubah.
+            Lupakan file dan catatan yang berantakan. Cari file, catat ide, dan
+            kelola tugas cukup dengan ngobrol. Biar Sydia yang urus semuanya.
           </p>
         </div>
-        <p className="font-mono text-[11px] font-medium tracking-[0.12em] text-canvas uppercase">
-          Utamakan WhatsApp · Pusat kendali web
-        </p>
       </section>
       <section className="flex items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-md">
@@ -49,9 +41,6 @@ export function AuthShell({
             </span>
           </div>
           <header className="mb-8 space-y-3">
-            <p className="font-mono text-[13px] font-medium tracking-widest text-ink-muted uppercase">
-              {eyebrow}
-            </p>
             <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] text-ink sm:text-[44px] sm:leading-[1.1] sm:font-bold sm:tracking-[-0.03em]">
               {title}
             </h1>

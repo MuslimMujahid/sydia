@@ -55,7 +55,6 @@ function SignUpPage() {
 
   return (
     <AuthShell
-      eyebrow="Buat akun Anda"
       title="Jadikan Sydia pusat aktivitas Anda."
       description="Akun Anda menyimpan tindakan terstruktur dan preferensi untuk Anda, bukan hanya di satu peramban."
       footer={

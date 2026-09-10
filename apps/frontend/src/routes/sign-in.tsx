@@ -70,9 +70,8 @@ function SignInPage() {
 
   return (
     <AuthShell
-      eyebrow="Selamat datang kembali"
-      title="Kembali ke ruang kerja Anda."
-      description="Masuk untuk meninjau status akun dan preferensi yang tersimpan."
+      title="Selamat datang kembali"
+      description="Masuk untuk melanjutkan aktivitas Anda."
       footer={
         <>
           Baru menggunakan Sydia?{" "}
