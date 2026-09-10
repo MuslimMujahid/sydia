@@ -154,6 +154,7 @@ export class ObservabilityService
         const generation = startObservation(
           `${request.provider}.generation`,
           {
+            input: request.messages,
             model: request.model,
             metadata,
           },
@@ -164,6 +165,10 @@ export class ObservabilityService
         const trace: GenerationTrace = {
           update: (update) => {
             const attributes: Parameters<LangfuseGeneration['update']>[0] = {};
+
+            if (update.output !== undefined) {
+              attributes.output = update.output;
+            }
 
             if (
               update.inputTokens !== undefined ||
