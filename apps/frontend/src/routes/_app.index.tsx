@@ -23,11 +23,13 @@ export const Route = createFileRoute("/_app/")({
 
 function ChatRoute() {
   const search = Route.useSearch();
+  const user = Route.useRouteContext();
 
   return (
     <ChatPage
       conversationId={search.conversation}
       initialAttachmentId={search.attachment}
+      locale={user.locale}
     />
   );
 }

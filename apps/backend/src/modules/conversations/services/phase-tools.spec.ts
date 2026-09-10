@@ -239,7 +239,7 @@ describe('phase 5 and 6 assistant tools', () => {
         idempotencyKey: 'save-files',
         arguments: {},
       }),
-    ).rejects.toThrow('Tidak ada file yang dilampirkan pada pesan ini.');
+    ).rejects.toThrow('No files are attached to this message.');
   });
 
   test('returns document provenance from retrieval', async () => {
@@ -356,5 +356,34 @@ describe('phase 5 and 6 assistant tools', () => {
       expect.objectContaining({ title: 'Review final' }),
     );
     expect(cancel).toHaveBeenCalledWith('user-1', 'event-1');
+  });
+
+  test('documents every phase tool and parameter in English', () => {
+    const available = tools();
+
+    const visit = (value: unknown, root = false): void => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+      const schema = value as Record<string, unknown>;
+      if (!root) expect(schema.description).toEqual(expect.any(String));
+
+      if (schema.properties && typeof schema.properties === 'object') {
+        for (const property of Object.values(
+          schema.properties as Record<string, unknown>,
+        )) {
+          visit(property);
+        }
+      }
+
+      if (schema.items) visit(schema.items);
+    };
+
+    expect(available).toHaveLength(10);
+
+    for (const assistantTool of available) {
+      expect(assistantTool.definition.description).toMatch(
+        /^Use this tool to [\s\S]+\n\nUse it when [\s\S]+\n\nDo not use it [\s\S]+\n\n[\s\S]+\n\n---\n\nParameters:/,
+      );
+      visit(assistantTool.definition.parameters, true);
+    }
   });
 });

@@ -39,7 +39,7 @@ export class OpenRouterMediaService {
             content: [
               {
                 type: 'text',
-                text: 'Jelaskan isi gambar ini secara faktual dan rinci dalam bahasa Indonesia. Transkripsikan teks penting yang terlihat.',
+                text: 'Describe the contents of this image factually and in detail in English. Transcribe any important visible text.',
               },
               {
                 type: 'image_url',
@@ -57,21 +57,21 @@ export class OpenRouterMediaService {
       throw new Error(`Image provider returned ${response.status}`);
     const payload: unknown = await response.json();
     if (!payload || typeof payload !== 'object')
-      throw new Error('Respons model gambar tidak valid.');
+      throw new Error('The image model returned an invalid response.');
     const choices = (payload as Record<string, unknown>).choices;
     if (
       !Array.isArray(choices) ||
       !choices[0] ||
       typeof choices[0] !== 'object'
     )
-      throw new Error('Respons model gambar tidak valid.');
+      throw new Error('The image model returned an invalid response.');
     const message = (choices[0] as Record<string, unknown>).message;
     if (
       !message ||
       typeof message !== 'object' ||
       typeof (message as Record<string, unknown>).content !== 'string'
     )
-      throw new Error('Respons model gambar tidak valid.');
+      throw new Error('The image model returned an invalid response.');
 
     return (message as Record<string, unknown>).content as string;
   }
@@ -104,7 +104,7 @@ export class OpenRouterMediaService {
       typeof payload !== 'object' ||
       typeof (payload as Record<string, unknown>).text !== 'string'
     )
-      throw new Error('Respons transkripsi tidak valid.');
+      throw new Error('The transcription model returned an invalid response.');
 
     return (payload as Record<string, unknown>).text as string;
   }

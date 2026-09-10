@@ -70,7 +70,7 @@ describe('OpenRouterLanguageModel', () => {
         messages: [{ role: 'user', content: 'Halo' }],
       }),
     ).rejects.toThrow(
-      'Model assistant belum dikonfigurasi. Tetapkan BACKEND_MODEL_API_KEY.',
+      'The assistant model is not configured. Set BACKEND_MODEL_API_KEY.',
     );
 
     expect(fetch).not.toHaveBeenCalled();
@@ -502,7 +502,7 @@ describe('OpenRouterLanguageModel', () => {
 
     expect(error).toBeInstanceOf(ModelGatewayError);
     expect((error as Error).message).toBe(
-      'Model assistant tidak dapat dihubungi.',
+      'The assistant model could not be reached.',
     );
     expect((error as Error).message).not.toContain('secret provider response');
   });

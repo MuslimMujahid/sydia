@@ -12,16 +12,25 @@ import type {
   AssistantActivity,
   SendMessageVariables,
 } from "@/lib/services/api/conversations/conversations.api";
+import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { ChatComposer } from "./chat-composer";
 import { MessageHistory } from "./message-history";
 import { TodayAgenda } from "./today-agenda";
 
-function ThreadSkeleton() {
+type ChatPageProps = {
+  conversationId?: string;
+  initialAttachmentId?: string;
+  locale: SupportedLocale;
+};
+
+function ThreadSkeleton({ locale }: { locale: SupportedLocale }) {
   return (
     <div
       className="mx-auto max-w-3xl space-y-10 px-4 py-10 sm:px-6"
       aria-busy="true"
-      aria-label="Memuat percakapan"
+      aria-label={
+        locale === "en" ? "Loading conversation" : "Memuat percakapan"
+      }
     >
       <div className="space-y-3">
         <div className="h-4 w-24 animate-pulse rounded-sm bg-hairline motion-reduce:animate-none" />
@@ -39,9 +48,11 @@ function ThreadSkeleton() {
 function ConversationError({
   message,
   onRetry,
+  locale,
 }: {
   message: string;
   onRetry: () => void;
+  locale: SupportedLocale;
 }) {
   return (
     <div className="grid min-h-full place-items-center px-6 py-12">
@@ -51,7 +62,9 @@ function ConversationError({
       >
         <AlertTriangle className="mx-auto size-6 text-destructive" />
         <h2 className="mt-4 font-display text-xl leading-[1.22] font-semibold tracking-[-0.018em]">
-          Percakapan tidak dapat dimuat
+          {locale === "en"
+            ? "Conversation could not be loaded"
+            : "Percakapan tidak dapat dimuat"}
         </h2>
         <p className="mt-2 text-ink-muted">{message}</p>
         <Button
@@ -60,7 +73,7 @@ function ConversationError({
           className="mt-5"
           onClick={onRetry}
         >
-          <RotateCcw /> Coba lagi
+          <RotateCcw /> {locale === "en" ? "Try again" : "Coba lagi"}
         </Button>
       </div>
     </div>
@@ -70,10 +83,8 @@ function ConversationError({
 export function ChatPage({
   conversationId,
   initialAttachmentId,
-}: {
-  conversationId?: string;
-  initialAttachmentId?: string;
-}) {
+  locale,
+}: ChatPageProps) {
   const navigate = useNavigate();
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const conversationQuery = useQuery(
@@ -155,7 +166,7 @@ export function ChatPage({
     setStreamCompleted(false);
     setStreamedActivity({
       phase: "queued",
-      label: "Menunggu giliran…",
+      label: locale === "en" ? "Waiting for its turn…" : "Menunggu giliran…",
     });
     await sendMutation.mutateAsync(values);
   }
@@ -177,14 +188,6 @@ export function ChatPage({
       (conversationQuery.isPending || conversationQuery.isError)
     );
 
-  const composerDisabledReason = hasActiveRun
-    ? "Tunggu hingga Sydia menyelesaikan jawaban ini."
-    : conversationId && conversationQuery.isPending
-      ? "Tunggu hingga percakapan selesai dimuat."
-      : conversationId && conversationQuery.isError
-        ? "Muat ulang percakapan sebelum mengirim pesan."
-        : undefined;
-
   const optimisticMessage =
     isSending && !hasActiveRun && !streamCompleted
       ? {
@@ -201,6 +204,20 @@ export function ChatPage({
     ? retryMutation.variables?.runId
     : undefined;
 
+  const composerDisabledReason = hasActiveRun
+    ? locale === "en"
+      ? "Wait for Sydia to finish this answer."
+      : "Tunggu hingga Sydia menyelesaikan jawaban ini."
+    : conversationId && conversationQuery.isPending
+      ? locale === "en"
+        ? "Wait for the conversation to finish loading."
+        : "Tunggu hingga percakapan selesai dimuat."
+      : conversationId && conversationQuery.isError
+        ? locale === "en"
+          ? "Reload the conversation before sending a message."
+          : "Muat ulang percakapan sebelum mengirim pesan."
+        : undefined;
+
   const isNewConversation = !conversationId;
 
   return (
@@ -208,7 +225,8 @@ export function ChatPage({
       {conversationId ? (
         <header className="flex min-h-16 items-center border-b border-surface-1 px-5 sm:px-8">
           <h1 className="truncate font-display text-base font-semibold">
-            {conversationQuery.data?.conversation.title?.trim() || "Percakapan"}
+            {conversationQuery.data?.conversation.title?.trim() ||
+              (locale === "en" ? "Conversation" : "Percakapan")}
           </h1>
         </header>
       ) : null}
@@ -221,7 +239,9 @@ export function ChatPage({
           <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8">
             <div className="w-full max-w-3xl -translate-y-[4vh] text-center">
               <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] sm:text-[32px]">
-                Ingin melakukan apa hari ini?
+                {locale === "en"
+                  ? "What would you like to do today?"
+                  : "Ingin melakukan apa hari ini?"}
               </h1>
               <div className="mt-7 text-left">
                 <ChatComposer
@@ -231,6 +251,7 @@ export function ChatPage({
                   errorMessage={sendErrorMessage}
                   onDraftChange={handleDraftChange}
                   onSend={handleSend}
+                  locale={locale}
                   embedded
                 />
               </div>
@@ -247,15 +268,17 @@ export function ChatPage({
             streamedActivity={streamedActivityForCurrentConversation}
             streamedText={streamedTextForCurrentConversation}
             onRetry={handleRetry}
+            locale={locale}
           />
         ) : null}
         {conversationId && conversationQuery.isPending ? (
-          <ThreadSkeleton />
+          <ThreadSkeleton locale={locale} />
         ) : null}
         {conversationId && conversationQuery.isError ? (
           <ConversationError
             message={conversationQuery.error.message}
             onRetry={() => void conversationQuery.refetch()}
+            locale={locale}
           />
         ) : null}
         {conversationId && conversationQuery.isSuccess ? (
@@ -271,6 +294,7 @@ export function ChatPage({
             retryErrorRunId={retryErrorRunId}
             retryErrorMessage={retryMutation.error?.message}
             onRetry={handleRetry}
+            locale={locale}
           />
         ) : null}
       </div>
@@ -284,6 +308,7 @@ export function ChatPage({
           disabledReason={composerDisabledReason}
           isSending={isSending}
           errorMessage={sendErrorMessage}
+          locale={locale}
           onDraftChange={handleDraftChange}
           onSend={handleSend}
         />

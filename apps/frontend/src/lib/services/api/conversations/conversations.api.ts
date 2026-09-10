@@ -4,6 +4,13 @@ import { z } from "zod";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
+function getConversationFallback(english: string, indonesian: string): string {
+  return typeof document !== "undefined" &&
+    document.documentElement.lang === "id"
+    ? indonesian
+    : english;
+}
+
 export type Conversation = {
   id: string;
   title: string | null;
@@ -124,7 +131,13 @@ const getConversationsServer = createServerFn({ method: "GET" }).handler(
 
       return response.data.data;
     } catch (error) {
-      throw toApiError(error, "Daftar percakapan tidak dapat dimuat.");
+      throw toApiError(
+        error,
+        getConversationFallback(
+          "Conversation list could not be loaded.",
+          "Daftar percakapan tidak dapat dimuat."
+        )
+      );
     }
   }
 );
@@ -141,7 +154,13 @@ const getConversationServer = createServerFn({ method: "GET" })
 
       return response.data.data;
     } catch (error) {
-      throw toApiError(error, "Percakapan ini tidak dapat dimuat.");
+      throw toApiError(
+        error,
+        getConversationFallback(
+          "This conversation could not be loaded.",
+          "Percakapan ini tidak dapat dimuat."
+        )
+      );
     }
   });
 
@@ -154,7 +173,13 @@ export async function getConversations(): Promise<ConversationSummary[]> {
 
     return response.data.data;
   } catch (error) {
-    throw toApiError(error, "Daftar percakapan tidak dapat dimuat.");
+    throw toApiError(
+      error,
+      getConversationFallback(
+        "Conversation list could not be loaded.",
+        "Daftar percakapan tidak dapat dimuat."
+      )
+    );
   }
 }
 
@@ -172,7 +197,13 @@ export async function getConversation(
 
     return response.data.data;
   } catch (error) {
-    throw toApiError(error, "Percakapan ini tidak dapat dimuat.");
+    throw toApiError(
+      error,
+      getConversationFallback(
+        "This conversation could not be loaded.",
+        "Percakapan ini tidak dapat dimuat."
+      )
+    );
   }
 }
 
@@ -309,7 +340,12 @@ export function requireTerminalTurn(
     (result.assistantRun.status !== "completed" &&
       result.assistantRun.status !== "failed")
   )
-    throw new Error("Respons Sydia tidak lengkap.");
+    throw new Error(
+      getConversationFallback(
+        "Sydia's response was incomplete.",
+        "Respons Sydia tidak lengkap."
+      )
+    );
 
   return result;
 }
@@ -406,7 +442,10 @@ export async function sendConversationMessage(
   } catch (error) {
     throw toApiError(
       error,
-      "Pesan tidak dapat dikirim. Periksa koneksi Anda, lalu coba lagi."
+      getConversationFallback(
+        "Message could not be sent. Check your connection, then try again.",
+        "Pesan tidak dapat dikirim. Periksa koneksi Anda, lalu coba lagi."
+      )
     );
   }
 }
@@ -424,7 +463,10 @@ export async function retryAssistantRun({
   } catch (error) {
     throw toApiError(
       error,
-      "Jawaban belum dapat dicoba lagi. Periksa koneksi Anda, lalu ulangi."
+      getConversationFallback(
+        "The answer could not be retried. Check your connection, then try again.",
+        "Jawaban belum dapat dicoba lagi. Periksa koneksi Anda, lalu ulangi."
+      )
     );
   }
 }
@@ -437,7 +479,10 @@ export async function deleteConversation(
   } catch (error) {
     throw toApiError(
       error,
-      "Percakapan tidak dapat dihapus. Periksa koneksi Anda, lalu coba lagi."
+      getConversationFallback(
+        "Conversation could not be deleted. Check your connection, then try again.",
+        "Percakapan tidak dapat dihapus. Periksa koneksi Anda, lalu coba lagi."
+      )
     );
   }
 }

@@ -18,18 +18,40 @@ import {
 import { useSetTaskStatus } from "@/lib/services/api/tasks/tasks.queries";
 import { useResolveToolConfirmation } from "@/lib/services/api/conversations/conversations.queries";
 import type { TaskStatus } from "@/lib/services/api/tasks/tasks.api";
-import { formatDateTime } from "@/lib/utils/date-time";
+import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
+
+const TASK_STATUS_LABELS: Record<
+  SupportedLocale,
+  Record<TaskStatus, string>
+> = {
+  en: {
+    inbox: "Inbox",
+    doing: "In progress",
+    done: "Completed",
+    cancelled: "Cancelled",
+  },
+  id: {
+    inbox: "Inbox",
+    doing: "Dikerjakan",
+    done: "Selesai",
+    cancelled: "Dibatalkan",
+  },
+};
+
+function formatActionDateTime(value: string | null, locale: SupportedLocale) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
 
 const TASK_TOOL_NAMES: Record<string, true> = {
   create_task: true,
   update_task: true,
-};
-
-const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  inbox: "Inbox",
-  doing: "Dikerjakan",
-  done: "Selesai",
-  cancelled: "Dibatalkan",
 };
 
 const REMINDER_TOOL_NAMES: Record<string, true> = {
@@ -105,7 +127,13 @@ function invocationKind(
   return null;
 }
 
-function TaskActionCard({ invocation }: { invocation: ToolInvocation }) {
+function TaskActionCard({
+  invocation,
+  locale,
+}: {
+  invocation: ToolInvocation;
+  locale: SupportedLocale;
+}) {
   const mutation = useSetTaskStatus();
   const object = actionObject(invocation);
   if (!object) return null;
@@ -118,24 +146,27 @@ function TaskActionCard({ invocation }: { invocation: ToolInvocation }) {
   return (
     <section
       className="rounded-lg border border-ink/6 bg-canvas p-5 shadow-card"
-      aria-label={`Tindakan tugas: ${object.title}`}
+      aria-label={`${locale === "en" ? "Task action" : "Tindakan tugas"}: ${object.title}`}
     >
       <div className="flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-1">
           <CheckSquare2 className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-ink-muted">Tugas tersimpan</p>
+          <p className="text-xs text-ink-muted">
+            {locale === "en" ? "Task saved" : "Tugas tersimpan"}
+          </p>
           <h3 className="mt-0.5 font-display font-bold text-ink">
             {object.title}
           </h3>
           <p className="mt-1 text-xs text-ink-muted">
-            Status: {TASK_STATUS_LABELS[status]}
+            {locale === "en" ? "Status" : "Status"}:{" "}
+            {TASK_STATUS_LABELS[locale][status]}
           </p>
           {dueAt ? (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
               <CalendarClock className="size-3.5" />
-              {formatDateTime(dueAt)}
+              {formatActionDateTime(dueAt, locale)}
             </p>
           ) : null}
         </div>
@@ -165,10 +196,16 @@ function TaskActionCard({ invocation }: { invocation: ToolInvocation }) {
             <Check />
           )}
           {cancelled
-            ? "Tugas dibatalkan"
+            ? locale === "en"
+              ? "Task cancelled"
+              : "Tugas dibatalkan"
             : done
-              ? "Kembalikan ke inbox"
-              : "Tandai selesai"}
+              ? locale === "en"
+                ? "Move back to inbox"
+                : "Kembalikan ke inbox"
+              : locale === "en"
+                ? "Mark complete"
+                : "Tandai selesai"}
         </Button>
         <Button
           size="sm"
@@ -176,14 +213,20 @@ function TaskActionCard({ invocation }: { invocation: ToolInvocation }) {
           nativeButton={false}
           render={<Link to="/tasks" search={{ id: object.id }} />}
         >
-          Lihat tugas
+          {locale === "en" ? "View task" : "Lihat tugas"}
         </Button>
       </div>
     </section>
   );
 }
 
-function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
+function ReminderActionCard({
+  invocation,
+  locale,
+}: {
+  invocation: ToolInvocation;
+  locale: SupportedLocale;
+}) {
   const statusMutation = useSetReminderStatus();
   const snoozeMutation = useSnoozeReminder();
   const object = actionObject(invocation);
@@ -219,21 +262,23 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
   return (
     <section
       className="rounded-lg border border-ink/6 bg-canvas p-5 shadow-card"
-      aria-label={`Tindakan pengingat: ${object.title}`}
+      aria-label={`${locale === "en" ? "Reminder action" : "Tindakan pengingat"}: ${object.title}`}
     >
       <div className="flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-1">
           <AlarmClock className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-ink-muted">Pengingat tersimpan</p>
+          <p className="text-xs text-ink-muted">
+            {locale === "en" ? "Reminder saved" : "Pengingat tersimpan"}
+          </p>
           <h3 className="mt-0.5 font-display font-bold text-ink">
             {object.title}
           </h3>
           {scheduledAt ? (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
               <CalendarClock className="size-3.5" />
-              {formatDateTime(scheduledAt)}
+              {formatActionDateTime(scheduledAt, locale)}
             </p>
           ) : null}
         </div>
@@ -256,7 +301,7 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
                 })
               }
             >
-              <Check /> Selesai
+              <Check /> {locale === "en" ? "Complete" : "Selesai"}
             </Button>
             <Button
               size="sm"
@@ -264,7 +309,7 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
               disabled={pending}
               onClick={snoozeOneHour}
             >
-              <AlarmClock /> Tunda 1 jam
+              <AlarmClock /> {locale === "en" ? "Snooze 1 hour" : "Tunda 1 jam"}
             </Button>
             <Button
               size="sm"
@@ -277,7 +322,7 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
                 })
               }
             >
-              <Ban /> Batalkan
+              <Ban /> {locale === "en" ? "Cancel" : "Batalkan"}
             </Button>
           </>
         ) : null}
@@ -287,7 +332,7 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
           nativeButton={false}
           render={<Link to="/reminders" />}
         >
-          Atur pengingat
+          {locale === "en" ? "Manage reminder" : "Atur pengingat"}
         </Button>
       </div>
     </section>
@@ -296,8 +341,10 @@ function ReminderActionCard({ invocation }: { invocation: ToolInvocation }) {
 
 function CategoryConfirmationCard({
   invocation,
+  locale,
 }: {
   invocation: ToolInvocation;
+  locale: SupportedLocale;
 }) {
   const mutation = useResolveToolConfirmation();
   const output = asRecord(invocation.output);
@@ -305,33 +352,44 @@ function CategoryConfirmationCard({
   const categoryName =
     stringValue(args, "name") ??
     stringValue(args, "categoryName") ??
-    "kategori ini";
+    (locale === "en" ? "this category" : "kategori ini");
 
   const action =
     invocation.name === "delete_category"
-      ? "menghapus"
+      ? locale === "en"
+        ? "delete"
+        : "menghapus"
       : invocation.name === "update_category"
-        ? "memperbarui"
-        : "membuat";
+        ? locale === "en"
+          ? "update"
+          : "memperbarui"
+        : locale === "en"
+          ? "create"
+          : "membuat";
 
   const taskCount = typeof args?.taskCount === "number" ? args.taskCount : null;
 
   return (
     <section
       className="rounded-lg border border-warn/35 bg-warn/5 p-5"
-      aria-label={`Konfirmasi ${invocation.label}`}
+      aria-label={`${locale === "en" ? "Confirmation" : "Konfirmasi"} ${invocation.label}`}
     >
       <p className="text-xs font-semibold tracking-wide text-warn uppercase">
-        Perlu persetujuan
+        {locale === "en" ? "Approval required" : "Perlu persetujuan"}
       </p>
       <h3 className="mt-1 font-display font-bold text-ink">
-        Sydia akan {action} kategori “{categoryName}”
+        {locale === "en"
+          ? `Sydia will ${action} category “${categoryName}”`
+          : `Sydia akan ${action} kategori “${categoryName}”`}
       </h3>
       <p className="mt-1 text-sm text-ink-muted">
-        Perubahan ini berlaku di seluruh tugas yang menggunakan kategori
-        tersebut.
+        {locale === "en"
+          ? "This change applies to all tasks using this category."
+          : "Perubahan ini berlaku di seluruh tugas yang menggunakan kategori tersebut."}
         {invocation.name === "delete_category" && taskCount !== null
-          ? ` Kategori akan dilepas dari ${taskCount} tugas.`
+          ? locale === "en"
+            ? ` The category will be removed from ${taskCount} tasks.`
+            : ` Kategori akan dilepas dari ${taskCount} tugas.`
           : ""}
       </p>
       <div className="mt-4 flex gap-2">
@@ -342,7 +400,7 @@ function CategoryConfirmationCard({
             mutation.mutate({ invocationId: invocation.id, approved: true })
           }
         >
-          Setujui
+          {locale === "en" ? "Approve" : "Setujui"}
         </Button>
         <Button
           size="sm"
@@ -352,7 +410,7 @@ function CategoryConfirmationCard({
             mutation.mutate({ invocationId: invocation.id, approved: false })
           }
         >
-          Tolak
+          {locale === "en" ? "Decline" : "Tolak"}
         </Button>
       </div>
     </section>
@@ -361,8 +419,10 @@ function CategoryConfirmationCard({
 
 export function ChatActionCards({
   invocations,
+  locale,
 }: {
   invocations: ToolInvocation[];
+  locale: SupportedLocale;
 }) {
   const actions = useMemo(
     () =>
@@ -384,11 +444,20 @@ export function ChatActionCards({
           <CategoryConfirmationCard
             key={invocation.id}
             invocation={invocation}
+            locale={locale}
           />
         ) : invocationKind(invocation) === "task" ? (
-          <TaskActionCard key={invocation.id} invocation={invocation} />
+          <TaskActionCard
+            key={invocation.id}
+            invocation={invocation}
+            locale={locale}
+          />
         ) : invocationKind(invocation) === "reminder" ? (
-          <ReminderActionCard key={invocation.id} invocation={invocation} />
+          <ReminderActionCard
+            key={invocation.id}
+            invocation={invocation}
+            locale={locale}
+          />
         ) : null
       )}
     </div>

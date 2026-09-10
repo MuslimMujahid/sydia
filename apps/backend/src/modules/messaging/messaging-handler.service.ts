@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import type { User } from '../../database/entities';
+import type { User, SupportedLocale } from '../../database/entities';
 import {
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
@@ -15,6 +15,37 @@ import {
   AssistantOrchestratorService,
   ToolExecutorService,
 } from '../conversations/services';
+
+const CHANNEL_MESSAGES = {
+  id: {
+    cancelled: 'Proses aktif dan pesan yang menunggu telah dibatalkan.',
+    newConversation: 'Percakapan baru dimulai.',
+    unavailable: 'Provider atau pengguna tidak tersedia.',
+    confirmationExpired: 'Konfirmasi ini sudah tidak berlaku.',
+    actionCompleted: 'Tindakan berhasil dijalankan.',
+    actionRejected: 'Tindakan dibatalkan.',
+    actionFailed: 'Tindakan gagal dijalankan.',
+    confirmationPrompt:
+      'Balas tepat “Ya” untuk menyetujui atau “Tidak” untuk membatalkan.',
+    processingFailed: 'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
+  },
+  en: {
+    cancelled: 'Active processing and queued messages have been cancelled.',
+    newConversation: 'A new conversation has started.',
+    unavailable: 'The provider or user is unavailable.',
+    confirmationExpired: 'This confirmation is no longer valid.',
+    actionCompleted: 'The action was completed successfully.',
+    actionRejected: 'The action was cancelled.',
+    actionFailed: 'The action failed.',
+    confirmationPrompt: 'Reply exactly “Yes” to approve or “No” to cancel.',
+    processingFailed:
+      'Sorry, your message could not be processed. Please try again.',
+  },
+} satisfies Record<SupportedLocale, Record<string, string>>;
+
+function channelMessages(locale: string) {
+  return CHANNEL_MESSAGES[locale === 'id' ? 'id' : 'en'];
+}
 
 export type InboundMessageInput = {
   message: NormalizedInboundMessage;
@@ -103,7 +134,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
         input.user,
         input.externalIdentityId,
         input.message,
-        'Proses aktif dan pesan yang menunggu telah dibatalkan.',
+        channelMessages(input.user.locale).cancelled,
       );
 
       return true;
@@ -130,7 +161,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
         input.user,
         input.externalIdentityId,
         input.message,
-        'Percakapan baru dimulai.',
+        channelMessages(input.user.locale).newConversation,
       );
 
       return true;
@@ -220,7 +251,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
     if (!adapter || !user) {
       await this.conversations.failChannelTurns(
         turnIds,
-        'Provider atau pengguna tidak tersedia.',
+        channelMessages(user?.locale ?? 'en').unavailable,
         new Date(),
       );
 
@@ -303,13 +334,14 @@ export class MessagingHandlerService implements OnModuleDestroy {
           command === 'ya',
         );
 
+        const messagesForLocale = channelMessages(user.locale);
         const response = !result
-          ? 'Konfirmasi ini sudah tidak berlaku.'
+          ? messagesForLocale.confirmationExpired
           : result.invocation.status === 'completed'
-            ? 'Tindakan berhasil dijalankan.'
+            ? messagesForLocale.actionCompleted
             : result.invocation.status === 'rejected'
-              ? 'Tindakan dibatalkan.'
-              : 'Tindakan gagal dijalankan.';
+              ? messagesForLocale.actionRejected
+              : messagesForLocale.actionFailed;
 
         stopProcessing?.();
         stopProcessing = undefined;
@@ -344,7 +376,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
           );
 
           const response = confirmation
-            ? `${result.assistantMessage.content}\n\n${confirmation.label}. Balas tepat “Ya” untuk menyetujui atau “Tidak” untuk membatalkan.`
+            ? `${result.assistantMessage.content}\n\n${confirmation.label}. ${channelMessages(user.locale).confirmationPrompt}`
             : result.assistantMessage.content;
 
           stopProcessing?.();
@@ -378,7 +410,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
               user,
               batch.externalIdentityId,
               last.message.message,
-              'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
+              channelMessages(user.locale).processingFailed,
             );
         } catch (sendError) {
           this.logger.error(

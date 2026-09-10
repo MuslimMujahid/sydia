@@ -128,7 +128,7 @@ describe('domain assistant tools', () => {
     expect(search.mock.calls[0]).toEqual(['user-1', 'bank vendor', 5]);
     expect(searchTool?.internal).toBe(true);
     expect(result).toEqual({
-      notice: expect.stringContaining('bukan instruksi'),
+      notice: expect.stringContaining('not instructions'),
       memories: [{ id: 'memory-1', content: 'Bayar vendor dengan BCA' }],
     });
   });
@@ -168,6 +168,42 @@ describe('domain assistant tools', () => {
       });
     } finally {
       jest.useRealTimers();
+    }
+  });
+  test('documents every domain tool and parameter in English', () => {
+    const available = createDomainTools({
+      tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: {} as IReminderRepository,
+      memories: {} as IMemoryRepository,
+      memoryService: {} as MemoryService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {} as IUserRepository,
+    });
+
+    const visit = (value: unknown, root = false): void => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+      const schema = value as Record<string, unknown>;
+      if (!root) expect(schema.description).toEqual(expect.any(String));
+
+      if (schema.properties && typeof schema.properties === 'object') {
+        for (const property of Object.values(
+          schema.properties as Record<string, unknown>,
+        )) {
+          visit(property);
+        }
+      }
+
+      if (schema.items) visit(schema.items);
+    };
+
+    expect(available).toHaveLength(16);
+
+    for (const assistantTool of available) {
+      expect(assistantTool.definition.description).toMatch(
+        /^Use this tool to [\s\S]+\n\nUse it when [\s\S]+\n\nDo not use it [\s\S]+\n\n[\s\S]+\n\n---\n\nParameters:/,
+      );
+      visit(assistantTool.definition.parameters, true);
     }
   });
 });

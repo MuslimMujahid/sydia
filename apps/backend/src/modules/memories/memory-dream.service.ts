@@ -150,7 +150,7 @@ export class MemoryDreamService {
         {
           role: 'system',
           content:
-            'Ekstrak hanya fakta, preferensi, keputusan, tujuan, rutinitas, atau batasan pengguna yang tahan lama dan berguna lintas percakapan. Pesan asisten hanya konteks dan tidak boleh menjadi bukti tanpa konfirmasi pengguna. Abaikan tugas sesaat, debugging sementara, pengetahuan umum, rahasia, kredensial, dan data sensitif kecuali pengguna meminta eksplisit untuk mengingatnya. Balas JSON {"candidates":[{"content":"fakta mandiri","category":"...","confidence":0..1,"sourceMessageIds":["..."]}]}. Gunakan hanya ID pesan user dari input.',
+            'Extract only durable and useful user facts, preferences, decisions, goals, routines, or constraints that carry across conversations. Assistant messages are context only and must not be treated as evidence without user confirmation. Ignore temporary tasks, short-lived debugging, general knowledge, secrets, credentials, and sensitive data unless the user explicitly asks you to remember it. Reply with JSON {"candidates":[{"content":"standalone fact","category":"...","confidence":0..1,"sourceMessageIds":["..."]}]}. Use only user message IDs from the input.',
         },
         {
           role: 'user',
@@ -313,7 +313,7 @@ export class MemoryDreamService {
         {
           role: 'system',
           content:
-            'Bandingkan fakta baru dengan memori aktif. Balas JSON tunggal dengan action ignore, create, merge, supersede, atau conflict. ignore untuk duplikat; merge untuk fakta kompatibel; supersede hanya bila fakta baru jelas mengganti fakta lama; conflict bila bertentangan tetapi kebenarannya tidak jelas. merge/supersede wajib menyertakan targetId dan content final mandiri. Jangan menambah fakta.',
+            'Compare the new fact with active memories. Reply with a single JSON object whose action is ignore, create, merge, supersede, or conflict. Use ignore for duplicates; merge for compatible facts; supersede only when the new fact clearly replaces an old fact; conflict when they contradict each other but the truth is unclear. merge/supersede must include targetId and standalone final content. Do not add facts.',
         },
         {
           role: 'user',

@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { SendMessageVariables } from "@/lib/services/api/conversations/conversations.api";
+import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import {
   getDocument,
   type FileKind,
@@ -42,6 +43,7 @@ type ChatComposerProps = {
   disabledReason?: string;
   isSending: boolean;
   errorMessage?: string;
+  locale: SupportedLocale;
   onDraftChange?: () => void;
   embedded?: boolean;
   onSend: (values: SendMessageVariables) => Promise<void>;
@@ -54,12 +56,17 @@ function kindFromFile(file: File): FileKind {
   return "document";
 }
 
-async function waitForDocument(documentId: string) {
+async function waitForDocument(documentId: string, locale: SupportedLocale) {
   for (;;) {
     const document = await getDocument(documentId);
     if (document.status === "ready") return document;
     if (document.status === "failed")
-      throw new Error(document.errorMessage || "File tidak dapat diproses.");
+      throw new Error(
+        document.errorMessage ||
+          (locale === "en"
+            ? "File could not be processed."
+            : "File tidak dapat diproses.")
+      );
     await new Promise<void>((resolve) => window.setTimeout(resolve, 2_000));
   }
 }
@@ -78,6 +85,7 @@ export function ChatComposer({
   disabledReason,
   isSending,
   errorMessage,
+  locale,
   onDraftChange,
   embedded = false,
   onSend,
@@ -102,13 +110,13 @@ export function ChatComposer({
             {
               localId: `existing-${initialAttachmentId}`,
               documentId: initialAttachmentId,
-              name: "File dari pustaka",
+              name: locale === "en" ? "File from library" : "File dari pustaka",
               kind: "document",
               status: "ready",
             },
           ]
     );
-  }, [initialAttachmentId]);
+  }, [initialAttachmentId, locale]);
 
   const normalizedContent = content.trim();
   const readyAttachments = attachments.filter(
@@ -154,7 +162,7 @@ export function ChatComposer({
       const document =
         uploaded.status === "ready"
           ? uploaded
-          : await waitForDocument(uploaded.id);
+          : await waitForDocument(uploaded.id, locale);
 
       setAttachments((current) =>
         current.map((item) =>
@@ -180,7 +188,9 @@ export function ChatComposer({
                 errorMessage:
                   error instanceof Error
                     ? error.message
-                    : "Unggahan tidak dapat diselesaikan.",
+                    : locale === "en"
+                      ? "Upload could not be completed."
+                      : "Unggahan tidak dapat diselesaikan.",
               }
             : item
         )
@@ -212,7 +222,9 @@ export function ChatComposer({
   async function submit() {
     const submittedContent =
       normalizedContent ||
-      `Gunakan ${readyAttachments.length === 1 ? "file terlampir" : `${readyAttachments.length} file terlampir`} ini.`;
+      (locale === "en"
+        ? `Use the ${readyAttachments.length === 1 ? "attached file" : `${readyAttachments.length} attached files`} for this.`
+        : `Gunakan ${readyAttachments.length === 1 ? "file terlampir" : `${readyAttachments.length} file terlampir`} ini.`);
 
     if (!canSend) return;
     const attachmentIds = readyAttachments.flatMap((attachment) =>
@@ -269,7 +281,12 @@ export function ChatComposer({
     >
       <div className={embedded ? "w-full" : "mx-auto max-w-3xl"}>
         {attachments.length ? (
-          <ul className="mb-3 flex flex-wrap gap-2" aria-label="Lampiran pesan">
+          <ul
+            className="mb-3 flex flex-wrap gap-2"
+            aria-label={
+              locale === "en" ? "Message attachments" : "Lampiran pesan"
+            }
+          >
             {attachments.map((attachment) => (
               <li
                 key={attachment.localId}
@@ -289,21 +306,31 @@ export function ChatComposer({
                   }
                 >
                   {attachment.status === "queued"
-                    ? "Menunggu"
+                    ? locale === "en"
+                      ? "Waiting"
+                      : "Menunggu"
                     : attachment.status === "uploading"
-                      ? "Mengunggah"
+                      ? locale === "en"
+                        ? "Uploading"
+                        : "Mengunggah"
                       : attachment.status === "processing"
-                        ? "Memproses"
+                        ? locale === "en"
+                          ? "Processing"
+                          : "Memproses"
                         : attachment.status === "error"
-                          ? "Gagal"
-                          : "Siap"}
+                          ? locale === "en"
+                            ? "Failed"
+                            : "Gagal"
+                          : locale === "en"
+                            ? "Ready"
+                            : "Siap"}
                 </span>
                 {attachment.status === "error" ? (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Coba unggah ulang ${attachment.name}`}
+                    aria-label={`${locale === "en" ? "Try uploading again" : "Coba unggah ulang"} ${attachment.name}`}
                     onClick={() => void uploadAttachment(attachment)}
                   >
                     <RefreshCcw />
@@ -313,7 +340,7 @@ export function ChatComposer({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Hapus lampiran ${attachment.name}`}
+                  aria-label={`${locale === "en" ? "Remove attachment" : "Hapus lampiran"} ${attachment.name}`}
                   onClick={() => removeAttachment(attachment.localId)}
                 >
                   <X />
@@ -338,7 +365,7 @@ export function ChatComposer({
             variant="ghost"
             size="icon"
             className="mb-0.5"
-            aria-label="Tambahkan file"
+            aria-label={locale === "en" ? "Add file" : "Tambahkan file"}
             disabled={disabled || isSending}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -347,9 +374,15 @@ export function ChatComposer({
           <Textarea
             rows={1}
             value={content}
-            aria-label="Pesan untuk Sydia"
+            aria-label={
+              locale === "en" ? "Message for Sydia" : "Pesan untuk Sydia"
+            }
             aria-describedby="composer-help composer-state"
-            placeholder="Tulis pesan atau lampirkan file…"
+            placeholder={
+              locale === "en"
+                ? "Write a message or attach a file…"
+                : "Tulis pesan atau lampirkan file…"
+            }
             disabled={disabled || isSending}
             onChange={(event) => {
               if (errorMessage) onDraftChange?.();
@@ -363,7 +396,15 @@ export function ChatComposer({
             type="submit"
             size="icon"
             className="mb-0.5"
-            aria-label={isSending ? "Mengirim pesan" : "Kirim pesan"}
+            aria-label={
+              isSending
+                ? locale === "en"
+                  ? "Sending message"
+                  : "Mengirim pesan"
+                : locale === "en"
+                  ? "Send message"
+                  : "Kirim pesan"
+            }
             disabled={!canSend}
           >
             <SendHorizontal />
@@ -376,20 +417,25 @@ export function ChatComposer({
         >
           {errorMessage ? (
             <p className="text-destructive" role="alert">
-              {errorMessage} Tekan kirim untuk mencoba lagi.
+              {errorMessage}{" "}
+              {locale === "en"
+                ? "Press send to try again."
+                : "Tekan kirim untuk mencoba lagi."}
             </p>
           ) : hasPendingUpload ? (
             <p className="text-ink-muted">
-              Tunggu hingga semua lampiran selesai diunggah.
+              {locale === "en"
+                ? "Wait until all attachments finish uploading."
+                : "Tunggu hingga semua lampiran selesai diunggah."}
             </p>
           ) : disabledReason ? (
             <p className="text-ink-muted">{disabledReason}</p>
           ) : null}
         </div>
         <p id="composer-help" className="sr-only">
-          Tekan Enter untuk mengirim. Tekan Shift dan Enter untuk membuat baris
-          baru. Gunakan tombol tambahkan file untuk melampirkan dokumen, gambar,
-          atau audio.
+          {locale === "en"
+            ? "Press Enter to send. Press Shift and Enter for a new line. Use the add file button to attach a document, image, or audio."
+            : "Tekan Enter untuk mengirim. Tekan Shift dan Enter untuk membuat baris baru. Gunakan tombol tambahkan file untuk melampirkan dokumen, gambar, atau audio."}
         </p>
       </div>
     </form>

@@ -12,7 +12,7 @@ import type {
 } from '../conversations/services';
 import { MessagingHandlerService } from './messaging-handler.service';
 
-const user = { id: 'user-1', name: 'User' } as User;
+const user = { id: 'user-1', name: 'User', locale: 'id' } as User;
 const baseMessage: NormalizedInboundMessage = {
   provider: 'telegram',
   providerMessageId: 'chat-1:1',
@@ -132,6 +132,29 @@ describe('MessagingHandlerService', () => {
     );
     expect(conversations.enqueueChannelTurn).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalled();
+  });
+  it('localizes command responses in English for English users', async () => {
+    const { conversations, service } = setup();
+    const send = jest.fn<() => Promise<void>>(() => Promise.resolve());
+    const englishUser = { ...user, locale: 'en' };
+    await service.registerAdapter('telegram', {
+      prepare: () => Promise.resolve({ content: 'Hello' }),
+      send,
+    });
+
+    await service.handle({
+      message: { ...baseMessage, text: '/stop' },
+      user: englishUser,
+      externalIdentityId: 'identity-1',
+    });
+
+    expect(send).toHaveBeenCalledWith(
+      englishUser,
+      'identity-1',
+      expect.objectContaining({ text: '/stop' }),
+      'Active processing and queued messages have been cancelled.',
+    );
+    expect(conversations.enqueueChannelTurn).not.toHaveBeenCalled();
   });
 
   it('coalesces a claimed burst into one assistant turn', async () => {

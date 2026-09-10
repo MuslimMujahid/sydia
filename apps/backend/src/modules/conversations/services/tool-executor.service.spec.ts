@@ -44,7 +44,7 @@ describe('ToolExecutorService', () => {
     const invocation = {
       id: 'tool-1',
       assistantRunId: 'run-1',
-      label: 'Cari catatan',
+      label: 'Search notes',
       status: 'completed',
       result: { found: true },
       errorMessage: null,
@@ -63,8 +63,8 @@ describe('ToolExecutorService', () => {
       {
         definition: {
           name: 'search_notes',
-          label: 'Cari catatan',
-          description: 'Cari catatan pengguna.',
+          label: 'Search notes',
+          description: 'Search the user notes.',
           parameters: { type: 'object' },
         },
         parseArguments: () => ({}),
@@ -87,7 +87,7 @@ describe('ToolExecutorService', () => {
       id: 'tool-1',
       assistantRunId: 'run-1',
       name: 'search_documents',
-      label: 'Mencari dokumen',
+      label: 'Search documents',
       status: 'pending',
       result: null,
       createdAt: new Date(),
@@ -112,8 +112,8 @@ describe('ToolExecutorService', () => {
       {
         definition: {
           name: 'search_documents',
-          label: 'Mencari dokumen',
-          description: 'Cari dokumen pengguna.',
+          label: 'Search documents',
+          description: 'Search the user documents.',
           parameters: { type: 'object' },
         },
         parseArguments: (value) => value as never,
@@ -154,7 +154,7 @@ describe('ToolExecutorService', () => {
       id: 'tool-category',
       assistantRunId: 'run-1',
       name: 'delete_category',
-      label: 'Menghapus kategori',
+      label: 'Delete category',
       status: 'pending',
       arguments: { id: 'cat-1', name: 'Kerja' },
       idempotencyKey: 'message:call',
@@ -188,8 +188,8 @@ describe('ToolExecutorService', () => {
       {
         definition: {
           name: 'delete_category',
-          label: 'Menghapus kategori',
-          description: 'Hapus.',
+          label: 'Delete category',
+          description: 'Delete the category.',
           parameters: { type: 'object' },
         },
         parseArguments: (value) => value as never,
@@ -220,7 +220,7 @@ describe('ToolExecutorService', () => {
       id: 'tool-1',
       assistantRunId: 'run-1',
       name: 'save_note',
-      label: 'Simpan catatan',
+      label: 'Save note',
       status: 'pending',
       result: null,
       createdAt: new Date(),
@@ -244,8 +244,8 @@ describe('ToolExecutorService', () => {
       {
         definition: {
           name: 'save_note',
-          label: 'Simpan catatan',
-          description: 'Simpan.',
+          label: 'Save note',
+          description: 'Save a note.',
           parameters: { type: 'object' },
         },
         parseArguments: (value) => value as never,
@@ -287,7 +287,7 @@ describe('ToolExecutorService', () => {
       id: 'tool-secret',
       assistantRunId: 'run-1',
       name: 'create_secret_reveal_link',
-      label: 'Membuat tautan secret',
+      label: 'Create secret link',
       status: 'pending',
       result: null,
       createdAt: new Date(),
@@ -311,8 +311,8 @@ describe('ToolExecutorService', () => {
       {
         definition: {
           name: 'create_secret_reveal_link',
-          label: 'Membuat tautan secret',
-          description: 'Buat tautan.',
+          label: 'Create secret link',
+          description: 'Create a secret link.',
           parameters: { type: 'object' },
         },
         sensitive: true,

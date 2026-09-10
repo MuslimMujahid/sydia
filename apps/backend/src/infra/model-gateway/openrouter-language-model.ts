@@ -178,7 +178,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
   async generate(request: GenerateRequest): Promise<GenerateResult> {
     if (!this.apiKey) {
       throw new ModelGatewayError(
-        'Model assistant belum dikonfigurasi. Tetapkan BACKEND_MODEL_API_KEY.',
+        'The assistant model is not configured. Set BACKEND_MODEL_API_KEY.',
       );
     }
 
@@ -369,7 +369,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       this.logger.error(
         `OpenRouter request failed (${errorName}${statusCode === undefined ? '' : `, status ${statusCode}`})`,
       );
-      throw new ModelGatewayError('Model assistant tidak dapat dihubungi.');
+      throw new ModelGatewayError('The assistant model could not be reached.');
     }
   }
 }

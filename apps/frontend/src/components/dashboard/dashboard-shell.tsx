@@ -269,6 +269,7 @@ export function DashboardShell({
           onSelect={(conversationId) => void openConversation(conversationId)}
           onRetry={() => void conversationsQuery.refetch()}
           onRequestDelete={setDeleteTarget}
+          locale={user.locale}
         />
       ) : (
         <Button

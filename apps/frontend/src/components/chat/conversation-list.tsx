@@ -1,24 +1,27 @@
 import { MessageSquareText, RotateCcw, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ConversationSummary } from "@/lib/services/api/conversations/conversations.api";
+import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
 
-function formatConversationTime(value: string | null): string {
+function formatConversationTime(
+  value: string | null,
+  locale: SupportedLocale
+): string {
   if (!value) return "";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-
+  const dateLocale = locale === "en" ? "en-US" : "id-ID";
   const today = new Date();
 
   if (date.toDateString() === today.toDateString()) {
-    return new Intl.DateTimeFormat("id-ID", {
+    return new Intl.DateTimeFormat(dateLocale, {
       hour: "2-digit",
       minute: "2-digit",
     }).format(date);
   }
 
-  return new Intl.DateTimeFormat("id-ID", {
+  return new Intl.DateTimeFormat(dateLocale, {
     day: "numeric",
     month: "short",
   }).format(date);
@@ -47,6 +50,7 @@ export function ConversationList({
   onRetry,
   onClose,
   onRequestDelete,
+  locale,
 }: {
   conversations: ConversationSummary[];
   selectedConversationId: string | null | undefined;
@@ -57,11 +61,16 @@ export function ConversationList({
   onRetry: () => void;
   onClose?: () => void;
   onRequestDelete: (conversation: ConversationSummary) => void;
+  locale: SupportedLocale;
 }) {
+  const english = locale === "en";
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-canvas">
       <div className="flex items-center gap-2 px-5 pt-7 pb-2">
-        <h2 className="text-xs font-semibold text-ink-muted">Percakapan</h2>
+        <h2 className="text-xs font-semibold text-ink-muted">
+          {english ? "Conversations" : "Percakapan"}
+        </h2>
         {!isLoading && !errorMessage ? (
           <span className="font-mono text-[11px] text-ink-muted">
             {conversations.length}
@@ -72,7 +81,9 @@ export function ConversationList({
             variant="ghost"
             size="icon-sm"
             className="ml-auto"
-            aria-label="Tutup daftar percakapan"
+            aria-label={
+              english ? "Close conversation list" : "Tutup daftar percakapan"
+            }
             onClick={onClose}
           >
             <X />
@@ -96,7 +107,7 @@ export function ConversationList({
               onClick={onRetry}
             >
               <RotateCcw />
-              Coba lagi
+              {english ? "Try again" : "Coba lagi"}
             </Button>
           </div>
         ) : null}
@@ -105,10 +116,14 @@ export function ConversationList({
           <div className="px-5 py-8 text-center">
             <MessageSquareText className="mx-auto size-6 text-brand-deep" />
             <p className="mt-4 font-display text-base font-semibold">
-              Mulai dari pesan pertama
+              {english
+                ? "Start with your first message"
+                : "Mulai dari pesan pertama"}
             </p>
             <p className="mt-2 text-sm text-ink-muted">
-              Percakapan yang tersimpan akan muncul di sini.
+              {english
+                ? "Saved conversations will appear here."
+                : "Percakapan yang tersimpan akan muncul di sini."}
             </p>
           </div>
         ) : null}
@@ -118,8 +133,13 @@ export function ConversationList({
             {conversations.map((conversation) => {
               const selected = conversation.id === selectedConversationId;
               const time = formatConversationTime(
-                conversation.lastMessageAt ?? conversation.updatedAt
+                conversation.lastMessageAt ?? conversation.updatedAt,
+                locale
               );
+
+              const title =
+                conversation.title?.trim() ||
+                (english ? "New conversation" : "Percakapan baru");
 
               return (
                 <li key={conversation.id}>
@@ -137,18 +157,20 @@ export function ConversationList({
                       )}
                     >
                       <span className="block truncate text-sm font-medium">
-                        {conversation.title?.trim() || "Percakapan baru"}
+                        {title}
                       </span>
                       <span className="sr-only">
-                        {time ? `Terakhir diperbarui ${time}. ` : ""}
+                        {time
+                          ? `${english ? "Last updated" : "Terakhir diperbarui"} ${time}. `
+                          : ""}
                         {conversation.lastMessagePreview?.trim() ||
-                          "Belum ada pesan"}
+                          (english ? "No messages yet" : "Belum ada pesan")}
                       </span>
                     </button>
                     <button
                       type="button"
                       disabled={disabled}
-                      aria-label={`Hapus percakapan ${conversation.title?.trim() || "baru"}`}
+                      aria-label={`${english ? "Delete conversation" : "Hapus percakapan"} ${title}`}
                       onClick={() => onRequestDelete(conversation)}
                       className="self-center rounded-sm p-2 text-ink-muted outline-none transition-colors hover:text-destructive focus-visible:text-destructive focus-visible:ring-3 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100"
                     >

@@ -11,7 +11,10 @@ import {
   CONVERSATION_REPOSITORY,
   type IConversationRepository,
 } from '../../../database/interfaces';
-import type { ToolInvocation } from '../../../database/entities';
+import type {
+  ToolInvocation,
+  SupportedLocale,
+} from '../../../database/entities';
 
 export type AssistantToolDefinition = {
   name: string;
@@ -51,6 +54,62 @@ export type ToolExecutionResult = {
 
 const TOOL_STALE_AFTER_MS = 60_000;
 
+type LocalizedToolLabel = Record<SupportedLocale, string>;
+
+/**
+ * User-facing activity labels are kept separate from tool definitions so the
+ * descriptions and canonical labels sent to the model remain English.
+ */
+const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
+  get_current_datetime: {
+    en: 'View current time',
+    id: 'Melihat waktu saat ini',
+  },
+  create_task: { en: 'Create task', id: 'Membuat tugas' },
+  update_task: { en: 'Update task', id: 'Memperbarui tugas' },
+  list_tasks: { en: 'Find tasks', id: 'Mencari tugas' },
+  create_reminder: { en: 'Create reminder', id: 'Membuat pengingat' },
+  update_reminder: { en: 'Update reminder', id: 'Memperbarui pengingat' },
+  save_memory: { en: 'Save memory', id: 'Menyimpan memori' },
+  update_memory: { en: 'Update memory', id: 'Memperbarui memori' },
+  forget_memory: { en: 'Forget memory', id: 'Menghapus memori' },
+  search_memories: { en: 'Search memories', id: 'Mencari memori' },
+  list_categories: { en: 'View categories', id: 'Melihat kategori' },
+  create_category: { en: 'Create category', id: 'Membuat kategori' },
+  update_category: { en: 'Update category', id: 'Memperbarui kategori' },
+  delete_category: { en: 'Delete category', id: 'Menghapus kategori' },
+  store_secret: { en: 'Store secret', id: 'Menyimpan rahasia' },
+  create_secret_reveal_link: {
+    en: 'Create secret reveal link',
+    id: 'Membuat tautan rahasia',
+  },
+  save_contact: { en: 'Save contact', id: 'Menyimpan kontak' },
+  resolve_contact: { en: 'Find contact', id: 'Mencari kontak' },
+  list_documents: { en: 'List files', id: 'Menampilkan file' },
+  read_document: { en: 'Read document', id: 'Membaca dokumen' },
+  save_attached_files: {
+    en: 'Save attached files',
+    id: 'Menyimpan file terlampir',
+  },
+  search_documents: { en: 'Search documents', id: 'Mencari dokumen' },
+  list_calendar_events: {
+    en: 'Find calendar events',
+    id: 'Mencari acara kalender',
+  },
+  create_calendar_event: {
+    en: 'Create calendar event',
+    id: 'Membuat acara kalender',
+  },
+  update_calendar_event: {
+    en: 'Update calendar event',
+    id: 'Memperbarui acara kalender',
+  },
+  cancel_calendar_event: {
+    en: 'Cancel calendar event',
+    id: 'Membatalkan acara kalender',
+  },
+};
+
 @Injectable()
 export class ToolExecutorService {
   private readonly toolsByName: Readonly<Record<string, AssistantTool>>;
@@ -68,7 +127,12 @@ export class ToolExecutorService {
     );
   }
 
-  activityLabel(toolName: string): string | null {
+  activityLabel(toolName: string, locale: SupportedLocale): string | null {
+    const localized = TOOL_ACTIVITY_LABELS[toolName];
+    if (localized) return localized[locale];
+
+    // Test-only tools are not part of the production map; retain their
+    // definition label as the English fallback.
     return this.toolsByName[toolName]?.definition.label ?? null;
   }
 
@@ -167,14 +231,14 @@ export class ToolExecutorService {
         invocation.id,
         {
           status: 'rejected',
-          errorMessage: 'Dibatalkan oleh pengguna.',
+          errorMessage: 'Cancelled by the user.',
           completedAt: new Date(),
         },
       );
 
       return {
         invocation: rejected,
-        content: 'Perubahan kategori dibatalkan.',
+        content: 'The category change was cancelled.',
       };
     }
 
@@ -206,12 +270,12 @@ export class ToolExecutorService {
         {
           status: 'failed',
           errorMessage:
-            error instanceof Error ? error.message : 'Eksekusi alat gagal.',
+            error instanceof Error ? error.message : 'Tool execution failed.',
           completedAt: new Date(),
         },
       );
 
-      return { invocation: failed, content: 'Alat gagal dijalankan.' };
+      return { invocation: failed, content: 'The tool failed to run.' };
     }
   }
 
@@ -229,7 +293,7 @@ export class ToolExecutorService {
         assistantRunId: runId,
         toolCallId: call.id,
         name: call.name || 'unknown',
-        label: call.name || 'Alat tidak dikenal',
+        label: call.name || 'Unknown tool',
         arguments: {},
         idempotencyKey,
       });
@@ -238,14 +302,14 @@ export class ToolExecutorService {
         invocation.id,
         {
           status: 'rejected',
-          errorMessage: 'Alat tidak diizinkan.',
+          errorMessage: 'Tool not allowed.',
           completedAt: new Date(),
         },
       );
 
       return {
         invocation: rejected,
-        content: 'Alat ditolak: tidak diizinkan.',
+        content: 'Tool rejected: not allowed.',
       };
     }
 
@@ -268,16 +332,14 @@ export class ToolExecutorService {
         {
           status: 'rejected',
           errorMessage:
-            error instanceof Error
-              ? error.message
-              : 'Argumen alat tidak valid.',
+            error instanceof Error ? error.message : 'Invalid tool arguments.',
           completedAt: new Date(),
         },
       );
 
       return {
         invocation: rejected,
-        content: 'Alat ditolak: argumen tidak valid.',
+        content: 'Tool rejected: invalid arguments.',
       };
     }
 
@@ -310,7 +372,7 @@ export class ToolExecutorService {
 
       return {
         invocation: awaiting,
-        content: 'Perubahan kategori menunggu persetujuan pengguna.',
+        content: 'The category change is awaiting user approval.',
       };
     }
 
@@ -325,10 +387,10 @@ export class ToolExecutorService {
         invocation.status === 'completed'
           ? JSON.stringify(invocation.result)
           : invocation.status === 'failed'
-            ? 'Alat gagal dijalankan.'
+            ? 'The tool failed to run.'
             : invocation.status === 'rejected'
-              ? 'Alat ditolak dan tidak dijalankan.'
-              : 'Alat ini sedang diproses.';
+              ? 'The tool was rejected and not run.'
+              : 'This tool is currently being processed.';
 
       return { invocation, content };
     }
@@ -369,12 +431,12 @@ export class ToolExecutorService {
         {
           status: 'failed',
           errorMessage:
-            error instanceof Error ? error.message : 'Eksekusi alat gagal.',
+            error instanceof Error ? error.message : 'Tool execution failed.',
           completedAt: new Date(),
         },
       );
 
-      return { invocation: failed, content: 'Alat gagal dijalankan.' };
+      return { invocation: failed, content: 'The tool failed to run.' };
     }
   }
 

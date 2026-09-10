@@ -23,7 +23,7 @@ const schema = (
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Argumen alat tidak valid.');
+    throw new Error('Invalid tool arguments.');
 
   return value as Record<string, unknown>;
 }
@@ -36,7 +36,7 @@ function text(
   const found = value[key];
   if (found === undefined && !required) return undefined;
   if (typeof found !== 'string' || !found.trim())
-    throw new Error(`${key} wajib berupa teks.`);
+    throw new Error(`${key} must be text.`);
 
   return found.trim();
 }
@@ -48,7 +48,7 @@ function integer(
 ): number {
   const found = value[key] ?? fallback;
   if (typeof found !== 'number' || !Number.isInteger(found))
-    throw new Error(`${key} wajib berupa bilangan bulat.`);
+    throw new Error(`${key} must be an integer.`);
 
   return found;
 }
@@ -62,7 +62,7 @@ function date(
   if (!raw) return undefined;
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.valueOf()))
-    throw new Error(`${key} wajib berupa waktu ISO.`);
+    throw new Error(`${key} must be an ISO datetime.`);
 
   return parsed;
 }
@@ -81,16 +81,38 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'save_contact',
-        label: 'Menyimpan kontak',
-        description:
-          'Simpan kontak baru beserta alias, email, telepon, atau catatan.',
+        label: 'Save contact',
+        description: `Use this tool to create a contact record from a required name and optional aliases, email, phone, and notes.
+
+Use it when the user asks to save, add, or remember a person's contact details.
+
+Do not use it when the user only wants to find an existing contact or when no contact should be persisted.
+
+The contact is created for the current user. Alias values that are not strings are ignored, and omitted optional text fields are stored as null.
+
+---
+
+Parameters: name is the contact's required display name; aliases is an optional array of alternate names; email is an optional email address; phone is an optional phone number; notes is optional free-form context.`,
         parameters: schema(
           {
-            name: string,
-            aliases: { type: 'array', items: string },
-            email: string,
-            phone: string,
-            notes: string,
+            name: { ...string, description: 'Required contact display name.' },
+            aliases: {
+              type: 'array',
+              description: 'Optional alternate names for the contact.',
+              items: { ...string, description: 'An alternate contact name.' },
+            },
+            email: {
+              ...string,
+              description: 'Optional email address for the contact.',
+            },
+            phone: {
+              ...string,
+              description: 'Optional phone number for the contact.',
+            },
+            notes: {
+              ...string,
+              description: 'Optional free-form notes about the contact.',
+            },
           },
           ['name'],
         ),
@@ -116,10 +138,28 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'resolve_contact',
-        label: 'Mencari kontak',
-        description:
-          'Temukan kontak secara pasti melalui nama, alias, email, atau nomor telepon.',
-        parameters: schema({ reference: string }, ['reference']),
+        label: 'Find contact',
+        description: `Use this tool to find contacts matching a reference.
+
+Use it when the user asks to look up an existing contact by name, alias, email, or phone number.
+
+Do not use it when the user wants to create or modify contact details.
+
+The reference is resolved for the current user and may match by name, alias, email, or phone number; the tool returns matching contacts and does not create or change them.
+
+---
+
+Parameters: reference is the required name, alias, email address, or phone number to resolve.`,
+        parameters: schema(
+          {
+            reference: {
+              ...string,
+              description:
+                'Name, alias, email address, or phone number to match.',
+            },
+          },
+          ['reference'],
+        ),
       },
       parseArguments,
       execute: async ({ userId, arguments: raw }) => ({
@@ -132,9 +172,18 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'list_documents',
-        label: 'Mendaftar file',
-        description:
-          'Daftar metadata dokumen milik pengguna, termasuk ID, nama file, jenis, ukuran, status pemrosesan, dan waktu dibuat. Tidak mengembalikan isi dokumen.',
+        label: 'List files',
+        description: `Use this tool to list the current user's saved document metadata.
+
+Use it when the user asks what files or documents are available in their collection, or you just need a quick overview of their documents.
+
+Do not use it when the user needs document contents, semantic search results, or attached files from the active message.
+
+The result includes each document's ID, filename, MIME type, size, processing status, and creation time; document contents are excluded. This tool takes no parameters.
+
+---
+
+Parameters: none.`,
         parameters: schema({}),
       },
       parseArguments,
@@ -154,14 +203,36 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'read_document',
-        label: 'Membaca dokumen',
-        description:
-          'Baca potongan isi dari satu dokumen secara berurutan. Menerima ID dokumen, cursor awal, dan jumlah potongan. Mengembalikan metadata dokumen, potongan beserta posisi halaman, cursor berikutnya, dan penanda apakah masih ada isi.',
+        label: 'Read document',
+        description: `Use this tool to read content chunks from one saved document.
+
+Use it when you need to read the contents of a specific document and you have its document ID.
+
+Do not use it when the user only needs a file list, wants semantic search across documents, or has not identified a document.
+
+The required document ID is read for the current user. cursor defaults to 0 and limit defaults to 8; limit must be from 1 through 20. A missing document raises an error, and the result contains metadata, chunks with page positions, nextCursor, and hasMore.
+
+---
+
+Parameters: documentId is the required document identifier; cursor is an optional non-negative starting chunk offset; limit is an optional number of chunks from 1 through 20.`,
         parameters: schema(
           {
-            documentId: string,
-            cursor: { type: 'integer', minimum: 0 },
-            limit: { type: 'integer', minimum: 1, maximum: 20 },
+            documentId: {
+              ...string,
+              description: 'Required identifier of the document to read.',
+            },
+            cursor: {
+              type: 'integer',
+              minimum: 0,
+              description: 'Optional non-negative chunk offset; defaults to 0.',
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 20,
+              description:
+                'Optional number of chunks to return, from 1 through 20; defaults to 8.',
+            },
           },
           ['documentId'],
         ),
@@ -172,7 +243,7 @@ export function createPhaseTools(deps: {
         const cursor = integer(a, 'cursor', 0);
         const limit = integer(a, 'limit', 8);
         if (cursor < 0 || limit < 1 || limit > 20)
-          throw new Error('Rentang pembacaan dokumen tidak valid.');
+          throw new Error('Invalid document read range.');
 
         const result = await deps.documents.read(
           userId,
@@ -181,7 +252,7 @@ export function createPhaseTools(deps: {
           limit,
         );
 
-        if (!result) throw new Error('Dokumen tidak ditemukan.');
+        if (!result) throw new Error('Document not found.');
 
         return {
           documentId: result.document.id,
@@ -200,9 +271,18 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'save_attached_files',
-        label: 'Menyimpan file lampiran',
-        description:
-          'Simpan semua file yang dilampirkan pada pesan aktif ke koleksi dokumen pengguna.',
+        label: 'Save attached files',
+        description: `Use this tool to save files attached to the active message into the user's document collection.
+
+Use it when the user asks to keep, import, or save files attached to the current message.
+
+Do not use it when there are no relevant attachments, when the user only wants to inspect an attachment, or when saving files from another message.
+
+The active message is identified by execution context rather than a parameter. All attached files are listed for the current user; if none are attached, the tool raises an error. Saved documents are returned as document objects.
+
+---
+
+Parameters: none; the active message comes from execution context.`,
         parameters: schema({}),
       },
       parseArguments,
@@ -213,7 +293,7 @@ export function createPhaseTools(deps: {
         );
 
         if (documents.length === 0)
-          throw new Error('Tidak ada file yang dilampirkan pada pesan ini.');
+          throw new Error('No files are attached to this message.');
 
         return { objectType: 'documents', objects: documents };
       },
@@ -221,10 +301,28 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'search_documents',
-        label: 'Mencari dokumen',
-        description:
-          'Cari potongan dokumen yang relevan dengan kueri semantik. Mengembalikan maksimal 6 hasil berperingkat relevansi dengan identitas dokumen, nama file, posisi halaman atau potongan, dan kutipan. Hasil tidak menjamin cakupan seluruh dokumen.',
-        parameters: schema({ query: string }, ['query']),
+        label: 'Search documents',
+        description: `Use this tool to search the current user's document chunks for a semantic query.
+
+Use it when the user asks a question that requires finding relevant information in their saved documents or files attached to the active message.
+
+Do not use it when the user needs a complete document read, or a metadata-only file list.
+
+The query is searched in the current message's document context and returns up to 6 relevance-ranked sources with document identity, filename, page or chunk position, and a quote; results may not cover the complete document.
+
+---
+
+Parameters: query is the required natural-language search query.`,
+        parameters: schema(
+          {
+            query: {
+              ...string,
+              description:
+                'Required natural-language query for semantic document search.',
+            },
+          },
+          ['query'],
+        ),
       },
       parseArguments,
       execute: async ({ userId, sourceMessageId, arguments: raw }) => ({
@@ -247,9 +345,31 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'list_calendar_events',
-        label: 'Mencari event kalender',
-        description: 'Daftar event kalender dalam rentang ISO.',
-        parameters: schema({ from: string, to: string }, ['from', 'to']),
+        label: 'Find calendar events',
+        description: `Use this tool to list calendar events in a requested time range.
+
+Use it when the user asks what events are scheduled between two ISO datetimes.
+
+Do not use it when the user wants to create, update, or cancel an event, or when either boundary is missing or not an ISO datetime.
+
+Both range boundaries are required and parsed as ISO datetimes. Events are listed for the current user between from and to; this tool does not modify the calendar.
+
+---
+
+Parameters: from is the required starting ISO datetime; to is the required ending ISO datetime.`,
+        parameters: schema(
+          {
+            from: {
+              ...string,
+              description: 'Required start of the range as an ISO datetime.',
+            },
+            to: {
+              ...string,
+              description: 'Required end of the range as an ISO datetime.',
+            },
+          },
+          ['from', 'to'],
+        ),
       },
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
@@ -267,17 +387,49 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'create_calendar_event',
-        label: 'Membuat event kalender',
-        description:
-          'Buat event setelah judul, waktu mulai, dan waktu selesai jelas. Konversikan waktu lokal memakai zona waktu profil pengguna dan sertakan offset eksplisit dalam startAt/endAt; contoh 10.00 Asia/Jakarta adalah 10:00:00+07:00, bukan Z.',
+        label: 'Create calendar event',
+        description: `Use this tool to create a calendar event.
+
+Use it when the user asks to schedule a new event with a title and time range.
+
+Do not use it when the user is referring to an existing event that should be changed or cancelled, or when the end time is not after the start time.
+
+Title, startAt, and endAt are required; description, location, and attendees are optional. startAt and endAt must be ISO datetimes, the user's timezone is used when available (otherwise Asia/Jakarta), and the event is created for the current user. Non-string attendee values are ignored.
+
+---
+
+Parameters: title is the required event title; description is optional event detail; location is optional place or meeting information; startAt and endAt are required ISO datetimes; attendees is an optional array of attendee strings.`,
         parameters: schema(
           {
-            title: string,
-            description: string,
-            location: string,
-            startAt: string,
-            endAt: string,
-            attendees: { type: 'array', items: string },
+            title: {
+              ...string,
+              description: 'Required title for the new event.',
+            },
+            description: {
+              ...string,
+              description: 'Optional description of the event.',
+            },
+            location: {
+              ...string,
+              description: 'Optional physical or virtual location.',
+            },
+            startAt: {
+              ...string,
+              description: 'Required event start as an ISO datetime.',
+            },
+            endAt: {
+              ...string,
+              description:
+                'Required event end as an ISO datetime; must be after startAt.',
+            },
+            attendees: {
+              type: 'array',
+              description: 'Optional attendee values for the event.',
+              items: {
+                ...string,
+                description: 'An attendee identifier or address.',
+              },
+            },
           },
           ['title', 'startAt', 'endAt'],
         ),
@@ -299,7 +451,7 @@ export function createPhaseTools(deps: {
         };
 
         if (input.endAt <= input.startAt)
-          throw new Error('Waktu selesai harus setelah waktu mulai.');
+          throw new Error('The end time must be after the start time.');
 
         return {
           objectType: 'calendar_event',
@@ -310,17 +462,44 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'update_calendar_event',
-        label: 'Memperbarui event kalender',
-        description:
-          'Perbarui event berdasarkan id. Bila mengubah waktu, sertakan offset zona waktu profil pengguna pada startAt/endAt.',
+        label: 'Update calendar event',
+        description: `Use this tool to update an existing calendar event.
+
+Use it when the user asks to change an event and provides its event ID.
+
+Do not use it when the user wants to create a new event, cancel an event, or has not identified the event by ID.
+
+id is required and the other fields are optional; only supplied fields are passed to the calendar service. startAt and endAt, when supplied, must be ISO datetimes. If the ID does not identify an event for the current user, the tool raises an error.
+
+---
+
+Parameters: id is the required event identifier; title, description, and location are optional replacement values; startAt and endAt are optional ISO datetimes.`,
         parameters: schema(
           {
-            id: string,
-            title: string,
-            description: string,
-            location: string,
-            startAt: string,
-            endAt: string,
+            id: {
+              ...string,
+              description: 'Required identifier of the event to update.',
+            },
+            title: {
+              ...string,
+              description: 'Optional replacement event title.',
+            },
+            description: {
+              ...string,
+              description: 'Optional replacement event description.',
+            },
+            location: {
+              ...string,
+              description: 'Optional replacement event location.',
+            },
+            startAt: {
+              ...string,
+              description: 'Optional replacement start as an ISO datetime.',
+            },
+            endAt: {
+              ...string,
+              description: 'Optional replacement end as an ISO datetime.',
+            },
           },
           ['id'],
         ),
@@ -340,7 +519,7 @@ export function createPhaseTools(deps: {
           },
         );
 
-        if (!updated) throw new Error('Event tidak ditemukan.');
+        if (!updated) throw new Error('Event not found.');
 
         return { objectType: 'calendar_event', object: updated };
       },
@@ -348,9 +527,27 @@ export function createPhaseTools(deps: {
     {
       definition: {
         name: 'cancel_calendar_event',
-        label: 'Membatalkan event kalender',
-        description: 'Batalkan event berdasarkan id.',
-        parameters: schema({ id: string }, ['id']),
+        label: 'Cancel calendar event',
+        description: `Use this tool to cancel an existing calendar event.
+
+Use it when the user explicitly asks to cancel an event and provides its event ID.
+
+Do not use it when the user wants to create or edit an event, or when the event has not been identified by ID.
+
+The event is cancelled for the current user. If no matching event exists, the tool raises an error; cancellation is a calendar mutation and should follow the user's approval expectations.
+
+---
+
+Parameters: id is the required identifier of the event to cancel.`,
+        parameters: schema(
+          {
+            id: {
+              ...string,
+              description: 'Required identifier of the event to cancel.',
+            },
+          },
+          ['id'],
+        ),
       },
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
@@ -359,7 +556,7 @@ export function createPhaseTools(deps: {
           text(record(raw), 'id')!,
         );
 
-        if (!cancelled) throw new Error('Event tidak ditemukan.');
+        if (!cancelled) throw new Error('Event not found.');
 
         return { objectType: 'calendar_event', object: cancelled };
       },

@@ -122,7 +122,7 @@ export class ConversationSummarizerService {
         {
           role: 'system',
           content:
-            'Perbarui ringkasan keadaan percakapan sebagai JSON tunggal. Skema wajib: {"currentObjective":string|null,"establishedFacts":string[],"decisions":string[],"userConstraints":string[],"completedActions":string[],"pendingActions":string[],"unresolvedQuestions":string[],"relevantEntities":[{"name":string,"details":string}]}. Gabungkan keadaan lama dan pesan baru secara semantik. Pertahankan nama, tanggal, jumlah, ID, negasi, ketidakpastian, keputusan, dan pekerjaan tertunda. Hapus pengulangan, sapaan, dan item yang sudah terselesaikan dari pendingActions. Bedakan pernyataan pengguna dari usulan asisten. Jangan menambah fakta. Maksimum 6000 karakter.',
+            'Update the conversation state summary as a single JSON object. Required schema: {"currentObjective":string|null,"establishedFacts":string[],"decisions":string[],"userConstraints":string[],"completedActions":string[],"pendingActions":string[],"unresolvedQuestions":string[],"relevantEntities":[{"name":string,"details":string}]}. Semantically merge the previous state and new messages. Preserve names, dates, amounts, IDs, negations, uncertainty, decisions, and pending work. Remove repetition, greetings, and items already resolved from pendingActions. Distinguish user statements from assistant suggestions. Do not add facts. Maximum 6000 characters.',
         },
         {
           role: 'user',

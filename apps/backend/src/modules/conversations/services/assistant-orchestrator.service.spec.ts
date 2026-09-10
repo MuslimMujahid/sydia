@@ -364,7 +364,7 @@ describe('AssistantOrchestratorService', () => {
       id: 'tool-1',
       assistantRunId: 'run-1',
       name: 'search_documents',
-      label: 'Mencari dokumen',
+      label: 'Search documents',
       status: 'completed',
       objectId: null,
       objectType: null,
@@ -385,7 +385,7 @@ describe('AssistantOrchestratorService', () => {
 
         return {};
       },
-      activityLabel: () => 'Mencari dokumen',
+      activityLabel: () => 'Search documents',
     } as unknown as ToolExecutorService;
 
     const model: LanguageModelGateway = {

@@ -9,6 +9,7 @@ import type {
   ToolInvocation,
   User,
 } from '../../../database/entities';
+import type { SupportedLocale } from '../../../database/entities';
 import {
   CONVERSATION_REPOSITORY,
   type IConversationRepository,
@@ -27,8 +28,33 @@ import {
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 import { ToolExecutorService } from './tool-executor.service';
 
-const SAFE_FAILURE_MESSAGE =
-  'Sydia belum dapat menyelesaikan respons ini. Coba lagi dalam beberapa saat.';
+const ASSISTANT_MESSAGES = {
+  en: {
+    safeFailure:
+      'Sydia could not complete this response. Please try again in a moment.',
+    queued: 'Waiting for turn…',
+    preparing: 'Sydia is preparing a response…',
+    workingOn: 'Sydia is',
+    approvalRequired: 'Your approval is required to continue',
+  },
+  id: {
+    safeFailure:
+      'Sydia belum dapat menyelesaikan respons ini. Coba lagi dalam beberapa saat.',
+    queued: 'Menunggu giliran…',
+    preparing: 'Sydia sedang menyiapkan jawaban…',
+    workingOn: 'Sydia sedang',
+    approvalRequired: 'Butuh persetujuan Anda untuk melanjutkan',
+  },
+} satisfies Record<SupportedLocale, Record<string, string>>;
+
+function assistantMessage(
+  locale: string,
+  key: keyof (typeof ASSISTANT_MESSAGES)['en'],
+): string {
+  const supportedLocale: SupportedLocale = locale === 'id' ? 'id' : 'en';
+
+  return ASSISTANT_MESSAGES[supportedLocale][key];
+}
 
 const RUN_STALE_AFTER_MS = 60_000;
 
@@ -41,7 +67,6 @@ type GenerationUsage = {
   outputTokens?: number;
   costUsd?: number;
 };
-
 export type AssistantActivityPhase =
   'queued' | 'preparing' | 'executing_tool' | 'awaiting_confirmation';
 
@@ -164,7 +189,10 @@ export class AssistantOrchestratorService {
         writer.write({ type: 'start' });
         writer.write({
           type: 'data-activity',
-          data: { phase: 'queued', label: 'Menunggu giliran…' },
+          data: {
+            phase: 'queued',
+            label: assistantMessage(user.locale, 'queued'),
+          },
           transient: true,
         });
 
@@ -191,7 +219,7 @@ export class AssistantOrchestratorService {
           type: 'data-activity',
           data: {
             phase: 'preparing',
-            label: 'Sydia sedang menyiapkan jawaban…',
+            label: assistantMessage(user.locale, 'preparing'),
           },
           transient: true,
         });
@@ -217,7 +245,7 @@ export class AssistantOrchestratorService {
                 type: 'data-activity',
                 data: {
                   phase: 'executing_tool',
-                  label: `Sydia sedang ${label.toLocaleLowerCase('id-ID')}…`,
+                  label: `${assistantMessage(user.locale, 'workingOn')} ${label.toLocaleLowerCase(user.locale === 'id' ? 'id-ID' : 'en-US')}…`,
                 },
                 transient: true,
               });
@@ -228,7 +256,7 @@ export class AssistantOrchestratorService {
                 type: 'data-activity',
                 data: {
                   phase: 'awaiting_confirmation',
-                  label: 'Butuh persetujuan Anda untuk melanjutkan',
+                  label: assistantMessage(user.locale, 'approvalRequired'),
                 },
                 transient: true,
               });
@@ -248,7 +276,10 @@ export class AssistantOrchestratorService {
         });
 
         if (result.assistantRun.status === 'failed') {
-          writer.write({ type: 'error', errorText: SAFE_FAILURE_MESSAGE });
+          writer.write({
+            type: 'error',
+            errorText: assistantMessage(user.locale, 'safeFailure'),
+          });
         }
 
         writer.write({
@@ -257,7 +288,7 @@ export class AssistantOrchestratorService {
             result.assistantRun.status === 'failed' ? 'error' : 'stop',
         });
       },
-      onError: () => SAFE_FAILURE_MESSAGE,
+      onError: () => assistantMessage(user.locale, 'safeFailure'),
     });
   }
 
@@ -388,7 +419,7 @@ export class AssistantOrchestratorService {
         try {
           await this.conversations.updateRun(run.id, {
             status: 'failed',
-            errorMessage: SAFE_FAILURE_MESSAGE,
+            errorMessage: assistantMessage(user.locale, 'safeFailure'),
             completedAt: new Date(),
           });
         } catch (failureError) {
@@ -481,7 +512,9 @@ export class AssistantOrchestratorService {
             contextTokenUsage: built.tokenUsage,
           };
         } catch {
-          return { errorMessage: SAFE_FAILURE_MESSAGE };
+          return {
+            errorMessage: assistantMessage(state.user.locale, 'safeFailure'),
+          };
         }
       })
       .addNode('generate', async (state) => {
@@ -507,7 +540,11 @@ export class AssistantOrchestratorService {
             ),
             onTextDelta: (delta: string) => observer?.onTextDelta(delta),
             onToolCall: (toolName: string) => {
-              const label = this.toolExecutor.activityLabel(toolName);
+              const label = this.toolExecutor.activityLabel(
+                toolName,
+                state.user.locale === 'id' ? 'id' : 'en',
+              );
+
               if (label) observer?.onToolCall(label);
             },
           });
@@ -531,7 +568,9 @@ export class AssistantOrchestratorService {
             toolInvocations,
           };
         } catch {
-          return { errorMessage: SAFE_FAILURE_MESSAGE };
+          return {
+            errorMessage: assistantMessage(state.user.locale, 'safeFailure'),
+          };
         }
       })
       .addNode('persistSuccess', async (state) => {
@@ -541,7 +580,9 @@ export class AssistantOrchestratorService {
           return {
             errorMessage:
               state.errorMessage ??
-              (aborted ? 'Assistant run superseded.' : SAFE_FAILURE_MESSAGE),
+              (aborted
+                ? 'Assistant run superseded.'
+                : assistantMessage(state.user.locale, 'safeFailure')),
           };
         }
 
@@ -590,14 +631,18 @@ export class AssistantOrchestratorService {
 
           return { assistantMessage, assistantRun };
         } catch {
-          return { errorMessage: SAFE_FAILURE_MESSAGE };
+          return {
+            errorMessage: assistantMessage(state.user.locale, 'safeFailure'),
+          };
         }
       })
       .addNode('persistFailure', async (state) => ({
         assistantMessage: null,
         assistantRun: await this.conversations.updateRun(state.run.id, {
           status: 'failed',
-          errorMessage: state.errorMessage ?? SAFE_FAILURE_MESSAGE,
+          errorMessage:
+            state.errorMessage ??
+            assistantMessage(state.user.locale, 'safeFailure'),
           completedAt: new Date(),
         }),
       }))

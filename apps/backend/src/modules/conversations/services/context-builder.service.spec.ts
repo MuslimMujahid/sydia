@@ -60,11 +60,6 @@ function message(id: string, role: Message['role'], content: string): Message {
 type RepositoryOptions = {
   messages?: Message[];
   documents?: Document[];
-  memorySearch?: (
-    userId: string,
-    query: string,
-    limit: number,
-  ) => Promise<never[]>;
 };
 
 function createBuilder(
@@ -90,9 +85,6 @@ function createBuilder(
     conversations,
     new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: tokenBudget }),
     documents,
-    options.memorySearch
-      ? ({ search: options.memorySearch } as never)
-      : undefined,
   );
 }
 
@@ -102,7 +94,7 @@ function attachmentMessageContent(context: ModelMessage[]): string {
       entry.role === 'system' &&
       typeof entry.content === 'string' &&
       entry.content.startsWith(
-        'File terlampir pada pesan ini (metadata saja):',
+        'File attached to this message (metadata only):',
       ),
   );
 
@@ -117,11 +109,11 @@ describe('ContextBuilderService personas', () => {
   it.each([
     [
       'personal_assistant',
-      'praktis, terorganisir, dan berfokus pada efisiensi',
+      'practical, organized personal assistant focused on efficiency',
     ],
-    ['friend', 'teman dekat'],
-    ['mentor', 'berperan sebagai pembimbing'],
-    ['creative_partner', 'teman berdiskusi dan partner kreatif'],
+    ['friend', 'close friend'],
+    ['mentor', 'strategic guide'],
+    ['creative_partner', 'discussion companion and creative partner'],
   ] as const)('injects the %s persona prompt', async (persona, marker) => {
     const { messages } = await createBuilder(10_000).build(
       { ...user, persona },
@@ -132,7 +124,7 @@ describe('ContextBuilderService personas', () => {
       (entry) =>
         entry.role === 'system' &&
         typeof entry.content === 'string' &&
-        entry.content.startsWith('Persona terpilih:'),
+        entry.content.startsWith('Selected persona:'),
     );
 
     expect(selected?.content).toContain(marker);
@@ -150,11 +142,11 @@ describe('ContextBuilderService preferred address', () => {
       (entry) =>
         entry.role === 'system' &&
         typeof entry.content === 'string' &&
-        entry.content.startsWith('Persona terpilih:'),
+        entry.content.startsWith('Selected persona:'),
     );
 
     expect(persona?.content).toContain(
-      'Panggilan pengguna: Kak Raka. Gunakan panggilan ini secara natural ketika menyapa atau merujuk pengguna.',
+      'User address: Kak Raka. Use this form of address naturally when greeting or referring to the user.',
     );
   });
 
@@ -168,7 +160,7 @@ describe('ContextBuilderService preferred address', () => {
       messages.some(
         (entry) =>
           typeof entry.content === 'string' &&
-          entry.content.includes('Panggilan pengguna:'),
+          entry.content.includes('User address:'),
       ),
     ).toBe(false);
   });
@@ -209,46 +201,5 @@ describe('ContextBuilderService attachments', () => {
 
     expect(totalTokens).toBeLessThanOrEqual(tokenBudget);
     expect(tokenUsage.total).toBe(totalTokens);
-  });
-});
-
-describe('ContextBuilderService memory retrieval', () => {
-  it('injects a bounded memory brief for a personal-context request', async () => {
-    const search = jest
-      .fn<(userId: string, query: string, limit: number) => Promise<never[]>>()
-      .mockResolvedValue([{ content: 'Ayu lebih suka rapat pagi.' } as never]);
-
-    const { messages } = await createBuilder(1_000, {
-      messages: [message('message-1', 'user', 'Apa preferensi rapat saya?')],
-      memorySearch: search,
-    }).build(user, 'conversation-1', 'message-1');
-
-    expect(search).toHaveBeenCalledWith(
-      user.id,
-      'Apa preferensi rapat saya?',
-      4,
-    );
-    const memoryContext = messages.find(
-      (entry) =>
-        entry.role === 'system' &&
-        typeof entry.content === 'string' &&
-        entry.content.includes('Ayu lebih suka rapat pagi.'),
-    );
-
-    expect(memoryContext).toBeDefined();
-  });
-
-  it('does not retrieve memory for an acknowledgement', async () => {
-    const search =
-      jest.fn<
-        (userId: string, query: string, limit: number) => Promise<never[]>
-      >();
-
-    await createBuilder(1_000, {
-      messages: [message('message-1', 'user', 'iya lanjut')],
-      memorySearch: search,
-    }).build(user, 'conversation-1', 'message-1');
-
-    expect(search).not.toHaveBeenCalled();
   });
 });
