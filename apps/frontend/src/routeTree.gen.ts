@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as SecretRevealRouteImport } from './routes/secret-reveal'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
@@ -22,6 +23,7 @@ import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppFilesRouteImport } from './routes/_app.files'
 import { Route as AppMemoryRouteImport } from './routes/_app.memory'
 import { Route as AppRemindersRouteImport } from './routes/_app.reminders'
+import { Route as AppSecretsRouteImport } from './routes/_app.secrets'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
@@ -50,6 +52,11 @@ const DesignSystemRoute = DesignSystemRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SecretRevealRoute = SecretRevealRouteImport.update({
+  id: '/secret-reveal',
+  path: '/secret-reveal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -95,6 +102,11 @@ const AppMemoryRoute = AppMemoryRouteImport.update({
 const AppRemindersRoute = AppRemindersRouteImport.update({
   id: '/reminders',
   path: '/reminders',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSecretsRoute = AppSecretsRouteImport.update({
+  id: '/secrets',
+  path: '/secrets',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -154,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/design-system': typeof DesignSystemRoute
   '/onboarding': typeof OnboardingRoute
+  '/secret-reveal': typeof SecretRevealRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/calendar': typeof AppCalendarRoute
@@ -162,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
+  '/secrets': typeof AppSecretsRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/tasks': typeof AppTasksRoute
   '/admin/login': typeof AdminLoginRoute
@@ -177,6 +191,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/design-system': typeof DesignSystemRoute
   '/onboarding': typeof OnboardingRoute
+  '/secret-reveal': typeof SecretRevealRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/calendar': typeof AppCalendarRoute
@@ -185,6 +200,7 @@ export interface FileRoutesByTo {
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
+  '/secrets': typeof AppSecretsRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/tasks': typeof AppTasksRoute
   '/admin/login': typeof AdminLoginRoute
@@ -203,6 +219,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/design-system': typeof DesignSystemRoute
   '/onboarding': typeof OnboardingRoute
+  '/secret-reveal': typeof SecretRevealRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/_app/calendar': typeof AppCalendarRoute
@@ -211,6 +228,7 @@ export interface FileRoutesById {
   '/_app/files': typeof AppFilesRoute
   '/_app/memory': typeof AppMemoryRoute
   '/_app/reminders': typeof AppRemindersRoute
+  '/_app/secrets': typeof AppSecretsRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/tasks': typeof AppTasksRoute
   '/admin_/login': typeof AdminLoginRoute
@@ -230,6 +248,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/design-system'
     | '/onboarding'
+    | '/secret-reveal'
     | '/sign-in'
     | '/sign-up'
     | '/calendar'
@@ -238,6 +257,7 @@ export interface FileRouteTypes {
     | '/files'
     | '/memory'
     | '/reminders'
+    | '/secrets'
     | '/settings'
     | '/tasks'
     | '/admin/login'
@@ -253,6 +273,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/design-system'
     | '/onboarding'
+    | '/secret-reveal'
     | '/sign-in'
     | '/sign-up'
     | '/calendar'
@@ -261,6 +282,7 @@ export interface FileRouteTypes {
     | '/files'
     | '/memory'
     | '/reminders'
+    | '/secrets'
     | '/settings'
     | '/tasks'
     | '/admin/login'
@@ -278,6 +300,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/design-system'
     | '/onboarding'
+    | '/secret-reveal'
     | '/sign-in'
     | '/sign-up'
     | '/_app/calendar'
@@ -286,6 +309,7 @@ export interface FileRouteTypes {
     | '/_app/files'
     | '/_app/memory'
     | '/_app/reminders'
+    | '/_app/secrets'
     | '/_app/settings'
     | '/_app/tasks'
     | '/admin_/login'
@@ -304,6 +328,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   DesignSystemRoute: typeof DesignSystemRoute
   OnboardingRoute: typeof OnboardingRoute
+  SecretRevealRoute: typeof SecretRevealRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -338,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/secret-reveal': {
+      id: '/secret-reveal'
+      path: '/secret-reveal'
+      fullPath: '/secret-reveal'
+      preLoaderRoute: typeof SecretRevealRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -401,6 +433,13 @@ declare module '@tanstack/react-router' {
       path: '/reminders'
       fullPath: '/reminders'
       preLoaderRoute: typeof AppRemindersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/secrets': {
+      id: '/_app/secrets'
+      path: '/secrets'
+      fullPath: '/secrets'
+      preLoaderRoute: typeof AppSecretsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -505,6 +544,7 @@ interface AppRouteChildren {
   AppFilesRoute: typeof AppFilesRoute
   AppMemoryRoute: typeof AppMemoryRoute
   AppRemindersRoute: typeof AppRemindersRoute
+  AppSecretsRoute: typeof AppSecretsRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -517,6 +557,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFilesRoute: AppFilesRoute,
   AppMemoryRoute: AppMemoryRoute,
   AppRemindersRoute: AppRemindersRoute,
+  AppSecretsRoute: AppSecretsRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
@@ -529,6 +570,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   DesignSystemRoute: DesignSystemRoute,
   OnboardingRoute: OnboardingRoute,
+  SecretRevealRoute: SecretRevealRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   AdminLoginRoute: AdminLoginRoute,

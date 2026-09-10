@@ -10,6 +10,7 @@ import {
   MessageSquarePlus,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
   Settings,
   X,
 } from "lucide-react";
@@ -56,6 +57,7 @@ const NAV_ITEMS = [
   { to: "/calendar", label: "Kalender", icon: CalendarDays },
   { to: "/files", label: "File", icon: Files },
   { to: "/contacts", label: "Kontak", icon: ContactRound },
+  { to: "/secrets", label: "Rahasia", icon: ShieldCheck },
   ...(DEBUG_ENABLED
     ? [{ to: "/memory" as const, label: "Memori", icon: Brain }]
     : []),

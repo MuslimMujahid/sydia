@@ -59,6 +59,9 @@ model User {
   telegramLinkTokens     TelegramLinkToken[]
   notificationDeliveries NotificationDelivery[]
   userPreference         UserPreference?
+  secrets                Secret[]
+  secretRevealTokens     SecretRevealToken[]
+  secretVaultUnlocks     SecretVaultUnlock[]
 
   @@index([role])
   @@index([banned])
@@ -107,6 +110,7 @@ model Session {
   ipAddress      String?
   userAgent      String?
   impersonatedBy String?
+  secretVaultUnlock SecretVaultUnlock?
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -576,6 +580,54 @@ model CalendarEvent {
   @@unique([userId, provider, providerEventId])
   @@index([userId, startAt, status])
   @@map("calendar_event")
+}
+
+model Secret {
+  id             String              @id @default(cuid())
+  userId         String
+  label          String
+  encryptedValue String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @default(now()) @updatedAt
+  lastRevealedAt DateTime?
+  revealCount    Int                 @default(0)
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revealTokens   SecretRevealToken[]
+
+  @@index([userId, updatedAt])
+  @@map("secret")
+}
+
+model SecretRevealToken {
+  id            String    @id @default(cuid())
+  secretId      String
+  userId        String
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  attemptCount  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  secret        Secret    @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([secretId, expiresAt])
+  @@index([userId, expiresAt])
+  @@index([expiresAt, consumedAt])
+  @@map("secret_reveal_token")
+}
+
+model SecretVaultUnlock {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("secret_vault_unlock")
 }
 
 model WhatsAppGatewayState {

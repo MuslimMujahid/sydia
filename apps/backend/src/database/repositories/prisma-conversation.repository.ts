@@ -804,6 +804,87 @@ export class PrismaConversationRepository implements IConversationRepository {
     }
   }
 
+  async findUserMessageContent(
+    userId: string,
+    messageId: string,
+  ): Promise<string | null> {
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, userId, role: 'user' },
+      select: { content: true },
+    });
+
+    return message?.content ?? null;
+  }
+
+  async maskUserMessage(
+    userId: string,
+    messageId: string,
+    replacement: string,
+  ): Promise<boolean> {
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, userId, role: 'user' },
+      select: { conversationId: true },
+    });
+
+    if (!message) return false;
+
+    await this.prisma.$transaction([
+      this.prisma.message.update({
+        where: { id: messageId },
+        data: { content: replacement },
+      }),
+      this.prisma.conversation.update({
+        where: { id: message.conversationId },
+        data: { title: titleFromContent(replacement) },
+      }),
+    ]);
+
+    return true;
+  }
+
+  async maskActiveChannelTurns(
+    userId: string,
+    messageId: string,
+    replacement: string,
+  ): Promise<void> {
+    const source = await this.prisma.message.findFirst({
+      where: { id: messageId, userId },
+      select: { conversationId: true },
+    });
+
+    if (!source) return;
+
+    const turns = await this.prisma.channelTurn.findMany({
+      where: {
+        channelConversation: { conversationId: source.conversationId },
+        status: { in: ['queued', 'processing', 'sealed'] },
+      },
+      select: { id: true, message: true },
+    });
+
+    await Promise.all(
+      turns.map(({ id, message }) => {
+        const queued = message as unknown as ChannelTurnRecord['message'];
+        const safeMessage = {
+          ...queued,
+          message: {
+            ...queued.message,
+            text: replacement,
+            ...(queued.message.caption === undefined
+              ? {}
+              : { caption: replacement }),
+            raw: {},
+          },
+        } as unknown as Prisma.InputJsonValue;
+
+        return this.prisma.channelTurn.update({
+          where: { id },
+          data: { message: safeMessage },
+        });
+      }),
+    );
+  }
+
   async findRun(
     userId: string,
     conversationId: string,

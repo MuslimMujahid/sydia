@@ -14,3 +14,4 @@ export * from './prisma-whatsapp.repository';
 export * from './prisma-telegram.repository';
 export * from './prisma-notification.repository';
 export * from './prisma-user-privacy.repository';
+export * from './prisma-secret.repository';

@@ -18,6 +18,7 @@ import {
 import { MemoryService } from '../../memories/memory.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
 import { CalendarService } from '../../calendar/calendar.service';
+import { SecretsService } from '../../secrets/secrets.service';
 import { DocumentService } from '../../documents/document.service';
 import { createDomainTools } from './domain-tools';
 import { createPhaseTools } from './phase-tools';
@@ -38,6 +39,7 @@ export class DomainToolsProvider {
     documents: DocumentService,
     @Inject(CALENDAR_REPOSITORY) calendars: ICalendarRepository,
     calendarService: CalendarService,
+    secrets: SecretsService,
   ) {
     this.tools = [
       ...createDomainTools({
@@ -48,6 +50,7 @@ export class DomainToolsProvider {
         memoryService,
         scheduler,
         users,
+        secrets,
       }),
       ...createPhaseTools({
         contacts,

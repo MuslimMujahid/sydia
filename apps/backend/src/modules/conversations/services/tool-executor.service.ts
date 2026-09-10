@@ -32,6 +32,8 @@ export type AssistantTool = {
   }): Promise<Prisma.InputJsonValue>;
   requiresConfirmation?: boolean;
   internal?: boolean;
+  sensitive?: boolean;
+  exposeTransientResult?: boolean;
 };
 
 export const ASSISTANT_TOOLS = Symbol('AssistantTools');
@@ -279,12 +281,16 @@ export class ToolExecutorService {
       };
     }
 
+    const persistedArguments: Prisma.InputJsonValue = assistantTool.sensitive
+      ? {}
+      : argumentsValue;
+
     const invocation = await this.conversations.createToolInvocation({
       assistantRunId: runId,
       toolCallId: call.id,
       name: call.name,
       label: assistantTool.definition.label,
-      arguments: argumentsValue,
+      arguments: persistedArguments,
       idempotencyKey,
     });
 
@@ -335,12 +341,28 @@ export class ToolExecutorService {
         idempotencyKey,
       });
 
+      const persistedResult: Prisma.InputJsonValue = assistantTool.sensitive
+        ? {
+            objectType: 'secret',
+            object: this.secretResultMetadata(result) as Prisma.InputJsonObject,
+          }
+        : result;
+
       const completed = await this.conversations.updateToolInvocation(
         invocation.id,
-        { status: 'completed', result, completedAt: new Date() },
+        {
+          status: 'completed',
+          result: persistedResult,
+          completedAt: new Date(),
+        },
       );
 
-      return { invocation: completed, content: JSON.stringify(result) };
+      return {
+        invocation: completed,
+        content: JSON.stringify(
+          assistantTool.exposeTransientResult ? result : persistedResult,
+        ),
+      };
     } catch (error) {
       const failed = await this.conversations.updateToolInvocation(
         invocation.id,
@@ -354,5 +376,21 @@ export class ToolExecutorService {
 
       return { invocation: failed, content: 'Alat gagal dijalankan.' };
     }
+  }
+
+  private secretResultMetadata(
+    result: Prisma.InputJsonValue,
+  ): Record<string, unknown> {
+    if (!result || typeof result !== 'object' || Array.isArray(result))
+      return {};
+    const object = (result as Record<string, unknown>).object;
+    if (!object || typeof object !== 'object' || Array.isArray(object))
+      return {};
+    const record = object as Record<string, unknown>;
+
+    return {
+      ...(typeof record.id === 'string' ? { id: record.id } : {}),
+      ...(typeof record.label === 'string' ? { label: record.label } : {}),
+    };
   }
 }

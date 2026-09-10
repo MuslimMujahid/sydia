@@ -6,6 +6,7 @@ import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { ContactsModule } from '../contacts/contacts.module';
 import { CalendarModule } from '../calendar/calendar.module';
+import { SecretsModule } from '../secrets/secrets.module';
 import {
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
@@ -33,6 +34,7 @@ import {
     DocumentsModule,
     ContactsModule,
     CalendarModule,
+    SecretsModule,
   ],
   controllers: [ConversationsController],
   providers: [

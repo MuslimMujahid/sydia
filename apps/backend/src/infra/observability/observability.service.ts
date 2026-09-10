@@ -15,7 +15,6 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import type { ModelMessage } from 'ai';
 
 const DEFAULT_BASE_URL = 'https://cloud.langfuse.com';
-const MAX_TRACE_TEXT = 12_000;
 
 export type GenerationTraceRequest = {
   provider: string;
@@ -56,22 +55,6 @@ export type GenerationTrace = {
 
 function errorName(value: unknown): string {
   return value instanceof Error ? value.name : 'UnknownError';
-}
-
-function traceText(value: string): string {
-  return value.length > MAX_TRACE_TEXT
-    ? `${value.slice(0, MAX_TRACE_TEXT)}…`
-    : value;
-}
-
-function safeMessages(messages: ModelMessage[]): unknown[] {
-  return messages.map((message) => ({
-    role: message.role,
-    content:
-      typeof message.content === 'string'
-        ? traceText(message.content)
-        : '[structured message]',
-  }));
 }
 
 @Injectable()
@@ -172,7 +155,6 @@ export class ObservabilityService
           `${request.provider}.generation`,
           {
             model: request.model,
-            input: safeMessages(request.messages),
             metadata,
           },
           { asType: 'generation' },
@@ -182,10 +164,6 @@ export class ObservabilityService
         const trace: GenerationTrace = {
           update: (update) => {
             const attributes: Parameters<LangfuseGeneration['update']>[0] = {};
-
-            if (update.output !== undefined) {
-              attributes.output = traceText(update.output);
-            }
 
             if (
               update.inputTokens !== undefined ||
@@ -220,11 +198,6 @@ export class ObservabilityService
                 ...(update.error.providerErrorType === undefined
                   ? {}
                   : { providerErrorType: update.error.providerErrorType }),
-                ...(update.error.providerMessage === undefined
-                  ? {}
-                  : {
-                      providerMessage: traceText(update.error.providerMessage),
-                    }),
               };
             }
 

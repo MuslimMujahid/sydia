@@ -282,4 +282,73 @@ describe('ToolExecutorService', () => {
     await expect(operation).resolves.toBe('{"saved":true}');
     expect(execute).toHaveBeenCalledTimes(1);
   });
+  it('never persists sensitive tool arguments or transient reveal tokens', async () => {
+    const pending = {
+      id: 'tool-secret',
+      assistantRunId: 'run-1',
+      name: 'create_secret_reveal_link',
+      label: 'Membuat tautan secret',
+      status: 'pending',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const createToolInvocation = resolved(pending);
+    const updateToolInvocation = jest
+      .fn()
+      .mockImplementation((_id: unknown, update: unknown) =>
+        Promise.resolve({ ...pending, ...(update as object) }),
+      );
+
+    const repository = {
+      createToolInvocation,
+      claimToolInvocation: resolved(true),
+      updateToolInvocation,
+    } as unknown as IConversationRepository;
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'create_secret_reveal_link',
+          label: 'Membuat tautan secret',
+          description: 'Buat tautan.',
+          parameters: { type: 'object' },
+        },
+        sensitive: true,
+        exposeTransientResult: true,
+        parseArguments: (value) => value as never,
+        execute: () =>
+          Promise.resolve({
+            objectType: 'secret_reveal',
+            object: {
+              id: 'secret-1',
+              label: 'ATM',
+              url: 'https://sydia.test/secret-reveal#bearer-token',
+            },
+          }),
+      },
+    ]);
+
+    const result = await executor.execute('user-1', 'run-1', 'message-1', {
+      id: 'call-1',
+      name: 'create_secret_reveal_link',
+      arguments: { label: 'ATM' },
+    });
+
+    expect(createToolInvocation).toHaveBeenCalledWith(
+      expect.objectContaining({ arguments: {} }),
+    );
+    expect(updateToolInvocation).toHaveBeenCalledWith(
+      'tool-secret',
+      expect.objectContaining({
+        result: {
+          objectType: 'secret',
+          object: { id: 'secret-1', label: 'ATM' },
+        },
+      }),
+    );
+    expect(result.content).toContain('bearer-token');
+    expect(JSON.stringify(result.invocation)).not.toContain('bearer-token');
+  });
 });

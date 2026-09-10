@@ -27,6 +27,7 @@ import { NotificationsModule } from './modules/notifications';
 import { AppController } from './app.controller';
 import { ObservabilityModule } from './infra/observability';
 import { AppService } from './app.service';
+import { SecretsModule } from './modules/secrets/secrets.module';
 
 function parsePort(
   config: Record<string, unknown>,
@@ -197,6 +198,10 @@ export function validateEnvironment(
         : 'localhost',
     BACKEND_REDIS_PORT: parsePort(config, 'BACKEND_REDIS_PORT', 6379),
     BACKEND_AUTH_SECRET: requireString(config, 'BACKEND_AUTH_SECRET'),
+    BACKEND_SECRET_ENCRYPTION_KEY: requireString(
+      config,
+      'BACKEND_SECRET_ENCRYPTION_KEY',
+    ),
     BACKEND_AUTH_URL:
       typeof authUrl === 'string' && authUrl.trim() !== ''
         ? authUrl
@@ -327,6 +332,7 @@ export function validateEnvironment(
     ConversationsModule,
     TasksModule,
     RemindersModule,
+    SecretsModule,
     MemoriesModule,
     TodayModule,
     CryptoModule,

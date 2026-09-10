@@ -12,6 +12,8 @@ import type { AssistantTool } from './tool-executor.service';
 import { MemoryService } from '../../memories/memory.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
 
+import { SecretsService } from '../../secrets/secrets.service';
+
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('Argumen alat tidak valid.');
@@ -83,6 +85,7 @@ export function createDomainTools(deps: {
   memoryService: MemoryService;
   scheduler: ReminderSchedulerService;
   users: IUserRepository;
+  secrets?: SecretsService;
 }): AssistantTool[] {
   const getCurrentDateTime: AssistantTool = {
     definition: {
@@ -646,6 +649,69 @@ export function createDomainTools(deps: {
     },
   };
 
+  const storeSecret: AssistantTool = {
+    definition: {
+      name: 'store_secret',
+      label: 'Menyimpan secret',
+      description:
+        'Simpan nilai sensitif hanya ketika pesan pengguna saat ini memberi instruksi langsung dan eksplisit untuk menyimpan atau mengingatnya. Untuk beberapa data terkait dalam satu instruksi, panggil alat ini tepat satu kali dan gabungkan semuanya sebagai compact string FIELD:<VALUE> | FIELD:<VALUE> dengan satu label bersama; jangan buat beberapa secret. Jangan gunakan untuk penyebutan, pertanyaan, kutipan, dokumen, atau instruksi yang dinegasikan.',
+      parameters: schema({ label: string, value: string }, ['label', 'value']),
+    },
+    sensitive: true,
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, sourceMessageId, arguments: raw }) => {
+      const a = object(raw);
+      if (!deps.secrets) throw new Error('Penyimpanan secret tidak tersedia.');
+      const secret = await deps.secrets.createFromChat(
+        userId,
+        sourceMessageId,
+        {
+          label: text(a, 'label')!,
+          value: text(a, 'value')!,
+        },
+      );
+
+      return {
+        objectType: 'secret',
+        object: { id: secret.id, label: secret.label },
+      };
+    },
+  };
+
+  const createSecretRevealLink: AssistantTool = {
+    definition: {
+      name: 'create_secret_reveal_link',
+      label: 'Membuat tautan secret',
+      description:
+        'Cari secret tersimpan dari kata-kata yang pengguna sebutkan lalu buat tautan sekali pakai. Gunakan query ringkas yang mencakup layanan dan jenis data, misalnya Facebook password. Jangan pernah meminta, mengambil, atau menampilkan nilai secret.',
+      parameters: schema({ query: string }, ['query']),
+    },
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    sensitive: true,
+    exposeTransientResult: true,
+    execute: async ({ userId, arguments: raw }) => {
+      const query = text(object(raw), 'query')!;
+      if (!deps.secrets) throw new Error('Penyimpanan secret tidak tersedia.');
+      const matches = await deps.secrets.search(userId, query);
+      if (matches.length === 0) throw new Error('Secret tidak ditemukan.');
+
+      if (matches.length > 1) {
+        throw new Error(
+          `Beberapa secret cocok: ${matches.map(({ label }) => label).join(', ')}. Minta pengguna memperjelas label.`,
+        );
+      }
+
+      const secret = matches[0]!;
+      const reveal = await deps.secrets.createRevealLink(userId, secret.id);
+      if (!reveal) throw new Error('Tautan secret tidak dapat dibuat.');
+
+      return {
+        objectType: 'secret_reveal',
+        object: { id: secret.id, label: secret.label, ...reveal },
+      };
+    },
+  };
+
   return [
     getCurrentDateTime,
     createTask,
@@ -661,5 +727,7 @@ export function createDomainTools(deps: {
     updateMemory,
     deleteMemory,
     searchMemory,
+    storeSecret,
+    createSecretRevealLink,
   ];
 }

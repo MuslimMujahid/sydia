@@ -135,6 +135,20 @@ export interface IConversationRepository {
     conversationId: string,
   ): Promise<ToolInvocationRecord | null>;
   writeUserMessage(input: UserMessageWrite): Promise<UserMessageWriteResult>;
+  findUserMessageContent(
+    userId: string,
+    messageId: string,
+  ): Promise<string | null>;
+  maskUserMessage(
+    userId: string,
+    messageId: string,
+    replacement: string,
+  ): Promise<boolean>;
+  maskActiveChannelTurns(
+    userId: string,
+    messageId: string,
+    replacement: string,
+  ): Promise<void>;
   findRun(
     userId: string,
     conversationId: string,

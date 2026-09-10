@@ -14,3 +14,4 @@ export * from './whatsapp.repository.interface';
 export * from './telegram.repository.interface';
 export * from './notification.repository.interface';
 export * from './user-privacy.repository.interface';
+export * from './secret.repository.interface';

@@ -12,3 +12,4 @@ export * from './calendar.entity';
 export * from './whatsapp.entity';
 export * from './telegram.entity';
 export * from './notification.entity';
+export * from './secret.entity';
