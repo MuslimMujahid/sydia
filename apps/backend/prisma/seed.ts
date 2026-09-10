@@ -33,22 +33,8 @@ function requiredEnvironmentVariable(name: string): string {
   return value;
 }
 
-function databasePort(): number {
-  const value = Number(process.env.BACKEND_DB_PORT ?? '5432');
-
-  if (!Number.isInteger(value) || value < 1 || value > 65535) {
-    throw new Error('BACKEND_DB_PORT must be an integer between 1 and 65535');
-  }
-
-  return value;
-}
-
 const pool = new Pool({
-  host: requiredEnvironmentVariable('BACKEND_DB_HOST'),
-  port: databasePort(),
-  user: requiredEnvironmentVariable('BACKEND_DB_USER'),
-  password: requiredEnvironmentVariable('BACKEND_DB_PASSWORD'),
-  database: requiredEnvironmentVariable('BACKEND_DB_NAME'),
+  connectionString: requiredEnvironmentVariable('BACKEND_DB_URL'),
 });
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });

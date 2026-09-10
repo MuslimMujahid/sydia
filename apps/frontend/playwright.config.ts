@@ -15,11 +15,9 @@ const backendEnvironment = {
   BACKEND_AUTH_SECRET:
     process.env.BACKEND_AUTH_SECRET ??
     "playwright-local-auth-secret-at-least-32-characters",
-  BACKEND_DB_HOST: process.env.BACKEND_DB_HOST ?? "127.0.0.1",
-  BACKEND_DB_PORT: process.env.BACKEND_DB_PORT ?? "5432",
-  BACKEND_DB_USER: process.env.BACKEND_DB_USER ?? "postgres",
-  BACKEND_DB_PASSWORD: process.env.BACKEND_DB_PASSWORD ?? "postgres",
-  BACKEND_DB_NAME: process.env.BACKEND_DB_NAME ?? "app",
+  BACKEND_DB_URL:
+    process.env.BACKEND_DB_URL ??
+    "postgresql://postgres:postgres@127.0.0.1:5432/app",
   BACKEND_SECRET_ENCRYPTION_KEY:
     process.env.BACKEND_SECRET_ENCRYPTION_KEY ??
     "playwright-local-secret-encryption-key-at-least-32-characters",

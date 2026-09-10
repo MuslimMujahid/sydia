@@ -15,11 +15,7 @@ import { PrismaClient } from '../../generated/prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(config: ConfigService) {
     const pool = new Pool({
-      host: config.getOrThrow<string>('BACKEND_DB_HOST'),
-      port: config.getOrThrow<number>('BACKEND_DB_PORT'),
-      user: config.getOrThrow<string>('BACKEND_DB_USER'),
-      password: config.getOrThrow<string>('BACKEND_DB_PASSWORD'),
-      database: config.getOrThrow<string>('BACKEND_DB_NAME'),
+      connectionString: config.getOrThrow<string>('BACKEND_DB_URL'),
     });
 
     super({ adapter: new PrismaPg(pool) });

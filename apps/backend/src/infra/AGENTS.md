@@ -11,7 +11,7 @@ Infrastructure modules under `apps/backend/src/infra` wrap external systems and 
 ## Configuration
 
 - Read runtime settings through the global Nest `ConfigModule`'s `ConfigService`, using `config.getOrThrow<T>('KEY')` for required values and a typed default only when the setting is intentionally optional. Do not read `process.env` directly in infrastructure code.
-- `PrismaService` is the single Prisma 7 client. It reads `BACKEND_DB_HOST`, `BACKEND_DB_PORT`, `BACKEND_DB_USER`, `BACKEND_DB_PASSWORD`, and `BACKEND_DB_NAME`, creates a `pg` pool with `PrismaPg`, and disconnects through the Prisma adapter during module shutdown. `PrismaModule` is global and exports that service.
+- `PrismaService` is the single Prisma 7 client. It reads `BACKEND_DB_URL`, creates a `pg` pool with `PrismaPg`, and disconnects through the Prisma adapter during module shutdown. `PrismaModule` is global and exports that service.
 - Prisma's generated client is at `src/generated/prisma`; do not edit generated files. The Prisma schema and generated client use the PostgreSQL adapter configured by `PrismaService`.
 
 ## Better Auth

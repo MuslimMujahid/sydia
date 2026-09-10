@@ -26,13 +26,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=prune /app/out/full/ .
 WORKDIR /app/apps/backend
 # The Prisma client is generated (gitignored); regenerate before compiling.
-# The placeholder BACKEND_DB_* values satisfy prisma.config.ts — generate
-# never opens a connection.
-ENV BACKEND_DB_HOST=localhost \
-    BACKEND_DB_PORT=5432 \
-    BACKEND_DB_USER=postgres \
-    BACKEND_DB_PASSWORD=postgres \
-    BACKEND_DB_NAME=app
+# The placeholder BACKEND_DB_URL satisfies prisma.config.ts — generate never
+# opens a connection.
+ENV BACKEND_DB_URL=postgresql://postgres:postgres@localhost:5432/app
 RUN node ../../node_modules/.bin/prisma generate
 # Invoke the Nest CLI directly: npm refuses to run scripts here because the
 # root package.json pins devEngines.packageManager to bun.

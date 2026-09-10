@@ -3,11 +3,7 @@
   "ui": "tui",
   "globalEnv": [
     "BACKEND_AUTH_SECRET",
-    "BACKEND_DB_HOST",
-    "BACKEND_DB_NAME",
-    "BACKEND_DB_PASSWORD",
-    "BACKEND_DB_PORT",
-    "BACKEND_DB_USER",
+    "BACKEND_DB_URL",
     "CI",
     "BACKEND_SECRET_ENCRYPTION_KEY",
     "PLAYWRIGHT_BACKEND_URL",

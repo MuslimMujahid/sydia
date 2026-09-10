@@ -20,11 +20,7 @@ jobs:
     env:
       # Prisma CLI validation only needs a syntactically complete URL; no
       # database connection is opened by `prisma validate` or schema diff.
-      BACKEND_DB_HOST: localhost
-      BACKEND_DB_PORT: "5432"
-      BACKEND_DB_USER: postgres
-      BACKEND_DB_PASSWORD: ci-placeholder
-      BACKEND_DB_NAME: sydia_ci
+      BACKEND_DB_URL: postgresql://postgres:ci-placeholder@localhost:5432/sydia_ci
       BACKEND_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters
       BACKEND_AUTH_URL: http://localhost:5000
       BACKEND_PORT: "5000"
@@ -97,11 +93,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      BACKEND_DB_HOST: 127.0.0.1
-      BACKEND_DB_PORT: "5432"
-      BACKEND_DB_USER: postgres
-      BACKEND_DB_PASSWORD: postgres
-      BACKEND_DB_NAME: sydia_e2e
+      BACKEND_DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/sydia_e2e
       BACKEND_AUTH_SECRET: ci-e2e-secret-that-is-at-least-32-characters
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       PLAYWRIGHT_BACKEND_URL: http://127.0.0.1:5000

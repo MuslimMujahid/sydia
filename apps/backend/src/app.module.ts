@@ -31,8 +31,7 @@ import { SecretsModule } from './modules/secrets/secrets.module';
 
 function parsePort(
   config: Record<string, unknown>,
-  name:
-    'BACKEND_PORT' | 'FRONTEND_PORT' | 'BACKEND_DB_PORT' | 'BACKEND_REDIS_PORT',
+  name: 'BACKEND_PORT' | 'FRONTEND_PORT' | 'BACKEND_REDIS_PORT',
   defaultValue: number,
 ): number {
   const value =
@@ -134,6 +133,26 @@ function requireString(config: Record<string, unknown>, name: string): string {
   return value;
 }
 
+function parseDatabaseUrl(config: Record<string, unknown>): string {
+  const value = requireString(config, 'BACKEND_DB_URL');
+
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('BACKEND_DB_URL must be a valid PostgreSQL connection URL');
+  }
+
+  if (url.protocol !== 'postgresql:' && url.protocol !== 'postgres:') {
+    throw new Error(
+      'BACKEND_DB_URL must use the postgresql:// or postgres:// scheme',
+    );
+  }
+
+  return value;
+}
+
 export function validateEnvironment(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -186,11 +205,7 @@ export function validateEnvironment(
     BACKEND_PORT: backendPort,
     FRONTEND_PORT: frontendPort,
     FRONTEND_URL: parseFrontendUrl(config, frontendPort),
-    BACKEND_DB_HOST: requireString(config, 'BACKEND_DB_HOST'),
-    BACKEND_DB_PORT: parsePort(config, 'BACKEND_DB_PORT', 5432),
-    BACKEND_DB_USER: requireString(config, 'BACKEND_DB_USER'),
-    BACKEND_DB_PASSWORD: requireString(config, 'BACKEND_DB_PASSWORD'),
-    BACKEND_DB_NAME: requireString(config, 'BACKEND_DB_NAME'),
+    BACKEND_DB_URL: parseDatabaseUrl(config),
     BACKEND_REDIS_HOST:
       typeof config.BACKEND_REDIS_HOST === 'string' &&
       config.BACKEND_REDIS_HOST.trim() !== ''
