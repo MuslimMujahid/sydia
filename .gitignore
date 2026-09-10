@@ -47,3 +47,6 @@ apps/backend/.data/
 apps/backend/bin/
 # Design tool review artifacts
 apps/frontend/.impeccable/
+
+# Command code
+.commandcode
