@@ -537,7 +537,10 @@ export class PrismaConversationRepository implements IConversationRepository {
     now: Date,
   ): Promise<void> {
     await this.prisma.channelTurn.updateMany({
-      where: { id: { in: turnIds }, status: 'processing' },
+      where: {
+        id: { in: turnIds },
+        status: { in: ['processing', 'sealed'] },
+      },
       data: {
         status: 'failed',
         errorMessage: message,

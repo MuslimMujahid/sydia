@@ -65,13 +65,27 @@ export class TelegramInboundAdapter implements InboundMessageAdapter<Context> {
       kind,
       caption: message.caption,
       mediaMessage: mediaMessage(ctx),
-      raw: { updateId: ctx.update.update_id, messageId: message.message_id },
+      raw: {
+        updateId: ctx.update.update_id,
+        messageId: message.message_id,
+        businessConnectionId: ctx.businessConnectionId,
+        messageThreadId: message.message_thread_id,
+      },
     };
   }
 }
 
 export class TelegramOutboundAdapter implements OutboundMessageAdapter {
   constructor(private readonly api: Api) {}
+  async sendTyping(
+    chatExternalId: string,
+    scope?: { businessConnectionId?: string; messageThreadId?: number },
+  ): Promise<true> {
+    return this.api.sendChatAction(chatExternalId, 'typing', {
+      business_connection_id: scope?.businessConnectionId,
+      message_thread_id: scope?.messageThreadId,
+    });
+  }
 
   async send(input: OutboundMessage): Promise<OutboundMessageResult> {
     const sent = await this.api.sendMessage(

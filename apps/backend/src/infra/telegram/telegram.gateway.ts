@@ -20,7 +20,7 @@ export class TelegramGatewayService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramGatewayService.name);
   private readonly bot: Bot | null;
   private readonly inboundAdapter = new TelegramInboundAdapter();
-  private outboundAdapter: OutboundMessageAdapter | null = null;
+  private outboundAdapter: TelegramOutboundAdapter | null = null;
   private handler: TelegramInboundHandler | null = null;
   private botUsername: string | null = null;
 
@@ -43,6 +43,19 @@ export class TelegramGatewayService implements OnModuleInit, OnModuleDestroy {
     this.handler = handler;
   }
 
+  async handle(ctx: Context): Promise<void> {
+    if (!this.handler) return;
+    const chatId = ctx.chatId;
+
+    if (chatId !== undefined)
+      await this.sendTyping(String(chatId), {
+        businessConnectionId: ctx.businessConnectionId,
+        messageThreadId: ctx.msg?.message_thread_id,
+      });
+
+    await this.handler(ctx);
+  }
+
   isAvailable(): boolean {
     return this.bot !== null;
   }
@@ -60,6 +73,61 @@ export class TelegramGatewayService implements OnModuleInit, OnModuleDestroy {
       throw new Error('Telegram bot is not configured.');
 
     return this.outboundAdapter;
+  }
+
+  async sendTyping(
+    chatExternalId: string,
+    scope?: { businessConnectionId?: string; messageThreadId?: number },
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    if (!this.outboundAdapter || signal?.aborted) return false;
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return (
+          (await this.outboundAdapter.sendTyping(chatExternalId, scope)) ===
+          true
+        );
+      } catch (error) {
+        if (signal?.aborted) return false;
+        const retry = error instanceof HttpError && attempt < 3;
+
+        if (retry) {
+          await new Promise<void>((resolve) =>
+            setTimeout(resolve, attempt * 250),
+          );
+
+          continue;
+        }
+
+        const detail =
+          error instanceof GrammyError
+            ? `code=${error.error_code} description=${error.description} retryAfter=${error.parameters.retry_after ?? 'none'}`
+            : error instanceof HttpError
+              ? `transport=${
+                  error.error instanceof Error
+                    ? `${error.error.name}: ${error.error.message}; cause=${
+                        error.error.cause instanceof Error
+                          ? `${error.error.cause.name}: ${error.error.cause.message}`
+                          : typeof error.error.cause === 'string'
+                            ? error.error.cause
+                            : error.error.cause === undefined
+                              ? 'none'
+                              : JSON.stringify(error.error.cause)
+                      }`
+                    : JSON.stringify(error.error)
+                }`
+              : String(error);
+
+        this.logger.warn(
+          `Telegram typing indicator failed after ${attempt} attempt(s): chat=${chatExternalId} ${detail}`,
+        );
+
+        return false;
+      }
+    }
+
+    return false;
   }
 
   async download(fileId: string): Promise<Uint8Array> {
@@ -80,9 +148,7 @@ export class TelegramGatewayService implements OnModuleInit, OnModuleDestroy {
     const bot = this.bot;
     if (!bot) return;
     this.outboundAdapter = new TelegramOutboundAdapter(bot.api);
-    bot.on('message', async (ctx) => {
-      if (this.handler) await this.handler(ctx);
-    });
+    bot.on('message', (ctx) => this.handle(ctx));
     bot.catch((error) => {
       const cause = error.error;
       if (cause instanceof GrammyError)

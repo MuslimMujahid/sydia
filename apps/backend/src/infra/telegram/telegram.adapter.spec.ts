@@ -11,8 +11,10 @@ describe('Telegram message adapters', () => {
     const context = {
       me: { id: 99 },
       update: { update_id: 7 },
+      businessConnectionId: 'business-1',
       msg: {
         message_id: 42,
+        message_thread_id: 8,
         date: 1_780_000_000,
         chat: { id: 123, type: 'private' },
         text: 'hello',
@@ -20,7 +22,9 @@ describe('Telegram message adapters', () => {
       from: { id: 123, first_name: 'Siti', is_bot: false },
     } as unknown as Context;
 
-    expect(new TelegramInboundAdapter().normalize(context)).toEqual(
+    const normalized = new TelegramInboundAdapter().normalize(context);
+
+    expect(normalized).toEqual(
       expect.objectContaining({
         provider: 'telegram',
         providerMessageId: '123:42',
@@ -32,6 +36,30 @@ describe('Telegram message adapters', () => {
         text: 'hello',
       }),
     );
+    expect(normalized?.raw).toEqual(
+      expect.objectContaining({
+        businessConnectionId: 'business-1',
+        messageThreadId: 8,
+      }),
+    );
+  });
+
+  it('confirms typing through the same Bot API client', async () => {
+    const sendChatAction = jest.fn(() => Promise.resolve(true as const));
+    const adapter = new TelegramOutboundAdapter({
+      sendChatAction,
+    } as unknown as Api);
+
+    await expect(
+      adapter.sendTyping('123', {
+        businessConnectionId: 'business-1',
+        messageThreadId: 8,
+      }),
+    ).resolves.toBe(true);
+    expect(sendChatAction).toHaveBeenCalledWith('123', 'typing', {
+      business_connection_id: 'business-1',
+      message_thread_id: 8,
+    });
   });
 
   it('sends replies through the Bot API and returns a stable provider id', async () => {

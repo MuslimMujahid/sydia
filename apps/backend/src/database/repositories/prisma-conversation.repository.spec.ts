@@ -189,4 +189,57 @@ describe('PrismaConversationRepository channel conversations', () => {
       availableAt: new Date('2026-09-10T12:00:03.000Z'),
     });
   });
+
+  it('finalizes sealed channel turns as failed', async () => {
+    const updateMany = jest.fn(() => Promise.resolve({ count: 1 }));
+    const repository = new PrismaConversationRepository({
+      channelTurn: { updateMany },
+    } as unknown as PrismaService);
+
+    const now = new Date('2026-09-10T12:05:00.000Z');
+
+    await repository.failChannelTurns(['turn-1'], 'model down', now);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['turn-1'] },
+        status: { in: ['processing', 'sealed'] },
+      },
+      data: {
+        status: 'failed',
+        errorMessage: 'model down',
+        completedAt: now,
+        leaseUntil: null,
+      },
+    });
+  });
+  it('redacts sealed channel turns after a secret tool executes', async () => {
+    const findMany = jest.fn<(query: unknown) => Promise<unknown[]>>(() =>
+      Promise.resolve([]),
+    );
+
+    const repository = new PrismaConversationRepository({
+      message: {
+        findFirst: jest.fn(() =>
+          Promise.resolve({ conversationId: 'conversation-1' }),
+        ),
+      },
+      channelTurn: { findMany },
+    } as unknown as PrismaService);
+
+    await repository.maskActiveChannelTurns(
+      'user-1',
+      'message-1',
+      'Simpan password **** untuk Facebook',
+    );
+
+    const query = findMany.mock.calls[0]?.[0] as
+      { where?: { status?: { in?: string[] } } } | undefined;
+
+    expect(query?.where?.status?.in).toEqual([
+      'queued',
+      'processing',
+      'sealed',
+    ]);
+  });
 });

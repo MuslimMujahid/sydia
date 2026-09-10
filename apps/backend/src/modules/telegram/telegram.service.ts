@@ -37,6 +37,9 @@ export class TelegramService implements OnModuleInit {
       prepare: (userId, message) => this.ingestMedia(userId, message),
       send: (_user, _identityId, message, content) =>
         this.send(message, content),
+      beginProcessing: (messages, signal) =>
+        this.beginProcessing(messages, signal),
+      queued: (message) => this.acknowledgeQueued(message),
     });
   }
 
@@ -234,6 +237,85 @@ export class TelegramService implements OnModuleInit {
       lastName: ctx.from?.last_name ?? null,
       lastInboundAt,
     });
+  }
+
+  private scopeFor(message: NormalizedInboundMessage): {
+    businessConnectionId?: string;
+    messageThreadId?: number;
+  } {
+    return {
+      businessConnectionId:
+        typeof message.raw.businessConnectionId === 'string'
+          ? message.raw.businessConnectionId
+          : undefined,
+      messageThreadId:
+        typeof message.raw.messageThreadId === 'number'
+          ? message.raw.messageThreadId
+          : undefined,
+    };
+  }
+
+  private async acknowledgeQueued(
+    message: NormalizedInboundMessage,
+  ): Promise<void> {
+    const isMedia =
+      message.kind !== 'unknown' &&
+      typeof message.mediaMessage?.fileId === 'string';
+
+    if (isMedia) {
+      try {
+        await this.send(message, '📂 File sedang diproses ...');
+      } catch (error) {
+        this.logger.warn(
+          `Telegram processing acknowledgement failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    await this.gateway.sendTyping(
+      message.chatExternalId,
+      this.scopeFor(message),
+    );
+  }
+
+  private async beginProcessing(
+    messages: NormalizedInboundMessage[],
+    signal: AbortSignal,
+  ): Promise<() => void> {
+    const last = messages.at(-1);
+    if (!last) return () => undefined;
+
+    let stopped = false;
+    let sending = false;
+
+    const sendTyping = async (): Promise<void> => {
+      if (stopped || sending || signal.aborted) return;
+      sending = true;
+
+      try {
+        await this.gateway.sendTyping(
+          last.chatExternalId,
+          this.scopeFor(last),
+          signal,
+        );
+      } finally {
+        sending = false;
+      }
+    };
+
+    const timer = setInterval(() => void sendTyping(), 4_000);
+
+    const stop = (): void => {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(timer);
+      signal.removeEventListener('abort', stop);
+    };
+
+    signal.addEventListener('abort', stop, { once: true });
+    await sendTyping();
+
+    return stop;
   }
 
   private async ingestMedia(

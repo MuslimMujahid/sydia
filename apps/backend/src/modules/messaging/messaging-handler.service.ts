@@ -33,6 +33,11 @@ export type ChannelTurnAdapter = {
     message: NormalizedInboundMessage,
     content: string,
   ) => Promise<void>;
+  beginProcessing?: (
+    messages: NormalizedInboundMessage[],
+    signal: AbortSignal,
+  ) => Promise<() => void>;
+  queued?: (message: NormalizedInboundMessage) => Promise<void>;
 };
 
 @Injectable()
@@ -149,6 +154,9 @@ export class MessagingHandlerService implements OnModuleDestroy {
       this.burstWindowMs,
     );
 
+    const adapter = this.adapters.get(input.message.provider);
+    await adapter?.queued?.(input.message);
+
     if (enqueued.supersededTurnId)
       this.abortControllers.get(enqueued.supersededTurnId)?.abort();
     this.scheduleDrain(channel.channelConversationId, 0);
@@ -254,7 +262,13 @@ export class MessagingHandlerService implements OnModuleDestroy {
         });
     }, 1_000);
 
+    let stopProcessing: (() => void) | undefined;
+
     try {
+      stopProcessing = await adapter.beginProcessing?.(
+        batch.turns.map(({ message }) => message.message),
+        controller.signal,
+      );
       const prepared = await Promise.all(
         batch.turns.map(({ message }) =>
           adapter.prepare(batch.userId, message.message),
@@ -297,6 +311,9 @@ export class MessagingHandlerService implements OnModuleDestroy {
               ? 'Tindakan dibatalkan.'
               : 'Tindakan gagal dijalankan.';
 
+        stopProcessing?.();
+        stopProcessing = undefined;
+
         await adapter.send(
           user,
           batch.externalIdentityId,
@@ -313,6 +330,9 @@ export class MessagingHandlerService implements OnModuleDestroy {
           toolsReady,
         });
 
+        if (result.assistantRun.status === 'failed')
+          throw new Error('Assistant processing failed.');
+
         const remaining = windowEndsAt - Date.now();
         if (remaining > 0)
           await new Promise<void>((resolve) => setTimeout(resolve, remaining));
@@ -326,6 +346,9 @@ export class MessagingHandlerService implements OnModuleDestroy {
           const response = confirmation
             ? `${result.assistantMessage.content}\n\n${confirmation.label}. Balas tepat “Ya” untuk menyetujui atau “Tidak” untuk membatalkan.`
             : result.assistantMessage.content;
+
+          stopProcessing?.();
+          stopProcessing = undefined;
 
           await adapter.send(
             user,
@@ -344,8 +367,27 @@ export class MessagingHandlerService implements OnModuleDestroy {
         const message = error instanceof Error ? error.message : String(error);
         this.logger.error(`Channel turn failed: ${message}`);
         await this.conversations.failChannelTurns(turnIds, message, new Date());
+
+        stopProcessing?.();
+        stopProcessing = undefined;
+
+        try {
+          const last = batch.turns.at(-1);
+          if (last)
+            await adapter.send(
+              user,
+              batch.externalIdentityId,
+              last.message.message,
+              'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
+            );
+        } catch (sendError) {
+          this.logger.error(
+            `Channel failure response failed: ${sendError instanceof Error ? sendError.message : String(sendError)}`,
+          );
+        }
       }
     } finally {
+      stopProcessing?.();
       clearInterval(monitor);
       turnIds.forEach((id) => this.abortControllers.delete(id));
     }
