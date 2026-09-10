@@ -51,6 +51,8 @@ Shared variables are prefixed with the app that owns the value (`FRONTEND_*` or 
 | `BACKEND_DB_USER`     | `postgres`                                          | Dev-compose container provisioning only      |
 | `BACKEND_DB_PASSWORD` | `postgres`                                          | Dev-compose container provisioning only      |
 | `BACKEND_DB_NAME`     | `app`                                               | Dev-compose container provisioning only      |
+| `BACKEND_REDIS_URL`   | `redis://localhost:6379`                            | Backend and worker BullMQ connection URL     |
+| `BACKEND_REDIS_PORT`  | `6379`                                              | Dev-compose port mapping only                |
 
 `FRONTEND_URL` must be an absolute `http` or `https` URL with no path, query, or hash. Set it to the exact public frontend origin in deployed environments.
 

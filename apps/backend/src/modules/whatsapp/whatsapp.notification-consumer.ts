@@ -33,8 +33,7 @@ export class WhatsAppNotificationConsumer
     )
       return;
     const connection = {
-      host: this.config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
-      port: this.config.get<number>('BACKEND_REDIS_PORT', 6379),
+      url: this.config.getOrThrow<string>('BACKEND_REDIS_URL'),
     };
 
     this.worker = new Worker<NotificationJob>(

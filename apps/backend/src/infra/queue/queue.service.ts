@@ -47,8 +47,7 @@ export class QueueService implements OnModuleDestroy {
   readonly followUps: Queue<FollowUpJob>;
   constructor(config: ConfigService) {
     const connection = {
-      host: config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
-      port: config.get<number>('BACKEND_REDIS_PORT', 6379),
+      url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
     };
 
     const defaultJobOptions = {

@@ -1,5 +1,5 @@
 # Production images for the apps only. The database is intentionally not
-# part of this stack — point BACKEND_DB_* at an external database.
+# part of this stack — point BACKEND_DB_URL at an external database.
 # Run from the repository root:
 #   docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --build
 
@@ -22,8 +22,7 @@ services:
       dockerfile: apps/backend/Dockerfile
     env_file: ../.env
     environment:
-      BACKEND_REDIS_HOST: redis
-      BACKEND_REDIS_PORT: 6379
+      BACKEND_REDIS_URL: redis://redis:6379
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     depends_on:
@@ -35,8 +34,7 @@ services:
     image: monorepo-backend:prod
     env_file: ../.env
     environment:
-      BACKEND_REDIS_HOST: redis
-      BACKEND_REDIS_PORT: 6379
+      BACKEND_REDIS_URL: redis://redis:6379
     command: ["node", "dist/src/worker.js"]
     depends_on:
       redis:

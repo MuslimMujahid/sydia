@@ -40,8 +40,7 @@ async function bootstrap(): Promise<void> {
   const briefings = context.get(DailyBriefingService);
   const followUps = context.get(FollowUpService);
   const connection = {
-    host: config.get<string>('BACKEND_REDIS_HOST', 'localhost'),
-    port: config.get<number>('BACKEND_REDIS_PORT', 6379),
+    url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
   };
 
   const reminderWorker = new Worker<ReminderJob>(

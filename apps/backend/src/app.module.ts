@@ -31,7 +31,7 @@ import { SecretsModule } from './modules/secrets/secrets.module';
 
 function parsePort(
   config: Record<string, unknown>,
-  name: 'BACKEND_PORT' | 'FRONTEND_PORT' | 'BACKEND_REDIS_PORT',
+  name: 'BACKEND_PORT' | 'FRONTEND_PORT',
   defaultValue: number,
 ): number {
   const value =
@@ -153,6 +153,30 @@ function parseDatabaseUrl(config: Record<string, unknown>): string {
   return value;
 }
 
+function parseRedisUrl(config: Record<string, unknown>): string {
+  const configured = config.BACKEND_REDIS_URL;
+  const value =
+    typeof configured === 'string' && configured.trim() !== ''
+      ? configured.trim()
+      : 'redis://localhost:6379';
+
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('BACKEND_REDIS_URL must be a valid Redis connection URL');
+  }
+
+  if (url.protocol !== 'redis:' && url.protocol !== 'rediss:') {
+    throw new Error(
+      'BACKEND_REDIS_URL must use the redis:// or rediss:// scheme',
+    );
+  }
+
+  return value;
+}
+
 export function validateEnvironment(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -206,12 +230,7 @@ export function validateEnvironment(
     FRONTEND_PORT: frontendPort,
     FRONTEND_URL: parseFrontendUrl(config, frontendPort),
     BACKEND_DB_URL: parseDatabaseUrl(config),
-    BACKEND_REDIS_HOST:
-      typeof config.BACKEND_REDIS_HOST === 'string' &&
-      config.BACKEND_REDIS_HOST.trim() !== ''
-        ? config.BACKEND_REDIS_HOST.trim()
-        : 'localhost',
-    BACKEND_REDIS_PORT: parsePort(config, 'BACKEND_REDIS_PORT', 6379),
+    BACKEND_REDIS_URL: parseRedisUrl(config),
     BACKEND_AUTH_SECRET: requireString(config, 'BACKEND_AUTH_SECRET'),
     BACKEND_SECRET_ENCRYPTION_KEY: requireString(
       config,
