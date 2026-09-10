@@ -12,6 +12,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@types/node": "^22.20.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.0",
     "prettier": "^3.9.6",
