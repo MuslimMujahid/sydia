@@ -40,17 +40,17 @@ bun run setup-env --force
 
 Shared variables are prefixed with the app that owns the value (`FRONTEND_*` or `BACKEND_*`). Vite public variables use the `VITE_*` prefix:
 
-| Variable              | Default                 | Consumed by                                       |
-| --------------------- | ----------------------- | ------------------------------------------------- |
-| `FRONTEND_PORT`       | `3000`                  | Frontend dev server; compose port mapping         |
-| `FRONTEND_URL`        | `http://localhost:3000` | Backend CORS and Better Auth trusted origin       |
-| `BACKEND_PORT`        | `5000`                  | Backend listen port                               |
-| `VITE_API_URL`        | `http://localhost:5000` | Frontend API client                               |
-| `BACKEND_DB_HOST`     | `localhost`             | Backend database connection                       |
-| `BACKEND_DB_PORT`     | `5432`                  | Backend database connection; compose port mapping |
-| `BACKEND_DB_USER`     | `postgres`              | Backend database connection; compose              |
-| `BACKEND_DB_PASSWORD` | `postgres`              | Backend database connection; compose              |
-| `BACKEND_DB_NAME`     | `app`                   | Backend database connection; compose              |
+| Variable              | Default                                             | Consumed by                                  |
+| --------------------- | --------------------------------------------------- | -------------------------------------------- |
+| `FRONTEND_PORT`       | `3000`                                              | Frontend dev server; compose port mapping    |
+| `FRONTEND_URL`        | `http://localhost:3000`                             | Backend CORS and Better Auth trusted origin  |
+| `BACKEND_PORT`        | `5000`                                              | Backend listen port                          |
+| `VITE_API_URL`        | `http://localhost:5000`                             | Frontend API client                          |
+| `BACKEND_DB_URL`      | `postgresql://postgres:postgres@localhost:5432/app` | Backend, Prisma CLI, and seed connection URL |
+| `BACKEND_DB_PORT`     | `5432`                                              | Dev-compose port mapping only                |
+| `BACKEND_DB_USER`     | `postgres`                                          | Dev-compose container provisioning only      |
+| `BACKEND_DB_PASSWORD` | `postgres`                                          | Dev-compose container provisioning only      |
+| `BACKEND_DB_NAME`     | `app`                                               | Dev-compose container provisioning only      |
 
 `FRONTEND_URL` must be an absolute `http` or `https` URL with no path, query, or hash. Set it to the exact public frontend origin in deployed environments.
 
@@ -60,7 +60,7 @@ Environment symlinks require a Unix-like shell. On Windows, enable Developer Mod
 
 ## Development database
 
-`docker/docker-compose.dev.yml` provides a PostgreSQL 17 service for local development. It interpolates the `BACKEND_DB_*` variables from the root `.env`, so pass `--env-file` when running it from the repository root:
+`docker/docker-compose.dev.yml` provides a PostgreSQL service for local development. It interpolates the `BACKEND_DB_PORT`, `BACKEND_DB_USER`, `BACKEND_DB_PASSWORD`, and `BACKEND_DB_NAME` component values from the root `.env` to provision the container, so keep them in sync with `BACKEND_DB_URL`. Pass `--env-file` when running it from the repository root:
 
 ```sh
 docker compose --env-file .env -f docker/docker-compose.dev.yml up -d
@@ -68,19 +68,15 @@ docker compose --env-file .env -f docker/docker-compose.dev.yml up -d
 
 Data persists in the `postgres-data` volume. Stop it with the same file arguments: `docker compose --env-file .env -f docker/docker-compose.dev.yml down`.
 
-## Production and staging images
+## Production images
 
-`apps/frontend/Dockerfile` and `apps/backend/Dockerfile` build self-contained production images (Turbo prune + Bun install + Node runtime). The production and staging compose files run both apps and intentionally exclude PostgreSQL: point `BACKEND_DB_*` at an externally managed PostgreSQL instance.
+`apps/frontend/Dockerfile` and `apps/backend/Dockerfile` build self-contained production images (Turbo prune + Bun install + Node runtime). `docker/docker-compose.prod.yml` runs the frontend, backend, and worker alongside Redis, and intentionally excludes PostgreSQL: point `BACKEND_DB_URL` at an externally managed PostgreSQL instance that the backend container can reach.
 
-For a provider-neutral staging deployment, copy `.env.example` to an operator-managed `.env.staging`, replace the development values with staging values, and run:
+The external database must have the checked-in Prisma migrations applied before traffic is enabled. Apply them from a controlled release environment:
 
 ```sh
-cp .env.example .env.staging
-# Edit .env.staging: use the staging API/frontend URLs and real database/auth values.
-docker compose --env-file .env.staging -f docker/docker-compose.staging.yml up -d --build
+bun --cwd apps/backend run db:migrate:deploy
 ```
-
-The staging file requires `BACKEND_PORT`, `FRONTEND_PORT`, `FRONTEND_URL`, all five `BACKEND_DB_*` variables, `BACKEND_AUTH_SECRET`, `BACKEND_AUTH_URL`, and `VITE_API_URL`. `FRONTEND_URL` must be the exact public frontend origin (an absolute `http` or `https` URL with no path, query, or hash); it is used for credentialed backend CORS and Better Auth trusted origins. `BACKEND_AUTH_SECRET` must be a unique random secret of at least 32 characters; never commit `.env.staging` or place credentials in compose files. `BACKEND_AUTH_URL` is the public backend origin and `VITE_API_URL` is the public API URL baked into the frontend image, so changing either requires a rebuild. The external database must be reachable from the backend container and have the checked-in Prisma migrations applied before traffic is enabled; apply them from a controlled release environment with `bun --cwd apps/backend run db:migrate:deploy`.
 
 For the local production-image stack, use the development `.env` values and:
 
@@ -88,7 +84,7 @@ For the local production-image stack, use the development `.env` values and:
 docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --build
 ```
 
-`VITE_API_URL` is inlined into the frontend bundle at build time, so the compose file passes it as a build argument. The backend reads its configuration (`BACKEND_PORT`, `FRONTEND_PORT`, database settings, and auth settings) from the container environment at runtime.
+The compose file passes `--env-file` to interpolate `${BACKEND_PORT}`, `${FRONTEND_PORT}`, and `${VITE_API_URL}`, and loads runtime configuration into the containers through its `env_file: ../.env` entry. `VITE_API_URL` is inlined into the frontend bundle at build time, so changing it requires a rebuild. `FRONTEND_URL` must be the exact public frontend origin (an absolute `http` or `https` URL with no path, query, or hash) because it drives credentialed backend CORS and Better Auth trusted origins, and `BACKEND_AUTH_SECRET` must be a unique random secret of at least 32 characters; never commit real credentials.
 
 Run the development servers for both applications:
 
