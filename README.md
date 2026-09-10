@@ -83,7 +83,7 @@ bun --cwd apps/backend run db:migrate:deploy
 For the local production-image stack, use the development `.env` values and:
 
 ```sh
-docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --build
+docker compose --project-directory . --env-file .env -f docker/docker-compose.prod.yml up -d --build
 ```
 
 The compose file passes `--env-file` to interpolate `${BACKEND_PORT}`, `${FRONTEND_PORT}`, and `${VITE_API_URL}`, and loads runtime configuration into the containers through its `env_file: ../.env` entry. `VITE_API_URL` is inlined into the frontend bundle at build time, so changing it requires a rebuild. `FRONTEND_URL` must be the exact public frontend origin (an absolute `http` or `https` URL with no path, query, or hash) because it drives credentialed backend CORS and Better Auth trusted origins, and `BACKEND_AUTH_SECRET` must be a unique random secret of at least 32 characters; never commit real credentials.

@@ -1,7 +1,7 @@
 # Production images for the apps only. The database is intentionally not
 # part of this stack — point BACKEND_DB_URL at an external database.
-# Run from the repository root:
-#   docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --build
+# Run from the repository root so build contexts resolve to the repository:
+#   docker compose --project-directory . --env-file .env -f docker/docker-compose.prod.yml up -d --build
 
 name: sydia
 
@@ -18,9 +18,9 @@ services:
   backend:
     image: monorepo-backend:prod
     build:
-      context: ..
+      context: .
       dockerfile: apps/backend/Dockerfile
-    env_file: ../.env
+    env_file: .env
     environment:
       BACKEND_REDIS_URL: redis://redis:6379
     ports:
@@ -32,7 +32,7 @@ services:
 
   worker:
     image: monorepo-backend:prod
-    env_file: ../.env
+    env_file: .env
     environment:
       BACKEND_REDIS_URL: redis://redis:6379
     command: ["node", "dist/src/worker.js"]
@@ -44,11 +44,11 @@ services:
   frontend:
     image: monorepo-frontend:prod
     build:
-      context: ..
+      context: .
       dockerfile: apps/frontend/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
-    env_file: ../.env
+    env_file: .env
     environment:
       HOSTNAME: 0.0.0.0
     ports:
