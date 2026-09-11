@@ -8,6 +8,9 @@ export type GenerateRequest = {
   conversationId?: string;
   runId?: string;
   tools?: ToolSet;
+  temperature?: number;
+  maxOutputTokens?: number;
+  maxSteps?: number;
   abortSignal?: AbortSignal;
   onTextDelta?: (delta: string) => void;
   onToolCall?: (toolName: string) => void;

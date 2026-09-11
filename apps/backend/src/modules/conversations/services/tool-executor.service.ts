@@ -53,6 +53,22 @@ export type ToolExecutionResult = {
 };
 
 const TOOL_STALE_AFTER_MS = 60_000;
+const MAX_TOOL_ERROR_LENGTH = 240;
+
+function toolErrorContent(error: unknown): string {
+  const message =
+    error instanceof Error && error.message.trim()
+      ? error.message
+      : 'Tool execution failed.';
+
+  const sanitized = message
+    .replace(/[\p{Cc}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_TOOL_ERROR_LENGTH);
+
+  return JSON.stringify({ error: 'tool_failed', message: sanitized });
+}
 
 type LocalizedToolLabel = Record<SupportedLocale, string>;
 
@@ -238,7 +254,7 @@ export class ToolExecutorService {
 
       return {
         invocation: rejected,
-        content: 'The category change was cancelled.',
+        content: `${invocation.label} was cancelled by the user.`,
       };
     }
 
@@ -275,7 +291,7 @@ export class ToolExecutorService {
         },
       );
 
-      return { invocation: failed, content: 'The tool failed to run.' };
+      return { invocation: failed, content: toolErrorContent(error) };
     }
   }
 
@@ -372,7 +388,7 @@ export class ToolExecutorService {
 
       return {
         invocation: awaiting,
-        content: 'The category change is awaiting user approval.',
+        content: `${assistantTool.definition.label} is awaiting user approval.`,
       };
     }
 
@@ -436,7 +452,7 @@ export class ToolExecutorService {
         },
       );
 
-      return { invocation: failed, content: 'The tool failed to run.' };
+      return { invocation: failed, content: toolErrorContent(error) };
     }
   }
 
@@ -456,3 +472,5 @@ export class ToolExecutorService {
     };
   }
 }
+
+export { toolErrorContent };

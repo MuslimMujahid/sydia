@@ -48,6 +48,8 @@ function parsePositiveInteger(
   config: Record<string, unknown>,
   name:
     | 'BACKEND_ASSISTANT_CONTEXT_TOKENS'
+    | 'BACKEND_MODEL_MAX_OUTPUT_TOKENS'
+    | 'BACKEND_MODEL_MAX_STEPS'
     | 'BACKEND_SUMMARY_TRIGGER_TOKENS'
     | 'BACKEND_SUMMARY_RETAIN_MESSAGES'
     | 'BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES'
@@ -257,6 +259,16 @@ export function validateEnvironment(
       config.BACKEND_MODEL_NAME.trim() !== ''
         ? config.BACKEND_MODEL_NAME.trim()
         : 'z-ai/glm-5.3-flash',
+    BACKEND_MODEL_MAX_OUTPUT_TOKENS: parsePositiveInteger(
+      config,
+      'BACKEND_MODEL_MAX_OUTPUT_TOKENS',
+      1200,
+    ),
+    BACKEND_MODEL_MAX_STEPS: parsePositiveInteger(
+      config,
+      'BACKEND_MODEL_MAX_STEPS',
+      8,
+    ),
     BACKEND_EMBEDDING_MODEL:
       typeof config.BACKEND_EMBEDDING_MODEL === 'string' &&
       config.BACKEND_EMBEDDING_MODEL.trim() !== ''

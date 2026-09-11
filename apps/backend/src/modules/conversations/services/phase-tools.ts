@@ -504,6 +504,7 @@ Parameters: id is the required event identifier; title, description, and locatio
           ['id'],
         ),
       },
+      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
@@ -549,6 +550,7 @@ Parameters: id is the required identifier of the event to cancel.`,
           ['id'],
         ),
       },
+      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const cancelled = await deps.calendarService.cancel(

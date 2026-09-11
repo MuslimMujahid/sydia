@@ -25,6 +25,9 @@ const DEFAULT_MODEL = 'z-ai/glm-5.3-flash';
 const REQUEST_TIMEOUT_MS = 180_000;
 const MAX_RETRY_AFTER_MS = 2_000;
 const MAX_PROVIDER_MESSAGE = 2_000;
+const DEFAULT_TEMPERATURE = 0.2;
+const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
+const DEFAULT_MAX_STEPS = 8;
 
 export class ModelGatewayError extends Error {
   constructor(message: string) {
@@ -150,6 +153,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
   private readonly apiKey?: string;
   private readonly languageModel: AiLanguageModel;
   private readonly logger = new Logger(OpenRouterLanguageModel.name);
+  private readonly temperature: number;
+  private readonly maxOutputTokens: number;
+  private readonly maxSteps: number;
 
   constructor(
     config: ConfigService,
@@ -160,6 +166,15 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       config.get<string>('BACKEND_MODEL_API_KEY')?.trim() || undefined;
     this.model =
       config.get<string>('BACKEND_MODEL_NAME')?.trim() || DEFAULT_MODEL;
+    this.temperature = DEFAULT_TEMPERATURE;
+    this.maxOutputTokens = config.get<number>(
+      'BACKEND_MODEL_MAX_OUTPUT_TOKENS',
+      DEFAULT_MAX_OUTPUT_TOKENS,
+    );
+    this.maxSteps = config.get<number>(
+      'BACKEND_MODEL_MAX_STEPS',
+      DEFAULT_MAX_STEPS,
+    );
 
     const baseURL =
       config.get<string>('BACKEND_MODEL_BASE_URL')?.trim() || DEFAULT_BASE_URL;
@@ -187,7 +202,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       messages: request.messages,
       allowSystemInMessages: true as const,
       tools: request.tools,
-      stopWhen: stepCountIs(15),
+      temperature: request.temperature ?? this.temperature,
+      maxOutputTokens: request.maxOutputTokens ?? this.maxOutputTokens,
+      stopWhen: stepCountIs(request.maxSteps ?? this.maxSteps),
       timeout: REQUEST_TIMEOUT_MS,
       abortSignal: request.abortSignal
         ? AbortSignal.any([
@@ -313,8 +330,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             !textEmitted &&
             toolCallCount === 0 &&
             (retryableApiError(error) ||
-              (NoOutputGeneratedError.isInstance(error) &&
-                (streaming ? true : request.tools === undefined)));
+              NoOutputGeneratedError.isInstance(error));
 
           this.logger.warn(
             JSON.stringify({
@@ -341,8 +357,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             !lastTextEmitted &&
             lastToolCallCount === 0 &&
             (retryableApiError(error) ||
-              (NoOutputGeneratedError.isInstance(error) &&
-                (streaming ? true : request.tools === undefined)));
+              NoOutputGeneratedError.isInstance(error));
 
           if (!canRetry) throw error;
           const delayMs = retryAfterMs(error);

@@ -356,6 +356,14 @@ describe('phase 5 and 6 assistant tools', () => {
       expect.objectContaining({ title: 'Review final' }),
     );
     expect(cancel).toHaveBeenCalledWith('user-1', 'event-1');
+    expect(
+      available.find((tool) => tool.definition.name === 'update_calendar_event')
+        ?.requiresConfirmation,
+    ).toBe(true);
+    expect(
+      available.find((tool) => tool.definition.name === 'cancel_calendar_event')
+        ?.requiresConfirmation,
+    ).toBe(true);
   });
 
   test('documents every phase tool and parameter in English', () => {

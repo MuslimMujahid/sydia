@@ -517,7 +517,12 @@ export class AssistantOrchestratorService {
             context: built.messages,
             contextTokenUsage: built.tokenUsage,
           };
-        } catch {
+        } catch (error) {
+          this.logger.error(
+            `Assistant context build failed for run ${state.run.id}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+
           return {
             errorMessage: assistantMessage(state.user.locale, 'safeFailure'),
           };
@@ -573,7 +578,12 @@ export class AssistantOrchestratorService {
             usage: generation.usage,
             toolInvocations,
           };
-        } catch {
+        } catch (error) {
+          this.logger.error(
+            `Assistant generation failed for run ${state.run.id}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+
           return {
             errorMessage: assistantMessage(state.user.locale, 'safeFailure'),
           };
@@ -636,7 +646,12 @@ export class AssistantOrchestratorService {
           }
 
           return { assistantMessage, assistantRun };
-        } catch {
+        } catch (error) {
+          this.logger.error(
+            `Assistant response persistence failed for run ${state.run.id}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+
           return {
             errorMessage: assistantMessage(state.user.locale, 'safeFailure'),
           };

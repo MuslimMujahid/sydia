@@ -207,8 +207,56 @@ describe('ToolExecutorService', () => {
 
     expect(proposed.invocation.status).toBe('awaiting_confirmation');
     expect(execute).not.toHaveBeenCalled();
+    expect(proposed.content).toBe('Delete category is awaiting user approval.');
     await executor.resolveConfirmation('user-1', pending.id, true);
     expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns a sanitized actionable error to the model', async () => {
+    const pending = {
+      id: 'tool-1',
+      assistantRunId: 'run-1',
+      name: 'read_document',
+      label: 'Read document',
+      status: 'pending',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const repository = {
+      createToolInvocation: resolved(pending),
+      claimToolInvocation: resolved(true),
+      updateToolInvocation: jest
+        .fn()
+        .mockImplementation((_id: unknown, update: unknown) =>
+          Promise.resolve({ ...pending, ...(update as object) }),
+        ),
+    } as unknown as IConversationRepository;
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'read_document',
+          label: 'Read document',
+          description: 'Read a document.',
+          parameters: { type: 'object' },
+        },
+        parseArguments: (value) => value as never,
+        execute: () => Promise.reject(new Error('Document not found.\nRetry.')),
+      },
+    ]);
+
+    const result = await executor.execute('user-1', 'run-1', 'message-1', {
+      id: 'call-1',
+      name: 'read_document',
+      arguments: { id: 'missing' },
+    });
+
+    expect(JSON.parse(result.content)).toEqual({
+      error: 'tool_failed',
+      message: 'Document not found. Retry.',
+    });
   });
 
   it('waits for the burst gate before executing a tool', async () => {
