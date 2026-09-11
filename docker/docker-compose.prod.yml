@@ -1,24 +1,17 @@
-# Production images for the apps only. The database is intentionally not
-# part of this stack — point BACKEND_DB_URL at an external database.
-# Run from the repository root so build contexts resolve to the repository:
-#   docker compose --project-directory . --env-file .env -f docker/docker-compose.prod.yml up -d --build
+# Production runs the images built and published by GitHub Actions. The database
+# is intentionally not part of this stack — point BACKEND_DB_URL at an external
+# database. Set GHCR_OWNER and IMAGE_TAG in .env when not deploying main.
 
 name: sydia
 
 services:
   migration:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-      target: migration
+    image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-migration:${IMAGE_TAG:-main}
     env_file: .env
     command: ["node", "../../node_modules/.bin/prisma", "migrate", "deploy"]
     restart: "no"
   backend:
-    image: monorepo-backend:prod
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-backend:${IMAGE_TAG:-main}
     env_file: .env
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
@@ -28,7 +21,7 @@ services:
         condition: service_completed_successfully
 
   worker:
-    image: monorepo-backend:prod
+    image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-backend:${IMAGE_TAG:-main}
     env_file: .env
     command: ["node", "dist/src/worker.js"]
     depends_on:
@@ -37,12 +30,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: monorepo-frontend:prod
-    build:
-      context: .
-      dockerfile: apps/frontend/Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL}
+    image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-frontend:${IMAGE_TAG:-main}
     env_file: .env
     environment:
       HOSTNAME: 0.0.0.0

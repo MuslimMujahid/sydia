@@ -66,9 +66,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build backend production image
+        if: github.event_name == 'pull_request'
         run: docker build --file apps/backend/Dockerfile --tag sydia-backend:ci .
 
       - name: Build frontend production image
+        if: github.event_name == 'pull_request'
         run: docker build \
           --file apps/frontend/Dockerfile \
           --build-arg VITE_API_URL="$VITE_API_URL" \

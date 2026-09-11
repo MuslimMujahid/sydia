@@ -72,17 +72,18 @@ Data persists in the `postgres-data` volume. Stop it with the same file argument
 
 ## Production images
 
-`apps/frontend/Dockerfile` and `apps/backend/Dockerfile` build self-contained production images (Turbo prune + Bun install + Node runtime). `docker/docker-compose.prod.yml` runs the migration, backend, worker, and frontend services. PostgreSQL and Redis are externally managed resources and are not provisioned by Compose.
+GitHub Actions builds the frontend, backend, and migration images and publishes them to GHCR. `docker/docker-compose.prod.yml` pulls those images and runs the migration, backend, worker, and frontend services without rebuilding source on the deployment server. PostgreSQL and Redis are externally managed resources and are not provisioned by Compose.
 
-Before starting the stack, set `BACKEND_DB_URL` and `BACKEND_REDIS_URL` in `.env` to the externally managed PostgreSQL and Redis services, using URLs reachable from the containers. The migration service applies the checked-in Prisma migrations before the backend and worker start; no separate manual migration step is required.
+Before starting the stack, set `BACKEND_DB_URL` and `BACKEND_REDIS_URL` in `.env` to the externally managed PostgreSQL and Redis services, using URLs reachable from the containers. The migration service applies the checked-in Prisma migrations before the backend and worker start; no separate manual migration step is required. GHCR images must be readable by the deployment server; authenticate Docker to GHCR when the packages are private.
 
-For a local production-image stack, configure the root `.env` with reachable external service URLs and run:
+Production defaults to owner `muslimmujahid` and tag `main`. Override `GHCR_OWNER` or `IMAGE_TAG` in `.env` when deploying another namespace or environment, then run:
 
 ```sh
-docker compose --project-directory . --env-file .env -f docker/docker-compose.prod.yml up -d --build
+docker compose --project-directory . --env-file .env -f docker/docker-compose.prod.yml pull
+docker compose --project-directory . --env-file .env -f docker/docker-compose.prod.yml up -d
 ```
 
-The compose file passes `--env-file` to interpolate `${BACKEND_PORT}`, `${FRONTEND_PORT}`, and `${VITE_API_URL}`, and loads runtime configuration into the containers through its `env_file: .env` entries. `VITE_API_URL` is inlined into the frontend bundle at build time, so changing it requires a rebuild. `FRONTEND_URL` must be the exact public frontend origin (an absolute `http` or `https` URL with no path, query, or hash) because it drives credentialed backend CORS and Better Auth trusted origins, and `BACKEND_AUTH_SECRET` must be a unique random secret of at least 32 characters; never commit real credentials.
+The compose file loads runtime configuration through its `env_file: .env` entries. `VITE_API_URL` is already inlined into the frontend image by GitHub Actions, so changing it requires publishing a new image. `FRONTEND_URL` must be the exact public frontend origin (an absolute `http` or `https` URL with no path, query, or hash) because it drives credentialed backend CORS and Better Auth trusted origins, and `BACKEND_AUTH_SECRET` must be a unique random secret of at least 32 characters; never commit real credentials.
 
 Run the development servers for both applications:
 
