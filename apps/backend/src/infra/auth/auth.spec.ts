@@ -6,12 +6,11 @@ import { createAuth, getSharedCookieDomain } from './auth';
 const noopRepository = { record: (): Promise<void> => Promise.resolve() };
 const noopProvisioner = (): Promise<void> => Promise.resolve();
 
-function authFor(frontendURL: string, baseURL: string) {
+function authFor(trustedOrigins: string[], baseURL: string) {
   return createAuth({} as PrismaService, {
     secret: 'test-secret-that-is-long-enough-for-auth',
     baseURL,
-    frontendURL,
-    trustedOrigins: [frontendURL],
+    trustedOrigins,
     auditEventRepository: noopRepository,
     provisionDefaultCategories: noopProvisioner,
   });
@@ -21,7 +20,7 @@ describe('getSharedCookieDomain', () => {
   it('derives the production shared parent domain', () => {
     expect(
       getSharedCookieDomain(
-        'https://sydia.muslimmujahid.com',
+        ['https://sydia.muslimmujahid.com'],
         'https://sydia-api.muslimmujahid.com',
       ),
     ).toBe('muslimmujahid.com');
@@ -29,14 +28,14 @@ describe('getSharedCookieDomain', () => {
 
   it('does not derive a domain for localhost', () => {
     expect(
-      getSharedCookieDomain('http://localhost:3000', 'http://localhost:3001'),
+      getSharedCookieDomain(['http://localhost:3000'], 'http://localhost:3001'),
     ).toBeUndefined();
   });
 
   it('does not derive a domain for unrelated hosts', () => {
     expect(
       getSharedCookieDomain(
-        'https://sydia.example.com',
+        ['https://sydia.example.com'],
         'https://api.other.com',
       ),
     ).toBeUndefined();
@@ -45,7 +44,7 @@ describe('getSharedCookieDomain', () => {
   it('does not derive a domain when either URL is HTTP', () => {
     expect(
       getSharedCookieDomain(
-        'http://sydia.muslimmujahid.com',
+        ['http://sydia.muslimmujahid.com'],
         'https://sydia-api.muslimmujahid.com',
       ),
     ).toBeUndefined();
@@ -55,7 +54,7 @@ describe('getSharedCookieDomain', () => {
 describe('createAuth cookie contract', () => {
   it('uses a secure shared-domain session cookie in production', () => {
     const auth = authFor(
-      'https://sydia.muslimmujahid.com',
+      ['https://sydia.muslimmujahid.com'],
       'https://sydia-api.muslimmujahid.com',
     );
 
@@ -71,7 +70,7 @@ describe('createAuth cookie contract', () => {
   });
 
   it('keeps local HTTP session cookies host-only and non-secure', () => {
-    const auth = authFor('http://localhost:3000', 'http://localhost:3001');
+    const auth = authFor(['http://localhost:3000'], 'http://localhost:3001');
     const sessionCookie = getCookies(auth.options).sessionToken;
 
     expect(sessionCookie.name).toBe('better-auth.session_token');
@@ -81,5 +80,16 @@ describe('createAuth cookie contract', () => {
       sameSite: 'lax',
     });
     expect(sessionCookie.attributes.domain).toBeUndefined();
+  });
+
+  it('uses a matching trusted origin when the configured origin is local', () => {
+    const auth = authFor(
+      ['http://localhost:3000', 'https://sydia.muslimmujahid.com'],
+      'https://sydia-api.muslimmujahid.com',
+    );
+
+    const sessionCookie = getCookies(auth.options).sessionToken;
+
+    expect(sessionCookie.attributes.domain).toBe('muslimmujahid.com');
   });
 });

@@ -10,8 +10,6 @@ export type AuthOptions = {
   secret: string;
   /** Public base URL of this server (BACKEND_AUTH_URL). */
   baseURL: string;
-  /** Public base URL of the frontend (FRONTEND_URL). */
-  frontendURL: string;
   /** Origins allowed to call auth endpoints with credentials. */
   trustedOrigins: string[];
   /** Durable sink for identity lifecycle audit events. */
@@ -20,22 +18,37 @@ export type AuthOptions = {
 };
 
 /**
- * Returns the shared cookie domain for two sibling HTTPS origins.
+ * Returns the shared cookie domain for an HTTPS origin trusted by the backend.
  *
  * A domain cookie is only safe here when both hosts are valid DNS names,
  * differ from one another, and have a common suffix with at least two labels.
  * Invalid, local, IP-based, and non-HTTPS URLs intentionally remain host-only.
  */
 export function getSharedCookieDomain(
-  frontendURL: string,
+  frontendURLs: string[],
   backendURL: string,
 ): string | undefined {
-  let frontend: URL;
   let backend: URL;
 
   try {
-    frontend = new URL(frontendURL);
     backend = new URL(backendURL);
+  } catch {
+    return undefined;
+  }
+
+  return frontendURLs
+    .map((frontendURL) => sharedCookieDomain(frontendURL, backend))
+    .find((domain) => domain !== undefined);
+}
+
+function sharedCookieDomain(
+  frontendURL: string,
+  backend: URL,
+): string | undefined {
+  let frontend: URL;
+
+  try {
+    frontend = new URL(frontendURL);
   } catch {
     return undefined;
   }
@@ -126,7 +139,7 @@ export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
   };
 
   const sharedCookieDomain = getSharedCookieDomain(
-    options.frontendURL,
+    options.trustedOrigins,
     options.baseURL,
   );
 
