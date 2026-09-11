@@ -13,12 +13,22 @@ services:
       target: migration
     env_file: .env
     command: ["node", "../../node_modules/.bin/prisma", "migrate", "deploy"]
+  backend:
+    image: monorepo-backend:prod
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    env_file: .env
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    restart: unless-stopped
+    depends_on:
+      migration:
+        condition: service_completed_successfully
 
   worker:
     image: monorepo-backend:prod
     env_file: .env
-    environment:
-      BACKEND_REDIS_URL: redis://redis:6379
     command: ["node", "dist/src/worker.js"]
     depends_on:
       migration:
@@ -38,3 +48,6 @@ services:
     ports:
       - "${FRONTEND_PORT}:3000"
     restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
