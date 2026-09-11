@@ -94,7 +94,9 @@ const SCHEDULE_LABELS: Record<ReminderScheduleFilter | "all", string> = {
 function formatRecurrence(reminder: Reminder): string | null {
   const recurrence = reminder.recurrence;
   if (!recurrence) return null;
-  const frequency = FREQUENCY_LABELS[recurrence.frequency].toLowerCase();
+  const frequencyLabel = FREQUENCY_LABELS[recurrence.frequency];
+  if (!frequencyLabel) return null;
+  const frequency = frequencyLabel.toLowerCase();
 
   return recurrence.interval === 1
     ? `Berulang ${frequency}`
