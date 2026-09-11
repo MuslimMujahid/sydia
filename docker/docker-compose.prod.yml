@@ -13,6 +13,7 @@ services:
       target: migration
     env_file: .env
     command: ["node", "../../node_modules/.bin/prisma", "migrate", "deploy"]
+    restart: "no"
   backend:
     image: monorepo-backend:prod
     build:
