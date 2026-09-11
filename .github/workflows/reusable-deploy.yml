@@ -147,6 +147,7 @@ jobs:
           fi
 
           curl --fail --show-error --silent \
-            --request GET \
+            --request POST \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            --header "Content-Type: application/json" \
             "$COOLIFY_WEBHOOK"
