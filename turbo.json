@@ -8,7 +8,9 @@
     "CI",
     "BACKEND_SECRET_ENCRYPTION_KEY",
     "PLAYWRIGHT_BACKEND_URL",
-    "PLAYWRIGHT_BASE_URL"
+    "PLAYWRIGHT_BASE_URL",
+    "PORT",
+    "HOSTNAME"
   ],
   "tasks": {
     "build": {

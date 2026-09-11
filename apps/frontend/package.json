@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "start": "node dist/server/server.js",
+    "start": "bun server.ts",
     "test:e2e": "playwright test",
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit"

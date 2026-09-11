@@ -28,6 +28,7 @@ ENV NODE_ENV=production HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/apps/frontend/dist ./dist
+COPY --from=build /app/apps/frontend/server.ts ./server.ts
 USER bun
 EXPOSE 3000
-CMD ["bun", "dist/server/server.js"]
+CMD ["bun", "server.ts"]

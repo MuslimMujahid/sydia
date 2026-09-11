@@ -22,4 +22,4 @@ bun run lint
 bun run check-types
 ```
 
-Production builds are emitted to `dist`; `start` serves `dist/server/server.js`.
+Production builds are emitted to `dist`; `start` serves client assets from `dist/client` and forwards application requests to `dist/server/server.js`.
