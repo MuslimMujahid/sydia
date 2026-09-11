@@ -17,9 +17,16 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=prune /app/out/full/ .
 RUN bun run --filter=frontend build
 
+FROM oven/bun:1.3 AS prod-deps
+WORKDIR /app
+COPY --from=prune /app/out/json/ .
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --production --linker hoisted --ignore-scripts
+
 FROM oven/bun:1.3 AS runtime
 ENV NODE_ENV=production HOSTNAME=0.0.0.0
 WORKDIR /app
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/apps/frontend/dist ./dist
 USER bun
 EXPOSE 3000
