@@ -1,7 +1,14 @@
 import type { FileHandle } from 'node:fs/promises';
-import { mkdtemp, open, readFile, unlink, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   Inject,
   Injectable,
@@ -438,6 +445,7 @@ export class WhatsAppGatewayService
 
   private async acquireOwnership(): Promise<boolean> {
     const lockPath = `${this.lockPath}.owner.lock`;
+    await mkdir(dirname(lockPath), { recursive: true });
 
     const acquire = async (): Promise<boolean> => {
       try {

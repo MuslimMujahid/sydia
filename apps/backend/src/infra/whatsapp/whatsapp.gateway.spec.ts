@@ -102,6 +102,24 @@ describe('WhatsApp gateway runtime flag', () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+  it('creates missing parent directories for a companion lock', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'sydia-whatsapp-lock-'));
+    const lockPath = join(directory, 'nested', 'session');
+    const config = makeConfig({ BACKEND_WHATSAPP_LOCK_PATH: lockPath });
+    const repository = makeRepository();
+    const gateway = new WhatsAppGatewayService(config, repository, () =>
+      makeClient(),
+    );
+
+    try {
+      await gateway.onModuleInit();
+
+      expect(gateway.getClient()).not.toBeNull();
+    } finally {
+      await gateway.onModuleDestroy();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 
   it('marks the gateway connected when the companion reports logged in', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'sydia-whatsapp-lock-'));

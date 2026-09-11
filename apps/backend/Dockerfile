@@ -55,5 +55,7 @@ ENV NODE_ENV=production
 WORKDIR /app/apps/backend
 COPY --from=prod-deps /app/node_modules /app/node_modules
 COPY --from=build /app/apps/backend/dist ./dist
+# The default WhatsApp lock path is relative to the backend workdir.
+RUN mkdir -p .data && chown node:node .data
 USER node
 CMD ["node", "dist/src/main.js"]
