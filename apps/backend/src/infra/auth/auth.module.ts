@@ -38,6 +38,7 @@ import { createAuth } from './auth';
         auth: createAuth(prisma, {
           secret: config.getOrThrow<string>('BACKEND_AUTH_SECRET'),
           baseURL: config.getOrThrow<string>('BACKEND_AUTH_URL'),
+          frontendURL: config.getOrThrow<string>('FRONTEND_URL'),
           trustedOrigins: getFrontendOrigins(
             config.getOrThrow<string>('FRONTEND_URL'),
           ),

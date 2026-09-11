@@ -10,12 +10,98 @@ export type AuthOptions = {
   secret: string;
   /** Public base URL of this server (BACKEND_AUTH_URL). */
   baseURL: string;
+  /** Public base URL of the frontend (FRONTEND_URL). */
+  frontendURL: string;
   /** Origins allowed to call auth endpoints with credentials. */
   trustedOrigins: string[];
   /** Durable sink for identity lifecycle audit events. */
   auditEventRepository: Pick<IAuditEventRepository, 'record'>;
   provisionDefaultCategories: (userId: string) => Promise<void>;
 };
+
+/**
+ * Returns the shared cookie domain for two sibling HTTPS origins.
+ *
+ * A domain cookie is only safe here when both hosts are valid DNS names,
+ * differ from one another, and have a common suffix with at least two labels.
+ * Invalid, local, IP-based, and non-HTTPS URLs intentionally remain host-only.
+ */
+export function getSharedCookieDomain(
+  frontendURL: string,
+  backendURL: string,
+): string | undefined {
+  let frontend: URL;
+  let backend: URL;
+
+  try {
+    frontend = new URL(frontendURL);
+    backend = new URL(backendURL);
+  } catch {
+    return undefined;
+  }
+
+  if (frontend.protocol !== 'https:' || backend.protocol !== 'https:') {
+    return undefined;
+  }
+
+  const frontendHostname = frontend.hostname.toLowerCase().replace(/\.$/, '');
+  const backendHostname = backend.hostname.toLowerCase().replace(/\.$/, '');
+
+  if (
+    frontendHostname === backendHostname ||
+    !isDnsHostname(frontendHostname) ||
+    !isDnsHostname(backendHostname)
+  ) {
+    return undefined;
+  }
+
+  const frontendLabels = frontendHostname.split('.');
+  const backendLabels = backendHostname.split('.');
+  const sharedLabels: string[] = [];
+
+  while (
+    sharedLabels.length < frontendLabels.length &&
+    sharedLabels.length < backendLabels.length
+  ) {
+    const frontendLabel =
+      frontendLabels[frontendLabels.length - sharedLabels.length - 1];
+
+    const backendLabel =
+      backendLabels[backendLabels.length - sharedLabels.length - 1];
+
+    if (!frontendLabel || !backendLabel || frontendLabel !== backendLabel) {
+      break;
+    }
+
+    sharedLabels.unshift(frontendLabel);
+  }
+
+  return sharedLabels.length >= 2 ? sharedLabels.join('.') : undefined;
+}
+
+function isDnsHostname(hostname: string): boolean {
+  if (
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    hostname.includes(':') ||
+    hostname.length > 253
+  ) {
+    return false;
+  }
+
+  const labels = hostname.split('.');
+
+  return (
+    labels.length >= 2 &&
+    !labels.every((label) => /^\d+$/.test(label)) &&
+    labels.every(
+      (label) =>
+        label.length >= 1 &&
+        label.length <= 63 &&
+        /^[a-z\d](?:[a-z\d-]*[a-z\d])?$/i.test(label),
+    )
+  );
+}
 
 /**
  * Builds the Better Auth instance. Better Auth owns the identity tables
@@ -38,6 +124,11 @@ export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
 
     await options.auditEventRepository.record(event);
   };
+
+  const sharedCookieDomain = getSharedCookieDomain(
+    options.frontendURL,
+    options.baseURL,
+  );
 
   return betterAuth({
     database: prismaAdapter(prisma, {
@@ -81,5 +172,15 @@ export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
     secret: options.secret,
     baseURL: options.baseURL,
     trustedOrigins: options.trustedOrigins,
+    ...(sharedCookieDomain
+      ? {
+          advanced: {
+            crossSubDomainCookies: {
+              enabled: true,
+              domain: sharedCookieDomain,
+            },
+          },
+        }
+      : {}),
   }) as unknown as Auth;
 }
