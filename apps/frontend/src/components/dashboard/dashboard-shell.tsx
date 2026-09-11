@@ -42,7 +42,6 @@ import {
   conversationsQueryOptions,
   useDeleteConversation,
 } from "@/lib/services/api/conversations/conversations.queries";
-import { SESSION_EXPIRED_EVENT } from "@/lib/services/api/api";
 import {
   userQueryKeys,
   type UserProfile,
@@ -102,22 +101,7 @@ export function DashboardShell({
 
   useEffect(() => {
     document.documentElement.lang = user.locale;
-
-    const handleSessionExpired = () => {
-      queryClient.removeQueries({ queryKey: authQueryKeys.all });
-      queryClient.removeQueries({ queryKey: userQueryKeys.all });
-      void navigate({
-        to: "/sign-in",
-        search: { redirect: location.href, reason: "expired" },
-        replace: true,
-      });
-    };
-
-    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
-
-    return () =>
-      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
-  }, [location.href, navigate, queryClient, user.locale]);
+  }, [user.locale]);
 
   async function handleSignOut() {
     await signOutMutation.mutateAsync();
