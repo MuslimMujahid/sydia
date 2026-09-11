@@ -9,6 +9,7 @@ import {
 } from '../../database/interfaces';
 import { AuditModule } from '../../database/audit.module';
 import { CategoriesModule } from '../../modules/categories/categories.module';
+import { getFrontendOrigins } from '../../shared/frontend-origins';
 import { PrismaService } from '../prisma';
 import { createAuth } from './auth';
 
@@ -37,7 +38,9 @@ import { createAuth } from './auth';
         auth: createAuth(prisma, {
           secret: config.getOrThrow<string>('BACKEND_AUTH_SECRET'),
           baseURL: config.getOrThrow<string>('BACKEND_AUTH_URL'),
-          trustedOrigins: [config.getOrThrow<string>('FRONTEND_URL')],
+          trustedOrigins: getFrontendOrigins(
+            config.getOrThrow<string>('FRONTEND_URL'),
+          ),
           auditEventRepository,
           provisionDefaultCategories: (userId) =>
             categoryRepository.provisionDefaults(userId),

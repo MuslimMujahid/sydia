@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { ResponseInterceptor } from './shared/response';
+import { getFrontendOrigins } from './shared/frontend-origins';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/errors';
 
@@ -13,8 +14,12 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   const configService = app.get(ConfigService);
 
+  const frontendOrigins = getFrontendOrigins(
+    configService.getOrThrow<string>('FRONTEND_URL'),
+  );
+
   app.enableCors({
-    origin: configService.getOrThrow<string>('FRONTEND_URL'),
+    origin: frontendOrigins,
     credentials: true,
   });
   app.use(helmet());
