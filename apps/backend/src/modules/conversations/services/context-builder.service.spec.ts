@@ -129,6 +129,74 @@ describe('ContextBuilderService system policy', () => {
     );
   });
 });
+describe('ContextBuilderService channel formatting', () => {
+  it('injects Telegram formatting guidance and accounts for its tokens', async () => {
+    const { messages, tokenUsage } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+      'message-1',
+      'telegram',
+    );
+
+    const channelPrompt = messages.find(
+      (entry) =>
+        entry.role === 'system' &&
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('# Telegram Message Formatting'),
+    );
+
+    expect(channelPrompt?.content).toContain(
+      'Telegram delivery is plain text and does not rely on Markdown',
+    );
+    expect(tokenUsage.channelPrompt).toBe(
+      estimateTokens(channelPrompt?.content as string),
+    );
+    expect(tokenUsage.channelPrompt).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['whatsapp', 'whatsapp' as const],
+    ['an omitted channel', undefined],
+  ])('does not inject Telegram guidance for %s', async (_label, channel) => {
+    const { messages, tokenUsage } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+      'message-1',
+      channel,
+    );
+
+    expect(
+      messages.some(
+        (entry) =>
+          typeof entry.content === 'string' &&
+          entry.content.startsWith('# Telegram Message Formatting'),
+      ),
+    ).toBe(false);
+    expect(tokenUsage.channelPrompt).toBe(0);
+  });
+
+  it('keeps Telegram context and token accounting within the configured budget', async () => {
+    const tokenBudget = 2_000;
+    const { messages, tokenUsage } = await createBuilder(tokenBudget, {
+      documents: [document('x'.repeat(100_000))],
+      messages: [
+        message('message-1', 'user', 'Pertanyaan pengguna '.repeat(20)),
+        message('message-2', 'assistant', 'Jawaban asisten '.repeat(20)),
+      ],
+    }).build(user, 'conversation-1', 'message-1', 'telegram');
+
+    const totalTokens = messages.reduce(
+      (total, entry) =>
+        total +
+        (typeof entry.content === 'string' ? estimateTokens(entry.content) : 0),
+      0,
+    );
+
+    expect(totalTokens).toBeLessThanOrEqual(tokenBudget);
+    expect(tokenUsage.total).toBe(totalTokens);
+    expect(tokenUsage.channelPrompt).toBeGreaterThan(0);
+  });
+});
 
 describe('ContextBuilderService personas', () => {
   it.each([

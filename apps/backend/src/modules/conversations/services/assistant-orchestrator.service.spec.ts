@@ -465,4 +465,85 @@ describe('AssistantOrchestratorService', () => {
     expect('createRun' in repository).toBe(false);
     expect(scheduleMemoryDream).not.toHaveBeenCalled();
   });
+  it('passes the channel through to context building and model generation', async () => {
+    const completedRun = createRun('completed');
+    const assistantMessage: Message = {
+      ...userMessage,
+      id: 'message-2',
+      role: 'assistant',
+      content: 'Baik.',
+    };
+
+    const context = [
+      { role: 'system' as const, content: 'telegram context marker' },
+    ];
+
+    const build = jest.fn<ContextBuilderService['build']>().mockResolvedValue({
+      messages: context,
+      tokenUsage: {
+        systemPolicy: 1,
+        channelPrompt: 2,
+        persona: 3,
+        profile: 4,
+        attachmentManifest: 0,
+        memory: 0,
+        summary: 0,
+        history: 0,
+        total: 10,
+      },
+    });
+
+    const repository = {
+      writeUserMessage: resolved({
+        conversation,
+        userMessage,
+        replayed: false,
+      }),
+      findLatestRunForMessage: resolved(null),
+      createRun: resolved(createRun()),
+      claimRun: resolved(true),
+      completeRun: resolved({ assistantMessage, assistantRun: completedRun }),
+      replaceSummary: jest.fn(),
+    } as unknown as IConversationRepository;
+
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({
+        text: assistantMessage.content,
+        usage: {},
+      });
+
+    const model: LanguageModelGateway = {
+      provider: 'openrouter',
+      model: 'test-model',
+      generate,
+    };
+
+    const contextBuilder = { build } as unknown as ContextBuilderService;
+    const orchestrator = new AssistantOrchestratorService(
+      repository,
+      model,
+      contextBuilder,
+      new ConversationSummarizerService(repository, model, new ConfigService()),
+      new ToolExecutorService(repository, []),
+      { conversationSummaries: { add: resolved({}) } } as never,
+      { schedule: resolved(undefined) } as never,
+    );
+
+    await orchestrator.sendAndWait(user, {
+      content: userMessage.content,
+      idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
+      channel: 'telegram',
+    });
+
+    expect(build).toHaveBeenCalledWith(
+      user,
+      conversation.id,
+      userMessage.id,
+      'telegram',
+    );
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({ messages: context }),
+    );
+  });
 });

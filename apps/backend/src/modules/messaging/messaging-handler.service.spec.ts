@@ -229,7 +229,10 @@ describe('MessagingHandlerService', () => {
 
     expect(assistant.sendAndWait).toHaveBeenCalledWith(
       user,
-      expect.objectContaining({ content: 'Halo\nTambahkan besok' }),
+      expect.objectContaining({
+        content: 'Halo\nTambahkan besok',
+        channel: batch.provider,
+      }),
     );
     expect(send).toHaveBeenCalled();
     expect(conversations.completeChannelTurns).toHaveBeenCalledWith(

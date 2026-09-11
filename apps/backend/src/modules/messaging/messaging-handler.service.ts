@@ -358,6 +358,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
           content,
           idempotencyKey: `${batch.provider}:${batch.turns.map(({ providerMessageId }) => providerMessageId).join('+')}`,
           attachmentIds,
+          channel: batch.provider,
           abortSignal: controller.signal,
           toolsReady,
         });

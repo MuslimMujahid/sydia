@@ -10,6 +10,7 @@ import type {
   User,
 } from '../../../database/entities';
 import type { SupportedLocale } from '../../../database/entities';
+import type { MessageProvider } from '../../../shared/messaging';
 import {
   CONVERSATION_REPOSITORY,
   type IConversationRepository,
@@ -89,6 +90,7 @@ const AssistantTurnState = Annotation.Root({
   conversation: Annotation<Conversation>(),
   inputMessage: Annotation<Message>(),
   run: Annotation<AssistantRun>(),
+  channel: Annotation<MessageProvider | undefined>(),
   context: Annotation<ModelMessage[]>({
     reducer: (_current, update) => update,
     default: () => [],
@@ -299,6 +301,7 @@ export class AssistantOrchestratorService {
       content: string;
       idempotencyKey: string;
       attachmentIds?: string[];
+      channel?: MessageProvider;
       abortSignal?: AbortSignal;
       toolsReady?: Promise<void>;
     },
@@ -318,6 +321,7 @@ export class AssistantOrchestratorService {
         undefined,
         input.abortSignal,
         input.toolsReady,
+        input.channel,
       )),
     };
   }
@@ -471,6 +475,7 @@ export class AssistantOrchestratorService {
     observer?: ExecutionObserver,
     abortSignal?: AbortSignal,
     toolsReady?: Promise<void>,
+    channel?: MessageProvider,
   ): Promise<Omit<AssistantTurnResult, 'conversation' | 'userMessage'>> {
     const staleBefore = new Date(Date.now() - RUN_STALE_AFTER_MS);
     const claimed = await this.conversations.claimRun(run.id, staleBefore);
@@ -505,6 +510,7 @@ export class AssistantOrchestratorService {
             state.user,
             state.conversation.id,
             state.inputMessage.id,
+            state.channel,
           );
 
           return {
@@ -671,6 +677,7 @@ export class AssistantOrchestratorService {
         conversation,
         inputMessage,
         run,
+        channel,
         context: [],
         toolInvocations: [],
       });

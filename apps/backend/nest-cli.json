@@ -8,6 +8,10 @@
       {
         "include": "modules/conversations/personas/**/*.md",
         "watchAssets": true
+      },
+      {
+        "include": "modules/conversations/prompts/**/*.md",
+        "watchAssets": true
       }
     ]
   }
