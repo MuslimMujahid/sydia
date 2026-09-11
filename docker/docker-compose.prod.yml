@@ -6,6 +6,14 @@
 name: sydia
 
 services:
+  migration:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: migration
+    env_file: .env
+    command: ["node", "../../node_modules/.bin/prisma", "migrate", "deploy"]
+
   worker:
     image: monorepo-backend:prod
     env_file: .env
@@ -13,8 +21,8 @@ services:
       BACKEND_REDIS_URL: redis://redis:6379
     command: ["node", "dist/src/worker.js"]
     depends_on:
-      redis:
-        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   frontend:
@@ -29,6 +37,4 @@ services:
       HOSTNAME: 0.0.0.0
     ports:
       - "${FRONTEND_PORT}:3000"
-    depends_on:
-      - backend
     restart: unless-stopped

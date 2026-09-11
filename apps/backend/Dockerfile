@@ -41,6 +41,15 @@ COPY --from=prune /app/out/json/ .
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile --production --linker hoisted --ignore-scripts
 
+FROM node:22-alpine AS migration
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=prune /app/out/full/ .
+WORKDIR /app/apps/backend
+# Keep Prisma config valid while constructing the image; runtime env_file overrides it.
+ENV BACKEND_DB_URL=postgresql://postgres:postgres@localhost:5432/app
+CMD ["node", "../../node_modules/.bin/prisma", "migrate", "deploy"]
+
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app/apps/backend
