@@ -9,6 +9,47 @@ import { StorageService } from './storage.service';
 type PrivateStorage = { s3?: S3Client };
 
 describe('StorageService', () => {
+  test('accepts an origin-only S3 endpoint', () => {
+    expect(
+      () =>
+        new StorageService(
+          new ConfigService({
+            BACKEND_STORAGE_BUCKET: 'dev-sydia',
+            BACKEND_STORAGE_ENDPOINT: 'https://sin1.contabostorage.com/',
+            BACKEND_STORAGE_REGION: 'SIN',
+          }),
+        ),
+    ).not.toThrow();
+  });
+
+  test('rejects an S3 endpoint with a bucket path', () => {
+    expect(
+      () =>
+        new StorageService(
+          new ConfigService({
+            BACKEND_STORAGE_BUCKET: 'dev-sydia',
+            BACKEND_STORAGE_ENDPOINT:
+              'https://sin1.contabostorage.com/dev-sydia',
+          }),
+        ),
+    ).toThrow(
+      'BACKEND_STORAGE_ENDPOINT must be an absolute http or https URL with no path, query, or hash',
+    );
+  });
+
+  test('rejects one-sided S3 credentials', () => {
+    expect(
+      () =>
+        new StorageService(
+          new ConfigService({
+            BACKEND_STORAGE_BUCKET: 'dev-sydia',
+            BACKEND_STORAGE_ACCESS_KEY: true,
+          }),
+        ),
+    ).toThrow(
+      'BACKEND_STORAGE_ACCESS_KEY and BACKEND_STORAGE_SECRET_KEY must be provided together',
+    );
+  });
   test('local deletion resolves when the path is already missing', async () => {
     const root = await mkdtemp(join(tmpdir(), 'storage-service-'));
     const service = new StorageService(
