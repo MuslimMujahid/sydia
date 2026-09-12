@@ -22,6 +22,16 @@ export type OutboundMessage = {
   content: string;
   replyToProviderMessageId?: string;
 };
+export type OutboundFile = {
+  recipientExternalId: string;
+  filename: string;
+  mimeType: string;
+  buffer: Buffer;
+  caption?: string;
+  replyToProviderMessageId?: string;
+  businessConnectionId?: string;
+  messageThreadId?: number;
+};
 
 export type OutboundMessageResult = {
   providerMessageId: string;
@@ -33,4 +43,5 @@ export interface InboundMessageAdapter<TInput> {
 
 export interface OutboundMessageAdapter {
   send(input: OutboundMessage): Promise<OutboundMessageResult>;
+  sendFile?(input: OutboundFile): Promise<OutboundMessageResult>;
 }

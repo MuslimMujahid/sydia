@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import type { User } from '../../database/entities';
 import type {
   IAuditEventRepository,
   ITelegramRepository,
@@ -32,6 +33,7 @@ function setup() {
   let adapter: ChannelTurnAdapter | undefined;
   const outbound = {
     send: jest.fn(() => Promise.resolve({ providerMessageId: '123:43' })),
+    sendFile: jest.fn(() => Promise.resolve({ providerMessageId: '123:44' })),
   };
 
   const gateway = {
@@ -125,4 +127,39 @@ describe('TelegramService processing feedback', () => {
       messageThreadId: 8,
     });
   });
+
+  it.each([
+    ['en', '📂 Sending file ...'],
+    ['id', '📂 Mengirim file ...'],
+  ])(
+    'acknowledges in %s before sending a confirmed file',
+    async (locale, acknowledgement) => {
+      const { adapter, outbound, service } = setup();
+      await service.onModuleInit();
+      const file = {
+        filename: 'invoice.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from('invoice'),
+      };
+
+      await expect(
+        adapter().sendFile?.({ locale } as User, message, file),
+      ).resolves.toEqual({ providerMessageId: '123:44' });
+      expect(outbound.send).toHaveBeenCalledWith({
+        recipientExternalId: '123',
+        content: acknowledgement,
+        replyToProviderMessageId: '123:42',
+      });
+      expect(outbound.sendFile).toHaveBeenCalledWith({
+        recipientExternalId: '123',
+        replyToProviderMessageId: '123:42',
+        businessConnectionId: 'business-1',
+        messageThreadId: 8,
+        ...file,
+      });
+      expect(outbound.send.mock.invocationCallOrder[0]).toBeLessThan(
+        outbound.sendFile.mock.invocationCallOrder[0]!,
+      );
+    },
+  );
 });

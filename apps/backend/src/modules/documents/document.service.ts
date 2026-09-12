@@ -314,6 +314,26 @@ export class DocumentService {
     return this.documents.findByMessageId(userId, messageId);
   }
 
+  async loadFile(
+    userId: string,
+    documentId: string,
+  ): Promise<{
+    filename: string;
+    mimeType: string;
+    buffer: Buffer;
+  } | null> {
+    const document = await this.documents.findById(userId, documentId);
+    if (!document) return null;
+    const storageKey = await this.documents.storageKey(userId, documentId);
+    if (!storageKey) return null;
+
+    return {
+      filename: document.file.originalName,
+      mimeType: document.file.mimeType,
+      buffer: await this.storage.get(storageKey),
+    };
+  }
+
   async listAttachedMetadata(
     userId: string,
     messageId: string,

@@ -37,6 +37,8 @@ export class TelegramService implements OnModuleInit {
       prepare: (userId, message) => this.ingestMedia(userId, message),
       send: (_user, _identityId, message, content) =>
         this.send(message, content),
+      sendFile: (user, message, file) =>
+        this.sendFile(user.locale, message, file),
       beginProcessing: (messages, signal) =>
         this.beginProcessing(messages, signal),
       queued: (message) => this.acknowledgeQueued(message),
@@ -373,6 +375,28 @@ export class TelegramService implements OnModuleInit {
       recipientExternalId: inbound.chatExternalId,
       content,
       replyToProviderMessageId: inbound.providerMessageId,
+    });
+  }
+
+  private async sendFile(
+    locale: string,
+    inbound: NormalizedInboundMessage,
+    file: { filename: string; mimeType: string; buffer: Buffer },
+  ): Promise<{ providerMessageId: string }> {
+    const outbound = this.gateway.getOutboundAdapter();
+    if (!outbound.sendFile)
+      throw new Error('Telegram file sending is unavailable.');
+    await this.send(
+      inbound,
+      locale === 'id' ? '📂 Mengirim file ...' : '📂 Sending file ...',
+    );
+
+    return outbound.sendFile({
+      recipientExternalId: inbound.chatExternalId,
+      replyToProviderMessageId: inbound.providerMessageId,
+      businessConnectionId: this.scopeFor(inbound).businessConnectionId,
+      messageThreadId: this.scopeFor(inbound).messageThreadId,
+      ...file,
     });
   }
 

@@ -234,6 +234,35 @@ export class WhatsAppGatewayService
     }
   }
 
+  async sendDocument(
+    jid: string,
+    file: { filename: string; mimeType: string; buffer: Buffer },
+    replyMessageId?: string,
+  ): Promise<{ id: string }> {
+    if (
+      !this.client ||
+      this.snapshot.sendingPaused ||
+      this.snapshot.status !== 'connected'
+    )
+      throw new Error(
+        'WhatsApp sending is paused until the companion session is healthy.',
+      );
+
+    try {
+      const result = await this.client.sendFile(
+        jid,
+        file,
+        undefined,
+        replyMessageId,
+      );
+
+      return { id: result.message_id };
+    } catch (error) {
+      await this.handleError(error);
+      throw error;
+    }
+  }
+
   async markRead(ids: string[], chat: string, sender?: string): Promise<void> {
     if (!this.client) throw new Error('WhatsApp client is unavailable.');
     const phone = sender ?? chat;

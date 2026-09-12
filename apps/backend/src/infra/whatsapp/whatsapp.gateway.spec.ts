@@ -42,6 +42,7 @@ function makeClient(overrides: Partial<WhatsAppClient> = {}): WhatsAppClient {
     logout: jest.fn(() => undefined),
     reconnect: jest.fn(() => undefined),
     sendText: jest.fn(() => ({ message_id: 'm1', status: 'sent' })),
+    sendFile: jest.fn(() => ({ message_id: 'f1', status: 'sent' })),
     markRead: jest.fn(() => undefined),
     sendChatPresence: jest.fn(() => undefined),
     downloadMedia: jest.fn(() => ({
@@ -233,5 +234,37 @@ describe('WhatsApp gateway runtime flag', () => {
     expect(inbound.mock.calls[0]?.[0]?.providerMessageId).toBe('m1');
     expect(receipt).toHaveBeenCalledTimes(1);
     expect(receipt.mock.calls[0]?.[0]?.type).toBe('read');
+  });
+  it('sends a stored file through the companion client', async () => {
+    const sendFile = jest
+      .fn<WhatsAppClient['sendFile']>()
+      .mockResolvedValue({ message_id: 'f1', status: 'sent' });
+
+    const client = makeClient({ sendFile });
+    const gateway = new WhatsAppGatewayService(
+      makeConfig(),
+      makeRepository(),
+      () => client,
+    );
+
+    Object.assign(gateway, {
+      client,
+      snapshot: { ...gateway.getStatus(), status: 'connected' },
+    });
+    const file = {
+      filename: 'invoice.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('invoice'),
+    };
+
+    await expect(
+      gateway.sendDocument('628123@s.whatsapp.net', file, 'reply-1'),
+    ).resolves.toEqual({ id: 'f1' });
+    expect(sendFile).toHaveBeenCalledWith(
+      '628123@s.whatsapp.net',
+      file,
+      undefined,
+      'reply-1',
+    );
   });
 });

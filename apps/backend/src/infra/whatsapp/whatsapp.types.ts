@@ -89,6 +89,12 @@ export interface WhatsAppClient {
   logout(): Promise<void>;
   reconnect(): Promise<void>;
   sendText(phone: string, message: string): Promise<GoWaSendResult>;
+  sendFile(
+    phone: string,
+    file: { filename: string; mimeType: string; buffer: Buffer },
+    caption?: string,
+    replyMessageId?: string,
+  ): Promise<GoWaSendResult>;
   markRead(phone: string, messageId: string): Promise<void>;
   sendChatPresence(
     phone: string,

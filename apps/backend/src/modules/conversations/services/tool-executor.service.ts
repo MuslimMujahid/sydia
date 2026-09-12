@@ -15,12 +15,23 @@ import type {
   ToolInvocation,
   SupportedLocale,
 } from '../../../database/entities';
+import type { MessageProvider } from '../../../shared/messaging';
 
 export type AssistantToolDefinition = {
   name: string;
   label: string;
   description: string;
   parameters: JSONSchema7;
+};
+export type AssistantFile = {
+  filename: string;
+  mimeType: string;
+  buffer: Buffer;
+};
+
+export type AssistantToolExecutionContext = {
+  channel?: MessageProvider;
+  sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>;
 };
 
 export type AssistantTool = {
@@ -32,6 +43,7 @@ export type AssistantTool = {
     arguments: Prisma.InputJsonValue;
     idempotencyKey: string;
     deferConfirmation?: boolean;
+    context?: AssistantToolExecutionContext;
   }): Promise<Prisma.InputJsonValue>;
   requiresConfirmation?: boolean;
   internal?: boolean;
@@ -159,6 +171,7 @@ export class ToolExecutorService {
     onExecution?: (result: ToolExecutionResult) => void,
     toolsReady?: Promise<void>,
     abortSignal?: AbortSignal,
+    context?: AssistantToolExecutionContext,
   ): ToolSet {
     const documentSearches = new Map<string, Promise<ToolExecutionResult>>();
 
@@ -181,6 +194,7 @@ export class ToolExecutorService {
                 sourceMessageId: inputMessageId,
                 arguments: assistantTool.parseArguments(input),
                 idempotencyKey: `${inputMessageId}:${options.toolCallId}`,
+                context,
               });
 
               return JSON.stringify(result);
@@ -209,6 +223,7 @@ export class ToolExecutorService {
                     runId,
                     inputMessageId,
                     call,
+                    context,
                   );
 
                   if (searchKey) documentSearches.set(searchKey, execution);
@@ -231,6 +246,7 @@ export class ToolExecutorService {
     userId: string,
     invocationId: string,
     approved: boolean,
+    context?: AssistantToolExecutionContext,
   ): Promise<ToolExecutionResult | null> {
     const invocation = await this.conversations.findToolInvocation(
       userId,
@@ -268,6 +284,7 @@ export class ToolExecutorService {
         arguments: assistantTool.parseArguments(invocation.arguments),
         idempotencyKey: invocation.idempotencyKey,
         deferConfirmation: false,
+        context,
       });
 
       const completed = await this.conversations.updateToolInvocation(
@@ -300,6 +317,7 @@ export class ToolExecutorService {
     runId: string,
     inputMessageId: string,
     call: AssistantToolCall,
+    context?: AssistantToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     const assistantTool = this.toolsByName[call.name];
     const idempotencyKey = `${inputMessageId}:${call.id}`;
@@ -417,6 +435,7 @@ export class ToolExecutorService {
         userId,
         arguments: argumentsValue,
         idempotencyKey,
+        context,
       });
 
       const persistedResult: Prisma.InputJsonValue = assistantTool.sensitive

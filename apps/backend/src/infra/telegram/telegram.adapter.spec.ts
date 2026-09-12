@@ -82,4 +82,36 @@ describe('Telegram message adapters', () => {
       reply_parameters: { message_id: 42 },
     });
   });
+
+  it('uploads a document buffer and returns a stable provider id', async () => {
+    const sendDocument = jest.fn(() =>
+      Promise.resolve({ chat: { id: 123 }, message_id: 44 }),
+    );
+
+    const adapter = new TelegramOutboundAdapter({
+      sendDocument,
+    } as unknown as Api);
+
+    await expect(
+      adapter.sendFile({
+        recipientExternalId: '123',
+        filename: 'invoice.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from('invoice'),
+        replyToProviderMessageId: '123:42',
+        businessConnectionId: 'business-1',
+        messageThreadId: 8,
+      }),
+    ).resolves.toEqual({ providerMessageId: '123:44' });
+    expect(sendDocument).toHaveBeenCalledWith(
+      '123',
+      expect.objectContaining({ filename: 'invoice.pdf' }),
+      {
+        caption: undefined,
+        business_connection_id: 'business-1',
+        message_thread_id: 8,
+        reply_parameters: { message_id: 42 },
+      },
+    );
+  });
 });

@@ -21,6 +21,7 @@ import type {
   ModelMessage,
 } from '../../../infra/model-gateway/model-gateway.types';
 import { QueueService } from '../../../infra/queue';
+import type { AssistantFile } from './tool-executor.service';
 import { MemoryDreamSchedulerService } from '../../memories/memory-dream-scheduler.service';
 import {
   ContextBuilderService,
@@ -304,6 +305,9 @@ export class AssistantOrchestratorService {
       channel?: MessageProvider;
       abortSignal?: AbortSignal;
       toolsReady?: Promise<void>;
+      sendFile?: (
+        file: AssistantFile,
+      ) => Promise<{ providerMessageId: string }>;
     },
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
     const prepared = await this.prepareSend(user, input);
@@ -322,6 +326,7 @@ export class AssistantOrchestratorService {
         input.abortSignal,
         input.toolsReady,
         input.channel,
+        input.sendFile,
       )),
     };
   }
@@ -476,6 +481,7 @@ export class AssistantOrchestratorService {
     abortSignal?: AbortSignal,
     toolsReady?: Promise<void>,
     channel?: MessageProvider,
+    sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>,
   ): Promise<Omit<AssistantTurnResult, 'conversation' | 'userMessage'>> {
     const staleBefore = new Date(Date.now() - RUN_STALE_AFTER_MS);
     const claimed = await this.conversations.claimRun(run.id, staleBefore);
@@ -548,6 +554,7 @@ export class AssistantOrchestratorService {
               },
               toolsReady,
               abortSignal,
+              { channel, sendFile },
             ),
             onTextDelta: (delta: string) => observer?.onTextDelta(delta),
             onToolCall: (toolName: string) => {

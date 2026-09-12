@@ -15,6 +15,7 @@ import {
   AssistantOrchestratorService,
   ToolExecutorService,
 } from '../conversations/services';
+import type { AssistantFile } from '../conversations/services/tool-executor.service';
 
 const CHANNEL_MESSAGES = {
   id: {
@@ -64,6 +65,11 @@ export type ChannelTurnAdapter = {
     message: NormalizedInboundMessage,
     content: string,
   ) => Promise<void>;
+  sendFile?: (
+    user: User,
+    message: NormalizedInboundMessage,
+    file: AssistantFile,
+  ) => Promise<{ providerMessageId: string }>;
   beginProcessing?: (
     messages: NormalizedInboundMessage[],
     signal: AbortSignal,
@@ -319,8 +325,10 @@ export class MessagingHandlerService implements OnModuleDestroy {
       );
 
       const command = content.trim().toLocaleLowerCase('id-ID');
+      const approving = command === 'ya' || command === 'yes';
+      const rejecting = command === 'tidak' || command === 'no';
       const pending =
-        command === 'ya' || command === 'tidak'
+        approving || rejecting
           ? await this.conversations.findLatestPendingToolInvocation(
               user.id,
               batch.conversationId,
@@ -331,14 +339,22 @@ export class MessagingHandlerService implements OnModuleDestroy {
         const result = await this.toolExecutor.resolveConfirmation(
           user.id,
           pending.id,
-          command === 'ya',
+          approving,
+          {
+            channel: batch.provider,
+            sendFile: adapter.sendFile
+              ? async (file) => adapter.sendFile!(user, last.message, file)
+              : undefined,
+          },
         );
 
         const messagesForLocale = channelMessages(user.locale);
         const response = !result
           ? messagesForLocale.confirmationExpired
           : result.invocation.status === 'completed'
-            ? messagesForLocale.actionCompleted
+            ? pending.name === 'send_file'
+              ? null
+              : messagesForLocale.actionCompleted
             : result.invocation.status === 'rejected'
               ? messagesForLocale.actionRejected
               : messagesForLocale.actionFailed;
@@ -346,12 +362,13 @@ export class MessagingHandlerService implements OnModuleDestroy {
         stopProcessing?.();
         stopProcessing = undefined;
 
-        await adapter.send(
-          user,
-          batch.externalIdentityId,
-          last.message,
-          response,
-        );
+        if (response)
+          await adapter.send(
+            user,
+            batch.externalIdentityId,
+            last.message,
+            response,
+          );
       } else {
         const result = await this.assistant.sendAndWait(user, {
           conversationId: batch.conversationId,
@@ -361,6 +378,9 @@ export class MessagingHandlerService implements OnModuleDestroy {
           channel: batch.provider,
           abortSignal: controller.signal,
           toolsReady,
+          sendFile: adapter.sendFile
+            ? async (file) => adapter.sendFile!(user, last.message, file)
+            : undefined,
         });
 
         if (result.assistantRun.status === 'failed')

@@ -60,6 +60,25 @@ export class GoWhatsAppHttpClient implements WhatsAppClient {
     });
   }
 
+  async sendFile(
+    phone: string,
+    file: { filename: string; mimeType: string; buffer: Buffer },
+    caption?: string,
+    replyMessageId?: string,
+  ): Promise<GoWaSendResult> {
+    const body = new FormData();
+    body.append('phone', phone);
+    body.append(
+      'file',
+      new Blob([new Uint8Array(file.buffer)], { type: file.mimeType }),
+      file.filename,
+    );
+    if (caption) body.append('caption', caption);
+    if (replyMessageId) body.append('reply_message_id', replyMessageId);
+
+    return this.request<GoWaSendResult>('POST', '/send/file', body);
+  }
+
   async markRead(phone: string, messageId: string): Promise<void> {
     await this.request<unknown>(
       'POST',
@@ -95,9 +114,11 @@ export class GoWhatsAppHttpClient implements WhatsAppClient {
   ): Promise<T> {
     const headers: Record<string, string> = {};
     if (this.deviceId) headers['X-Device-Id'] = this.deviceId;
-    let payload: string | undefined;
+    let payload: BodyInit | undefined;
 
-    if (body !== undefined) {
+    if (body instanceof FormData) {
+      payload = body;
+    } else if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
       payload = JSON.stringify(body);
     }

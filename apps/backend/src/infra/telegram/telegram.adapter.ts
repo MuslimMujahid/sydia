@@ -1,8 +1,9 @@
-import { Api, type Context } from 'grammy';
+import { Api, InputFile, type Context } from 'grammy';
 import type {
   InboundMessageAdapter,
   NormalizedInboundMessage,
   OutboundMessage,
+  OutboundFile,
   OutboundMessageAdapter,
   OutboundMessageResult,
 } from '../../shared/messaging';
@@ -100,6 +101,29 @@ export class TelegramOutboundAdapter implements OutboundMessageAdapter {
             },
           }
         : undefined,
+    );
+
+    return { providerMessageId: `${sent.chat.id}:${sent.message_id}` };
+  }
+
+  async sendFile(input: OutboundFile): Promise<OutboundMessageResult> {
+    const sent = await this.api.sendDocument(
+      input.recipientExternalId,
+      new InputFile(input.buffer, input.filename),
+      {
+        caption: input.caption,
+        business_connection_id: input.businessConnectionId,
+        message_thread_id: input.messageThreadId,
+        ...(input.replyToProviderMessageId
+          ? {
+              reply_parameters: {
+                message_id: Number(
+                  input.replyToProviderMessageId.split(':').at(-1),
+                ),
+              },
+            }
+          : {}),
+      },
     );
 
     return { providerMessageId: `${sent.chat.id}:${sent.message_id}` };

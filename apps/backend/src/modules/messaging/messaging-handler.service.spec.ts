@@ -242,6 +242,62 @@ describe('MessagingHandlerService', () => {
     service.onModuleDestroy();
   });
 
+  it('does not send a generic completion message after a file is sent', async () => {
+    jest.useFakeTimers();
+    const { conversations, service, toolExecutor, conversation } = setup();
+    const send = jest.fn<() => Promise<void>>(() => Promise.resolve());
+    const batch: ClaimedChannelTurns = {
+      channelConversationId: 'channel-1',
+      conversationId: conversation.id,
+      userId: user.id,
+      externalIdentityId: 'identity-1',
+      provider: 'telegram',
+      turns: [
+        {
+          id: 'turn-1',
+          channelConversationId: 'channel-1',
+          providerMessageId: 'chat-1:2',
+          message: { message: { ...baseMessage, text: 'Ya' } },
+          status: 'processing',
+          availableAt: new Date(),
+          processingStartedAt: new Date(),
+          cancellationRequestedAt: null,
+        },
+      ],
+    };
+
+    jest
+      .mocked(conversations.claimChannelTurns)
+      .mockResolvedValueOnce(batch)
+      .mockResolvedValue(null);
+    jest
+      .mocked(conversations.findLatestPendingToolInvocation)
+      .mockResolvedValue({ id: 'tool-1', name: 'send_file' } as never);
+    jest.mocked(toolExecutor.resolveConfirmation).mockResolvedValue({
+      invocation: { status: 'completed' },
+      content: '{}',
+    } as never);
+    jest
+      .mocked(conversations.findRecoverableChannelConversationIds)
+      .mockResolvedValue(['channel-1']);
+    await service.registerAdapter('telegram', {
+      prepare: () => Promise.resolve({ content: 'Ya' }),
+      send,
+      sendFile: () => Promise.resolve({ providerMessageId: 'chat-1:44' }),
+    });
+
+    await jest.runAllTimersAsync();
+
+    expect(toolExecutor.resolveConfirmation).toHaveBeenCalledWith(
+      user.id,
+      'tool-1',
+      true,
+      expect.objectContaining({ channel: 'telegram' }),
+    );
+    expect(send).not.toHaveBeenCalled();
+    service.onModuleDestroy();
+  });
+
   it('reports processing failures after stopping provider feedback', async () => {
     jest.useFakeTimers();
     const { assistant, conversations, service, conversation } = setup();

@@ -300,6 +300,57 @@ Parameters: none; the active message comes from execution context.`,
     },
     {
       definition: {
+        name: 'send_file',
+        label: 'Send file',
+        description: `Use this tool to send one specific saved file back through the active WhatsApp or Telegram conversation.
+
+Use it when the user has identified and confirmed the exact saved document they want. If the request could refer to more than one file, list or resolve the candidates and ask which one before calling this tool.
+
+Do not use it on dashboard chat, for attached files that have not been saved, or to send multiple files in one call. This operation always requires user confirmation. After approval, the channel sends “📂 Sending file ...” in English or “📂 Mengirimi file ...” in Indonesian before sending the file.
+
+The document ID is required. The file is loaded from the current user's storage and sent only through the active messaging channel.
+
+---
+
+Parameters: documentId is the required identifier of the single saved document to send.`,
+        parameters: schema(
+          {
+            documentId: {
+              ...string,
+              description: 'Identifier of the single saved document to send.',
+            },
+          },
+          ['documentId'],
+        ),
+      },
+      requiresConfirmation: true,
+      parseArguments,
+      execute: async ({ userId, arguments: raw, context }) => {
+        if (
+          !context?.sendFile ||
+          (context.channel !== 'whatsapp' && context.channel !== 'telegram')
+        )
+          throw new Error(
+            'Files can only be sent from an active WhatsApp or Telegram conversation.',
+          );
+
+        const documentId = text(record(raw), 'documentId')!;
+        const file = await deps.documents.loadFile(userId, documentId);
+        if (!file) throw new Error('Document not found.');
+        const sent = await context.sendFile(file);
+
+        return {
+          objectType: 'file',
+          object: {
+            documentId,
+            filename: file.filename,
+            providerMessageId: sent.providerMessageId,
+          },
+        };
+      },
+    },
+    {
+      definition: {
         name: 'search_documents',
         label: 'Search documents',
         description: `Use this tool to search the current user's document chunks for a semantic query.

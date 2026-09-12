@@ -223,6 +223,52 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(result).toEqual({ objectType: 'documents', objects: attached });
   });
 
+  test('requires confirmation and sends one resolved document through the active channel', async () => {
+    const file = {
+      filename: 'invoice.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('invoice'),
+    };
+
+    const loadFile = jest
+      .fn<(userId: string, documentId: string) => Promise<typeof file>>()
+      .mockResolvedValue(file);
+
+    const sendFile = jest
+      .fn<
+        (value: {
+          filename: string;
+          mimeType: string;
+          buffer: Buffer;
+        }) => Promise<{ providerMessageId: string }>
+      >()
+      .mockResolvedValue({ providerMessageId: 'chat:44' });
+
+    const tool = tools({
+      documents: { loadFile } as unknown as DocumentService,
+    }).find(({ definition }) => definition.name === 'send_file');
+
+    expect(tool?.requiresConfirmation).toBe(true);
+    await expect(
+      tool?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'send-file',
+        arguments: { documentId: 'doc-1' },
+        context: { channel: 'telegram', sendFile },
+      }),
+    ).resolves.toEqual({
+      objectType: 'file',
+      object: {
+        documentId: 'doc-1',
+        filename: 'invoice.pdf',
+        providerMessageId: 'chat:44',
+      },
+    });
+    expect(loadFile).toHaveBeenCalledWith('user-1', 'doc-1');
+    expect(sendFile).toHaveBeenCalledWith(file);
+  });
+
   test('rejects saving when the source message has no attached files', async () => {
     const listAttached = jest
       .fn<(userId: string, messageId: string) => Promise<[]>>()
@@ -385,7 +431,7 @@ describe('phase 5 and 6 assistant tools', () => {
       if (schema.items) visit(schema.items);
     };
 
-    expect(available).toHaveLength(10);
+    expect(available).toHaveLength(11);
 
     for (const assistantTool of available) {
       expect(assistantTool.definition.description).toMatch(

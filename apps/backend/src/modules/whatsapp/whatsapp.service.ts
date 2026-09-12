@@ -108,6 +108,18 @@ export class WhatsAppService implements OnModuleInit {
             firstResponseAt: this.clock(),
           });
       },
+      sendFile: async (user, message, file) => {
+        const identity = await this.whatsapp.findIdentityByExternalId(
+          message.senderExternalId,
+        );
+
+        return this.sendFile(
+          identity?.externalId ?? message.senderExternalId,
+          user.locale,
+          message,
+          file,
+        );
+      },
     });
   }
 
@@ -469,6 +481,47 @@ export class WhatsAppService implements OnModuleInit {
       `The user sent a ${message.kind}.`;
 
     return { content, attachmentIds: [document.file.id] };
+  }
+
+  private async sendFile(
+    externalId: string,
+    locale: string,
+    inbound: NormalizedInboundMessage,
+    file: { filename: string; mimeType: string; buffer: Buffer },
+  ): Promise<{ providerMessageId: string }> {
+    await this.sendOutbound({
+      userId: '',
+      externalId,
+      content:
+        locale === 'id' ? '📂 Mengirim file ...' : '📂 Sending file ...',
+      proactive: false,
+      inbound,
+    });
+
+    return this.enqueue(async () => {
+      const gateway = this.gateway.getStatus();
+      if (gateway.sendingPaused || gateway.status !== 'connected')
+        throw new Error('WhatsApp sending is paused.');
+      const now = this.clock();
+      const day = this.day(now);
+      if (
+        !(await this.whatsapp.reserveOutbound({ now, proactive: false, day }))
+      )
+        throw new Error('WhatsApp outbound ceiling reached.');
+      const recipient = inbound.isGroup
+        ? inbound.chatExternalId
+        : normalizeJid(externalId);
+
+      const result = await this.gateway.sendDocument(
+        recipient,
+        file,
+        inbound.providerMessageId,
+      );
+
+      await this.whatsapp.incrementTraffic(day, { outbound: 1 });
+
+      return { providerMessageId: result.id };
+    });
   }
 
   private async sendOutbound(options: OutboundOptions) {
