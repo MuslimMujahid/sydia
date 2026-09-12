@@ -53,7 +53,8 @@ function schema(
 ): JSONSchema7 {
   const descriptions: Record<string, string> = {
     title: 'Task or reminder title.',
-    description: 'Optional task description; null clears it when updating.',
+    description:
+      'Optional extended task details that add information beyond the title and the other supplied fields; never restate those fields. Omit it when there are no extra details; null clears it when updating.',
     priority: 'Task priority: low, medium, or high.',
     dueAt:
       'Optional task due date and time as an ISO datetime; null clears it.',
@@ -62,7 +63,8 @@ function schema(
     query: 'Text used to find a matching task, reminder, memory, or secret.',
     status: 'Current status value for the task or reminder.',
     categoryMode: 'How categoryNames change a task: add, remove, or set.',
-    notes: 'Optional reminder notes; null clears them when updating.',
+    notes:
+      'Optional extended reminder details that add information beyond the title and the schedule; never restate those fields. Omit them when there are no extra details; null clears them when updating.',
     scheduledAt: 'Reminder date and time as an ISO datetime.',
     recurrence:
       'Optional recurrence rule for the reminder, or null for no recurrence.',

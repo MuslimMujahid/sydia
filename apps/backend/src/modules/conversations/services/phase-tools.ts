@@ -422,7 +422,8 @@ Title, startAt, and endAt are required; description, location, and attendees are
             },
             description: {
               ...string,
-              description: 'Optional description of the event.',
+              description:
+                'Optional extended event details that add information beyond the title and the other supplied fields; never restate those fields. Omit it when there are no extra details.',
             },
             location: {
               ...string,
@@ -497,7 +498,8 @@ id is required and the other fields are optional; only supplied fields are passe
             },
             description: {
               ...string,
-              description: 'Optional replacement event description.',
+              description:
+                'Optional replacement extended event details that add information beyond the title and the other supplied fields; never restate those fields. Omit it to keep the current description.',
             },
             location: {
               ...string,

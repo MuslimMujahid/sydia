@@ -31,9 +31,9 @@ describe('conversation context lifecycle', () => {
       }),
     } as unknown as IConversationRepository;
 
-    // Budget must leave room for the fixed system policy plus the always-emitted
+    // Budget must stay above the fixed system policy plus the always-emitted
     // turn context, otherwise optional context truncates to a bare ellipsis.
-    const config = new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 700 });
+    const config = new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 760 });
     const builder = new ContextBuilderService(repository, config);
 
     const { messages: context } = await builder.build(
