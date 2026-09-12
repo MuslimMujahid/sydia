@@ -258,7 +258,7 @@ export function validateEnvironment(
       typeof config.BACKEND_MODEL_NAME === 'string' &&
       config.BACKEND_MODEL_NAME.trim() !== ''
         ? config.BACKEND_MODEL_NAME.trim()
-        : 'z-ai/glm-5.3-flash',
+        : 'qwen/qwen3.8-flash',
     BACKEND_MODEL_MAX_OUTPUT_TOKENS: parsePositiveInteger(
       config,
       'BACKEND_MODEL_MAX_OUTPUT_TOKENS',

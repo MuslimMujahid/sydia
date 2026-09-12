@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
+import type { MessageProvider } from '../../shared/messaging';
 import type {
   AssistantRun,
   AssistantRunStatus,
@@ -32,6 +33,9 @@ const conversationSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+/** Messaging-channel conversations belong to their channel apps, not the dashboard. */
+const CHANNEL_PROVIDERS: MessageProvider[] = ['whatsapp', 'telegram'];
 
 const messageSelect = {
   id: true,
@@ -162,7 +166,8 @@ export class PrismaConversationRepository implements IConversationRepository {
 
   async list(userId: string): Promise<ConversationSummary[]> {
     const conversations = await this.prisma.conversation.findMany({
-      where: { userId },
+      // Dashboard history is web-only; messaging channels surface in their apps.
+      where: { userId, channel: { notIn: CHANNEL_PROVIDERS } },
       orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
       select: {
         ...conversationSelect,

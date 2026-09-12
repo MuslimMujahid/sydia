@@ -21,7 +21,7 @@ import type {
 } from './model-gateway.types';
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_MODEL = 'z-ai/glm-5.3-flash';
+const DEFAULT_MODEL = 'qwen/qwen3.8-flash';
 const REQUEST_TIMEOUT_MS = 180_000;
 const MAX_RETRY_AFTER_MS = 2_000;
 const MAX_PROVIDER_MESSAGE = 2_000;

@@ -58,7 +58,7 @@ describe('OpenRouterLanguageModel', () => {
     const gateway = model();
 
     expect(gateway.provider).toBe('openrouter');
-    expect(gateway.model).toBe('z-ai/glm-5.3-flash');
+    expect(gateway.model).toBe('qwen/qwen3.8-flash');
   });
 
   it('rejects missing API keys without tracing or calling the provider', async () => {
@@ -114,7 +114,7 @@ describe('OpenRouterLanguageModel', () => {
     expect(tracing.calls).toEqual([
       expect.objectContaining({
         provider: 'openrouter',
-        model: 'z-ai/glm-5.3-flash',
+        model: 'qwen/qwen3.8-flash',
         userId: 'user-1',
         conversationId: 'conversation-1',
         runId: 'run-1',
