@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import type { Prisma } from '../../../generated/prisma/client';
 import type { IConversationRepository } from '../../../database/interfaces';
-import { ToolExecutorService } from './tool-executor.service';
+import { ToolExecutorService, narrowToolNames } from './tool-executor.service';
 
 function resolved<T>(value: T) {
   return jest.fn<() => Promise<T>>().mockResolvedValue(value);
@@ -500,5 +500,44 @@ describe('ToolExecutorService', () => {
     );
     expect(result.content).toContain('bearer-token');
     expect(JSON.stringify(result.invocation)).not.toContain('bearer-token');
+  });
+});
+
+describe('narrowToolNames', () => {
+  const ALL = [
+    'get_current_datetime',
+    'create_task',
+    'list_tasks',
+    'create_reminder',
+    'search_memories',
+    'send_file',
+    'create_calendar_event',
+    'store_secret',
+  ];
+
+  it('advertises every tool on the first step', () => {
+    expect(narrowToolNames(0, ALL, [])).toBeUndefined();
+  });
+
+  it('keeps the executed family plus the pinned time tool', () => {
+    const active = narrowToolNames(1, ALL, ['create_reminder']);
+
+    expect(active).toEqual(['get_current_datetime', 'create_reminder']);
+  });
+
+  it('unions families when the first step chose tools from several', () => {
+    const active = narrowToolNames(1, ALL, ['create_task', 'create_reminder']);
+
+    expect(active).toEqual([
+      'get_current_datetime',
+      'create_task',
+      'list_tasks',
+      'create_reminder',
+    ]);
+  });
+
+  it('keeps the full tool set when nothing executable ran', () => {
+    expect(narrowToolNames(1, ALL, [])).toBeUndefined();
+    expect(narrowToolNames(1, ALL, ['unknown_tool'])).toBeUndefined();
   });
 });

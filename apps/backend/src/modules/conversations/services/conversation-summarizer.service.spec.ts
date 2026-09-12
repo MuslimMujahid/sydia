@@ -31,7 +31,9 @@ describe('conversation context lifecycle', () => {
       }),
     } as unknown as IConversationRepository;
 
-    const config = new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 650 });
+    // Budget must leave room for the fixed system policy plus the always-emitted
+    // turn context, otherwise optional context truncates to a bare ellipsis.
+    const config = new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 700 });
     const builder = new ContextBuilderService(repository, config);
 
     const { messages: context } = await builder.build(
@@ -53,8 +55,17 @@ describe('conversation context lifecycle', () => {
           entry.content.includes('Ringkasan lama'),
       ),
     ).toBe(true);
-    expect(context.length).toBeLessThan(messages.length + 3);
-    expect(context.at(-1)?.content).toContain('Pesan 9');
+    expect(context.length).toBeLessThan(messages.length + 4);
+    // Volatile blocks (summary, memories) and the turn context follow the
+    // stable history, so the newest retained message is no longer last.
+    expect(
+      context.some(
+        (entry) =>
+          typeof entry.content === 'string' &&
+          entry.content.includes('Pesan 9'),
+      ),
+    ).toBe(true);
+    expect(context.at(-1)?.content).toContain('current instant');
   });
 
   it('summarizes only the oldest segment and retains recent turns verbatim', async () => {

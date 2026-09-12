@@ -16,6 +16,7 @@ import type {
   SupportedLocale,
 } from '../../../database/entities';
 import type { MessageProvider } from '../../../shared/messaging';
+import type { GenerateRequest } from '../../../infra/model-gateway/model-gateway.types';
 
 export type AssistantToolDefinition = {
   name: string;
@@ -66,6 +67,85 @@ export type ToolExecutionResult = {
 
 const TOOL_STALE_AFTER_MS = 60_000;
 const MAX_TOOL_ERROR_LENGTH = 240;
+
+/**
+ * Step 0 advertises every tool so the model can classify intent from the full
+ * catalogue. Later steps are narrowed to the families matched by the tools that
+ * already ran, which keeps the multi-thousand-token tool schema off the
+ * remaining steps of the loop.
+ */
+const TOOL_FAMILIES: Record<string, readonly string[]> = {
+  time: ['get_current_datetime'],
+  tasks: ['list_tasks', 'create_task', 'update_task'],
+  categories: [
+    'list_categories',
+    'create_category',
+    'update_category',
+    'delete_category',
+  ],
+  reminders: ['create_reminder', 'update_reminder'],
+  memories: [
+    'search_memories',
+    'save_memory',
+    'update_memory',
+    'forget_memory',
+  ],
+  documents: [
+    'list_documents',
+    'read_document',
+    'save_attached_files',
+    'send_file',
+    'search_documents',
+  ],
+  contacts: ['resolve_contact', 'save_contact'],
+  calendar: [
+    'list_calendar_events',
+    'create_calendar_event',
+    'update_calendar_event',
+    'cancel_calendar_event',
+  ],
+  secrets: ['store_secret', 'create_secret_reveal_link'],
+};
+
+const FAMILY_BY_TOOL: Record<string, string> = Object.fromEntries(
+  Object.entries(TOOL_FAMILIES).flatMap(([family, names]) =>
+    names.map((name) => [name, family] as const),
+  ),
+);
+
+/** Tools that stay reachable once advertised, so the turn can still re-check time. */
+const PINNED_TOOLS: Record<string, true> = { get_current_datetime: true };
+
+/**
+ * Narrows the advertised tool set after the first step. The first pass is the
+ * only step that needs the whole catalogue: once the model has chosen tools,
+ * the matched families plus the pinned tools are enough to finish the turn.
+ */
+export function narrowToolNames(
+  stepNumber: number,
+  allToolNames: readonly string[],
+  previousToolNames: readonly string[],
+): string[] | undefined {
+  if (stepNumber === 0) return undefined;
+
+  const families: Record<string, true> = {};
+
+  for (const name of previousToolNames) {
+    const family = FAMILY_BY_TOOL[name];
+    if (family !== undefined) families[family] = true;
+  }
+
+  if (Object.keys(families).length === 0) return undefined;
+
+  const narrowed = allToolNames.filter((name) => {
+    if (PINNED_TOOLS[name]) return true;
+    const family = FAMILY_BY_TOOL[name];
+
+    return family !== undefined && families[family] === true;
+  });
+
+  return narrowed.length > 0 ? narrowed : undefined;
+}
 
 function toolErrorContent(error: unknown): string {
   const message =
@@ -162,6 +242,16 @@ export class ToolExecutorService {
     // Test-only tools are not part of the production map; retain their
     // definition label as the English fallback.
     return this.toolsByName[toolName]?.definition.label ?? null;
+  }
+
+  prepareStep(
+    tools: ToolSet,
+  ): NonNullable<GenerateRequest['prepareStep']> | undefined {
+    const toolNames = Object.keys(tools);
+    if (toolNames.length === 0) return undefined;
+
+    return ({ stepNumber, executedToolNames }) =>
+      narrowToolNames(stepNumber, toolNames, executedToolNames);
   }
 
   aiTools(

@@ -538,24 +538,27 @@ export class AssistantOrchestratorService {
         if (state.errorMessage) return {};
 
         try {
+          const tools = this.toolExecutor.aiTools(
+            state.user.id,
+            state.run.id,
+            state.inputMessage.id,
+            (result) => {
+              toolInvocations.push(result.invocation);
+              observer?.onToolResult(result.invocation);
+            },
+            toolsReady,
+            abortSignal,
+            { channel, sendFile },
+          );
+
           const generation = await this.languageModel.generate({
             messages: state.context,
             userId: state.user.id,
             conversationId: state.conversation.id,
             runId: state.run.id,
             abortSignal,
-            tools: this.toolExecutor.aiTools(
-              state.user.id,
-              state.run.id,
-              state.inputMessage.id,
-              (result) => {
-                toolInvocations.push(result.invocation);
-                observer?.onToolResult(result.invocation);
-              },
-              toolsReady,
-              abortSignal,
-              { channel, sendFile },
-            ),
+            tools,
+            prepareStep: this.toolExecutor.prepareStep(tools),
             onTextDelta: (delta: string) => observer?.onTextDelta(delta),
             onToolCall: (toolName: string) => {
               const label = this.toolExecutor.activityLabel(

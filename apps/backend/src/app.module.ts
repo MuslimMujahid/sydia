@@ -269,6 +269,20 @@ export function validateEnvironment(
       'BACKEND_MODEL_MAX_STEPS',
       8,
     ),
+    BACKEND_MODEL_PROVIDER_SORT:
+      typeof config.BACKEND_MODEL_PROVIDER_SORT === 'string' &&
+      ['latency', 'throughput', 'price'].includes(
+        config.BACKEND_MODEL_PROVIDER_SORT.trim().toLowerCase(),
+      )
+        ? config.BACKEND_MODEL_PROVIDER_SORT.trim().toLowerCase()
+        : 'latency',
+    BACKEND_MODEL_REASONING_EFFORT:
+      typeof config.BACKEND_MODEL_REASONING_EFFORT === 'string' &&
+      ['none', 'minimal', 'low', 'medium', 'high'].includes(
+        config.BACKEND_MODEL_REASONING_EFFORT.trim().toLowerCase(),
+      )
+        ? config.BACKEND_MODEL_REASONING_EFFORT.trim().toLowerCase()
+        : 'none',
     BACKEND_EMBEDDING_MODEL:
       typeof config.BACKEND_EMBEDDING_MODEL === 'string' &&
       config.BACKEND_EMBEDDING_MODEL.trim() !== ''

@@ -151,6 +151,7 @@ export type ContextTokenUsage = {
   memory: number;
   summary: number;
   history: number;
+  turnContext: number;
   total: number;
 };
 
@@ -210,13 +211,16 @@ export class ContextBuilderService {
       memory: 0,
       summary: 0,
       history: 0,
+      turnContext: 0,
       total: 0,
     };
 
     if (!record) return { messages: [], tokenUsage };
 
     const channelPrompt = channel ? this.channelPrompts[channel] : undefined;
-    const profile = `User profile: name ${user.name}; time zone ${user.timezone}; language ${user.locale}; current instant ${new Date().toISOString()}.`;
+    // Deliberately free of volatile values: this block is part of the stable
+    // prompt prefix that providers cache across turns.
+    const profile = `User profile: name ${user.name}; time zone ${user.timezone}; language ${user.locale}.`;
     const addressInstruction = user.preferredAddress
       ? `\nPreferred address: ${user.preferredAddress}. Use it naturally.`
       : '';
@@ -224,12 +228,18 @@ export class ContextBuilderService {
     const personaHeader =
       'Selected persona (channel rules override its formatting preferences):\n';
 
+    // The turn context is always emitted, so it is reserved alongside the other
+    // fixed blocks rather than competing with optional context for budget.
+    const turnContext = `Turn context: current instant ${new Date().toISOString()}; user time zone ${user.timezone}.`;
+    tokenUsage.turnContext = estimateTokens(turnContext);
+
     const fixedTokens =
       estimateTokens(SYSTEM_POLICY) +
       estimateTokens(profile) +
       (channelPrompt ? estimateTokens(channelPrompt) : 0) +
       estimateTokens(personaHeader) +
-      estimateTokens(addressInstruction);
+      estimateTokens(addressInstruction) +
+      tokenUsage.turnContext;
 
     const currentReserve = Math.min(
       CURRENT_MESSAGE_RESERVE_TOKENS,
@@ -265,7 +275,8 @@ export class ContextBuilderService {
       tokenUsage.systemPolicy +
       tokenUsage.persona +
       tokenUsage.profile +
-      tokenUsage.channelPrompt;
+      tokenUsage.channelPrompt +
+      tokenUsage.turnContext;
 
     const summaryIndex = record.conversation.summaryThroughMessageId
       ? record.messages.findIndex(
@@ -301,42 +312,49 @@ export class ContextBuilderService {
 
     usedTokens += tokenUsage.history;
 
-    const contextualMessages: ModelMessage[] = [];
-    let optionalBudget = Math.max(0, this.tokenBudget - usedTokens);
+    const optionalBudget = Math.max(0, this.tokenBudget - usedTokens);
 
+    // Volatile blocks are appended after the stable system prompt and message
+    // history. Everything before them is byte-identical across turns, which is
+    // what lets the provider reuse its cached prompt prefix. Their internal
+    // order does not affect cacheability, so the independent lookups run
+    // concurrently.
+    const [pinned, attached] = await Promise.all([
+      this.memories && optionalBudget > 0
+        ? this.memories.list(user.id, { status: 'active', pinned: true })
+        : Promise.resolve([]),
+      inputMessageId && this.documents && optionalBudget > 0
+        ? this.documents.findMetadataByMessageId(user.id, inputMessageId)
+        : Promise.resolve([]),
+    ]);
+
+    const contextualMessages: ModelMessage[] = [];
+    let remainingBudget = optionalBudget;
+
+    // Changes whenever the conversation is re-summarized, so it stays volatile.
     if (record.conversation.rollingSummary) {
       tokenUsage.summary = appendBoundedBlock(
         contextualMessages,
         'user',
         SUMMARY_HEADER,
         record.conversation.rollingSummary,
-        optionalBudget,
+        remainingBudget,
       );
-      optionalBudget -= tokenUsage.summary;
+      remainingBudget -= tokenUsage.summary;
     }
 
-    if (this.memories && optionalBudget > 0) {
-      const pinned = await this.memories.list(user.id, {
-        status: 'active',
-        pinned: true,
-      });
-
+    if (remainingBudget > 0) {
       tokenUsage.memory = appendBoundedBlock(
         contextualMessages,
         'user',
         MEMORY_HEADER,
         memoryManifest(pinned),
-        optionalBudget,
+        remainingBudget,
       );
-      optionalBudget -= tokenUsage.memory;
+      remainingBudget -= tokenUsage.memory;
     }
 
-    if (inputMessageId && this.documents && optionalBudget > 0) {
-      const attached = await this.documents.findMetadataByMessageId(
-        user.id,
-        inputMessageId,
-      );
-
+    if (remainingBudget > 0) {
       const manifest = attached
         .map(
           (document) =>
@@ -349,7 +367,7 @@ export class ContextBuilderService {
         'user',
         ATTACHMENT_HEADER,
         manifest,
-        optionalBudget,
+        remainingBudget,
       );
     }
 
@@ -361,10 +379,16 @@ export class ContextBuilderService {
       tokenUsage.attachmentManifest +
       tokenUsage.memory +
       tokenUsage.summary +
-      tokenUsage.history;
+      tokenUsage.history +
+      tokenUsage.turnContext;
 
     return {
-      messages: [...systemMessages, ...contextualMessages, ...recent],
+      messages: [
+        ...systemMessages,
+        ...recent,
+        ...contextualMessages,
+        { role: 'user', content: turnContext },
+      ],
       tokenUsage,
     };
   }

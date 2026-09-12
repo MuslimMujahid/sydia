@@ -88,11 +88,7 @@ Use it when the user asks to save, add, or remember a person's contact details.
 
 Do not use it when the user only wants to find an existing contact or when no contact should be persisted.
 
-The contact is created for the current user. Alias values that are not strings are ignored, and omitted optional text fields are stored as null.
-
----
-
-Parameters: name is the contact's required display name; aliases is an optional array of alternate names; email is an optional email address; phone is an optional phone number; notes is optional free-form context.`,
+The contact is created for the current user. Alias values that are not strings are ignored, and omitted optional text fields are stored as null.`,
         parameters: schema(
           {
             name: { ...string, description: 'Required contact display name.' },
@@ -145,11 +141,7 @@ Use it when the user asks to look up an existing contact by name, alias, email, 
 
 Do not use it when the user wants to create or modify contact details.
 
-The reference is resolved for the current user and may match by name, alias, email, or phone number; the tool returns matching contacts and does not create or change them.
-
----
-
-Parameters: reference is the required name, alias, email address, or phone number to resolve.`,
+The reference is resolved for the current user and may match by name, alias, email, or phone number; the tool returns matching contacts and does not create or change them.`,
         parameters: schema(
           {
             reference: {
@@ -179,11 +171,7 @@ Use it when the user asks what files or documents are available in their collect
 
 Do not use it when the user needs document contents, semantic search results, or attached files from the active message.
 
-The result includes each document's ID, filename, MIME type, size, processing status, and creation time; document contents are excluded. This tool takes no parameters.
-
----
-
-Parameters: none.`,
+The result includes each document's ID, filename, MIME type, size, processing status, and creation time; document contents are excluded. This tool takes no parameters.`,
         parameters: schema({}),
       },
       parseArguments,
@@ -210,11 +198,7 @@ Use it when you need to read the contents of a specific document and you have it
 
 Do not use it when the user only needs a file list, wants semantic search across documents, or has not identified a document.
 
-The required document ID is read for the current user. cursor defaults to 0 and limit defaults to 8; limit must be from 1 through 20. A missing document raises an error, and the result contains metadata, chunks with page positions, nextCursor, and hasMore.
-
----
-
-Parameters: documentId is the required document identifier; cursor is an optional non-negative starting chunk offset; limit is an optional number of chunks from 1 through 20.`,
+The required document ID is read for the current user. cursor defaults to 0 and limit defaults to 8; limit must be from 1 through 20. A missing document raises an error, and the result contains metadata, chunks with page positions, nextCursor, and hasMore.`,
         parameters: schema(
           {
             documentId: {
@@ -278,11 +262,7 @@ Use it when the user asks to keep, import, or save files attached to the current
 
 Do not use it when there are no relevant attachments, when the user only wants to inspect an attachment, or when saving files from another message.
 
-The active message is identified by execution context rather than a parameter. All attached files are listed for the current user; if none are attached, the tool raises an error. Saved documents are returned as document objects.
-
----
-
-Parameters: none; the active message comes from execution context.`,
+The active message is identified by execution context rather than a parameter. All attached files are listed for the current user; if none are attached, the tool raises an error. Saved documents are returned as document objects.`,
         parameters: schema({}),
       },
       parseArguments,
@@ -308,11 +288,7 @@ Use it when the user has identified and confirmed the exact saved document they 
 
 Do not use it on dashboard chat, for attached files that have not been saved, or to send multiple files in one call. This operation always requires user confirmation. After approval, the channel sends “📂 Sending file ...” in English or “📂 Mengirimi file ...” in Indonesian before sending the file.
 
-The document ID is required. The file is loaded from the current user's storage and sent only through the active messaging channel.
-
----
-
-Parameters: documentId is the required identifier of the single saved document to send.`,
+The document ID is required. The file is loaded from the current user's storage and sent only through the active messaging channel.`,
         parameters: schema(
           {
             documentId: {
@@ -359,11 +335,7 @@ Use it when the user asks a question that requires finding relevant information 
 
 Do not use it when the user needs a complete document read, or a metadata-only file list.
 
-The query is searched in the current message's document context and returns up to 6 relevance-ranked sources with document identity, filename, page or chunk position, and a quote; results may not cover the complete document.
-
----
-
-Parameters: query is the required natural-language search query.`,
+The query is searched in the current message's document context and returns up to 6 relevance-ranked sources with document identity, filename, page or chunk position, and a quote; results may not cover the complete document.`,
         parameters: schema(
           {
             query: {
@@ -403,11 +375,7 @@ Use it when the user asks what events are scheduled between two ISO datetimes.
 
 Do not use it when the user wants to create, update, or cancel an event, or when either boundary is missing or not an ISO datetime.
 
-Both range boundaries are required and parsed as ISO datetimes. Events are listed for the current user between from and to; this tool does not modify the calendar.
-
----
-
-Parameters: from is the required starting ISO datetime; to is the required ending ISO datetime.`,
+Both range boundaries are required and parsed as ISO datetimes. Events are listed for the current user between from and to; this tool does not modify the calendar.`,
         parameters: schema(
           {
             from: {
@@ -445,11 +413,7 @@ Use it when the user asks to schedule a new event with a title and time range.
 
 Do not use it when the user is referring to an existing event that should be changed or cancelled, or when the end time is not after the start time.
 
-Title, startAt, and endAt are required; description, location, and attendees are optional. startAt and endAt must be ISO datetimes, the user's timezone is used when available (otherwise Asia/Jakarta), and the event is created for the current user. Non-string attendee values are ignored.
-
----
-
-Parameters: title is the required event title; description is optional event detail; location is optional place or meeting information; startAt and endAt are required ISO datetimes; attendees is an optional array of attendee strings.`,
+Title, startAt, and endAt are required; description, location, and attendees are optional. startAt and endAt must be ISO datetimes, the user's timezone is used when available (otherwise Asia/Jakarta), and the event is created for the current user. Non-string attendee values are ignored.`,
         parameters: schema(
           {
             title: {
@@ -520,11 +484,7 @@ Use it when the user asks to change an event and provides its event ID.
 
 Do not use it when the user wants to create a new event, cancel an event, or has not identified the event by ID.
 
-id is required and the other fields are optional; only supplied fields are passed to the calendar service. startAt and endAt, when supplied, must be ISO datetimes. If the ID does not identify an event for the current user, the tool raises an error.
-
----
-
-Parameters: id is the required event identifier; title, description, and location are optional replacement values; startAt and endAt are optional ISO datetimes.`,
+id is required and the other fields are optional; only supplied fields are passed to the calendar service. startAt and endAt, when supplied, must be ISO datetimes. If the ID does not identify an event for the current user, the tool raises an error.`,
         parameters: schema(
           {
             id: {
@@ -586,11 +546,7 @@ Use it when the user explicitly asks to cancel an event and provides its event I
 
 Do not use it when the user wants to create or edit an event, or when the event has not been identified by ID.
 
-The event is cancelled for the current user. If no matching event exists, the tool raises an error; cancellation is a calendar mutation and should follow the user's approval expectations.
-
----
-
-Parameters: id is the required identifier of the event to cancel.`,
+The event is cancelled for the current user. If no matching event exists, the tool raises an error; cancellation is a calendar mutation and should follow the user's approval expectations.`,
         parameters: schema(
           {
             id: {

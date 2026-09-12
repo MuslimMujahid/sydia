@@ -28,6 +28,33 @@ const MAX_PROVIDER_MESSAGE = 2_000;
 const DEFAULT_TEMPERATURE = 0.2;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
 const DEFAULT_MAX_STEPS = 8;
+const DEFAULT_PROVIDER_SORT = 'latency';
+const DEFAULT_REASONING_EFFORT = 'none';
+const SESSION_ID_HEADER = 'x-session-id';
+
+const PROVIDER_SORTS = ['latency', 'throughput', 'price'] as const;
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high'] as const;
+
+type ProviderSort = (typeof PROVIDER_SORTS)[number];
+type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+function parseProviderSort(value: unknown): ProviderSort | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+
+  return (PROVIDER_SORTS as readonly string[]).includes(normalized)
+    ? (normalized as ProviderSort)
+    : undefined;
+}
+
+function parseReasoningEffort(value: unknown): ReasoningEffort | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+
+  return (REASONING_EFFORTS as readonly string[]).includes(normalized)
+    ? (normalized as ReasoningEffort)
+    : undefined;
+}
 
 export class ModelGatewayError extends Error {
   constructor(message: string) {
@@ -51,6 +78,26 @@ function openRouterCost(metadata: unknown): number | undefined {
   if (!usage || typeof usage !== 'object') return undefined;
 
   return tokenCount((usage as Record<string, unknown>).cost);
+}
+
+/**
+ * Prompt-cache read/write counters reported by OpenRouter. Cache reads are the
+ * signal that the assembled context is being reused across turns; they collapse
+ * to zero the moment any request mutates the stable prompt prefix.
+ */
+type CacheUsage = { cacheReadTokens?: number; cacheWriteTokens?: number };
+
+function cacheUsage(value: unknown): CacheUsage {
+  if (!value || typeof value !== 'object') return {};
+  const details = (value as Record<string, unknown>).inputTokenDetails;
+  if (!details || typeof details !== 'object') return {};
+
+  const record = details as Record<string, unknown>;
+
+  return {
+    cacheReadTokens: tokenCount(record.cacheReadTokens),
+    cacheWriteTokens: tokenCount(record.cacheWriteTokens),
+  };
 }
 
 function errorObject(value: unknown): Error {
@@ -156,6 +203,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
   private readonly temperature: number;
   private readonly maxOutputTokens: number;
   private readonly maxSteps: number;
+  private readonly providerSort: ProviderSort;
+  private readonly reasoningEffort: ReasoningEffort;
 
   constructor(
     config: ConfigService,
@@ -175,6 +224,19 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       'BACKEND_MODEL_MAX_STEPS',
       DEFAULT_MAX_STEPS,
     );
+    // OpenRouter's default routing load-balances on price, which lands requests
+    // on cheap shared-pool endpoints and produces multi-second tails. Sorting
+    // by measured latency trades a little cost for predictable first-token
+    // latency; throughput and price remain available for deliberate tuning.
+    this.providerSort =
+      parseProviderSort(config.get('BACKEND_MODEL_PROVIDER_SORT')) ??
+      DEFAULT_PROVIDER_SORT;
+    // Reasoning tokens are billed and generated before the first visible text,
+    // and they count against BACKEND_MODEL_MAX_OUTPUT_TOKENS. 'none' keeps the
+    // configured budget available for the actual answer.
+    this.reasoningEffort =
+      parseReasoningEffort(config.get('BACKEND_MODEL_REASONING_EFFORT')) ??
+      DEFAULT_REASONING_EFFORT;
 
     const baseURL =
       config.get<string>('BACKEND_MODEL_BASE_URL')?.trim() || DEFAULT_BASE_URL;
@@ -187,6 +249,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
 
     this.languageModel = openrouter.chat(this.model, {
       usage: { include: true },
+      provider: { sort: this.providerSort },
+      reasoning: { enabled: true, exclude: true, effort: this.reasoningEffort },
     });
   }
 
@@ -197,11 +261,47 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       );
     }
 
+    const headers = request.conversationId
+      ? { [SESSION_ID_HEADER]: request.conversationId }
+      : undefined;
+
+    const prepareStep = request.prepareStep
+      ? ({
+          stepNumber,
+          steps,
+        }: {
+          stepNumber: number;
+          steps: ReadonlyArray<{
+            toolCalls?: ReadonlyArray<{ toolName?: string }>;
+          }>;
+        }) => {
+          if (!request.tools) return {};
+
+          const executedToolNames = steps.flatMap((step) =>
+            (step.toolCalls ?? []).flatMap((call) =>
+              typeof call.toolName === 'string' ? [call.toolName] : [],
+            ),
+          );
+
+          const active = request.prepareStep?.({
+            stepNumber,
+            toolNames: Object.keys(request.tools),
+            executedToolNames,
+          });
+
+          if (!active || active.length === 0) return {};
+
+          return { activeTools: active as never };
+        }
+      : undefined;
+
     const options = () => ({
       model: this.languageModel,
       messages: request.messages,
       allowSystemInMessages: true as const,
       tools: request.tools,
+      prepareStep,
+      headers,
       temperature: request.temperature ?? this.temperature,
       maxOutputTokens: request.maxOutputTokens ?? this.maxOutputTokens,
       stopWhen: stepCountIs(request.maxSteps ?? this.maxSteps),
@@ -281,6 +381,10 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   costUsd: openRouterCost(providerMetadata),
                 };
 
+                const cache = cacheUsage(usage);
+
+                this.logCacheUsage(request, cache);
+
                 trace.update({
                   output: finalText,
                   inputTokens: normalizedUsage.inputTokens,
@@ -309,6 +413,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 outputTokens: tokenCount(result.usage.outputTokens),
                 costUsd: openRouterCost(result.providerMetadata),
               };
+
+              this.logCacheUsage(request, cacheUsage(result.usage));
 
               trace.update({
                 output: finalText,
@@ -386,5 +492,28 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       );
       throw new ModelGatewayError('The assistant model could not be reached.');
     }
+  }
+
+  /**
+   * Emits cache read/write counters so a regression in prompt-prefix stability
+   * is visible in logs instead of silently increasing latency and cost.
+   */
+  private logCacheUsage(request: GenerateRequest, cache: CacheUsage): void {
+    if (
+      cache.cacheReadTokens === undefined &&
+      cache.cacheWriteTokens === undefined
+    ) {
+      return;
+    }
+
+    this.logger.debug(
+      JSON.stringify({
+        event: 'assistant_prompt_cache',
+        conversationId: request.conversationId ?? null,
+        runId: request.runId ?? null,
+        cacheReadTokens: cache.cacheReadTokens ?? 0,
+        cacheWriteTokens: cache.cacheWriteTokens ?? 0,
+      }),
+    );
   }
 }

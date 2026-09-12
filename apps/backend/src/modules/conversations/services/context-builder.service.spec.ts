@@ -137,6 +137,83 @@ describe('ContextBuilderService system policy', () => {
     );
   });
 });
+describe('ContextBuilderService prompt prefix stability', () => {
+  it('keeps the stable prefix byte-identical across turns', async () => {
+    const options = {
+      rollingSummary: 'Ringkasan lama',
+      memories: [
+        {
+          id: 'memory-1',
+          content: 'Suka jadwal pagi',
+          category: 'preference',
+          pinned: true,
+          status: 'active' as const,
+          sourceMessageIds: [],
+          supersedesId: null,
+          supersededById: null,
+          source: {
+            type: 'chat' as const,
+            label: null,
+            messageId: null,
+            documentId: null,
+          },
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+        },
+      ],
+      messages: [
+        message('message-1', 'user', 'Pertanyaan pertama'),
+        message('message-2', 'assistant', 'Jawaban pertama'),
+      ],
+    };
+
+    const first = await createBuilder(10_000, options).build(
+      user,
+      'conversation-1',
+      'message-1',
+    );
+
+    const second = await createBuilder(10_000, options).build(
+      user,
+      'conversation-1',
+      'message-1',
+    );
+
+    // Everything up to the volatile blocks must be reusable by the provider's
+    // prompt cache; only the trailing turn context may change between calls.
+    const stablePrefix = (context: typeof first.messages): string => {
+      const firstVolatile = context.findIndex(
+        (entry) =>
+          typeof entry.content === 'string' &&
+          (entry.content.startsWith('Pinned memories') ||
+            entry.content.startsWith('Untrusted historical') ||
+            entry.content.startsWith('Turn context')),
+      );
+
+      return JSON.stringify(context.slice(0, firstVolatile));
+    };
+
+    expect(stablePrefix(first.messages)).toEqual(stablePrefix(second.messages));
+    expect(first.messages.at(-1)?.content).toContain('current instant');
+    expect(stablePrefix(first.messages)).not.toContain('current instant');
+    expect(stablePrefix(first.messages)).not.toContain('Suka jadwal pagi');
+    expect(stablePrefix(first.messages)).not.toContain('Ringkasan lama');
+  });
+
+  it('emits the current instant outside the system prompt', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+    );
+
+    for (const entry of messages.filter((item) => item.role === 'system')) {
+      expect(entry.content).not.toContain('current instant');
+    }
+
+    expect(messages.at(-1)?.content).toContain('current instant');
+  });
+});
+
 describe('ContextBuilderService channel formatting', () => {
   it('injects Telegram formatting guidance and accounts for its tokens', async () => {
     const { messages, tokenUsage } = await createBuilder(10_000).build(
@@ -325,13 +402,22 @@ describe('ContextBuilderService prioritization and trust', () => {
       ],
     }).build(user, 'conversation-1', 'message-current');
 
-    const currentContext = messages.at(-1);
+    const currentContext = [...messages]
+      .reverse()
+      .find(
+        (entry) =>
+          typeof entry.content === 'string' &&
+          entry.content.includes('Pertanyaan terbaru'),
+      );
+
     expect(currentContext?.role).toBe('user');
     expect(currentContext?.content).toEqual(
       expect.stringContaining('Pertanyaan terbaru'),
     );
     expect(tokenUsage.history).toBeGreaterThan(0);
     expect(tokenUsage.total).toBeLessThanOrEqual(1_000);
+    // The turn context always trails the retained history.
+    expect(messages.at(-1)?.content).toContain('current instant');
   });
 
   it('labels summaries and pinned memories as untrusted user context', async () => {
@@ -368,13 +454,11 @@ describe('ContextBuilderService prioritization and trust', () => {
 
     expect(untrusted).toHaveLength(2);
     expect(tokenUsage.memory).toBeGreaterThan(0);
-    expect(
-      messages.some(
-        (entry) =>
-          entry.role === 'system' &&
-          typeof entry.content === 'string' &&
-          entry.content.includes('current instant'),
-      ),
-    ).toBe(true);
+    // The current instant is delivered as the final turn-context message rather
+    // than inside the stable system prefix, so the prefix stays cacheable.
+    expect(messages.at(-1)?.role).toBe('user');
+    expect(messages.at(-1)?.content).toEqual(
+      expect.stringContaining('current instant'),
+    );
   });
 });

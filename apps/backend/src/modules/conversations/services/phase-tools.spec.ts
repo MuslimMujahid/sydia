@@ -435,7 +435,7 @@ describe('phase 5 and 6 assistant tools', () => {
 
     for (const assistantTool of available) {
       expect(assistantTool.definition.description).toMatch(
-        /^Use this tool to [\s\S]+\n\nUse it when [\s\S]+\n\nDo not use it [\s\S]+\n\n[\s\S]+\n\n---\n\nParameters:/,
+        /^Use this tool to [\s\S]+\n\nUse it when [\s\S]+\n\nDo not use it [\s\S]+\n\n[\s\S]+$/,
       );
       visit(assistantTool.definition.parameters, true);
     }
