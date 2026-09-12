@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { whatsappStatusQueryOptions } from "@/lib/services/api/whatsapp/whatsapp.queries";
+import { telegramStatusQueryOptions } from "@/lib/services/api/telegram/telegram.queries";
 import {
   userPreferencesQueryOptions,
   useUpdateUserPreferences,
@@ -58,10 +59,13 @@ export function NotificationSettingsPage() {
     enabled: WHATSAPP_INTEGRATION_ENABLED,
   });
 
+  const telegramStatusQuery = useQuery(telegramStatusQueryOptions());
+
   const updateMutation = useUpdateUserPreferences();
   const preferences = preferencesQuery.data;
   const controlsDisabled = preferencesQuery.isError || updateMutation.isPending;
   const whatsappLinked = whatsappStatusQuery.data?.linked ?? false;
+  const telegramLinked = telegramStatusQuery.data?.linked ?? false;
 
   return (
     <div className="max-w-3xl space-y-10">
@@ -115,6 +119,34 @@ export function NotificationSettingsPage() {
                   updateMutation.mutate({ webNotificationsEnabled: checked })
                 }
               />
+              <div>
+                <PreferenceSwitch
+                  id="channel-telegram"
+                  label="Notifikasi Telegram"
+                  description="Pengingat dan briefing dikirim ke akun Telegram tertaut."
+                  checked={
+                    preferences.telegramNotificationsEnabled && telegramLinked
+                  }
+                  disabled={controlsDisabled || !telegramLinked}
+                  onChange={(checked) =>
+                    updateMutation.mutate({
+                      telegramNotificationsEnabled: checked,
+                    })
+                  }
+                />
+                {!telegramLinked ? (
+                  <p className="pb-4 text-sm text-ink-muted">
+                    Tautkan akun Anda di{" "}
+                    <Link
+                      to="/settings/integrations"
+                      className="font-semibold text-link underline underline-offset-2"
+                    >
+                      pengaturan integrasi
+                    </Link>{" "}
+                    untuk mengaktifkan kanal ini.
+                  </p>
+                ) : null}
+              </div>
               {WHATSAPP_INTEGRATION_ENABLED ? (
                 <div>
                   <PreferenceSwitch

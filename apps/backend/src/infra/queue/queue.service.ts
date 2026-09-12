@@ -2,7 +2,11 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 
-export type ReminderJob = { reminderId: string; idempotencyKey: string };
+export type ReminderJob = {
+  reminderId: string;
+  idempotencyKey: string;
+  occurrenceId: string;
+};
 export type DocumentJob = { documentId: string; userId: string };
 export type MemoryDreamJob = {
   kind: 'dream' | 'recover';
@@ -15,11 +19,14 @@ export type ConversationSummaryJob = {
   userId: string;
   conversationId: string;
 };
+export type NotificationChannel = 'telegram' | 'whatsapp';
 export type NotificationJob = {
   userId: string;
   kind: string;
   content: string;
   idempotencyKey: string;
+  channel: NotificationChannel;
+  reminderOccurrenceKey?: string;
   proactive: boolean;
   sourceId?: string;
   reminderOccurrenceId?: string;
@@ -42,7 +49,8 @@ export class QueueService implements OnModuleDestroy {
   readonly documents: Queue<DocumentJob>;
   readonly memoryDreams: Queue<MemoryDreamJob>;
   readonly conversationSummaries: Queue<ConversationSummaryJob>;
-  readonly notifications: Queue<NotificationJob>;
+  readonly whatsappNotifications: Queue<NotificationJob>;
+  readonly telegramNotifications: Queue<NotificationJob>;
   readonly briefings: Queue<BriefingJob>;
   readonly followUps: Queue<FollowUpJob>;
   constructor(config: ConfigService) {
@@ -76,10 +84,14 @@ export class QueueService implements OnModuleDestroy {
         defaultJobOptions,
       },
     );
-    this.notifications = new Queue<NotificationJob>('notifications', {
-      connection,
-      defaultJobOptions,
-    });
+    this.whatsappNotifications = new Queue<NotificationJob>(
+      'notifications-whatsapp',
+      { connection, defaultJobOptions },
+    );
+    this.telegramNotifications = new Queue<NotificationJob>(
+      'notifications-telegram',
+      { connection, defaultJobOptions },
+    );
     this.briefings = new Queue<BriefingJob>('briefings', {
       connection,
       defaultJobOptions,
@@ -96,7 +108,8 @@ export class QueueService implements OnModuleDestroy {
       this.documents.close(),
       this.memoryDreams.close(),
       this.conversationSummaries.close(),
-      this.notifications.close(),
+      this.whatsappNotifications.close(),
+      this.telegramNotifications.close(),
       this.briefings.close(),
       this.followUps.close(),
     ]);

@@ -8,6 +8,7 @@ const deliverySelect = {
   kind: true,
   content: true,
   idempotencyKey: true,
+  channel: true,
   proactive: true,
   sourceId: true,
   providerMessageId: true,
@@ -39,6 +40,7 @@ const preferenceSelect = {
   briefingEnabled: true,
   briefingTime: true,
   webNotificationsEnabled: true,
+  telegramNotificationsEnabled: true,
   whatsappNotificationsEnabled: true,
   createdAt: true,
   updatedAt: true,
@@ -47,9 +49,13 @@ const preferenceSelect = {
 @Injectable()
 export class PrismaNotificationRepository implements INotificationRepository {
   constructor(private readonly prisma: PrismaService) {}
-  findDeliveryByIdempotencyKey(userId: string, idempotencyKey: string) {
+  findDeliveryByIdempotencyKey(
+    userId: string,
+    idempotencyKey: string,
+    channel: string,
+  ) {
     return this.prisma.notificationDelivery.findFirst({
-      where: { userId, idempotencyKey },
+      where: { userId, idempotencyKey, channel },
       select: deliverySelect,
     });
   }
@@ -60,6 +66,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
     content: string;
     idempotencyKey: string;
     proactive: boolean;
+    channel: string;
     sourceId?: string | null;
     reminderOccurrenceId?: string | null;
   }) {

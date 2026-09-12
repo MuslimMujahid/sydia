@@ -47,5 +47,9 @@ export class UpdateUserPreferencesDto {
 
   @IsOptional()
   @IsBoolean()
+  telegramNotificationsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   whatsappNotificationsEnabled?: boolean;
 }

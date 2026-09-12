@@ -14,6 +14,7 @@ import { OpenRouterMediaService } from '../../infra/model-gateway';
 import type { NormalizedInboundMessage } from '../../shared/messaging';
 import { DocumentService } from '../documents/document.service';
 import { MessagingHandlerService } from '../messaging';
+import { NotificationService } from '../notifications';
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -29,6 +30,7 @@ export class TelegramService implements OnModuleInit {
     private readonly messages: MessagingHandlerService,
     private readonly documents: DocumentService,
     private readonly media: OpenRouterMediaService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -94,6 +96,86 @@ export class TelegramService implements OnModuleInit {
     });
 
     return { revoked };
+  }
+
+  async deliverNotification(input: {
+    userId: string;
+    content: string;
+    idempotencyKey: string;
+  }): Promise<{ status: string; providerMessageId?: string }> {
+    const existing = await this.notifications.findByIdempotencyKey(
+      input.userId,
+      input.idempotencyKey,
+      'telegram',
+    );
+
+    if (!existing) return { status: 'skipped_missing_intent' };
+
+    if (existing.status === 'delivered') {
+      return {
+        status: existing.status,
+        providerMessageId: existing.providerMessageId ?? undefined,
+      };
+    }
+
+    if (existing.status === 'attempting') return { status: 'in_progress' };
+
+    if (!(await this.notifications.claimDelivery(input.userId, existing.id))) {
+      const current = await this.notifications.findByIdempotencyKey(
+        input.userId,
+        input.idempotencyKey,
+        'telegram',
+      );
+
+      return {
+        status: current?.status ?? 'in_progress',
+        providerMessageId: current?.providerMessageId ?? undefined,
+      };
+    }
+
+    const identity = await this.telegram.findIdentity(input.userId);
+
+    if (!identity) {
+      await this.notifications.recordOutcome({
+        userId: input.userId,
+        deliveryId: existing.id,
+        status: 'skipped_unlinked',
+        policyOutcome: 'blocked',
+      });
+
+      return { status: 'skipped_unlinked' };
+    }
+
+    try {
+      const result = await this.gateway.getOutboundAdapter().send({
+        recipientExternalId: identity.externalId,
+        content: input.content,
+      });
+
+      await this.notifications.recordOutcome({
+        userId: input.userId,
+        deliveryId: existing.id,
+        status: 'delivered',
+        policyOutcome: 'allowed',
+        providerMessageId: result.providerMessageId,
+      });
+
+      return {
+        status: 'delivered',
+        providerMessageId: result.providerMessageId,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.notifications.recordOutcome({
+        userId: input.userId,
+        deliveryId: existing.id,
+        status: 'failed',
+        policyOutcome: 'blocked',
+        error: message,
+      });
+
+      return { status: 'failed' };
+    }
   }
 
   private async handleContext(ctx: Context): Promise<void> {

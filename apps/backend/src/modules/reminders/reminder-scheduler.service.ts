@@ -24,12 +24,12 @@ export class ReminderSchedulerService {
   async schedule(reminder: Reminder): Promise<void> {
     await this.cancel(reminder.id);
     if (reminder.status !== 'scheduled') return;
-    const key = await this.reminders.createOccurrence(
+    const occurrence = await this.reminders.createOccurrence(
       reminder.id,
       reminder.scheduledAt,
     );
 
-    const jobId = key.replaceAll(':', '-');
+    const jobId = occurrence.idempotencyKey.replaceAll(':', '-');
     const existingJob = await this.queue.reminders.getJob(jobId);
 
     if (
@@ -41,7 +41,11 @@ export class ReminderSchedulerService {
 
     await this.queue.reminders.add(
       'dispatch',
-      { reminderId: reminder.id, idempotencyKey: key },
+      {
+        reminderId: reminder.id,
+        idempotencyKey: occurrence.idempotencyKey,
+        occurrenceId: occurrence.id,
+      },
       {
         jobId,
         delay: Math.max(0, reminder.scheduledAt.getTime() - Date.now()),

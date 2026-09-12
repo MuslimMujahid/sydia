@@ -58,7 +58,8 @@ async function bootstrap(): Promise<void> {
         idempotencyKey: job.data.idempotencyKey,
         proactive: false,
         sourceId: reminder.id,
-        reminderOccurrenceId: job.data.idempotencyKey,
+        reminderOccurrenceId: job.data.occurrenceId,
+        reminderOccurrenceKey: job.data.idempotencyKey,
       });
 
       if (!reminder.recurrence) return;
@@ -82,16 +83,17 @@ async function bootstrap(): Promise<void> {
       const updated = await reminders.updateDeliverySchedule(reminder.id, next);
 
       if (updated) {
-        const idempotencyKey = await reminders.createOccurrence(
-          reminder.id,
-          next,
-        );
+        const occurrence = await reminders.createOccurrence(reminder.id, next);
 
         await queues.reminders.add(
           'dispatch',
-          { reminderId: reminder.id, idempotencyKey },
           {
-            jobId: idempotencyKey.replaceAll(':', '-'),
+            reminderId: reminder.id,
+            idempotencyKey: occurrence.idempotencyKey,
+            occurrenceId: occurrence.id,
+          },
+          {
+            jobId: occurrence.idempotencyKey.replaceAll(':', '-'),
             delay: Math.max(0, next.getTime() - Date.now()),
           },
         );

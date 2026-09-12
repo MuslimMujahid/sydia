@@ -29,7 +29,10 @@ export interface IReminderRepository {
     scheduledAt: Date,
   ): Promise<Reminder | null>;
   delete(userId: string, id: string): Promise<boolean>;
-  createOccurrence(reminderId: string, occurrenceAt: Date): Promise<string>;
+  createOccurrence(
+    reminderId: string,
+    occurrenceAt: Date,
+  ): Promise<{ id: string; idempotencyKey: string }>;
   markOccurrenceDelivered(idempotencyKey: string): Promise<void>;
 }
 

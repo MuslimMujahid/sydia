@@ -12,8 +12,11 @@ import { ModelGatewayModule } from '../../infra/model-gateway';
 import { TelegramInfraModule } from '../../infra/telegram';
 import { DocumentsModule } from '../documents/documents.module';
 import { MessagingModule } from '../messaging';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { RemindersModule } from '../reminders/reminders.module';
 import { TelegramController } from './telegram.controller';
 import { TelegramService } from './telegram.service';
+import { TelegramNotificationConsumer } from './telegram.notification-consumer';
 
 @Module({
   imports: [
@@ -22,12 +25,15 @@ import { TelegramService } from './telegram.service';
     DocumentsModule,
     ModelGatewayModule,
     AuditModule,
+    NotificationsModule,
+    RemindersModule,
   ],
   controllers: [TelegramController],
   providers: [
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     { provide: TELEGRAM_REPOSITORY, useClass: PrismaTelegramRepository },
     TelegramService,
+    TelegramNotificationConsumer,
   ],
   exports: [TelegramService],
 })

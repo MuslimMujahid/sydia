@@ -195,6 +195,7 @@ export class WhatsAppService implements OnModuleInit {
     const existing = await this.notifications.findByIdempotencyKey(
       input.userId,
       input.idempotencyKey,
+      'whatsapp',
     );
 
     if (!existing) return { status: 'skipped_missing_intent' };
@@ -212,6 +213,7 @@ export class WhatsAppService implements OnModuleInit {
       const current = await this.notifications.findByIdempotencyKey(
         input.userId,
         input.idempotencyKey,
+        'whatsapp',
       );
 
       return {

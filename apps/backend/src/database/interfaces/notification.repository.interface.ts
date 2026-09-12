@@ -9,12 +9,14 @@ export interface INotificationRepository {
   findDeliveryByIdempotencyKey(
     userId: string,
     idempotencyKey: string,
+    channel: string,
   ): Promise<NotificationDelivery | null>;
   createDelivery(input: {
     userId: string;
     kind: string;
     content: string;
     idempotencyKey: string;
+    channel: string;
     proactive: boolean;
     sourceId?: string | null;
     reminderOccurrenceId?: string | null;

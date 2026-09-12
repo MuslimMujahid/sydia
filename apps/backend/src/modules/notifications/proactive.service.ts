@@ -113,7 +113,7 @@ export class DailyBriefingService {
 
     return {
       status: 'queued',
-      delivery: result.delivery,
+      deliveries: result.deliveries,
       replayed: result.replayed,
       date: window.date,
     } as const;

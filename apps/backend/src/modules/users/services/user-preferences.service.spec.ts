@@ -13,6 +13,7 @@ const storedPreference: UserPreference = {
   briefingEnabled: true,
   briefingTime: '09:30',
   webNotificationsEnabled: true,
+  telegramNotificationsEnabled: true,
   whatsappNotificationsEnabled: false,
   createdAt: new Date(0),
   updatedAt: new Date(0),
@@ -76,6 +77,7 @@ describe('UserPreferencesService', () => {
       briefingEnabled: true,
       briefingTime: '09:30',
       webNotificationsEnabled: true,
+      telegramNotificationsEnabled: true,
       whatsappNotificationsEnabled: false,
     });
     expect(result).not.toHaveProperty('assistantVerbosity');
@@ -90,6 +92,7 @@ describe('UserPreferencesService', () => {
 
     expect(result.briefingEnabled).toBe(true);
     expect(result.briefingTime).toBe('08:00');
+    expect(result.telegramNotificationsEnabled).toBe(true);
   });
 
   test('updates persona canonically and persists only notification preferences', async () => {

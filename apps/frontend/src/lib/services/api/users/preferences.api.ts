@@ -20,6 +20,7 @@ export type UserPreferences = {
   briefingEnabled: boolean;
   briefingTime: string;
   webNotificationsEnabled: boolean;
+  telegramNotificationsEnabled: boolean;
   whatsappNotificationsEnabled: boolean;
 };
 

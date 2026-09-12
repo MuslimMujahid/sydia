@@ -222,16 +222,15 @@ export class PrismaReminderRepository implements IReminderRepository {
   async createOccurrence(
     reminderId: string,
     occurrenceAt: Date,
-  ): Promise<string> {
+  ): Promise<{ id: string; idempotencyKey: string }> {
     const idempotencyKey = `${reminderId}:${occurrenceAt.toISOString()}`;
-    const row = await this.prisma.reminderOccurrence.upsert({
+
+    return this.prisma.reminderOccurrence.upsert({
       where: { idempotencyKey },
       create: { reminderId, occurrenceAt, idempotencyKey },
       update: {},
-      select: { idempotencyKey: true },
+      select: { id: true, idempotencyKey: true },
     });
-
-    return row.idempotencyKey;
   }
 
   async markOccurrenceDelivered(idempotencyKey: string): Promise<void> {

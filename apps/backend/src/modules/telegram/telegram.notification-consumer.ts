@@ -10,36 +10,33 @@ import {
   REMINDER_REPOSITORY,
   type IReminderRepository,
 } from '../../database/interfaces';
-import { type NotificationJob } from '../../infra/queue';
-import { WhatsAppService } from './whatsapp.service';
+import type { NotificationJob } from '../../infra/queue';
+import { TelegramService } from './telegram.service';
 
 @Injectable()
-export class WhatsAppNotificationConsumer
+export class TelegramNotificationConsumer
   implements OnModuleInit, OnModuleDestroy
 {
   private worker: Worker<NotificationJob> | null = null;
 
   constructor(
     private readonly config: ConfigService,
-    private readonly whatsapp: WhatsAppService,
+    private readonly telegram: TelegramService,
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
   ) {}
 
   onModuleInit(): void {
     if (
-      this.config.get<boolean>('BACKEND_WHATSAPP_RUNTIME_ENABLED', true) !==
+      this.config.get<boolean>('BACKEND_TELEGRAM_RUNTIME_ENABLED', true) !==
       true
     )
       return;
-    const connection = {
-      url: this.config.getOrThrow<string>('BACKEND_REDIS_URL'),
-    };
 
     this.worker = new Worker<NotificationJob>(
-      'notifications-whatsapp',
+      'notifications-telegram',
       async (job) => {
-        const result = await this.whatsapp.deliverNotification(job.data);
+        const result = await this.telegram.deliverNotification(job.data);
 
         if (result.status === 'delivered' && job.data.reminderOccurrenceKey) {
           await this.reminders.markOccurrenceDelivered(
@@ -49,7 +46,11 @@ export class WhatsAppNotificationConsumer
 
         return result;
       },
-      { connection },
+      {
+        connection: {
+          url: this.config.getOrThrow<string>('BACKEND_REDIS_URL'),
+        },
+      },
     );
   }
 

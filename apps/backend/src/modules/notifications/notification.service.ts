@@ -3,7 +3,7 @@ import {
   NOTIFICATION_REPOSITORY,
   type INotificationRepository,
 } from '../../database/interfaces';
-import { QueueService } from '../../infra/queue';
+import { QueueService, type NotificationChannel } from '../../infra/queue';
 import type { NotificationDelivery } from '../../database/entities';
 
 export type NotificationIntent = {
@@ -14,12 +14,13 @@ export type NotificationIntent = {
   proactive: boolean;
   sourceId?: string;
   reminderOccurrenceId?: string;
+  reminderOccurrenceKey?: string;
 };
 
 export type NotificationEnqueueResult = {
-  delivery: NotificationDelivery;
+  deliveries: NotificationDelivery[];
   replayed: boolean;
-  policyOutcome: 'queued';
+  policyOutcome: 'queued' | 'skipped_disabled';
 };
 
 @Injectable()
@@ -31,32 +32,79 @@ export class NotificationService {
   ) {}
 
   async enqueue(input: NotificationIntent): Promise<NotificationEnqueueResult> {
-    const existing = await this.notifications.findDeliveryByIdempotencyKey(
-      input.userId,
-      input.idempotencyKey,
-    );
+    const preferences = await this.notifications.getPreferences(input.userId);
+    const channels: NotificationChannel[] = [];
+    if (preferences?.whatsappNotificationsEnabled !== false)
+      channels.push('whatsapp');
+    if (preferences?.telegramNotificationsEnabled !== false)
+      channels.push('telegram');
 
-    if (existing) {
-      if (existing.status !== 'delivered') {
-        await this.queueIntent(input);
-      }
-
+    if (channels.length === 0) {
       return {
-        delivery: existing,
-        replayed: true,
-        policyOutcome: 'queued',
+        deliveries: [],
+        replayed: false,
+        policyOutcome: 'skipped_disabled',
       };
     }
 
-    const delivery = await this.notifications.createDelivery(input);
+    const results = await Promise.all(
+      channels.map((channel) => this.enqueueChannel(input, channel)),
+    );
 
-    await this.queueIntent(input);
-
-    return { delivery, replayed: false, policyOutcome: 'queued' };
+    return {
+      deliveries: results.map(({ delivery }) => delivery),
+      replayed: results.every(({ replayed }) => replayed),
+      policyOutcome: 'queued',
+    };
   }
 
-  private queueIntent(input: NotificationIntent): Promise<unknown> {
-    return this.queue.notifications.add('deliver', input, {
+  private async enqueueChannel(
+    input: NotificationIntent,
+    channel: NotificationChannel,
+  ): Promise<{ delivery: NotificationDelivery; replayed: boolean }> {
+    const existing = await this.notifications.findDeliveryByIdempotencyKey(
+      input.userId,
+      input.idempotencyKey,
+      channel,
+    );
+
+    const job = { ...input, channel };
+
+    if (existing) {
+      if (existing.status !== 'delivered') {
+        await this.queueIntent(job);
+      }
+
+      return { delivery: existing, replayed: true };
+    }
+
+    const delivery = await this.notifications.createDelivery({
+      userId: input.userId,
+      kind: input.kind,
+      content: input.content,
+      idempotencyKey: input.idempotencyKey,
+      channel,
+      proactive: input.proactive,
+      sourceId: input.sourceId,
+      reminderOccurrenceId: input.reminderOccurrenceId,
+    });
+
+    await this.queueIntent(job);
+
+    return { delivery, replayed: false };
+  }
+
+  private queueIntent(
+    input: NotificationIntent & {
+      channel: NotificationChannel;
+    },
+  ): Promise<unknown> {
+    const queue =
+      input.channel === 'telegram'
+        ? this.queue.telegramNotifications
+        : this.queue.whatsappNotifications;
+
+    return queue.add('deliver', input, {
       jobId: input.idempotencyKey.replaceAll(':', '-'),
     });
   }
@@ -64,10 +112,12 @@ export class NotificationService {
   async findByIdempotencyKey(
     userId: string,
     idempotencyKey: string,
+    channel: NotificationChannel,
   ): Promise<NotificationDelivery | null> {
     return this.notifications.findDeliveryByIdempotencyKey(
       userId,
       idempotencyKey,
+      channel,
     );
   }
 

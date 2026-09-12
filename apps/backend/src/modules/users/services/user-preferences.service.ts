@@ -17,6 +17,7 @@ export type PublicUserPreferences = {
   briefingEnabled: boolean;
   briefingTime: string;
   webNotificationsEnabled: boolean;
+  telegramNotificationsEnabled: boolean;
   whatsappNotificationsEnabled: boolean;
 };
 
@@ -39,6 +40,7 @@ const defaults = {
   briefingEnabled: true,
   briefingTime: '08:00',
   webNotificationsEnabled: true,
+  telegramNotificationsEnabled: true,
   whatsappNotificationsEnabled: true,
 } as const;
 
@@ -126,6 +128,9 @@ export class UserPreferencesService {
       briefingTime: stored?.briefingTime ?? defaults.briefingTime,
       webNotificationsEnabled:
         stored?.webNotificationsEnabled ?? defaults.webNotificationsEnabled,
+      telegramNotificationsEnabled:
+        stored?.telegramNotificationsEnabled ??
+        defaults.telegramNotificationsEnabled,
       whatsappNotificationsEnabled:
         stored?.whatsappNotificationsEnabled ??
         defaults.whatsappNotificationsEnabled,

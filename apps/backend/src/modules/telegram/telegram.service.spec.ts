@@ -7,6 +7,7 @@ import type {
 } from '../../database/interfaces';
 import type { TelegramGatewayService } from '../../infra/telegram';
 import type { OpenRouterMediaService } from '../../infra/model-gateway';
+import type { NotificationService } from '../notifications';
 import type { NormalizedInboundMessage } from '../../shared/messaging';
 import type { DocumentService } from '../documents/document.service';
 import type {
@@ -29,7 +30,7 @@ const message: NormalizedInboundMessage = {
   raw: { businessConnectionId: 'business-1', messageThreadId: 8 },
 };
 
-function setup() {
+function setup(options: { linked?: boolean } = {}) {
   let adapter: ChannelTurnAdapter | undefined;
   const outbound = {
     send: jest.fn(() => Promise.resolve({ providerMessageId: '123:43' })),
@@ -50,14 +51,45 @@ function setup() {
     }),
   } as unknown as MessagingHandlerService;
 
+  const telegram = {
+    findIdentity: jest.fn(() =>
+      Promise.resolve(
+        options.linked === false
+          ? null
+          : {
+              id: 'identity-1',
+              userId: 'user-1',
+              provider: 'telegram',
+              externalId: '123',
+              verifiedAt: new Date(0),
+              createdAt: new Date(0),
+              updatedAt: new Date(0),
+            },
+      ),
+    ),
+  } as unknown as ITelegramRepository;
+
+  const notificationDelivery = {
+    id: 'delivery-1',
+    status: 'pending',
+    providerMessageId: null,
+  };
+
+  const notifications = {
+    findByIdempotencyKey: jest.fn(() => Promise.resolve(notificationDelivery)),
+    claimDelivery: jest.fn(() => Promise.resolve(true)),
+    recordOutcome: jest.fn(() => Promise.resolve(notificationDelivery)),
+  } as unknown as NotificationService;
+
   const service = new TelegramService(
     gateway,
-    {} as ITelegramRepository,
+    telegram,
     {} as IUserRepository,
     {} as IAuditEventRepository,
     messages,
     {} as DocumentService,
     {} as OpenRouterMediaService,
+    notifications,
   );
 
   return {
@@ -67,10 +99,60 @@ function setup() {
       return adapter;
     },
     gateway,
+    notifications,
     outbound,
     service,
   };
 }
+
+describe('TelegramService notification delivery', () => {
+  it('delivers a reminder to the linked Telegram identity', async () => {
+    const { notifications, outbound, service } = setup();
+
+    await expect(
+      service.deliverNotification({
+        userId: 'user-1',
+        content: 'Reminder: pay invoice',
+        idempotencyKey: 'reminder-1',
+      }),
+    ).resolves.toEqual({
+      status: 'delivered',
+      providerMessageId: '123:43',
+    });
+    expect(outbound.send).toHaveBeenCalledWith({
+      recipientExternalId: '123',
+      content: 'Reminder: pay invoice',
+    });
+    expect(notifications.recordOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliveryId: 'delivery-1',
+        status: 'delivered',
+        policyOutcome: 'allowed',
+        providerMessageId: '123:43',
+      }),
+    );
+  });
+
+  it('records a blocked outcome when Telegram is not linked', async () => {
+    const { notifications, outbound, service } = setup({ linked: false });
+
+    await expect(
+      service.deliverNotification({
+        userId: 'user-1',
+        content: 'Reminder: pay invoice',
+        idempotencyKey: 'reminder-1',
+      }),
+    ).resolves.toEqual({ status: 'skipped_unlinked' });
+    expect(outbound.send).not.toHaveBeenCalled();
+    expect(notifications.recordOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliveryId: 'delivery-1',
+        status: 'skipped_unlinked',
+        policyOutcome: 'blocked',
+      }),
+    );
+  });
+});
 
 describe('TelegramService processing feedback', () => {
   afterEach(() => jest.useRealTimers());
