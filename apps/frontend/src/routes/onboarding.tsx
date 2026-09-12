@@ -1,4 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,22 @@ const PERSONA_OPTIONS: {
   imageAlt: string;
 }[] = [
   {
+    value: "calm",
+    label: "Tenang",
+    description:
+      "Stabil, sabar, dan tenang; tetap jernih saat situasi terasa rumit.",
+    image: "/images/personas/calm.webp",
+    imageAlt: "Sosok tenang menikmati suasana yang damai.",
+  },
+  {
+    value: "cheerful",
+    label: "Ceria",
+    description:
+      "Antusias, energik, dan optimistis; membuat tugas rutin terasa lebih ringan.",
+    image: "/images/personas/cheerful.webp",
+    imageAlt: "Sosok tersenyum lebar dengan energi positif.",
+  },
+  {
     value: "professional",
     label: "Profesional",
     description:
@@ -63,22 +80,6 @@ const PERSONA_OPTIONS: {
       "Hangat, mudah diajak bicara, dan penuh perhatian; seperti mengobrol dengan seseorang yang Anda kenal.",
     image: "/images/personas/friendly.webp",
     imageAlt: "Dua sosok berbincang akrab dengan hangat.",
-  },
-  {
-    value: "cheerful",
-    label: "Ceria",
-    description:
-      "Antusias, energik, dan optimistis; membuat tugas rutin terasa lebih ringan.",
-    image: "/images/personas/cheerful.webp",
-    imageAlt: "Sosok tersenyum lebar dengan energi positif.",
-  },
-  {
-    value: "calm",
-    label: "Tenang",
-    description:
-      "Stabil, sabar, dan tenang; tetap jernih saat situasi terasa rumit.",
-    image: "/images/personas/calm.webp",
-    imageAlt: "Sosok tenang menikmati suasana yang damai.",
   },
   {
     value: "playful",
@@ -171,7 +172,9 @@ function OnboardingPage() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
+
   const heading = STEP_HEADINGS[step - 1] ?? STEP_HEADINGS[0];
+  const StepShell: "div" | typeof Card = step === 3 ? "div" : Card;
 
   const goToStep = (next: 1 | 2 | 3) => {
     preferencesMutation.reset();
@@ -215,7 +218,13 @@ function OnboardingPage() {
           <h1 className="mb-8 max-w-2xl font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] text-ink sm:text-[44px] sm:leading-[1.1] sm:font-bold sm:tracking-[-0.03em]">
             {heading}
           </h1>
-          <Card className="p-6 transition-shadow duration-300 sm:p-8">
+          <StepShell
+            className={
+              step === 3
+                ? undefined
+                : "p-6 transition-shadow duration-300 sm:p-8"
+            }
+          >
             <form
               className="space-y-7"
               noValidate
@@ -321,62 +330,123 @@ function OnboardingPage() {
               {step === 3 && (
                 <form.Field name="persona">
                   {(field) => (
-                    <fieldset>
-                      <legend className="block font-sans text-sm font-semibold text-ink">
-                        Persona asisten
-                      </legend>
-                      <p
-                        id="onboarding-persona-description"
-                        className="mt-2 text-sm text-ink-muted"
-                      >
-                        Menentukan cara Sydia berinteraksi dengan Anda.
-                      </p>
-                      <RadioGroup
-                        aria-label="Persona asisten"
-                        aria-describedby="onboarding-persona-description"
-                        className="mt-4 grid gap-4 sm:grid-cols-2"
-                        value={field.state.value}
-                        onValueChange={(value) =>
-                          field.handleChange(value as AssistantPersona)
-                        }
-                      >
-                        {PERSONA_OPTIONS.map((option) => {
-                          const selected = field.state.value === option.value;
+                    <>
+                      {(() => {
+                        const selectedIndex = Math.max(
+                          0,
+                          PERSONA_OPTIONS.findIndex(
+                            (option) => option.value === field.state.value
+                          )
+                        );
 
-                          return (
-                            <label
-                              key={option.value}
-                              className={cn(
-                                "group relative flex cursor-pointer flex-col overflow-hidden rounded-md border border-ink/8 bg-canvas transition-[border-color,background-color,box-shadow,transform] duration-160 hover:-translate-y-0.5 hover:border-ink/16 hover:shadow-sm has-[[data-focused]]:outline-2 has-[[data-focused]]:outline-offset-2 has-[[data-focused]]:outline-brand/50",
-                                selected && "border-brand bg-brand/4 shadow-sm"
-                              )}
+                        const activeIndex = selectedIndex;
+                        const previous = PERSONA_OPTIONS[selectedIndex - 1];
+                        const next = PERSONA_OPTIONS[selectedIndex + 1];
+
+                        return (
+                          <>
+                            <RadioGroup
+                              aria-label="Persona asisten"
+                              className="relative h-[305px] [--fan-gap:40px] sm:h-[355px] sm:[--fan-gap:92px] md:h-[400px] md:[--fan-gap:116px] lg:h-[425px] lg:[--fan-gap:136px]"
+                              value={field.state.value}
+                              onValueChange={(value) =>
+                                field.handleChange(value as AssistantPersona)
+                              }
                             >
-                              <span className="relative block aspect-[4/3] overflow-hidden bg-canvas-subtle">
-                                <img
-                                  src={option.image}
-                                  alt={option.imageAlt}
-                                  className="size-full object-cover transition-transform duration-160 motion-safe:group-hover:scale-[1.02]"
-                                />
-                                <span className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
-                                  <Radio
-                                    value={option.value}
-                                    aria-label={option.label}
-                                  />
-                                </span>
-                              </span>
-                              <span className="flex flex-1 flex-col p-4">
-                                <span className="block font-display text-[16px] leading-6 font-semibold text-ink">
-                                  {option.label}
-                                </span>
-                                <span className="mt-1 block text-sm leading-5 text-ink-muted">
-                                  {option.description}
-                                </span>
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </RadioGroup>
-                    </fieldset>
+                              {PERSONA_OPTIONS.map((option, index) => {
+                                const selected =
+                                  field.state.value === option.value;
+
+                                const offset = index - activeIndex;
+                                const distance = Math.abs(offset);
+                                const active = distance === 0;
+
+                                return (
+                                  <label
+                                    key={option.value}
+                                    className={cn(
+                                      "group absolute top-3 left-1/2 flex h-[260px] w-[150px] cursor-pointer flex-col overflow-hidden rounded-xl border bg-canvas transition-[transform,opacity,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:h-[305px] sm:w-[170px] md:h-[350px] md:w-[200px] lg:h-[370px] lg:w-[220px] has-[[data-focused]]:outline-2 has-[[data-focused]]:outline-offset-2 has-[[data-focused]]:outline-brand/50",
+                                      selected
+                                        ? "border-brand"
+                                        : "border-ink/10",
+                                      active ? "shadow-lg" : "shadow-sm"
+                                    )}
+                                    style={{
+                                      transform: `translateX(calc(-50% + ${offset} * var(--fan-gap))) translateY(${distance * 10}px) rotate(${offset * 7}deg) scale(${active ? 1.03 : 1 - distance * 0.05})`,
+                                      zIndex: 20 - distance,
+                                      opacity: 1 - distance * 0.08,
+                                    }}
+                                  >
+                                    <span className="relative block h-[56%] shrink-0 overflow-hidden bg-canvas-subtle">
+                                      <img
+                                        src={option.image}
+                                        alt={option.imageAlt}
+                                        draggable={false}
+                                        className="size-full object-cover"
+                                      />
+                                      <span className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
+                                        <Radio
+                                          value={option.value}
+                                          aria-label={option.label}
+                                        />
+                                      </span>
+                                    </span>
+                                    <span className="flex flex-1 flex-col p-3">
+                                      <span className="block font-display text-[13px] leading-5 font-semibold text-ink sm:text-[15px] sm:leading-6">
+                                        {option.label}
+                                      </span>
+                                      <span className="mt-1 text-[11px] leading-4 text-ink-muted line-clamp-2 sm:text-xs sm:leading-5 sm:line-clamp-3">
+                                        {option.description}
+                                      </span>
+                                      {option.value ===
+                                        DEFAULT_ASSISTANT_PERSONA && (
+                                        <span
+                                          className={cn(
+                                            "mt-auto inline-flex items-center gap-1 pt-1 text-[10px] font-medium text-brand transition-opacity duration-200 sm:text-[11px]",
+                                            active ? "opacity-100" : "opacity-0"
+                                          )}
+                                        >
+                                          <span aria-hidden="true">✦</span>
+                                          Direkomendasikan
+                                        </span>
+                                      )}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </RadioGroup>
+                            <div className="mt-4 flex items-center justify-center gap-3">
+                              <Button
+                                type="button"
+                                variant="dark-outline"
+                                size="icon-sm"
+                                className="rounded-pill"
+                                aria-label="Persona sebelumnya"
+                                disabled={previous === undefined}
+                                onClick={() =>
+                                  previous && field.handleChange(previous.value)
+                                }
+                              >
+                                <ChevronLeft />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="dark-outline"
+                                size="icon-sm"
+                                className="rounded-pill"
+                                aria-label="Persona berikutnya"
+                                disabled={next === undefined}
+                                onClick={() =>
+                                  next && field.handleChange(next.value)
+                                }
+                              >
+                                <ChevronRight />
+                              </Button>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
                   )}
                 </form.Field>
               )}
@@ -422,7 +492,7 @@ function OnboardingPage() {
                 )}
               </div>
             </form>
-          </Card>
+          </StepShell>
         </div>
       </div>
     </main>
