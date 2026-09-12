@@ -4,10 +4,11 @@ export const SUPPORTED_LOCALES = ['id', 'en'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 export const ASSISTANT_PERSONAS = [
-  'personal_assistant',
-  'friend',
-  'mentor',
-  'creative_partner',
+  'professional',
+  'friendly',
+  'cheerful',
+  'calm',
+  'playful',
 ] as const;
 export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
 

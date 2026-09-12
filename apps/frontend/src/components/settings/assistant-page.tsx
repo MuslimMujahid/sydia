@@ -25,36 +25,44 @@ const PERSONA_OPTIONS: {
   imageAlt: string;
 }[] = [
   {
-    value: "personal_assistant",
-    label: "Asisten Pribadi",
+    value: "professional",
+    label: "Profesional",
     description:
-      "Praktis, terorganisir, dan efisien; langsung mengurus apa yang Anda butuhkan.",
-    image: "/images/personas/personal-assistant.webp",
-    imageAlt: "Asisten mengatur kalender, tugas, dan dokumen.",
+      "Terkendali, presisi, dan dapat diandalkan; jelas dan efisien tanpa berlebihan.",
+    image: "/images/personas/professional.webp",
+    imageAlt: "Asisten rapi menyusun berkas kerja dengan tenang.",
   },
   {
-    value: "friend",
-    label: "Teman",
+    value: "friendly",
+    label: "Ramah",
     description:
-      "Santai, personal, dan natural; seperti ngobrol dengan teman dekat yang memahami konteks Anda.",
-    image: "/images/personas/friend.webp",
-    imageAlt: "Dua teman berbincang dengan hangat.",
+      "Hangat, mudah diajak bicara, dan penuh perhatian; seperti mengobrol dengan seseorang yang Anda kenal.",
+    image: "/images/personas/friendly.webp",
+    imageAlt: "Dua sosok berbincang akrab dengan hangat.",
   },
   {
-    value: "mentor",
-    label: "Mentor",
+    value: "cheerful",
+    label: "Ceria",
     description:
-      "Membimbing Anda mengambil keputusan lebih baik dan menjalankan rencana dengan lebih terarah.",
-    image: "/images/personas/mentor.webp",
-    imageAlt: "Mentor membimbing seseorang menuju tujuan.",
+      "Antusias, energik, dan optimistis; membuat tugas rutin terasa lebih ringan.",
+    image: "/images/personas/cheerful.webp",
+    imageAlt: "Sosok tersenyum lebar dengan energi positif.",
   },
   {
-    value: "creative_partner",
-    label: "Partner Kreatif",
+    value: "calm",
+    label: "Tenang",
     description:
-      "Mengeksplorasi ide dan kemungkinan bersama Anda, lalu mengubahnya menjadi tindakan konkret.",
-    image: "/images/personas/creative-partner.webp",
-    imageAlt: "Dua partner mengembangkan berbagai ide kreatif.",
+      "Stabil, sabar, dan tenang; tetap jernih saat situasi terasa rumit.",
+    image: "/images/personas/calm.webp",
+    imageAlt: "Sosok tenang menikmati suasana yang damai.",
+  },
+  {
+    value: "playful",
+    label: "Jenaka",
+    description:
+      "Cerdas, santai, dan ekspresif; humor ringan yang tetap fokus pada tujuan Anda.",
+    image: "/images/personas/playful.webp",
+    imageAlt: "Sosok ceria melontarkan lelucon ringan.",
   },
 ];
 
@@ -184,7 +192,7 @@ export function AssistantSettingsPage() {
             className="mt-6 grid gap-4 sm:grid-cols-2"
             aria-label="Memuat preferensi persona"
           >
-            {[0, 1, 2, 3].map((item) => (
+            {[0, 1, 2, 3, 4].map((item) => (
               <span
                 key={item}
                 className="block aspect-[4/3] animate-pulse rounded-md bg-hairline motion-reduce:animate-none"

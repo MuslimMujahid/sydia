@@ -47,7 +47,7 @@ const user = {
   name: 'Ayu',
   timezone: 'Asia/Jakarta',
   locale: 'id',
-  persona: 'personal_assistant',
+  persona: 'professional',
   preferredAddress: null,
 } satisfies Pick<
   User,

@@ -43,10 +43,11 @@ const CHANNEL_PROMPT_FILES: Partial<Record<MessageProvider, string>> = {
 };
 
 const PERSONA_FILES: Record<AssistantPersona, string> = {
-  personal_assistant: 'personal_assistant.md',
-  friend: 'friend.md',
-  mentor: 'mentor.md',
-  creative_partner: 'creative_partner.md',
+  professional: 'professional.md',
+  friendly: 'friendly.md',
+  cheerful: 'cheerful.md',
+  calm: 'calm.md',
+  playful: 'playful.md',
 };
 
 function readPrompt(

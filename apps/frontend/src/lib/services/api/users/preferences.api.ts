@@ -4,15 +4,16 @@ import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
 export const ASSISTANT_PERSONAS = [
-  "personal_assistant",
-  "friend",
-  "mentor",
-  "creative_partner",
+  "professional",
+  "friendly",
+  "cheerful",
+  "calm",
+  "playful",
 ] as const;
 
 export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
 
-export const DEFAULT_ASSISTANT_PERSONA: AssistantPersona = "personal_assistant";
+export const DEFAULT_ASSISTANT_PERSONA: AssistantPersona = "professional";
 export type UserPreferences = {
   automaticMemoryEnabled: boolean;
   persona: AssistantPersona;

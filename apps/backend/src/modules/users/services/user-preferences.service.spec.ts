@@ -22,7 +22,7 @@ const storedPreference: UserPreference = {
 const user = {
   id: 'user-1',
   automaticMemoryEnabled: false,
-  persona: 'personal_assistant' as const,
+  persona: 'professional' as const,
   preferredAddress: null,
 };
 
@@ -68,11 +68,11 @@ describe('UserPreferencesService', () => {
     const { repository } = createRepository();
     const service = new UserPreferencesService(repository);
 
-    const result = await service.get({ ...user, persona: 'mentor' });
+    const result = await service.get({ ...user, persona: 'professional' });
 
     expect(result).toEqual({
       automaticMemoryEnabled: false,
-      persona: 'mentor',
+      persona: 'professional',
       preferredAddress: null,
       briefingEnabled: true,
       briefingTime: '09:30',
@@ -106,22 +106,22 @@ describe('UserPreferencesService', () => {
           preferredAddress: string | null;
         } | null>
       >()
-      .mockImplementation(() => updateUserResult('creative_partner'));
+      .mockImplementation(() => updateUserResult('playful'));
 
     const result = await service.update(
       user,
       {
-        persona: 'creative_partner',
+        persona: 'playful',
         briefingEnabled: false,
       },
       updateUser,
     );
 
-    expect(updateUser).toHaveBeenCalledWith({ persona: 'creative_partner' });
+    expect(updateUser).toHaveBeenCalledWith({ persona: 'playful' });
     expect(savePreferences).toHaveBeenCalledWith('user-1', {
       briefingEnabled: false,
     });
-    expect(result?.persona).toBe('creative_partner');
+    expect(result?.persona).toBe('playful');
     expect(result).not.toHaveProperty('assistantVerbosity');
     expect(result).not.toHaveProperty('assistantStyle');
   });
@@ -137,18 +137,18 @@ describe('UserPreferencesService', () => {
           preferredAddress: string | null;
         } | null>
       >()
-      .mockImplementation(() => updateUserResult('friend'));
+      .mockImplementation(() => updateUserResult('friendly'));
 
     const result = await service.update(
       user,
-      { persona: 'friend' },
+      { persona: 'friendly' },
       updateUser,
     );
 
-    expect(updateUser).toHaveBeenCalledWith({ persona: 'friend' });
+    expect(updateUser).toHaveBeenCalledWith({ persona: 'friendly' });
     expect(savePreferences).not.toHaveBeenCalled();
     expect(getPreferences).toHaveBeenCalledWith('user-1');
-    expect(result?.persona).toBe('friend');
+    expect(result?.persona).toBe('friendly');
   });
 
   test('persists and returns a normalized preferred address', async () => {
@@ -162,9 +162,7 @@ describe('UserPreferencesService', () => {
           preferredAddress: string | null;
         } | null>
       >()
-      .mockImplementation(() =>
-        updateUserResult('personal_assistant', 'Kak Raka'),
-      );
+      .mockImplementation(() => updateUserResult('professional', 'Kak Raka'));
 
     const result = await service.update(
       user,
@@ -188,7 +186,7 @@ describe('UserPreferencesService', () => {
           preferredAddress: string | null;
         } | null>
       >()
-      .mockImplementation(() => updateUserResult('personal_assistant'));
+      .mockImplementation(() => updateUserResult('professional'));
 
     const result = await service.update(
       { ...user, preferredAddress: 'Kak Raka' },

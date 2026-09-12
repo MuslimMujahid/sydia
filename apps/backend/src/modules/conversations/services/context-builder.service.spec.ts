@@ -17,7 +17,7 @@ const user = {
   name: 'Ayu',
   timezone: 'Asia/Jakarta',
   locale: 'id',
-  persona: 'personal_assistant' as const,
+  persona: 'professional' as const,
   preferredAddress: null,
 };
 
@@ -293,13 +293,11 @@ describe('ContextBuilderService channel formatting', () => {
 
 describe('ContextBuilderService personas', () => {
   it.each([
-    [
-      'personal_assistant',
-      'practical, organized personal assistant focused on efficiency',
-    ],
-    ['friend', 'close friend'],
-    ['mentor', 'strategic guide'],
-    ['creative_partner', 'discussion companion and creative partner'],
+    ['professional', 'composed, precise, dependable, and businesslike'],
+    ['friendly', 'warm, approachable, attentive, and easy-to-talk-to'],
+    ['cheerful', 'upbeat, energetic, optimistic, and expressive'],
+    ['calm', 'steady, patient, grounded, and understated'],
+    ['playful', 'witty, lively, casual, and expressive'],
   ] as const)('injects the %s persona prompt', async (persona, marker) => {
     const { messages } = await createBuilder(10_000).build(
       { ...user, persona },

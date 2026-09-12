@@ -14,10 +14,11 @@ datasource db {
 // better-auth owns these tables and generates record IDs itself.
 
 enum AssistantPersona {
-  personal_assistant
-  friend
-  mentor
-  creative_partner
+  professional
+  friendly
+  cheerful
+  calm
+  playful
 }
 
 model User {
@@ -34,7 +35,7 @@ model User {
   locale                 String                 @default("id")
   onboardingCompleted    Boolean                @default(false)
   automaticMemoryEnabled Boolean                @default(true)
-  persona                AssistantPersona       @default(personal_assistant)
+  persona                AssistantPersona       @default(professional)
   preferredAddress       String?
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @default(now()) @updatedAt
