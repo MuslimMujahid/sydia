@@ -92,15 +92,7 @@ export class TelegramOutboundAdapter implements OutboundMessageAdapter {
     const sent = await this.api.sendMessage(
       input.recipientExternalId,
       input.content,
-      input.replyToProviderMessageId
-        ? {
-            reply_parameters: {
-              message_id: Number(
-                input.replyToProviderMessageId.split(':').at(-1),
-              ),
-            },
-          }
-        : undefined,
+      undefined,
     );
 
     return { providerMessageId: `${sent.chat.id}:${sent.message_id}` };
@@ -114,15 +106,6 @@ export class TelegramOutboundAdapter implements OutboundMessageAdapter {
         caption: input.caption,
         business_connection_id: input.businessConnectionId,
         message_thread_id: input.messageThreadId,
-        ...(input.replyToProviderMessageId
-          ? {
-              reply_parameters: {
-                message_id: Number(
-                  input.replyToProviderMessageId.split(':').at(-1),
-                ),
-              },
-            }
-          : {}),
       },
     );
 

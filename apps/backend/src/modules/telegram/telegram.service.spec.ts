@@ -86,7 +86,6 @@ describe('TelegramService processing feedback', () => {
     expect(outbound.send).toHaveBeenCalledWith({
       recipientExternalId: '123',
       content: '📂 File sedang diproses ...',
-      replyToProviderMessageId: '123:42',
     });
     expect(gateway.sendTyping).toHaveBeenCalledWith('123', {
       businessConnectionId: 'business-1',
@@ -148,11 +147,9 @@ describe('TelegramService processing feedback', () => {
       expect(outbound.send).toHaveBeenCalledWith({
         recipientExternalId: '123',
         content: acknowledgement,
-        replyToProviderMessageId: '123:42',
       });
       expect(outbound.sendFile).toHaveBeenCalledWith({
         recipientExternalId: '123',
-        replyToProviderMessageId: '123:42',
         businessConnectionId: 'business-1',
         messageThreadId: 8,
         ...file,

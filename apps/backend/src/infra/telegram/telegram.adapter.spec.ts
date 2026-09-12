@@ -62,7 +62,7 @@ describe('Telegram message adapters', () => {
     });
   });
 
-  it('sends replies through the Bot API and returns a stable provider id', async () => {
+  it('sends text without Telegram reply parameters and returns a stable provider id', async () => {
     const sendMessage = jest.fn(() =>
       Promise.resolve({ chat: { id: 123 }, message_id: 43 }),
     );
@@ -78,12 +78,10 @@ describe('Telegram message adapters', () => {
         replyToProviderMessageId: '123:42',
       }),
     ).resolves.toEqual({ providerMessageId: '123:43' });
-    expect(sendMessage).toHaveBeenCalledWith('123', 'reply', {
-      reply_parameters: { message_id: 42 },
-    });
+    expect(sendMessage).toHaveBeenCalledWith('123', 'reply', undefined);
   });
 
-  it('uploads a document buffer and returns a stable provider id', async () => {
+  it('uploads a document buffer without Telegram reply parameters and returns a stable provider id', async () => {
     const sendDocument = jest.fn(() =>
       Promise.resolve({ chat: { id: 123 }, message_id: 44 }),
     );
@@ -110,7 +108,6 @@ describe('Telegram message adapters', () => {
         caption: undefined,
         business_connection_id: 'business-1',
         message_thread_id: 8,
-        reply_parameters: { message_id: 42 },
       },
     );
   });

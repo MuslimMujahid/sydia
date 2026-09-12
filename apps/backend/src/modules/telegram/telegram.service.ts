@@ -374,7 +374,6 @@ export class TelegramService implements OnModuleInit {
     await this.gateway.getOutboundAdapter().send({
       recipientExternalId: inbound.chatExternalId,
       content,
-      replyToProviderMessageId: inbound.providerMessageId,
     });
   }
 
@@ -393,7 +392,6 @@ export class TelegramService implements OnModuleInit {
 
     return outbound.sendFile({
       recipientExternalId: inbound.chatExternalId,
-      replyToProviderMessageId: inbound.providerMessageId,
       businessConnectionId: this.scopeFor(inbound).businessConnectionId,
       messageThreadId: this.scopeFor(inbound).messageThreadId,
       ...file,

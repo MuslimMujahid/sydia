@@ -492,8 +492,7 @@ export class WhatsAppService implements OnModuleInit {
     await this.sendOutbound({
       userId: '',
       externalId,
-      content:
-        locale === 'id' ? '📂 Mengirim file ...' : '📂 Sending file ...',
+      content: locale === 'id' ? '📂 Mengirim file ...' : '📂 Sending file ...',
       proactive: false,
       inbound,
     });
