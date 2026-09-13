@@ -50,19 +50,11 @@ const PERSONA_OPTIONS: {
   imageAlt: string;
 }[] = [
   {
-    value: "calm",
-    label: "Tenang",
-    description:
-      "Stabil, sabar, dan tenang; tetap jernih saat situasi terasa rumit.",
-    image: "/images/personas/calm.webp",
-    imageAlt: "Sosok tenang menikmati suasana yang damai.",
-  },
-  {
     value: "cheerful",
     label: "Ceria",
     description:
       "Antusias, energik, dan optimistis; membuat tugas rutin terasa lebih ringan.",
-    image: "/images/personas/cheerful.webp",
+    image: "/images/personas/haruka_cheerful.webp",
     imageAlt: "Sosok tersenyum lebar dengan energi positif.",
   },
   {
@@ -70,7 +62,7 @@ const PERSONA_OPTIONS: {
     label: "Profesional",
     description:
       "Terkendali, presisi, dan dapat diandalkan; jelas dan efisien tanpa berlebihan.",
-    image: "/images/personas/professional.webp",
+    image: "/images/personas/haruka_professional.webp",
     imageAlt: "Asisten rapi menyusun berkas kerja dengan tenang.",
   },
   {
@@ -78,7 +70,7 @@ const PERSONA_OPTIONS: {
     label: "Ramah",
     description:
       "Hangat, mudah diajak bicara, dan penuh perhatian; seperti mengobrol dengan seseorang yang Anda kenal.",
-    image: "/images/personas/friendly.webp",
+    image: "/images/personas/haruka_friendly.webp",
     imageAlt: "Dua sosok berbincang akrab dengan hangat.",
   },
   {
@@ -86,7 +78,7 @@ const PERSONA_OPTIONS: {
     label: "Jenaka",
     description:
       "Cerdas, santai, dan ekspresif; humor ringan yang tetap fokus pada tujuan Anda.",
-    image: "/images/personas/playful.webp",
+    image: "/images/personas/haruka_playful.webp",
     imageAlt: "Sosok ceria melontarkan lelucon ringan.",
   },
 ];

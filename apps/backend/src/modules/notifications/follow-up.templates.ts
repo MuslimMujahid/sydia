@@ -49,22 +49,6 @@ export const FOLLOW_UP_TEMPLATES = {
       '☀️ {title}\nMomen pas buat menuntaskan {kind} ini!',
     ],
   },
-  calm: {
-    en: [
-      '🌱 {title}\nTake your time. Return to this {kind} at your own pace.',
-      '🌙 {title}\nWhenever it feels right, give this {kind} a moment of your time.',
-      '🫧 {title}\nNo rush at all—this {kind} will be waiting here for you.',
-      '🍃 {title}\nA quiet moment is all it takes to revisit this {kind}.',
-      '🕊️ {title}\nTake the next step on this {kind} whenever you are at ease.',
-    ],
-    id: [
-      '🌱 {title}\nSantai saja. Kembali ke {kind} ini sesuai ritme Anda.',
-      '🌙 {title}\nSaat waktunya tepat, luangkan sebentar untuk {kind} ini.',
-      '🫧 {title}\nTak perlu terburu-buru, {kind} ini tetap menunggu Anda.',
-      '🍃 {title}\nCukup sejenak momen tenang untuk melanjutkan {kind} ini.',
-      '🕊️ {title}\nLanjutkan {kind} ini kapan pun Anda merasa nyaman.',
-    ],
-  },
   playful: {
     en: [
       '🎈 {title}\nThis {kind} is patiently awaiting your magic touch!',

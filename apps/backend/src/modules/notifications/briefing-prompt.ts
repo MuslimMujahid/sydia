@@ -11,7 +11,6 @@ const PERSONA_FILES: Record<AssistantPersona, string> = {
   professional: 'professional.md',
   friendly: 'friendly.md',
   cheerful: 'cheerful.md',
-  calm: 'calm.md',
   playful: 'playful.md',
 };
 

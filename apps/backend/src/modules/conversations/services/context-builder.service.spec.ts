@@ -300,7 +300,6 @@ describe('ContextBuilderService personas', () => {
     ['professional', 'composed, precise, dependable, and businesslike'],
     ['friendly', 'warm, approachable, attentive, and easy-to-talk-to'],
     ['cheerful', 'upbeat, energetic, optimistic, and expressive'],
-    ['calm', 'steady, patient, grounded, and understated'],
     ['playful', 'witty, lively, casual, and expressive'],
   ] as const)('injects the %s persona prompt', async (persona, marker) => {
     const { messages } = await createBuilder(10_000).build(

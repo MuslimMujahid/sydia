@@ -7,7 +7,6 @@ export const ASSISTANT_PERSONAS = [
   "professional",
   "friendly",
   "cheerful",
-  "calm",
   "playful",
 ] as const;
 

@@ -17,7 +17,6 @@ enum AssistantPersona {
   professional
   friendly
   cheerful
-  calm
   playful
 }
 

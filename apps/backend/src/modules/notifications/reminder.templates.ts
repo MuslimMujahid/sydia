@@ -49,22 +49,6 @@ export const REMINDER_TEMPLATES = {
       '✨ {title} — mari wujudkan!\n🕒 Direncanakan: {time}\n📝 Rinciannya: {notes}',
     ],
   },
-  calm: {
-    en: [
-      '🌿 {title} — a quiet reminder\n🕒 Set for: {time}\n📝 In your words: {notes}',
-      '🌙 {title} — keeping things steady\n🕒 Scheduled: {time}\n📝 Your reference: {notes}',
-      '☁️ {title} — no rush, just a note\n🕒 Time: {time}\n📝 Your note: {notes}',
-      '🪷 {title} — a moment to keep in mind\n🕒 Set for: {time}\n📝 Context: {notes}',
-      '🍃 {title} — calmly waiting for you\n🕒 Time: {time}\n📝 Accompanying note: {notes}',
-    ],
-    id: [
-      '🌿 {title} — pengingat tenang\n🕒 Waktu: {time}\n📝 Catatan Anda: {notes}',
-      '🌙 {title} — menjaga semuanya tetap teratur\n🕒 Dijadwalkan: {time}\n📝 Referensi Anda: {notes}',
-      '☁️ {title} — santai saja, sekadar catatan\n🕒 Berlangsung: {time}\n📝 Yang Anda catat: {notes}',
-      '🪷 {title} — sesuatu untuk diingat\n🕒 Siap pada: {time}\n📝 Konteks: {notes}',
-      '🍃 {title} — tersimpan rapi untuk Anda\n🕒 Waktu: {time}\n📝 Catatan pendamping: {notes}',
-    ],
-  },
   playful: {
     en: [
       '🎲 {title} — your future self says hi!\n🕒 Rendezvous time: {time}\n📝 Plot twist: {notes}',
