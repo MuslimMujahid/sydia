@@ -31,6 +31,21 @@ type Consolidation = {
   content?: string;
 };
 
+type PreparedCandidate = {
+  index: number;
+  candidate: Candidate;
+  sourceKey: string;
+  existing: Memory[];
+};
+
+function candidateSourceKey(candidate: Candidate): string {
+  return createHash('sha256')
+    .update(
+      `${DREAMER_VERSION}\0${[...candidate.sourceMessageIds].sort().join('\0')}\0${candidate.content.toLocaleLowerCase()}`,
+    )
+    .digest('hex');
+}
+
 export type DreamResult =
   | { status: 'skipped' | 'deferred' }
   | { status: 'completed'; candidateCount: number; mutationCount: number };
@@ -99,18 +114,25 @@ export class MemoryDreamService {
 
     try {
       const candidates = await this.extractCandidates(segment, run.id);
+      const prepared = await this.prepareCandidates(userId, candidates);
+      const decisions = await this.consolidateBatch(
+        userId,
+        segment.conversationId,
+        run.id,
+        prepared,
+      );
+
       let mutationCount = 0;
 
-      for (const [index, candidate] of candidates.entries()) {
-        if (
-          await this.applyCandidate(
-            userId,
-            segment.conversationId,
-            run.id,
-            index,
-            candidate,
-          )
-        ) {
+      for (const item of prepared) {
+        const applied = await this.applyDecision(
+          userId,
+          run.id,
+          item,
+          decisions.get(item.index),
+        );
+
+        if (applied) {
           mutationCount += 1;
         }
       }
@@ -223,48 +245,199 @@ export class MemoryDreamService {
     }
   }
 
-  private async applyCandidate(
+  /**
+   * Drops anything already stored before it reaches the model or the embedding
+   * service: the cheap source-key lookup and the exact-content check run first,
+   * so duplicates never pay for a vector search or a consolidation call.
+   */
+  private async prepareCandidates(
+    userId: string,
+    candidates: Candidate[],
+  ): Promise<PreparedCandidate[]> {
+    const prepared: PreparedCandidate[] = [];
+
+    for (const [index, candidate] of candidates.entries()) {
+      const sourceKey = candidateSourceKey(candidate);
+
+      if (await this.memories.findBySourceKey(userId, sourceKey)) continue;
+
+      const existing = await this.memories.search(userId, candidate.content, 5);
+
+      const duplicate = existing.some(
+        ({ content }) =>
+          content.toLocaleLowerCase() === candidate.content.toLocaleLowerCase(),
+      );
+
+      if (duplicate) continue;
+
+      prepared.push({ index, candidate, sourceKey, existing });
+    }
+
+    return prepared;
+  }
+
+  /**
+   * Resolves every candidate against its existing memories in one model call
+   * instead of one call per candidate. Candidates with no matches are created
+   * directly and never reach the model.
+   */
+  private async consolidateBatch(
     userId: string,
     conversationId: string,
-    dreamRunId: string,
-    _index: number,
-    candidate: Candidate,
-  ): Promise<boolean> {
-    const existing = await this.memories.search(userId, candidate.content, 5);
-    const sourceKey = createHash('sha256')
-      .update(
-        `${DREAMER_VERSION}\0${[...candidate.sourceMessageIds].sort().join('\0')}\0${candidate.content.toLocaleLowerCase()}`,
-      )
-      .digest('hex');
+    runId: string,
+    prepared: PreparedCandidate[],
+  ): Promise<Map<number, Consolidation>> {
+    const decisions = new Map<number, Consolidation>();
+    const pending = prepared.filter((item) => item.existing.length > 0);
 
-    if (await this.memories.findBySourceKey(userId, sourceKey)) return false;
-    const exact = existing.find(
-      ({ content }) =>
-        content.toLocaleLowerCase() === candidate.content.toLocaleLowerCase(),
-    );
+    for (const item of prepared) {
+      if (item.existing.length === 0) {
+        decisions.set(item.index, { action: 'create' });
+      }
+    }
 
-    if (exact) return false;
+    if (pending.length === 0) return decisions;
 
-    const consolidation = await this.consolidate(
+    const result = await this.model.generate({
       userId,
       conversationId,
-      dreamRunId,
-      candidate.content,
-      existing,
-    );
+      runId,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Compare each new fact with its active memories. Reply with a single JSON object {"decisions":[{"index":number,"action":"ignore|create|merge|supersede|conflict","targetId":string,"content":string}]} containing one decision per input item, keyed by its index. Use ignore for duplicates; merge for compatible facts; supersede only when the new fact clearly replaces an old fact; conflict when they contradict each other but the truth is unclear. merge and supersede must include targetId, which must be one of the supplied memory ids, and standalone final content. Do not add facts.',
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            items: pending.map(({ index, candidate, existing }) => ({
+              index,
+              candidate: candidate.content,
+              existing: existing.map(({ id, content }) => ({ id, content })),
+            })),
+          }),
+        },
+      ],
+    });
+
+    for (const [index, decision] of this.parseBatchConsolidation(
+      result.text,
+      pending,
+    )) {
+      decisions.set(index, decision);
+    }
+
+    return decisions;
+  }
+
+  private parseBatchConsolidation(
+    value: string,
+    pending: PreparedCandidate[],
+  ): Map<number, Consolidation> {
+    const decisions = new Map<number, Consolidation>();
+    const conflict = (): Consolidation => ({ action: 'conflict' });
+    const match = value.match(/\{[\s\S]*\}/);
+    const entries = match ? this.decisionEntries(match[0]) : null;
+
+    for (const item of pending) {
+      const entry = entries?.get(item.index);
+      decisions.set(
+        item.index,
+        entry ? this.validateConsolidation(entry, item.existing) : conflict(),
+      );
+    }
+
+    return decisions;
+  }
+
+  private decisionEntries(
+    value: string,
+  ): Map<number, Record<string, unknown>> | null {
+    try {
+      const parsed: unknown = JSON.parse(value);
+
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return null;
+      }
+
+      const list = (parsed as Record<string, unknown>).decisions;
+      if (!Array.isArray(list)) return null;
+      const entries = new Map<number, Record<string, unknown>>();
+
+      for (const entry of list) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+          continue;
+        }
+
+        const index = (entry as Record<string, unknown>).index;
+
+        if (typeof index === 'number' && Number.isInteger(index)) {
+          entries.set(index, entry as Record<string, unknown>);
+        }
+      }
+
+      return entries;
+    } catch {
+      return null;
+    }
+  }
+
+  private validateConsolidation(
+    record: Record<string, unknown>,
+    existing: Memory[],
+  ): Consolidation {
+    const action = record.action;
 
     if (
-      consolidation.action === 'ignore' ||
-      consolidation.action === 'conflict'
+      action !== 'ignore' &&
+      action !== 'create' &&
+      action !== 'merge' &&
+      action !== 'supersede' &&
+      action !== 'conflict'
+    ) {
+      return { action: 'conflict' };
+    }
+
+    const targetId =
+      typeof record.targetId === 'string' &&
+      existing.some(({ id }) => id === record.targetId)
+        ? record.targetId
+        : undefined;
+
+    const content =
+      typeof record.content === 'string' ? record.content.trim() : undefined;
+
+    if (
+      (action === 'merge' || action === 'supersede') &&
+      (!targetId || !content)
+    ) {
+      return { action: 'conflict' };
+    }
+
+    return { action, targetId, content };
+  }
+
+  private async applyDecision(
+    userId: string,
+    dreamRunId: string,
+    item: PreparedCandidate,
+    decision: Consolidation | undefined,
+  ): Promise<boolean> {
+    if (
+      !decision ||
+      decision.action === 'ignore' ||
+      decision.action === 'conflict'
     ) {
       return false;
     }
 
-    const target = consolidation.targetId
-      ? existing.find(({ id }) => id === consolidation.targetId)
+    const { candidate, existing, sourceKey } = item;
+    const target = decision.targetId
+      ? existing.find(({ id }) => id === decision.targetId)
       : undefined;
 
-    const content = consolidation.content?.trim() || candidate.content;
+    const content = decision.content?.trim() || candidate.content;
     const sourceMessageId = candidate.sourceMessageIds.at(-1) ?? null;
     const input = {
       content,
@@ -285,7 +458,7 @@ export class MemoryDreamService {
 
     if (
       target &&
-      (consolidation.action === 'merge' || consolidation.action === 'supersede')
+      (decision.action === 'merge' || decision.action === 'supersede')
     ) {
       return (
         (await this.memories.consolidate(userId, target.id, input)) !== null
@@ -295,79 +468,6 @@ export class MemoryDreamService {
     await this.memories.create(userId, input);
 
     return true;
-  }
-
-  private async consolidate(
-    userId: string,
-    conversationId: string,
-    runId: string,
-    candidate: string,
-    existing: Memory[],
-  ): Promise<Consolidation> {
-    if (existing.length === 0) return { action: 'create' };
-    const result = await this.model.generate({
-      userId,
-      conversationId,
-      runId,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Compare the new fact with active memories. Reply with a single JSON object whose action is ignore, create, merge, supersede, or conflict. Use ignore for duplicates; merge for compatible facts; supersede only when the new fact clearly replaces an old fact; conflict when they contradict each other but the truth is unclear. merge/supersede must include targetId and standalone final content. Do not add facts.',
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            candidate,
-            existing: existing.map(({ id, content }) => ({ id, content })),
-          }),
-        },
-      ],
-    });
-
-    return this.parseConsolidation(result.text, existing);
-  }
-
-  private parseConsolidation(value: string, existing: Memory[]): Consolidation {
-    const match = value.match(/\{[\s\S]*\}/);
-    if (!match) return { action: 'conflict' };
-
-    try {
-      const parsed: unknown = JSON.parse(match[0]);
-      if (!parsed || typeof parsed !== 'object') return { action: 'conflict' };
-      const record = parsed as Record<string, unknown>;
-      const action = record.action;
-
-      if (
-        action !== 'ignore' &&
-        action !== 'create' &&
-        action !== 'merge' &&
-        action !== 'supersede' &&
-        action !== 'conflict'
-      ) {
-        return { action: 'conflict' };
-      }
-
-      const targetId =
-        typeof record.targetId === 'string' &&
-        existing.some(({ id }) => id === record.targetId)
-          ? record.targetId
-          : undefined;
-
-      const content =
-        typeof record.content === 'string' ? record.content.trim() : undefined;
-
-      if (
-        (action === 'merge' || action === 'supersede') &&
-        (!targetId || !content)
-      ) {
-        return { action: 'conflict' };
-      }
-
-      return { action, targetId, content };
-    } catch {
-      return { action: 'conflict' };
-    }
   }
 }
 

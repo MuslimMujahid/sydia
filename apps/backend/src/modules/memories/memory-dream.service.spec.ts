@@ -206,4 +206,101 @@ describe('MemoryDreamService', () => {
       mutationCount: 0,
     });
   });
+
+  test('consolidates all candidates in one model call', async () => {
+    const completeMemoryDream = jest
+      .fn<IConversationRepository['completeMemoryDream']>()
+      .mockResolvedValue(true);
+
+    const conversations = {
+      findMemoryDreamSegment: jest
+        .fn<IConversationRepository['findMemoryDreamSegment']>()
+        .mockResolvedValue(segment),
+      beginMemoryDream: jest
+        .fn<IConversationRepository['beginMemoryDream']>()
+        .mockResolvedValue({ id: 'dream-1' } as MemoryDreamRun),
+      completeMemoryDream,
+      failMemoryDream: jest.fn<IConversationRepository['failMemoryDream']>(),
+    } as unknown as IConversationRepository;
+
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          candidates: [
+            {
+              content: 'Pengguna suka kopi.',
+              category: 'preference',
+              confidence: 0.9,
+              sourceMessageIds: ['message-1'],
+            },
+            {
+              content: 'Pengguna suka rapat pagi.',
+              category: 'routine',
+              confidence: 0.9,
+              sourceMessageIds: ['message-4'],
+            },
+          ],
+        }),
+        usage: {},
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          decisions: [
+            { index: 0, action: 'create' },
+            {
+              index: 1,
+              action: 'merge',
+              targetId: 'memory-1',
+              content: 'Pengguna suka rapat pagi.',
+            },
+          ],
+        }),
+        usage: {},
+      });
+
+    const create = jest
+      .fn<MemoryService['create']>()
+      .mockResolvedValue({} as never);
+
+    const consolidate = jest
+      .fn<MemoryService['consolidate']>()
+      .mockResolvedValue({} as never);
+
+    const memories = {
+      search: jest
+        .fn<MemoryService['search']>()
+        .mockResolvedValue([
+          { id: 'memory-1', content: 'Rapat pagi lama.', category: null },
+        ] as never),
+      findBySourceKey: jest
+        .fn<MemoryService['findBySourceKey']>()
+        .mockResolvedValue(null),
+      create,
+      consolidate,
+    } as unknown as MemoryService;
+
+    const service = new MemoryDreamService(
+      conversations,
+      {
+        findById: jest
+          .fn<IUserRepository['findById']>()
+          .mockResolvedValue(enabledUser()),
+      } as unknown as IUserRepository,
+      { provider: 'openrouter', model: 'test', generate },
+      memories,
+      new ConfigService(),
+    );
+
+    await expect(
+      service.run('user-1', 'conversation-1', 'message-4'),
+    ).resolves.toEqual({
+      status: 'completed',
+      candidateCount: 2,
+      mutationCount: 2,
+    });
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(consolidate).toHaveBeenCalledTimes(1);
+  });
 });
