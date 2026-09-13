@@ -50,6 +50,8 @@ export type AssistantTool = {
   internal?: boolean;
   sensitive?: boolean;
   exposeTransientResult?: boolean;
+  /** Read-only tools may safely re-run when a generation is retried. */
+  readOnly?: boolean;
 };
 
 export const ASSISTANT_TOOLS = Symbol('AssistantTools');
@@ -221,6 +223,7 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
 @Injectable()
 export class ToolExecutorService {
   private readonly toolsByName: Readonly<Record<string, AssistantTool>>;
+  private readonly retrySafeToolNames: ReadonlySet<string>;
 
   constructor(
     @Inject(CONVERSATION_REPOSITORY)
@@ -233,6 +236,15 @@ export class ToolExecutorService {
         assistantTool,
       ]),
     );
+    this.retrySafeToolNames = new Set(
+      tools
+        .filter((assistantTool) => assistantTool.readOnly === true)
+        .map((assistantTool) => assistantTool.definition.name),
+    );
+  }
+
+  retrySafeTools(): ReadonlySet<string> {
+    return this.retrySafeToolNames;
   }
 
   activityLabel(toolName: string, locale: SupportedLocale): string | null {

@@ -29,6 +29,12 @@ export type GenerateRequest = {
    * `undefined` keeps the full tool set for that step.
    */
   prepareStep?: PrepareGenerationStep;
+  /**
+   * Names of tools that may safely run again if a generation is retried. A
+   * retry re-enters the whole tool loop, so it is only attempted once every
+   * tool that already executed is listed here; mutating tools are omitted.
+   */
+  retrySafeTools?: ReadonlySet<string>;
   temperature?: number;
   maxOutputTokens?: number;
   maxSteps?: number;

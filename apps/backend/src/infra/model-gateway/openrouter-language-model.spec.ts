@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
-import { APICallError, simulateReadableStream } from 'ai';
+import { APICallError, jsonSchema, simulateReadableStream, tool } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import {
   ModelGatewayError,
@@ -485,6 +485,241 @@ describe('OpenRouterLanguageModel', () => {
       }
     },
   );
+
+  it('retries transient failures across attempts and exposes sanitized diagnostics', async () => {
+    // A Response body can only be read once, so each attempt needs its own.
+    const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: {
+              error_type: 'rate_limited',
+              message: 'slow down',
+              api_key: 'secret-key',
+            },
+          }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+
+    const tracing = tracingSpy();
+
+    const error = await model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    )
+      .generate({ messages: [{ role: 'user', content: 'Halo' }] })
+      .catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(ModelGatewayError);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(tracing.calls.map(({ attempt }) => attempt)).toEqual([1, 2, 3]);
+
+    const diagnostics = (error as ModelGatewayError).diagnostics;
+    expect(diagnostics).toMatchObject({
+      errorName: 'AI_APICallError',
+      attempts: 3,
+      statusCode: 503,
+      retryable: true,
+      providerErrorType: 'rate_limited',
+    });
+    expect(JSON.stringify(diagnostics)).not.toContain('secret-key');
+  });
+
+  it('retries a rate limit using the provider wait signal in the body', async () => {
+    const fetch = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: { error_type: 'rate_limited', retry_after_seconds: 0.001 },
+          }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 'response-2',
+            choices: [
+              {
+                message: { role: 'assistant', content: 'Recovered.' },
+                finish_reason: 'stop',
+              },
+            ],
+            usage: { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+
+    await expect(
+      model({ BACKEND_MODEL_API_KEY: 'test-key' }).generate({
+        messages: [{ role: 'user', content: 'Halo' }],
+      }),
+    ).resolves.toEqual({
+      text: 'Recovered.',
+      usage: { inputTokens: 2, outputTokens: 1 },
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  const streamUsage = {
+    inputTokens: {
+      total: 3,
+      noCache: 3,
+      cacheRead: undefined,
+      cacheWrite: undefined,
+    },
+    outputTokens: { total: 4, text: 4, reasoning: undefined },
+  };
+
+  function retryableStreamError(): APICallError {
+    return new APICallError({
+      message: 'stream failed',
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      requestBodyValues: {},
+      statusCode: 429,
+      responseBody: JSON.stringify({
+        error: { error_type: 'rate_limited', message: 'slow down' },
+      }),
+      isRetryable: true,
+    });
+  }
+
+  function toolCallStream(toolName: string) {
+    return {
+      stream: simulateReadableStream({
+        chunks: [
+          {
+            type: 'tool-call' as const,
+            toolCallId: 'call-1',
+            toolName,
+            input: '{}',
+          },
+          {
+            type: 'finish' as const,
+            finishReason: { unified: 'tool-calls' as const, raw: undefined },
+            logprobs: undefined,
+            usage: streamUsage,
+          },
+        ],
+      }),
+    };
+  }
+
+  function errorStream(error: unknown) {
+    return {
+      stream: simulateReadableStream({
+        chunks: [{ type: 'error' as const, error }],
+      }),
+    };
+  }
+
+  function textStream(text: string) {
+    return {
+      stream: simulateReadableStream({
+        chunks: [
+          { type: 'text-start' as const, id: 'text-1' },
+          { type: 'text-delta' as const, id: 'text-1', delta: text },
+          { type: 'text-end' as const, id: 'text-1' },
+          {
+            type: 'finish' as const,
+            finishReason: { unified: 'stop' as const, raw: undefined },
+            logprobs: undefined,
+            usage: streamUsage,
+          },
+        ],
+      }),
+    };
+  }
+
+  function fakeTools() {
+    const schema = {
+      type: 'object' as const,
+      properties: {},
+      additionalProperties: false,
+    };
+
+    return {
+      search_documents: tool({
+        description: 'Search documents',
+        inputSchema: jsonSchema(schema),
+        execute: () => Promise.resolve('ok'),
+      }),
+      create_task: tool({
+        description: 'Create task',
+        inputSchema: jsonSchema(schema),
+        execute: () => Promise.resolve('ok'),
+      }),
+    };
+  }
+
+  it('retries after a retry-safe read-only tool call', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+        if (calls === 1)
+          return Promise.resolve(toolCallStream('search_documents'));
+        if (calls === 2)
+          return Promise.resolve(errorStream(retryableStreamError()));
+
+        return Promise.resolve(textStream('Ada filenya.'));
+      },
+    });
+
+    const tracing = tracingSpy();
+    const gateway = model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    );
+
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+    await expect(
+      gateway.generate({
+        messages: [{ role: 'user', content: 'Ada file?' }],
+        tools: fakeTools(),
+        onTextDelta: jest.fn(),
+        onToolCall: jest.fn(),
+        retrySafeTools: new Set(['search_documents']),
+      }),
+    ).resolves.toMatchObject({ text: 'Ada filenya.' });
+    expect(tracing.calls.map(({ attempt }) => attempt)).toEqual([1, 2]);
+  });
+
+  it('does not retry after a mutating tool call', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+        if (calls === 1) return Promise.resolve(toolCallStream('create_task'));
+
+        return Promise.resolve(errorStream(retryableStreamError()));
+      },
+    });
+
+    const tracing = tracingSpy();
+    const gateway = model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    );
+
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+    await expect(
+      gateway.generate({
+        messages: [{ role: 'user', content: 'Buat tugas.' }],
+        tools: fakeTools(),
+        onTextDelta: jest.fn(),
+        onToolCall: jest.fn(),
+        retrySafeTools: new Set(['search_documents']),
+      }),
+    ).rejects.toBeInstanceOf(ModelGatewayError);
+    expect(tracing.calls).toHaveLength(1);
+  });
 
   it('hides provider failure details behind a stable gateway error', async () => {
     jest

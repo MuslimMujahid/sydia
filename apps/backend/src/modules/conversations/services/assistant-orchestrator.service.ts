@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import { createUIMessageStream } from 'ai';
 import type { InferUIMessageChunk, UIMessage } from 'ai';
@@ -12,10 +12,15 @@ import type {
 import type { SupportedLocale } from '../../../database/entities';
 import type { MessageProvider } from '../../../shared/messaging';
 import {
+  AUDIT_EVENT_REPOSITORY,
   CONVERSATION_REPOSITORY,
+  type IAuditEventRepository,
   type IConversationRepository,
 } from '../../../database/interfaces';
-import { LANGUAGE_MODEL } from '../../../infra/model-gateway';
+import {
+  LANGUAGE_MODEL,
+  ModelGatewayError,
+} from '../../../infra/model-gateway';
 import type {
   LanguageModelGateway,
   ModelMessage,
@@ -147,6 +152,9 @@ export class AssistantOrchestratorService {
     private readonly toolExecutor: ToolExecutorService,
     private readonly queues: QueueService,
     private readonly memoryDreamScheduler: MemoryDreamSchedulerService,
+    @Optional()
+    @Inject(AUDIT_EVENT_REPOSITORY)
+    private readonly auditEvents?: IAuditEventRepository,
   ) {}
 
   async sendQueued(
@@ -329,6 +337,62 @@ export class AssistantOrchestratorService {
         input.sendFile,
       )),
     };
+  }
+
+  /**
+   * Persists a sanitized cause for a failed generation so the reason is
+   * queryable from the database without reading provider traces, while the
+   * user still only sees the localized safe-failure message.
+   */
+  private async recordGenerationFailure(
+    state: { user: TurnUser; conversation: Conversation; run: AssistantRun },
+    error: unknown,
+  ): Promise<void> {
+    const diagnostics =
+      error instanceof ModelGatewayError ? error.diagnostics : undefined;
+
+    const errorName =
+      diagnostics?.errorName ??
+      (error instanceof Error ? error.name : 'UnknownError');
+
+    this.logger.error(
+      JSON.stringify({
+        event: 'assistant_generation_exhausted',
+        conversationId: state.conversation.id,
+        runId: state.run.id,
+        errorName,
+        attempts: diagnostics?.attempts ?? null,
+        statusCode: diagnostics?.statusCode ?? null,
+        retryable: diagnostics?.retryable ?? null,
+        providerErrorType: diagnostics?.providerErrorType ?? null,
+      }),
+    );
+
+    if (!this.auditEvents) return;
+
+    try {
+      await this.auditEvents.record({
+        userId: state.user.id,
+        eventType: 'assistant.run.failed',
+        metadata: {
+          conversationId: state.conversation.id,
+          runId: state.run.id,
+          provider: this.languageModel.provider,
+          model: this.languageModel.model,
+          errorName,
+          attempts: diagnostics?.attempts ?? null,
+          statusCode: diagnostics?.statusCode ?? null,
+          retryable: diagnostics?.retryable ?? null,
+          providerErrorType: diagnostics?.providerErrorType ?? null,
+          providerMessage: diagnostics?.providerMessage ?? null,
+        },
+      });
+    } catch (auditError) {
+      this.logger.error(
+        `Assistant failure audit write failed for run ${state.run.id}`,
+        auditError instanceof Error ? auditError.stack : undefined,
+      );
+    }
   }
 
   private async prepareSend(
@@ -559,6 +623,7 @@ export class AssistantOrchestratorService {
             abortSignal,
             tools,
             prepareStep: this.toolExecutor.prepareStep(tools),
+            retrySafeTools: this.toolExecutor.retrySafeTools(),
             onTextDelta: (delta: string) => observer?.onTextDelta(delta),
             onToolCall: (toolName: string) => {
               const label = this.toolExecutor.activityLabel(
@@ -593,6 +658,8 @@ export class AssistantOrchestratorService {
             `Assistant generation failed for run ${state.run.id}`,
             error instanceof Error ? error.stack : undefined,
           );
+
+          await this.recordGenerationFailure(state, error);
 
           return {
             errorMessage: assistantMessage(state.user.locale, 'safeFailure'),

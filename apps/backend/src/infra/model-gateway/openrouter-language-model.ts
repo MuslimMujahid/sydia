@@ -23,11 +23,14 @@ import type {
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'qwen/qwen3.8-flash';
 const REQUEST_TIMEOUT_MS = 180_000;
-const MAX_RETRY_AFTER_MS = 2_000;
+const BASE_RETRY_DELAY_MS = 500;
+const MAX_RETRY_DELAY_MS = 8_000;
 const MAX_PROVIDER_MESSAGE = 2_000;
 const DEFAULT_TEMPERATURE = 0.2;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
 const DEFAULT_MAX_STEPS = 8;
+const DEFAULT_MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 5;
 const DEFAULT_PROVIDER_SORT = 'latency';
 const DEFAULT_REASONING_EFFORT = 'none';
 const SESSION_ID_HEADER = 'x-session-id';
@@ -56,11 +59,37 @@ function parseReasoningEffort(value: unknown): ReasoningEffort | undefined {
     : undefined;
 }
 
+/**
+ * Sanitized, structured cause of a failed generation. Provider response bodies
+ * are never carried here; only the bounded error type and message fields, which
+ * keeps failed runs diagnosable without leaking credentials or raw payloads.
+ */
+export type ModelGatewayFailure = {
+  errorName: string;
+  attempts: number;
+  statusCode?: number;
+  retryable?: boolean;
+  providerErrorType?: string;
+  providerMessage?: string;
+};
+
 export class ModelGatewayError extends Error {
-  constructor(message: string) {
+  readonly diagnostics?: ModelGatewayFailure;
+
+  constructor(message: string, diagnostics?: ModelGatewayFailure) {
     super(message);
     this.name = 'ModelGatewayError';
+    this.diagnostics = diagnostics;
   }
+}
+
+function parseAttempts(value: unknown): number {
+  const parsed =
+    typeof value === 'number' ? value : Number.parseInt(String(value), 10);
+
+  return Number.isInteger(parsed) && parsed > 0
+    ? Math.min(parsed, MAX_ATTEMPTS)
+    : DEFAULT_MAX_ATTEMPTS;
 }
 
 function tokenCount(value: unknown): number | undefined {
@@ -172,24 +201,149 @@ function traceError(error: unknown): GenerationTraceUpdate['error'] {
   };
 }
 
-function retryAfterMs(error: unknown): number {
-  if (!APICallError.isInstance(error) || !error.responseHeaders) return 0;
+function numericSeconds(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    return value;
+
+  return typeof value === 'string' && /^\d+(\.\d+)?$/.test(value.trim())
+    ? Number(value.trim())
+    : undefined;
+}
+
+function headerSeconds(error: APICallError, name: string): number | undefined {
   const headers = error.responseHeaders;
+  if (!headers) return undefined;
   const value =
     typeof Headers !== 'undefined' && headers instanceof Headers
-      ? headers.get('retry-after')
-      : (headers['retry-after'] ?? headers['Retry-After']);
+      ? headers.get(name)
+      : (headers[name] ?? headers[name.toLowerCase()]);
 
-  if (!value || !/^\d+$/.test(value.trim())) return 0;
-  const seconds = Number(value.trim());
+  return numericSeconds(value ?? undefined);
+}
 
-  return Number.isSafeInteger(seconds)
-    ? Math.min(seconds * 1000, MAX_RETRY_AFTER_MS)
-    : 0;
+/**
+ * OpenRouter reports rate-limit waits in the response body as
+ * `retry_after_seconds` (and, for some providers, a `retry_after` field), so
+ * the body is checked in addition to the standard Retry-After header.
+ */
+function bodySeconds(error: APICallError): number | undefined {
+  const response = asRecord(parsedResponseBody(error.responseBody));
+  const data = asRecord(error.data);
+  const sources = [
+    asRecord(response?.error),
+    asRecord(data?.error),
+    response,
+    data,
+  ];
+
+  for (const source of sources) {
+    const seconds = numericSeconds(
+      source?.retry_after_seconds ?? source?.retry_after,
+    );
+
+    if (seconds !== undefined) return seconds;
+  }
+
+  return undefined;
+}
+
+function signaledRetryDelayMs(error: unknown): number {
+  if (!APICallError.isInstance(error)) return 0;
+  const seconds =
+    headerSeconds(error, 'retry-after') ??
+    headerSeconds(error, 'x-ratelimit-reset') ??
+    bodySeconds(error);
+
+  if (seconds === undefined || seconds <= 0) return 0;
+
+  return Math.min(Math.round(seconds * 1000), MAX_RETRY_DELAY_MS);
+}
+
+/**
+ * Prefers the provider's own wait signal and otherwise backs off exponentially
+ * with jitter, so consecutive retries spread out instead of immediately
+ * re-entering the same rate-limit window.
+ */
+function retryDelayMs(error: unknown, attempt: number): number {
+  const signaled = signaledRetryDelayMs(error);
+  if (signaled > 0) return signaled + Math.floor(Math.random() * 250);
+
+  const ceiling = Math.min(
+    BASE_RETRY_DELAY_MS * 2 ** (attempt - 1),
+    MAX_RETRY_DELAY_MS,
+  );
+
+  return Math.floor(ceiling / 2 + Math.random() * (ceiling / 2));
+}
+
+function abortReason(signal?: AbortSignal): Error {
+  return signal?.reason instanceof Error ? signal.reason : new Error('Aborted');
+}
+
+function delayMs(ms: number, signal?: AbortSignal): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortReason(signal));
+
+      return;
+    }
+
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortReason(signal));
+    };
+
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 function retryableApiError(error: unknown): boolean {
   return APICallError.isInstance(error) && error.isRetryable === true;
+}
+
+/**
+ * A retry re-runs the whole tool loop, so it is only safe when every tool that
+ * already ran is read-only; those calls may repeat without side effects.
+ */
+function toolsRetrySafe(
+  retrySafeTools: ReadonlySet<string> | undefined,
+  executedToolNames: readonly string[],
+): boolean {
+  if (executedToolNames.length === 0) return true;
+  if (!retrySafeTools) return false;
+
+  return executedToolNames.every((name) => retrySafeTools.has(name));
+}
+
+function gatewayFailure(error: unknown, attempts: number): ModelGatewayFailure {
+  const errorName = error instanceof Error ? error.name : 'UnknownError';
+  if (!APICallError.isInstance(error)) return { errorName, attempts };
+
+  const fields = providerErrorFields(error);
+
+  return {
+    errorName,
+    attempts,
+    ...(typeof error.statusCode === 'number'
+      ? { statusCode: error.statusCode }
+      : {}),
+    ...(typeof error.isRetryable === 'boolean'
+      ? { retryable: error.isRetryable }
+      : {}),
+    ...(fields.providerErrorType
+      ? { providerErrorType: fields.providerErrorType }
+      : {}),
+    ...(fields.providerMessage
+      ? { providerMessage: fields.providerMessage.slice(0, 500) }
+      : {}),
+  };
 }
 
 @Injectable()
@@ -203,6 +357,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
   private readonly temperature: number;
   private readonly maxOutputTokens: number;
   private readonly maxSteps: number;
+  private readonly maxAttempts: number;
   private readonly providerSort: ProviderSort;
   private readonly reasoningEffort: ReasoningEffort;
 
@@ -223,6 +378,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     this.maxSteps = config.get<number>(
       'BACKEND_MODEL_MAX_STEPS',
       DEFAULT_MAX_STEPS,
+    );
+    // Transient provider failures (429/503) are common on shared endpoints, so
+    // each generation gets several attempts with backoff rather than one retry.
+    this.maxAttempts = parseAttempts(
+      config.get('BACKEND_MODEL_MAX_ATTEMPTS') ?? DEFAULT_MAX_ATTEMPTS,
     );
     // OpenRouter's default routing load-balances on price, which lands requests
     // on cheap shared-pool endpoints and produces multi-second tails. Sorting
@@ -315,15 +475,16 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       maxRetries: 0,
     });
 
+    const attempts = this.maxAttempts;
     const streaming = Boolean(request.onTextDelta || request.onToolCall);
-    let lastToolCallCount = 0;
     let lastTextEmitted = false;
+    let lastExecutedToolNames: string[] = [];
 
     const runAttempt = async (attempt: number): Promise<GenerateResult> => {
-      let toolCallCount = 0;
       let textEmitted = false;
-      lastToolCallCount = 0;
+      const executedToolNames = new Set<string>();
       lastTextEmitted = false;
+      lastExecutedToolNames = [];
 
       return this.observability
         .traceGeneration(
@@ -361,8 +522,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                       request.onTextDelta?.(chunk.text);
                     }
                   } else if (chunk.type === 'tool-call') {
-                    toolCallCount += 1;
-                    lastToolCallCount = toolCallCount;
+                    executedToolNames.add(chunk.toolName);
+                    lastExecutedToolNames = [...executedToolNames];
                     request.onToolCall?.(chunk.toolName);
                   } else if (chunk.type === 'finish-step') {
                     usage = chunk.usage;
@@ -392,7 +553,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   costUsd: normalizedUsage.costUsd,
                 });
 
-                if (attempt === 2) {
+                if (attempt > 1) {
                   this.logger.log(
                     JSON.stringify({
                       event: 'assistant_generation_retry_succeeded',
@@ -432,9 +593,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
         )
         .catch((error: unknown) => {
           const canRetry =
-            attempt === 1 &&
+            attempt < attempts &&
             !textEmitted &&
-            toolCallCount === 0 &&
+            toolsRetrySafe(request.retrySafeTools, [...executedToolNames]) &&
             (retryableApiError(error) ||
               NoOutputGeneratedError.isInstance(error));
 
@@ -444,8 +605,15 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               conversationId: request.conversationId ?? null,
               runId: request.runId ?? null,
               attempt,
+              attempts,
               errorName: error instanceof Error ? error.name : 'UnknownError',
-              toolCallCount,
+              statusCode:
+                APICallError.isInstance(error) &&
+                typeof error.statusCode === 'number'
+                  ? error.statusCode
+                  : undefined,
+              retryable: retryableApiError(error),
+              executedTools: [...executedToolNames],
               retry: canRetry,
             }),
           );
@@ -454,23 +622,32 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     };
 
     try {
-      for (let attempt = 1; attempt <= 2; attempt += 1) {
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
         try {
           return await runAttempt(attempt);
         } catch (error) {
           const canRetry =
-            attempt === 1 &&
+            attempt < attempts &&
             !lastTextEmitted &&
-            lastToolCallCount === 0 &&
+            toolsRetrySafe(request.retrySafeTools, lastExecutedToolNames) &&
             (retryableApiError(error) ||
               NoOutputGeneratedError.isInstance(error));
 
-          if (!canRetry) throw error;
-          const delayMs = retryAfterMs(error);
+          if (!canRetry || request.abortSignal?.aborted) throw error;
 
-          if (delayMs > 0) {
-            await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
-          }
+          const waitMs = retryDelayMs(error, attempt);
+          this.logger.warn(
+            JSON.stringify({
+              event: 'assistant_generation_retry',
+              conversationId: request.conversationId ?? null,
+              runId: request.runId ?? null,
+              attempt,
+              nextAttempt: attempt + 1,
+              waitMs,
+              errorName: error instanceof Error ? error.name : 'UnknownError',
+            }),
+          );
+          await delayMs(waitMs, request.abortSignal);
         }
       }
 
@@ -478,19 +655,19 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     } catch (error) {
       if (error instanceof ModelGatewayError) throw error;
 
-      const errorName = error instanceof Error ? error.name : 'UnknownError';
-      const statusCode =
-        typeof error === 'object' &&
-        error !== null &&
-        'statusCode' in error &&
-        typeof error.statusCode === 'number'
-          ? error.statusCode
-          : undefined;
+      const diagnostics = gatewayFailure(error, attempts);
+      const status =
+        diagnostics.statusCode === undefined
+          ? ''
+          : `, status ${diagnostics.statusCode}`;
 
       this.logger.error(
-        `OpenRouter request failed (${errorName}${statusCode === undefined ? '' : `, status ${statusCode}`})`,
+        `OpenRouter request failed (${diagnostics.errorName}${status}, attempts ${diagnostics.attempts}, retryable ${diagnostics.retryable ?? 'unknown'})`,
       );
-      throw new ModelGatewayError('The assistant model could not be reached.');
+      throw new ModelGatewayError(
+        'The assistant model could not be reached.',
+        diagnostics,
+      );
     }
   }
 

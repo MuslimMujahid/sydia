@@ -7,7 +7,10 @@ import type {
   User,
 } from '../../../database/entities';
 import type { IConversationRepository } from '../../../database/interfaces';
-import type { LanguageModelGateway } from '../../../infra/model-gateway';
+import {
+  ModelGatewayError,
+  type LanguageModelGateway,
+} from '../../../infra/model-gateway';
 import { AssistantOrchestratorService } from './assistant-orchestrator.service';
 import { ContextBuilderService } from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
@@ -419,6 +422,96 @@ describe('AssistantOrchestratorService', () => {
     );
   });
 
+  it('records sanitized generation diagnostics for a failed run', async () => {
+    const failedRun = createRun('failed');
+    const updateRun = resolved(failedRun);
+    const repository = {
+      writeUserMessage: resolved({
+        conversation,
+        userMessage,
+        replayed: false,
+      }),
+      findLatestRunForMessage: resolved(null),
+      createRun: resolved(createRun()),
+      claimRun: resolved(true),
+      findContext: resolved({
+        conversation: {
+          id: conversation.id,
+          rollingSummary: null,
+          summaryThroughMessageId: null,
+        },
+        messages: [userMessage],
+      }),
+      updateRun,
+      replaceSummary: jest.fn(),
+    } as unknown as IConversationRepository;
+
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockRejectedValue(
+        new ModelGatewayError('The assistant model could not be reached.', {
+          errorName: 'AI_APICallError',
+          attempts: 3,
+          statusCode: 429,
+          retryable: true,
+          providerErrorType: 'rate_limited',
+        }),
+      );
+
+    const model: LanguageModelGateway = {
+      provider: 'openrouter',
+      model: 'test-model',
+      generate,
+    };
+
+    const toolExecutor = {
+      aiTools: () => ({}),
+      activityLabel: () => null,
+      prepareStep: () => undefined,
+      retrySafeTools: () => new Set(['search_documents']),
+    } as unknown as ToolExecutorService;
+
+    const record = jest
+      .fn<(event: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined);
+
+    const config = new ConfigService();
+    const orchestrator = new AssistantOrchestratorService(
+      repository,
+      model,
+      new ContextBuilderService(repository, config),
+      new ConversationSummarizerService(repository, model, config),
+      toolExecutor,
+      { conversationSummaries: { add: resolved({}) } } as never,
+      { schedule: resolved(undefined) } as never,
+      { record },
+    );
+
+    const result = await orchestrator.sendAndWait(user, {
+      content: 'Apa aku ada file terkait proyek SMRT?',
+      idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
+    });
+
+    expect(result.assistantRun.status).toBe('failed');
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        retrySafeTools: new Set(['search_documents']),
+      }),
+    );
+    expect(record.mock.calls[0]?.[0]).toMatchObject({
+      userId: user.id,
+      eventType: 'assistant.run.failed',
+      metadata: {
+        conversationId: conversation.id,
+        runId: 'run-1',
+        statusCode: 429,
+        retryable: true,
+        attempts: 3,
+        providerErrorType: 'rate_limited',
+      },
+    });
+  });
+
   it('replays an idempotent message without invoking the model again', async () => {
     const run = createRun('completed');
     const repository = {
@@ -486,6 +579,7 @@ describe('AssistantOrchestratorService', () => {
         persona: 3,
         profile: 4,
         attachmentManifest: 0,
+        knownDocuments: 0,
         memory: 0,
         summary: 0,
         history: 0,

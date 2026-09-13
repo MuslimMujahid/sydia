@@ -83,6 +83,32 @@ describe('ToolExecutorService', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('exposes only read-only tools as retry-safe', () => {
+    const repository = {} as unknown as IConversationRepository;
+    const definition = (name: string) => ({
+      name,
+      label: name,
+      description: `${name}.`,
+      parameters: { type: 'object' as const },
+    });
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: definition('search_documents'),
+        readOnly: true,
+        parseArguments: () => ({}),
+        execute: () => Promise.resolve({}),
+      },
+      {
+        definition: definition('create_task'),
+        parseArguments: () => ({}),
+        execute: () => Promise.resolve({}),
+      },
+    ]);
+
+    expect([...executor.retrySafeTools()]).toEqual(['search_documents']);
+  });
+
   it('reuses identical document searches within one model run', async () => {
     const pending = {
       id: 'tool-1',

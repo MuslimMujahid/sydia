@@ -174,6 +174,7 @@ Matches the current user's contacts by name, alias, email, or phone; it does not
           ['reference'],
         ),
       },
+      readOnly: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => ({
         contacts: await deps.contacts.resolve(
@@ -195,6 +196,7 @@ Do not use it when contents, semantic search, or the active message's attachment
 Returns each document's id, filename, MIME type, size, status, and creation time, capped at 25 documents; this tool takes no parameters.`,
         parameters: schema({}),
       },
+      readOnly: true,
       parseArguments,
       execute: async ({ userId }) => {
         const documents = await deps.documents.listMetadata(userId);
@@ -247,6 +249,7 @@ documentId is required; cursor defaults to 0 and limit defaults to 4 (1 through 
           ['documentId'],
         ),
       },
+      readOnly: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
@@ -376,6 +379,7 @@ Returns up to six relevance-ranked sources with document identity, filename, pos
           ['query'],
         ),
       },
+      readOnly: true,
       parseArguments,
       execute: async ({ userId, sourceMessageId, arguments: raw }) => ({
         sources: (
@@ -419,6 +423,7 @@ from and to are required and parsed as ISO datetimes; the current user's events 
           ['from', 'to'],
         ),
       },
+      readOnly: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
