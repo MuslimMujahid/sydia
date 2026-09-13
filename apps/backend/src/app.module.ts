@@ -28,6 +28,7 @@ import { AppController } from './app.controller';
 import { ObservabilityModule } from './infra/observability';
 import { AppService } from './app.service';
 import { SecretsModule } from './modules/secrets/secrets.module';
+import { parseTimeOfDay } from './shared/date-time';
 
 function parsePort(
   config: Record<string, unknown>,
@@ -39,6 +40,22 @@ function parsePort(
 
   if (!Number.isInteger(value) || value < 1 || value > 65535) {
     throw new Error(`${name} must be an integer between 1 and 65535`);
+  }
+
+  return value;
+}
+
+function parseTimeOfDayConfig(
+  config: Record<string, unknown>,
+  name: 'BACKEND_PROACTIVE_FOLLOW_UP_TIME',
+  defaultValue: string,
+): string {
+  const raw = config[name];
+  const value =
+    typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : defaultValue;
+
+  if (parseTimeOfDay(value) === null) {
+    throw new Error(`${name} must be a local HH:mm time`);
   }
 
   return value;
@@ -57,7 +74,9 @@ function parsePositiveInteger(
     | 'BACKEND_MEMORY_DREAM_IDLE_MS'
     | 'BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS'
     | 'BACKEND_WHATSAPP_COMMAND_TIMEOUT'
-    | 'BACKEND_WHATSAPP_STATUS_POLL_MS',
+    | 'BACKEND_WHATSAPP_STATUS_POLL_MS'
+    | 'BACKEND_PROACTIVE_SWEEP_MINUTES'
+    | 'BACKEND_PROACTIVE_WINDOW_MINUTES',
   defaultValue: number,
 ): number {
   const value =
@@ -307,6 +326,21 @@ export function validateEnvironment(
       config,
       'BACKEND_SUMMARY_RETAIN_MESSAGES',
       8,
+    ),
+    BACKEND_PROACTIVE_SWEEP_MINUTES: parsePositiveInteger(
+      config,
+      'BACKEND_PROACTIVE_SWEEP_MINUTES',
+      5,
+    ),
+    BACKEND_PROACTIVE_WINDOW_MINUTES: parsePositiveInteger(
+      config,
+      'BACKEND_PROACTIVE_WINDOW_MINUTES',
+      30,
+    ),
+    BACKEND_PROACTIVE_FOLLOW_UP_TIME: parseTimeOfDayConfig(
+      config,
+      'BACKEND_PROACTIVE_FOLLOW_UP_TIME',
+      '09:00',
     ),
     BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES: parsePositiveInteger(
       config,

@@ -31,18 +31,10 @@ export type NotificationJob = {
   sourceId?: string;
   reminderOccurrenceId?: string;
 };
-export type BriefingJob = {
-  userId: string;
-  date: string;
-  idempotencyKey: string;
-};
-export type FollowUpJob = {
-  userId: string;
-  date: string;
-  sourceType: 'task' | 'reminder';
-  sourceId: string;
-  idempotencyKey: string;
-};
+export type BriefingJob =
+  { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
+export type FollowUpJob =
+  { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
 @Injectable()
 export class QueueService implements OnModuleDestroy {
   readonly reminders: Queue<ReminderJob>;

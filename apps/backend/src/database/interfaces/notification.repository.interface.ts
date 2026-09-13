@@ -52,6 +52,21 @@ export interface INotificationRepository {
     userId: string,
     input: UserPreferenceUpdate,
   ): Promise<UserPreference>;
+  /**
+   * Every non-banned user with the profile and preference fields a proactive
+   * sweep needs, in one query. Sweeps run across all users on a timer, so this
+   * deliberately avoids per-user round trips.
+   */
+  listSchedulingTargets(): Promise<NotificationSchedulingTarget[]>;
 }
+
+export type NotificationSchedulingTarget = {
+  userId: string;
+  timezone: string;
+  briefingEnabled: boolean;
+  briefingTime: string | null;
+  /** False when every delivery channel is off, so a sweep can skip the work. */
+  notifiable: boolean;
+};
 
 export const NOTIFICATION_REPOSITORY = Symbol('INotificationRepository');

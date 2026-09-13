@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   CALENDAR_REPOSITORY,
   NOTIFICATION_REPOSITORY,
@@ -11,24 +11,25 @@ import {
   type ITaskRepository,
   type IUserRepository,
 } from '../../database/interfaces';
+import type { SupportedLocale, User } from '../../database/entities';
 import { dayWindow } from '../../shared/date-time';
+import {
+  LANGUAGE_MODEL,
+  type LanguageModelGateway,
+} from '../../infra/model-gateway';
+import {
+  buildBriefingMessages,
+  loadPersonaPrompt,
+  type BriefingSnapshot,
+} from './briefing-prompt';
+import { NotificationComposerService } from './notification-composer.service';
 import { NotificationService } from './notification.service';
 
-function localTime(now: Date, timezone: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(now);
-}
+const BRIEFING_MAX_OUTPUT_TOKENS = 400;
+const BRIEFING_TEMPERATURE = 0.5;
 
-function dueNow(
-  now: Date,
-  timezone: string,
-  configured: string | null,
-): boolean {
-  return localTime(now, timezone) === (configured ?? '08:00');
+function localeOf(locale: string | null | undefined): SupportedLocale {
+  return locale === 'id' ? 'id' : 'en';
 }
 
 function itemLines(items: readonly { title: string }[]): string {
@@ -39,6 +40,8 @@ function itemLines(items: readonly { title: string }[]): string {
 
 @Injectable()
 export class DailyBriefingService {
+  private readonly logger = new Logger(DailyBriefingService.name);
+
   constructor(
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
     @Inject(NOTIFICATION_REPOSITORY)
@@ -46,9 +49,11 @@ export class DailyBriefingService {
     @Inject(TASK_REPOSITORY) private readonly tasks: ITaskRepository,
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
-    @Inject(CALENDAR_REPOSITORY)
-    private readonly calendar: ICalendarRepository,
+    @Inject(CALENDAR_REPOSITORY) private readonly calendar: ICalendarRepository,
     private readonly notifications: NotificationService,
+    @Optional()
+    @Inject(LANGUAGE_MODEL)
+    private readonly model: LanguageModelGateway | null = null,
   ) {}
 
   async run(userId: string, now = new Date()) {
@@ -57,10 +62,6 @@ export class DailyBriefingService {
     const preferences = await this.preferences.getPreferences(userId);
     if (preferences?.briefingEnabled === false)
       return { status: 'skipped_disabled' as const };
-
-    if (!dueNow(now, user.timezone, preferences?.briefingTime ?? null)) {
-      return { status: 'skipped_not_due' as const };
-    }
 
     const window = dayWindow(now, user.timezone);
     const [todayTasks, overdueTasks, todayReminders, overdueReminders, events] =
@@ -92,15 +93,36 @@ export class DailyBriefingService {
         this.calendar.list(userId, window.start, window.end),
       ]);
 
-    const content = [
-      `Daily briefing for ${window.date}`,
-      `Agenda (${events.length}): ${events.length ? events.map((event) => event.title).join(', ') : 'none'}`,
-      `Tasks due today (${todayTasks.length}):\n${itemLines(todayTasks)}`,
-      `Overdue tasks (${overdueTasks.length}):\n${itemLines(overdueTasks)}`,
-      `Reminders today (${todayReminders.length}):\n${itemLines(todayReminders)}`,
-      `Overdue reminders (${overdueReminders.length}):\n${itemLines(overdueReminders)}`,
-      'Reply with what you want to tackle first.',
-    ].join('\n\n');
+    const snapshot: BriefingSnapshot = {
+      date: window.date,
+      timezone: user.timezone,
+      instant: now.toISOString(),
+      events: events.map((event) => ({
+        title: event.title,
+        startAt: event.startAt.toISOString(),
+        endAt: event.endAt.toISOString(),
+      })),
+      tasksDueToday: todayTasks.map((task) => ({
+        title: task.title,
+        priority: task.priority,
+        dueAt: task.dueAt?.toISOString() ?? null,
+      })),
+      overdueTasks: overdueTasks.map((task) => ({
+        title: task.title,
+        priority: task.priority,
+        dueAt: task.dueAt?.toISOString() ?? null,
+      })),
+      remindersToday: todayReminders.map((reminder) => ({
+        title: reminder.title,
+        scheduledAt: reminder.scheduledAt.toISOString(),
+      })),
+      overdueReminders: overdueReminders.map((reminder) => ({
+        title: reminder.title,
+        scheduledAt: reminder.scheduledAt.toISOString(),
+      })),
+    };
+
+    const content = await this.compose(user, snapshot);
 
     const result = await this.notifications.enqueue({
       userId,
@@ -118,6 +140,57 @@ export class DailyBriefingService {
       date: window.date,
     } as const;
   }
+
+  /**
+   * Model first, template second. The deterministic version is not a degraded
+   * mode to avoid: when the provider is unconfigured, slow, or returns nothing
+   * usable, a correct plain briefing still reaches the user.
+   */
+  private async compose(
+    user: Pick<
+      User,
+      'id' | 'name' | 'locale' | 'timezone' | 'persona' | 'preferredAddress'
+    >,
+    snapshot: BriefingSnapshot,
+  ): Promise<string> {
+    if (!this.model) return this.fallback(snapshot);
+
+    try {
+      const result = await this.model.generate({
+        userId: user.id,
+        messages: buildBriefingMessages({
+          locale: localeOf(user.locale),
+          address: user.preferredAddress,
+          personaPrompt: loadPersonaPrompt(user.persona),
+          snapshot,
+        }),
+        temperature: BRIEFING_TEMPERATURE,
+        maxOutputTokens: BRIEFING_MAX_OUTPUT_TOKENS,
+      });
+
+      return result.text.trim() || this.fallback(snapshot);
+    } catch (error) {
+      this.logger.warn(
+        `Briefing generation failed, using the deterministic briefing: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      return this.fallback(snapshot);
+    }
+  }
+
+  private fallback(snapshot: BriefingSnapshot): string {
+    const lines = (items: readonly { title: string }[]) => itemLines(items);
+
+    return [
+      `Daily briefing for ${snapshot.date}`,
+      `Agenda (${snapshot.events.length}): ${snapshot.events.length ? snapshot.events.map((event) => event.title).join(', ') : 'none'}`,
+      `Tasks due today (${snapshot.tasksDueToday.length}):\n${lines(snapshot.tasksDueToday)}`,
+      `Overdue tasks (${snapshot.overdueTasks.length}):\n${lines(snapshot.overdueTasks)}`,
+      `Reminders today (${snapshot.remindersToday.length}):\n${lines(snapshot.remindersToday)}`,
+      `Overdue reminders (${snapshot.overdueReminders.length}):\n${lines(snapshot.overdueReminders)}`,
+      'Reply with what you want to tackle first.',
+    ].join('\n\n');
+  }
 }
 
 @Injectable()
@@ -128,6 +201,7 @@ export class FollowUpService {
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
     private readonly notifications: NotificationService,
+    private readonly composer: NotificationComposerService,
   ) {}
 
   async run(userId: string, now = new Date()) {
@@ -181,7 +255,7 @@ export class FollowUpService {
         await this.notifications.enqueue({
           userId,
           kind: 'follow_up',
-          content: `Follow-up: task "${task.title}" is still unfinished and due. Reply when you have completed it or want to reschedule it.`,
+          content: this.composer.followUpTaskBody(user, task),
           idempotencyKey: `follow-up:${window.date}:task:${task.id}`,
           proactive: true,
           sourceId: task.id,
@@ -194,7 +268,7 @@ export class FollowUpService {
         await this.notifications.enqueue({
           userId,
           kind: 'follow_up',
-          content: `Follow-up: reminder "${reminder.title}" is still pending. Reply when it is done or should be rescheduled.`,
+          content: this.composer.followUpReminderBody(user, reminder),
           idempotencyKey: `follow-up:${window.date}:reminder:${reminder.id}`,
           proactive: true,
           sourceId: reminder.id,

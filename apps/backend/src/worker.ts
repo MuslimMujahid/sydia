@@ -24,7 +24,9 @@ import { ConversationSummarizerService } from './modules/conversations/services/
 import {
   DailyBriefingService,
   FollowUpService,
+  NotificationComposerService,
   NotificationService,
+  ProactiveSchedulerService,
 } from './modules/notifications';
 
 async function bootstrap(): Promise<void> {
@@ -39,6 +41,8 @@ async function bootstrap(): Promise<void> {
   const notifications = context.get(NotificationService);
   const briefings = context.get(DailyBriefingService);
   const followUps = context.get(FollowUpService);
+  const composer = context.get(NotificationComposerService);
+  const scheduler = context.get(ProactiveSchedulerService);
   const connection = {
     url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
   };
@@ -52,9 +56,7 @@ async function bootstrap(): Promise<void> {
       await notifications.enqueue({
         userId: reminder.userId,
         kind: 'reminder',
-        content: reminder.notes
-          ? `Reminder: ${reminder.title}\n${reminder.notes}`
-          : `Reminder: ${reminder.title}`,
+        content: await composer.reminderBody(reminder),
         idempotencyKey: job.data.idempotencyKey,
         proactive: false,
         sourceId: reminder.id,
@@ -162,15 +164,23 @@ async function bootstrap(): Promise<void> {
 
   const briefingWorker = new Worker<BriefingJob>(
     'briefings',
-    async (job) => briefings.run(job.data.userId, new Date(job.data.date)),
+    async (job) =>
+      job.data.kind === 'sweep'
+        ? scheduler.sweepBriefings()
+        : briefings.run(job.data.userId, new Date(job.data.at)),
     { connection },
   );
 
   const followUpWorker = new Worker<FollowUpJob>(
     'follow-ups',
-    async (job) => followUps.run(job.data.userId, new Date(job.data.date)),
+    async (job) =>
+      job.data.kind === 'sweep'
+        ? scheduler.sweepFollowUps()
+        : followUps.run(job.data.userId, new Date(job.data.at)),
     { connection },
   );
+
+  await scheduler.register();
 
   const close = async () => {
     await Promise.all([

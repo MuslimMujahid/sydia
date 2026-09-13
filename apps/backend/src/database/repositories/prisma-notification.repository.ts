@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma';
-import type { INotificationRepository } from '../interfaces';
+import type {
+  INotificationRepository,
+  NotificationSchedulingTarget,
+} from '../interfaces';
 
 const deliverySelect = {
   id: true,
@@ -138,6 +141,28 @@ export class PrismaNotificationRepository implements INotificationRepository {
       where: { userId },
       select: preferenceSelect,
     });
+  }
+
+  async listSchedulingTargets(): Promise<NotificationSchedulingTarget[]> {
+    const rows = await this.prisma.user.findMany({
+      where: { banned: false },
+      select: {
+        id: true,
+        timezone: true,
+        userPreference: { select: preferenceSelect },
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => ({
+      userId: row.id,
+      timezone: row.timezone,
+      briefingEnabled: row.userPreference?.briefingEnabled ?? true,
+      briefingTime: row.userPreference?.briefingTime ?? null,
+      notifiable:
+        (row.userPreference?.telegramNotificationsEnabled ?? true) ||
+        (row.userPreference?.whatsappNotificationsEnabled ?? true),
+    }));
   }
 
   savePreferences(
