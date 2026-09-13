@@ -477,9 +477,13 @@ export class WhatsAppService implements OnModuleInit {
       buffer,
     });
 
-    const ready = await this.documents.waitUntilReady(userId, document.id);
+    // Images are no longer described by a vision model, so there is nothing to
+    // wait for; other kinds are indexed before the turn continues.
+    if (message.kind !== 'image')
+      await this.documents.waitUntilReady(userId, document.id);
+
     const content =
-      [message.text, ready.imageDescription].filter(Boolean).join('\n') ||
+      [message.text].filter(Boolean).join('\n') ||
       `The user sent a ${message.kind}.`;
 
     return { content, attachmentIds: [document.file.id] };

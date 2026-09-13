@@ -28,6 +28,18 @@ const CHUNK_SIZE = 1400;
 const CHUNK_OVERLAP = 180;
 const MIN_EXTRACTED_TEXT_LENGTH = 24;
 
+/**
+ * A failure that cannot succeed on retry: an unsupported format, no
+ * extractable text, or missing configuration. The worker fails the job
+ * immediately instead of spending the remaining attempts on it.
+ */
+export class NonRetryableDocumentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NonRetryableDocumentError';
+  }
+}
+
 type ParsedChunk = {
   chunkIndex: number;
   pageNumber?: number | null;
@@ -203,7 +215,10 @@ export class DocumentService {
     if (!record || record.status !== 'processing') return;
     const storageKey = await this.documents.storageKey(userId, documentId);
 
-    if (!storageKey) throw new Error('Berkas tidak ditemukan di penyimpanan.');
+    if (!storageKey)
+      throw new NonRetryableDocumentError(
+        'Berkas tidak ditemukan di penyimpanan.',
+      );
 
     const buffer = await this.storage.get(storageKey);
     const file = {
@@ -216,22 +231,27 @@ export class DocumentService {
     const kind = record.file.kind;
     let textContent: string | null = null;
     let transcript: string | null = null;
-    let imageDescription: string | null = null;
     let parsedChunks: ParsedChunk[] = [];
 
     if (kind === 'audio') {
-      transcript = await this.media.transcribe(
-        file.buffer,
-        file.originalname,
-        file.mimetype,
-      );
+      // A retried job reuses the stored transcript instead of paying to
+      // transcribe the same audio again; it is persisted before embedding.
+      transcript =
+        record.transcript?.trim() ||
+        (await this.media.transcribe(
+          file.buffer,
+          file.originalname,
+          file.mimetype,
+        ));
+
+      if (transcript && transcript !== record.transcript)
+        await this.documents.saveExtraction(documentId, { transcript });
+
       parsedChunks = this.chunkPages([{ text: transcript ?? '' }]);
     } else if (kind === 'image') {
-      imageDescription = await this.media.describeImage(
-        file.buffer,
-        file.mimetype,
+      throw new NonRetryableDocumentError(
+        'Gambar tidak dapat diindeks tanpa pengenalan teks (OCR).',
       );
-      parsedChunks = this.chunkPages([{ text: imageDescription ?? '' }]);
     } else if (file.mimetype === 'application/pdf') {
       const parsed = await this.parsePdf(file);
       textContent = parsed.text;
@@ -242,37 +262,58 @@ export class DocumentService {
     }
 
     if (parsedChunks.length === 0)
-      throw new Error('Tidak ada isi yang dapat diindeks dari file ini.');
+      throw new NonRetryableDocumentError(
+        'Tidak ada isi yang dapat diindeks dari file ini.',
+      );
+
+    // Parsing is local and free, but re-embedding unchanged chunks is paid
+    // again. Chunks that survived an earlier attempt are reused, and only the
+    // ones still missing an embedding reach the embedding service.
+    const existing = await this.documents.listChunkEmbeddings(documentId);
+    const reusable =
+      existing.length > 0 &&
+      existing.length === parsedChunks.length &&
+      existing.every(
+        (chunk, index) =>
+          chunk.chunkIndex === parsedChunks[index]?.chunkIndex &&
+          chunk.content === parsedChunks[index]?.content,
+      );
+
+    const pending = parsedChunks
+      .map((_chunk, index) => index)
+      .filter((index) => !reusable || !existing[index]?.embedded);
 
     const embeddings = await Promise.all(
-      parsedChunks.map(({ content }) => this.embeddings.embed(content)),
+      pending.map((index) =>
+        this.embeddings.embed(parsedChunks[index]!.content),
+      ),
     );
 
     if (embeddings.some((embedding) => !embedding))
-      throw new Error('Layanan embedding belum dikonfigurasi.');
+      throw new NonRetryableDocumentError(
+        'Layanan embedding belum dikonfigurasi.',
+      );
 
-    const chunks = await this.documents.replaceChunks(
-      documentId,
-      userId,
-      parsedChunks,
-    );
+    // Chunks are published only after every required embedding succeeds.
+    const chunks = reusable
+      ? existing
+      : await this.documents.replaceChunks(documentId, userId, parsedChunks);
 
     await Promise.all(
-      chunks.map((chunk, index) =>
+      pending.map((index, position) =>
         this.documents.setChunkEmbedding(
-          chunk.id,
-          embeddings[index]!,
+          chunks[index]!.id,
+          embeddings[position]!,
           this.embeddings.modelName(),
           this.embeddings.version,
         ),
       ),
     );
 
-    const searchable = textContent ?? transcript ?? imageDescription ?? '';
+    const searchable = textContent ?? transcript ?? '';
     await this.documents.complete(documentId, {
       textContent,
       transcript,
-      imageDescription,
       structuredData: this.extractStructured(searchable),
     });
   }
@@ -433,31 +474,14 @@ export class DocumentService {
         0,
       );
 
-      if (extractedLength >= MIN_EXTRACTED_TEXT_LENGTH)
-        return {
-          text: result.text,
-          chunks: this.chunkPages(pages),
-        };
-
-      const screenshots = await parser.getScreenshot({
-        imageBuffer: true,
-        desiredWidth: 1600,
-      });
-
-      const recognizedPages = await Promise.all(
-        screenshots.pages.map(async (page) => ({
-          pageNumber: page.pageNumber,
-          text:
-            (await this.media.describeImage(
-              Buffer.from(page.data),
-              'image/png',
-            )) ?? '',
-        })),
-      );
+      if (extractedLength < MIN_EXTRACTED_TEXT_LENGTH)
+        throw new NonRetryableDocumentError(
+          'PDF tidak berisi teks yang dapat diekstraksi.',
+        );
 
       return {
-        text: recognizedPages.map(({ text }) => text).join('\n\n'),
-        chunks: this.chunkPages(recognizedPages),
+        text: result.text,
+        chunks: this.chunkPages(pages),
       };
     } finally {
       await parser.destroy();
@@ -470,8 +494,8 @@ export class DocumentService {
       file.mimetype === 'application/json'
     )
       return file.buffer.toString('utf8');
-    throw new Error(
-      'Format dokumen belum didukung. Gunakan PDF, teks, JSON, gambar, atau audio.',
+    throw new NonRetryableDocumentError(
+      'Format dokumen belum didukung. Gunakan PDF, teks, atau JSON.',
     );
   }
 

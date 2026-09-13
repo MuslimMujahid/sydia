@@ -310,6 +310,43 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     });
   }
 
+  async saveExtraction(
+    id: string,
+    input: { textContent?: string | null; transcript?: string | null },
+  ): Promise<void> {
+    await this.prisma.document.update({
+      where: { id },
+      data: {
+        ...(input.textContent === undefined
+          ? {}
+          : { textContent: input.textContent }),
+        ...(input.transcript === undefined
+          ? {}
+          : { transcript: input.transcript }),
+      },
+    });
+  }
+
+  async listChunkEmbeddings(documentId: string): Promise<
+    Array<{
+      id: string;
+      chunkIndex: number;
+      content: string;
+      embedded: boolean;
+    }>
+  > {
+    return this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        chunkIndex: number;
+        content: string;
+        embedded: boolean;
+      }>
+    >(
+      Prisma.sql`SELECT id, "chunkIndex", content, (embedding IS NOT NULL) AS embedded FROM document_chunk WHERE "documentId" = ${documentId} ORDER BY "chunkIndex" ASC`,
+    );
+  }
+
   async fail(id: string, message: string): Promise<void> {
     await this.prisma.document.update({
       where: { id },

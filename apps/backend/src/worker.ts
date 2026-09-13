@@ -1,7 +1,7 @@
 import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { Worker } from 'bullmq';
+import { UnrecoverableError, Worker } from 'bullmq';
 import { RRule } from 'rrule';
 import { AppModule } from './app.module';
 import {
@@ -17,7 +17,10 @@ import {
   type FollowUpJob,
   type MemoryDreamJob,
 } from './infra/queue';
-import { DocumentService } from './modules/documents/document.service';
+import {
+  DocumentService,
+  NonRetryableDocumentError,
+} from './modules/documents/document.service';
 import { MemoryDreamService } from './modules/memories/memory-dream.service';
 import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-scheduler.service';
 import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
@@ -110,6 +113,14 @@ async function bootstrap(): Promise<void> {
       try {
         await documents.processDocument(job.data.documentId, job.data.userId);
       } catch (error) {
+        // Deterministic failures (unsupported format, no extractable text,
+        // missing configuration) never succeed on retry, so fail the document
+        // now and stop BullMQ from spending the remaining attempts on it.
+        if (error instanceof NonRetryableDocumentError) {
+          await documents.markProcessingFailed(job.data.documentId, error);
+          throw new UnrecoverableError(error.message);
+        }
+
         if (job.attemptsMade + 1 >= (job.opts.attempts ?? 1))
           await documents.markProcessingFailed(job.data.documentId, error);
         throw error;

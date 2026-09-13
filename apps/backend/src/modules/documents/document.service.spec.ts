@@ -9,7 +9,7 @@ import type { EmbeddingsService } from '../../infra/embeddings';
 import type { OpenRouterMediaService } from '../../infra/model-gateway';
 import type { QueueService } from '../../infra/queue';
 import type { StorageService } from '../../infra/storage';
-import { DocumentService } from './document.service';
+import { DocumentService, NonRetryableDocumentError } from './document.service';
 
 const userId = 'user-1';
 const file = {
@@ -125,6 +125,17 @@ function dependencies() {
         ) => Promise<void>
       >()
       .mockResolvedValue(undefined),
+    saveExtraction: jest
+      .fn<
+        (
+          id: string,
+          input: { textContent?: string | null; transcript?: string | null },
+        ) => Promise<void>
+      >()
+      .mockResolvedValue(undefined),
+    listChunkEmbeddings: jest
+      .fn<IDocumentRepository['listChunkEmbeddings']>()
+      .mockResolvedValue([]),
     fail: jest
       .fn<(id: string, message: string) => Promise<void>>()
       .mockResolvedValue(undefined),
@@ -175,7 +186,12 @@ function dependencies() {
     version: 'test-version',
   } as unknown as EmbeddingsService;
 
-  const media = {} as OpenRouterMediaService;
+  const media = {
+    transcribe: jest
+      .fn<OpenRouterMediaService['transcribe']>()
+      .mockResolvedValue(null),
+  } as unknown as OpenRouterMediaService;
+
   const queue = {
     documents: {
       add: jest
@@ -201,6 +217,7 @@ function dependencies() {
     storage,
     documents,
     embeddings,
+    media,
     queue,
   };
 }
@@ -319,7 +336,7 @@ describe('DocumentService processDocument', () => {
     expect(documents.fail).not.toHaveBeenCalled();
   });
 
-  test('rejects an unsupported format so the worker can retry it', async () => {
+  test('fails an unsupported format as non-retryable', async () => {
     const { service, documents } = dependencies();
     documents.findById = jest
       .fn<
@@ -334,9 +351,9 @@ describe('DocumentService processDocument', () => {
         file: { ...asset(), mimeType: 'application/octet-stream' },
       });
 
-    await expect(service.processDocument('document-1', userId)).rejects.toThrow(
-      'Format dokumen belum didukung',
-    );
+    await expect(
+      service.processDocument('document-1', userId),
+    ).rejects.toBeInstanceOf(NonRetryableDocumentError);
     expect(documents.complete).not.toHaveBeenCalled();
   });
 
@@ -366,6 +383,93 @@ describe('DocumentService processDocument', () => {
     await service.processDocument('document-1', userId);
     expect(storage.get).not.toHaveBeenCalled();
     expect(documents.complete).not.toHaveBeenCalled();
+  });
+
+  test('rejects images as non-retryable now that vision is removed', async () => {
+    const { service, documents } = dependencies();
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        file: { ...asset('image/png'), kind: 'image' },
+      });
+
+    await expect(
+      service.processDocument('document-1', userId),
+    ).rejects.toBeInstanceOf(NonRetryableDocumentError);
+    expect(documents.complete).not.toHaveBeenCalled();
+  });
+
+  test('reuses a stored transcript instead of transcribing again', async () => {
+    const { service, documents, media } = dependencies();
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        transcript: 'Halo dari catatan suara.',
+        file: { ...asset('audio/webm'), kind: 'audio' },
+      });
+
+    await service.processDocument('document-1', userId);
+
+    expect(media.transcribe).not.toHaveBeenCalled();
+    expect(documents.saveExtraction).not.toHaveBeenCalled();
+    expect(documents.replaceChunks).toHaveBeenCalledWith('document-1', userId, [
+      {
+        chunkIndex: 0,
+        pageNumber: null,
+        content: 'Halo dari catatan suara.',
+      },
+    ]);
+    expect(documents.complete).toHaveBeenCalledWith(
+      'document-1',
+      expect.objectContaining({ transcript: 'Halo dari catatan suara.' }),
+    );
+  });
+
+  test('persists a fresh transcript before embedding so retries reuse it', async () => {
+    const { service, documents, media } = dependencies();
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        file: { ...asset('audio/webm'), kind: 'audio' },
+      });
+    media.transcribe = jest
+      .fn<OpenRouterMediaService['transcribe']>()
+      .mockResolvedValue('Halo.');
+
+    await service.processDocument('document-1', userId);
+
+    expect(media.transcribe).toHaveBeenCalledTimes(1);
+    expect(documents.saveExtraction).toHaveBeenCalledWith('document-1', {
+      transcript: 'Halo.',
+    });
+    expect(documents.complete).toHaveBeenCalledWith(
+      'document-1',
+      expect.objectContaining({ transcript: 'Halo.' }),
+    );
+  });
+
+  test('skips re-embedding chunks that already carry an embedding', async () => {
+    const { service, documents, embeddings } = dependencies();
+    documents.listChunkEmbeddings = jest
+      .fn<IDocumentRepository['listChunkEmbeddings']>()
+      .mockResolvedValue([
+        {
+          id: 'chunk-0',
+          chunkIndex: 0,
+          content: 'hello world',
+          embedded: true,
+        },
+      ]);
+
+    await service.processDocument('document-1', userId);
+
+    expect(documents.replaceChunks).not.toHaveBeenCalled();
+    expect(embeddings.embed).not.toHaveBeenCalled();
+    expect(documents.setChunkEmbedding).not.toHaveBeenCalled();
+    expect(documents.complete).toHaveBeenCalled();
   });
 });
 

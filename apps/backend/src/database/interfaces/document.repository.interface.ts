@@ -54,6 +54,18 @@ export interface IDocumentRepository {
       structuredData?: Prisma.InputJsonValue | null;
     },
   ): Promise<void>;
+  saveExtraction(
+    id: string,
+    input: { textContent?: string | null; transcript?: string | null },
+  ): Promise<void>;
+  listChunkEmbeddings(documentId: string): Promise<
+    Array<{
+      id: string;
+      chunkIndex: number;
+      content: string;
+      embedded: boolean;
+    }>
+  >;
   fail(id: string, message: string): Promise<void>;
   restart(id: string): Promise<void>;
   replaceChunks(
