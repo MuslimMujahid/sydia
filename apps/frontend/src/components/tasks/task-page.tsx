@@ -18,6 +18,7 @@ import {
   Inbox,
   Flag,
   LoaderCircle,
+  MoreVertical,
   Pencil,
   Plus,
   Search,
@@ -44,9 +45,18 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSubmenu,
+  DropdownMenuSubmenuTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   categoriesQueryOptions,
   useCreateCategory,
@@ -771,24 +781,42 @@ const TASK_COLUMNS: Array<{
   },
 ];
 
-function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
+function TaskCard({
+  task,
+  dragEnabled,
+  onEdit,
+  onMove,
+}: {
+  task: Task;
+  dragEnabled: boolean;
+  onEdit: () => void;
+  onMove: (status: TaskStatus) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: task.id,
       data: { status: task.status },
+      disabled: !dragEnabled,
     });
 
-  const dragStyle = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
+  const dragStyle =
+    dragEnabled && transform
+      ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+      : undefined;
 
   return (
-    <li ref={setNodeRef} style={dragStyle} className="touch-none">
+    <li
+      ref={setNodeRef}
+      style={dragStyle}
+      className={cn("relative", dragEnabled && "touch-none")}
+    >
       <article
-        {...attributes}
+        {...(dragEnabled ? attributes : { role: "button", tabIndex: 0 })}
         {...listeners}
         className={cn(
-          "group cursor-grab rounded-sm border border-surface-1 bg-canvas p-4 transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-ink-weak/50 hover:shadow-[0_8px_24px_-18px_var(--color-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep active:cursor-grabbing",
+          "group h-full rounded-sm border border-surface-1 bg-canvas p-4 transition-[border-color,box-shadow,transform] duration-200 ease-out hover:border-ink-weak/50 hover:shadow-[0_8px_24px_-18px_var(--color-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep",
+          dragEnabled &&
+            "cursor-grab hover:-translate-y-0.5 active:cursor-grabbing",
           task.status === "doing" && "border-warn/40",
           task.status === "done" && "border-brand-deep/30 bg-surface-2",
           task.status === "cancelled" &&
@@ -805,7 +833,7 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
       >
         <h3
           className={cn(
-            "font-display text-base leading-snug font-semibold text-ink",
+            "pr-7 font-display text-base leading-snug font-semibold text-ink",
             task.status === "done" && "text-editorial",
             task.status === "cancelled" && "text-ink-muted line-through"
           )}
@@ -854,6 +882,36 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
           </span>
         </div>
       </article>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-2 right-2"
+              aria-label={`Aksi untuk ${task.title}`}
+            />
+          }
+        >
+          <MoreVertical />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuSubmenu>
+            <DropdownMenuSubmenuTrigger>
+              Pindahkan ke
+            </DropdownMenuSubmenuTrigger>
+            <DropdownMenuContent side="right" align="start" sideOffset={4}>
+              {TASK_COLUMNS.filter(
+                (column) => column.status !== task.status
+              ).map(({ status, label, icon: Icon }) => (
+                <DropdownMenuItem key={status} onClick={() => onMove(status)}>
+                  <Icon /> {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenuSubmenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </li>
   );
 }
@@ -865,21 +923,27 @@ function TaskColumn({
   icon: Icon,
   tasks,
   filtered,
+  dragEnabled,
   onEdit,
+  onMove,
 }: (typeof TASK_COLUMNS)[number] & {
   tasks: Task[];
   filtered: boolean;
+  dragEnabled: boolean;
   onEdit: (task: Task) => void;
-  onCreate: () => void;
+  onMove: (task: Task, status: TaskStatus) => void;
 }) {
   const headingId = `task-column-${status}`;
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+    disabled: !dragEnabled,
+  });
 
   return (
     <section
       ref={setNodeRef}
       className={cn(
-        "min-w-72 snap-start rounded-sm transition-colors xl:min-w-0",
+        "min-w-72 snap-start snap-always rounded-sm transition-colors xl:min-w-0",
         isOver &&
           "bg-brand-soft/35 outline-2 outline-offset-4 outline-brand-deep/30"
       )}
@@ -909,7 +973,13 @@ function TaskColumn({
       {tasks.length ? (
         <ul className="mt-4 min-h-24 space-y-3">
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onEdit={() => onEdit(task)} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              dragEnabled={dragEnabled}
+              onEdit={() => onEdit(task)}
+              onMove={(nextStatus) => onMove(task, nextStatus)}
+            />
           ))}
         </ul>
       ) : (
@@ -933,6 +1003,7 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
   const [newEditorOpen, setNewEditorOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const statusMutation = useSetTaskStatus();
+  const dragEnabled = useMediaQuery("(min-width: 80rem)");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
@@ -963,6 +1034,11 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
       taskId: String(event.active.id),
       status: destination,
     });
+  }
+
+  function moveTaskToStatus(task: Task, status: TaskStatus) {
+    if (status === task.status) return;
+    statusMutation.mutate({ taskId: task.id, status });
   }
 
   return (
@@ -1062,7 +1138,9 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
           </Button>
         </div>
       </fieldset>
-      {query.isPending ? <DomainListSkeleton label="Memuat papan tugas" /> : null}
+      {query.isPending ? (
+        <DomainListSkeleton label="Memuat papan tugas" />
+      ) : null}
       {query.isError ? (
         <DomainInlineError
           title="Tugas tidak dapat dimuat"
@@ -1073,8 +1151,10 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
       {query.isSuccess ? (
         <section aria-label="Papan tugas">
           <p className="mb-3 text-sm text-ink-muted xl:sr-only">
-            Geser papan ke samping untuk melihat semua tahap. Seret kartu untuk
-            memindahkan tugas.
+            Geser papan ke samping untuk melihat semua tahap.{" "}
+            {dragEnabled
+              ? "Seret kartu untuk memindahkan tugas."
+              : "Buka menu kartu untuk memindahkan tugas ke tahap lain."}
           </p>
           {statusMutation.error ? (
             <p className="mb-3 text-sm text-destructive" role="alert">
@@ -1082,7 +1162,7 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
             </p>
           ) : null}
           <DndContext sensors={sensors} onDragEnd={moveTask}>
-            <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(18rem,85vw)] gap-4 overflow-x-auto pb-4 xl:grid-flow-row xl:auto-cols-auto xl:grid-cols-4">
+            <div className="-mx-5 grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(18rem,85vw)] gap-4 overflow-x-auto overscroll-x-contain scroll-px-5 px-5 pb-4 sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:-mx-12 lg:scroll-px-12 lg:px-12 xl:mx-0 xl:snap-none xl:grid-flow-row xl:auto-cols-auto xl:grid-cols-4 xl:scroll-px-0 xl:px-0">
               {TASK_COLUMNS.map((column) => (
                 <TaskColumn
                   key={column.status}
@@ -1091,8 +1171,9 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
                     (task) => task.status === column.status
                   )}
                   filtered={filtered}
+                  dragEnabled={dragEnabled}
                   onEdit={(task) => onTaskIdChange(task.id)}
-                  onCreate={() => setNewEditorOpen(true)}
+                  onMove={moveTaskToStatus}
                 />
               ))}
             </div>
