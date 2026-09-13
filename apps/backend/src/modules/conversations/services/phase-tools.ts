@@ -1,6 +1,6 @@
 import type { JSONSchema7 } from 'ai';
 import type { Prisma } from '../../../generated/prisma/client';
-import type { CalendarEventWrite } from '../../../database/entities';
+import type { CalendarEventWrite, Document } from '../../../database/entities';
 import type {
   ICalendarRepository,
   IContactRepository,
@@ -9,6 +9,27 @@ import type {
 import { CalendarService } from '../../calendar/calendar.service';
 import { DocumentService } from '../../documents/document.service';
 import type { AssistantTool } from './tool-executor.service';
+
+const LIST_DOCUMENTS_LIMIT = 25;
+const READ_DOCUMENT_DEFAULT_LIMIT = 4;
+const READ_DOCUMENT_MAX_LIMIT = 10;
+const READ_DOCUMENT_CHUNK_CHARS = 800;
+const SEARCH_QUOTE_CHARS = 600;
+
+/** Keeps model-visible tool results bounded; full data stays in the database. */
+function bounded(value: string, limit: number): string {
+  return value.length <= limit ? value : `${value.slice(0, limit)}…`;
+}
+
+function documentSummary(document: Document) {
+  return {
+    id: document.id,
+    filename: document.file.originalName,
+    mimeType: document.file.mimeType,
+    size: document.file.size,
+    status: document.status,
+  };
+}
 
 const string = { type: 'string' } as const;
 const schema = (
@@ -86,9 +107,9 @@ export function createPhaseTools(deps: {
 
 Use it when the user asks to save, add, or remember a person's contact details.
 
-Do not use it when the user only wants to find an existing contact or when no contact should be persisted.
+Do not use it to find an existing contact or when nothing should be persisted.
 
-The contact is created for the current user. Alias values that are not strings are ignored, and omitted optional text fields are stored as null.`,
+The contact is created for the current user; aliases must be strings and omitted optional fields are stored as null.`,
         parameters: schema(
           {
             name: { ...string, description: 'Required contact display name.' },
@@ -137,11 +158,11 @@ The contact is created for the current user. Alias values that are not strings a
         label: 'Find contact',
         description: `Use this tool to find contacts matching a reference.
 
-Use it when the user asks to look up an existing contact by name, alias, email, or phone number.
+Use it when the user asks to look up an existing contact by name, alias, email, or phone.
 
-Do not use it when the user wants to create or modify contact details.
+Do not use it to create or modify contact details.
 
-The reference is resolved for the current user and may match by name, alias, email, or phone number; the tool returns matching contacts and does not create or change them.`,
+Matches the current user's contacts by name, alias, email, or phone; it does not change them.`,
         parameters: schema(
           {
             reference: {
@@ -167,26 +188,31 @@ The reference is resolved for the current user and may match by name, alias, ema
         label: 'List files',
         description: `Use this tool to list the current user's saved document metadata.
 
-Use it when the user asks what files or documents are available in their collection, or you just need a quick overview of their documents.
+Use it when the user asks what files or documents are available.
 
-Do not use it when the user needs document contents, semantic search results, or attached files from the active message.
+Do not use it when contents, semantic search, or the active message's attachments are needed.
 
-The result includes each document's ID, filename, MIME type, size, processing status, and creation time; document contents are excluded. This tool takes no parameters.`,
+Returns each document's id, filename, MIME type, size, status, and creation time, capped at 25 documents; this tool takes no parameters.`,
         parameters: schema({}),
       },
       parseArguments,
-      execute: async ({ userId }) => ({
-        documents: (await deps.documents.listMetadata(userId)).map(
-          (document) => ({
+      execute: async ({ userId }) => {
+        const documents = await deps.documents.listMetadata(userId);
+        const listed = documents
+          .slice(0, LIST_DOCUMENTS_LIMIT)
+          .map((document) => ({
             id: document.id,
             filename: document.file.originalName,
             mimeType: document.file.mimeType,
             size: document.file.size,
             status: document.status,
             createdAt: document.createdAt,
-          }),
-        ),
-      }),
+          }));
+
+        return documents.length > LIST_DOCUMENTS_LIMIT
+          ? { documents: listed, total: documents.length }
+          : { documents: listed };
+      },
     },
     {
       definition: {
@@ -194,11 +220,11 @@ The result includes each document's ID, filename, MIME type, size, processing st
         label: 'Read document',
         description: `Use this tool to read content chunks from one saved document.
 
-Use it when you need to read the contents of a specific document and you have its document ID.
+Use it when you need the contents of a specific document and have its id.
 
-Do not use it when the user only needs a file list, wants semantic search across documents, or has not identified a document.
+Do not use it for a file list, semantic search, or when no document is identified.
 
-The required document ID is read for the current user. cursor defaults to 0 and limit defaults to 8; limit must be from 1 through 20. A missing document raises an error, and the result contains metadata, chunks with page positions, nextCursor, and hasMore.`,
+documentId is required; cursor defaults to 0 and limit defaults to 4 (1 through 10). Each chunk's content is truncated to keep the result bounded; the result includes metadata, chunks with page positions, nextCursor, and hasMore.`,
         parameters: schema(
           {
             documentId: {
@@ -213,9 +239,9 @@ The required document ID is read for the current user. cursor defaults to 0 and 
             limit: {
               type: 'integer',
               minimum: 1,
-              maximum: 20,
+              maximum: READ_DOCUMENT_MAX_LIMIT,
               description:
-                'Optional number of chunks to return, from 1 through 20; defaults to 8.',
+                'Optional number of chunks to return, from 1 through 10; defaults to 4.',
             },
           },
           ['documentId'],
@@ -225,8 +251,8 @@ The required document ID is read for the current user. cursor defaults to 0 and 
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
         const cursor = integer(a, 'cursor', 0);
-        const limit = integer(a, 'limit', 8);
-        if (cursor < 0 || limit < 1 || limit > 20)
+        const limit = integer(a, 'limit', READ_DOCUMENT_DEFAULT_LIMIT);
+        if (cursor < 0 || limit < 1 || limit > READ_DOCUMENT_MAX_LIMIT)
           throw new Error('Invalid document read range.');
 
         const result = await deps.documents.read(
@@ -245,7 +271,7 @@ The required document ID is read for the current user. cursor defaults to 0 and 
           chunks: result.chunks.map((chunk) => ({
             chunk: chunk.chunkIndex,
             page: chunk.pageNumber,
-            content: chunk.content,
+            content: bounded(chunk.content, READ_DOCUMENT_CHUNK_CHARS),
           })),
           nextCursor: result.nextCursor,
           hasMore: result.nextCursor !== null,
@@ -260,9 +286,9 @@ The required document ID is read for the current user. cursor defaults to 0 and 
 
 Use it when the user asks to keep, import, or save files attached to the current message.
 
-Do not use it when there are no relevant attachments, when the user only wants to inspect an attachment, or when saving files from another message.
+Do not use it when there are no relevant attachments, the user only wants to inspect one, or the files are from another message.
 
-The active message is identified by execution context rather than a parameter. All attached files are listed for the current user; if none are attached, the tool raises an error. Saved documents are returned as document objects.`,
+The active message comes from execution context rather than a parameter; if none are attached, the tool raises an error. Saved documents are returned as document objects.`,
         parameters: schema({}),
       },
       parseArguments,
@@ -275,7 +301,10 @@ The active message is identified by execution context rather than a parameter. A
         if (documents.length === 0)
           throw new Error('No files are attached to this message.');
 
-        return { objectType: 'documents', objects: documents };
+        return {
+          objectType: 'documents',
+          objects: documents.map(documentSummary),
+        };
       },
     },
     {
@@ -284,11 +313,11 @@ The active message is identified by execution context rather than a parameter. A
         label: 'Send file',
         description: `Use this tool to send one specific saved file back through the active WhatsApp or Telegram conversation.
 
-Use it when the user has identified and confirmed the exact saved document they want. If the request could refer to more than one file, list or resolve the candidates and ask which one before calling this tool.
+Use it when the user has identified and confirmed the exact saved document. If several could match, list them and ask first.
 
-Do not use it on dashboard chat, for attached files that have not been saved, or to send multiple files in one call. This operation always requires user confirmation. After approval, the channel sends “📂 Sending file ...” in English or “📂 Mengirimi file ...” in Indonesian before sending the file.
+Do not use it on dashboard chat, for unsaved attachments, or to send multiple files in one call; it always requires user confirmation. After approval the channel sends a “📂 Sending file ...” notice in English or “📂 Mengirimi file ...” in Indonesian.
 
-The document ID is required. The file is loaded from the current user's storage and sent only through the active messaging channel.`,
+documentId is required; the file is loaded from the current user's storage and sent only through the active channel.`,
         parameters: schema(
           {
             documentId: {
@@ -331,11 +360,11 @@ The document ID is required. The file is loaded from the current user's storage 
         label: 'Search documents',
         description: `Use this tool to search the current user's document chunks for a semantic query.
 
-Use it when the user asks a question that requires finding relevant information in their saved documents or files attached to the active message.
+Use it when a question needs information from saved documents or the active message's attachments.
 
-Do not use it when the user needs a complete document read, or a metadata-only file list.
+Do not use it for a complete document read or a metadata-only file list.
 
-The query is searched in the current message's document context and returns up to 6 relevance-ranked sources with document identity, filename, page or chunk position, and a quote; results may not cover the complete document.`,
+Returns up to six relevance-ranked sources with document identity, filename, position, and a truncated quote; results may not cover the whole document.`,
         parameters: schema(
           {
             query: {
@@ -361,7 +390,7 @@ The query is searched in the current message's document context and returns up t
           filename: chunk.title,
           page: chunk.pageNumber,
           chunk: chunk.chunkIndex,
-          quote: chunk.content,
+          quote: bounded(chunk.content, SEARCH_QUOTE_CHARS),
         })),
       }),
     },
@@ -373,9 +402,9 @@ The query is searched in the current message's document context and returns up t
 
 Use it when the user asks what events are scheduled between two ISO datetimes.
 
-Do not use it when the user wants to create, update, or cancel an event, or when either boundary is missing or not an ISO datetime.
+Do not use it to create, update, or cancel events, or when a boundary is missing or not ISO.
 
-Both range boundaries are required and parsed as ISO datetimes. Events are listed for the current user between from and to; this tool does not modify the calendar.`,
+from and to are required and parsed as ISO datetimes; the current user's events are listed without modifying the calendar.`,
         parameters: schema(
           {
             from: {
@@ -411,9 +440,9 @@ Both range boundaries are required and parsed as ISO datetimes. Events are liste
 
 Use it when the user asks to schedule a new event with a title and time range.
 
-Do not use it when the user is referring to an existing event that should be changed or cancelled, or when the end time is not after the start time.
+Do not use it to change or cancel an existing event, or when the end is not after the start.
 
-Title, startAt, and endAt are required; description, location, and attendees are optional. startAt and endAt must be ISO datetimes, the user's timezone is used when available (otherwise Asia/Jakarta), and the event is created for the current user. Non-string attendee values are ignored.`,
+title, startAt, and endAt are required; description, location, and attendees are optional. Times are ISO, the user's timezone or Asia/Jakarta is used, and non-string attendees are ignored.`,
         parameters: schema(
           {
             title: {
@@ -481,11 +510,11 @@ Title, startAt, and endAt are required; description, location, and attendees are
         label: 'Update calendar event',
         description: `Use this tool to update an existing calendar event.
 
-Use it when the user asks to change an event and provides its event ID.
+Use it when the user asks to change an event and provides its event id.
 
-Do not use it when the user wants to create a new event, cancel an event, or has not identified the event by ID.
+Do not use it to create or cancel an event, or when the event is not identified by id.
 
-id is required and the other fields are optional; only supplied fields are passed to the calendar service. startAt and endAt, when supplied, must be ISO datetimes. If the ID does not identify an event for the current user, the tool raises an error.`,
+id is required and the other fields are optional; only supplied fields are passed on, and startAt/endAt must be ISO. A missing event raises an error.`,
         parameters: schema(
           {
             id: {
@@ -544,11 +573,11 @@ id is required and the other fields are optional; only supplied fields are passe
         label: 'Cancel calendar event',
         description: `Use this tool to cancel an existing calendar event.
 
-Use it when the user explicitly asks to cancel an event and provides its event ID.
+Use it when the user explicitly asks to cancel an event and provides its id.
 
-Do not use it when the user wants to create or edit an event, or when the event has not been identified by ID.
+Do not use it to create or edit an event, or when the event is not identified by id.
 
-The event is cancelled for the current user. If no matching event exists, the tool raises an error; cancellation is a calendar mutation and should follow the user's approval expectations.`,
+Cancels for the current user; a missing event raises an error. This is a mutation that should follow the user's approval expectations.`,
         parameters: schema(
           {
             id: {

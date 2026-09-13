@@ -198,10 +198,30 @@ describe('phase 5 and 6 assistant tools', () => {
     });
   });
 
-  test('saves every file attached to the source message', async () => {
+  test('saves every file attached to the source message as compact metadata', async () => {
     const attached = [
-      { id: 'doc-1', title: 'invoice.pdf' },
-      { id: 'doc-2', title: 'receipt.jpg' },
+      {
+        id: 'doc-1',
+        title: 'invoice.pdf',
+        status: 'ready' as const,
+        textContent: 'a'.repeat(5000),
+        file: {
+          originalName: 'invoice.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+        },
+      },
+      {
+        id: 'doc-2',
+        title: 'receipt.jpg',
+        status: 'ready' as const,
+        transcript: 'b'.repeat(5000),
+        file: {
+          originalName: 'receipt.jpg',
+          mimeType: 'image/jpeg',
+          size: 4321,
+        },
+      },
     ];
 
     const listAttached = jest
@@ -220,7 +240,27 @@ describe('phase 5 and 6 assistant tools', () => {
     });
 
     expect(listAttached).toHaveBeenCalledWith('user-1', 'message-1');
-    expect(result).toEqual({ objectType: 'documents', objects: attached });
+    expect(result).toEqual({
+      objectType: 'documents',
+      objects: [
+        {
+          id: 'doc-1',
+          filename: 'invoice.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+          status: 'ready',
+        },
+        {
+          id: 'doc-2',
+          filename: 'receipt.jpg',
+          mimeType: 'image/jpeg',
+          size: 4321,
+          status: 'ready',
+        },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain('textContent');
+    expect(JSON.stringify(result)).not.toContain('transcript');
   });
 
   test('requires confirmation and sends one resolved document through the active channel', async () => {
@@ -346,6 +386,156 @@ describe('phase 5 and 6 assistant tools', () => {
         },
       ],
     });
+  });
+
+  test('bounds a document read to the default limit and truncates long chunks', async () => {
+    const document = {
+      id: 'doc-1',
+      title: 'deck.pdf',
+      status: 'ready' as const,
+      createdAt: new Date('2026-09-01T00:00:00Z'),
+      updatedAt: new Date('2026-09-01T00:00:00Z'),
+      file: {
+        id: 'file-1',
+        originalName: 'deck.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        kind: 'document' as const,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+      },
+    };
+
+    const read = jest
+      .fn<
+        (
+          userId: string,
+          documentId: string,
+          cursor: number,
+          limit: number,
+        ) => Promise<{
+          document: typeof document;
+          chunks: Array<{
+            id: string;
+            chunkIndex: number;
+            pageNumber: number;
+            content: string;
+          }>;
+          nextCursor: number | null;
+        }>
+      >()
+      .mockResolvedValue({
+        document,
+        chunks: [
+          {
+            id: 'chunk-0',
+            chunkIndex: 0,
+            pageNumber: 1,
+            content: 'a'.repeat(2000),
+          },
+        ],
+        nextCursor: null,
+      });
+
+    const result = await tools({
+      documents: { read } as unknown as DocumentService,
+    })
+      .find((tool) => tool.definition.name === 'read_document')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'read-bounded',
+        arguments: { documentId: 'doc-1' },
+      });
+
+    expect(read).toHaveBeenCalledWith('user-1', 'doc-1', 0, 4);
+    const [chunk] = (result as { chunks: Array<{ content: string }> }).chunks;
+    expect(chunk?.content).toHaveLength(801);
+    expect(chunk?.content.endsWith('…')).toBe(true);
+    expect(result).toEqual(expect.objectContaining({ hasMore: false }));
+  });
+
+  test('caps a large document list and reports the total', async () => {
+    const documents = Array.from({ length: 30 }, (_value, index) => ({
+      id: `doc-${index}`,
+      title: `file-${index}.pdf`,
+      status: 'ready' as const,
+      createdAt: new Date('2026-09-01T00:00:00Z'),
+      updatedAt: new Date('2026-09-01T00:00:00Z'),
+      file: {
+        id: `file-${index}`,
+        originalName: `file-${index}.pdf`,
+        mimeType: 'application/pdf',
+        size: index,
+        kind: 'document' as const,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+      },
+    }));
+
+    const listMetadata = jest
+      .fn<(userId: string) => Promise<typeof documents>>()
+      .mockResolvedValue(documents);
+
+    const result = await tools({
+      documents: { listMetadata } as unknown as DocumentService,
+    })
+      .find((tool) => tool.definition.name === 'list_documents')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'list-capped',
+        arguments: {},
+      });
+
+    const listed = result as { documents: unknown[]; total: number };
+
+    expect(listed.total).toBe(30);
+    expect(listed.documents).toHaveLength(25);
+  });
+
+  test('truncates long document search quotes', async () => {
+    const searchForMessage = jest
+      .fn<
+        (
+          userId: string,
+          messageId: string,
+          query: string,
+          limit: number,
+        ) => Promise<
+          Array<{
+            id: string;
+            documentId: string;
+            title: string;
+            chunkIndex: number;
+            pageNumber: number;
+            content: string;
+          }>
+        >
+      >()
+      .mockResolvedValue([
+        {
+          id: 'chunk-1',
+          documentId: 'doc-1',
+          title: 'invoice.pdf',
+          chunkIndex: 2,
+          pageNumber: 3,
+          content: 'x'.repeat(2000),
+        },
+      ]);
+
+    const result = await tools({
+      documents: { searchForMessage } as unknown as DocumentService,
+    })
+      .find((tool) => tool.definition.name === 'search_documents')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'search-bounded',
+        arguments: { query: 'total invoice' },
+      });
+
+    const [source] = (result as { sources: Array<{ quote: string }> }).sources;
+    expect(source?.quote).toHaveLength(601);
+    expect(source?.quote.endsWith('…')).toBe(true);
   });
   test('creates, updates, and cancels calendar events through service', async () => {
     const event = { id: 'event-1', title: 'Review' };
