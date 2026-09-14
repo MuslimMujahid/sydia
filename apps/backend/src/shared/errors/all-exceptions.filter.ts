@@ -107,8 +107,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private mapStatusToCode(status: number): ErrorCode {
     const mapping: Record<number, ErrorCode> = {
       [HttpStatus.INTERNAL_SERVER_ERROR]: ErrorCodes.INTERNAL_SERVER_ERROR,
+      [HttpStatus.BAD_REQUEST]: ErrorCodes.BAD_REQUEST,
       [HttpStatus.FORBIDDEN]: ErrorCodes.FORBIDDEN,
       [HttpStatus.NOT_FOUND]: ErrorCodes.NOT_FOUND,
+      [HttpStatus.CONFLICT]: ErrorCodes.CONFLICT,
       [HttpStatus.TOO_MANY_REQUESTS]: ErrorCodes.TOO_MANY_REQUEST,
     };
 
