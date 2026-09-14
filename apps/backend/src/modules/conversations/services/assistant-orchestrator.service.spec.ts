@@ -467,7 +467,6 @@ describe('AssistantOrchestratorService', () => {
     const toolExecutor = {
       aiTools: () => ({}),
       activityLabel: () => null,
-      prepareStep: () => undefined,
       retrySafeTools: () => new Set(['search_documents']),
     } as unknown as ToolExecutorService;
 

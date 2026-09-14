@@ -425,42 +425,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       ? { [SESSION_ID_HEADER]: request.conversationId }
       : undefined;
 
-    const prepareStep = request.prepareStep
-      ? ({
-          stepNumber,
-          steps,
-        }: {
-          stepNumber: number;
-          steps: ReadonlyArray<{
-            toolCalls?: ReadonlyArray<{ toolName?: string }>;
-          }>;
-        }) => {
-          if (!request.tools) return {};
-
-          const executedToolNames = steps.flatMap((step) =>
-            (step.toolCalls ?? []).flatMap((call) =>
-              typeof call.toolName === 'string' ? [call.toolName] : [],
-            ),
-          );
-
-          const active = request.prepareStep?.({
-            stepNumber,
-            toolNames: Object.keys(request.tools),
-            executedToolNames,
-          });
-
-          if (!active || active.length === 0) return {};
-
-          return { activeTools: active as never };
-        }
-      : undefined;
-
     const options = () => ({
       model: this.languageModel,
       messages: request.messages,
       allowSystemInMessages: true as const,
       tools: request.tools,
-      prepareStep,
       headers,
       temperature: request.temperature ?? this.temperature,
       maxOutputTokens: request.maxOutputTokens ?? this.maxOutputTokens,

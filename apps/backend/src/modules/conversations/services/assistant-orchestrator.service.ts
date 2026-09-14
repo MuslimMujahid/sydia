@@ -622,7 +622,6 @@ export class AssistantOrchestratorService {
             runId: state.run.id,
             abortSignal,
             tools,
-            prepareStep: this.toolExecutor.prepareStep(tools),
             retrySafeTools: this.toolExecutor.retrySafeTools(),
             onTextDelta: (delta: string) => observer?.onTextDelta(delta),
             onToolCall: (toolName: string) => {

@@ -88,6 +88,30 @@ function estimateTokens(content: string): number {
   return Math.ceil(Buffer.byteLength(content, 'utf8') / 3);
 }
 
+function localDateTime(
+  timezone: string,
+  at: Date,
+): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(at);
+
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((value) => value.type === type)?.value ?? '';
+
+  return {
+    date: `${part('year')}-${part('month')}-${part('day')}`,
+    time: `${part('hour')}:${part('minute')}:${part('second')}`,
+  };
+}
+
 function truncateToTokens(content: string, maxTokens: number): string {
   if (maxTokens <= 0) return '';
   if (estimateTokens(content) <= maxTokens) return content;
@@ -246,7 +270,9 @@ export class ContextBuilderService {
 
     // The turn context is always emitted, so it is reserved alongside the other
     // fixed blocks rather than competing with optional context for budget.
-    const turnContext = `Turn context: current instant ${new Date().toISOString()}; user time zone ${user.timezone}.`;
+    const now = new Date();
+    const local = localDateTime(user.timezone, now);
+    const turnContext = `Turn context: current instant ${now.toISOString()}; local ${local.date} ${local.time}.`;
     tokenUsage.turnContext = estimateTokens(turnContext);
 
     const fixedTokens =
