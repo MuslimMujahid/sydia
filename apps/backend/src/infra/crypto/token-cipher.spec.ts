@@ -39,8 +39,27 @@ describe('TokenCipher', () => {
   });
 
   it('requires an encryption secret', () => {
-    expect(() => new TokenCipher(new ConfigService())).toThrow(
-      'BACKEND_TOKEN_ENCRYPTION_KEY or BACKEND_AUTH_SECRET is required',
-    );
+    const encryptionKey = process.env.BACKEND_TOKEN_ENCRYPTION_KEY;
+    const authSecret = process.env.BACKEND_AUTH_SECRET;
+    delete process.env.BACKEND_TOKEN_ENCRYPTION_KEY;
+    delete process.env.BACKEND_AUTH_SECRET;
+
+    try {
+      expect(() => new TokenCipher(new ConfigService())).toThrow(
+        'BACKEND_TOKEN_ENCRYPTION_KEY or BACKEND_AUTH_SECRET is required',
+      );
+    } finally {
+      if (encryptionKey === undefined) {
+        delete process.env.BACKEND_TOKEN_ENCRYPTION_KEY;
+      } else {
+        process.env.BACKEND_TOKEN_ENCRYPTION_KEY = encryptionKey;
+      }
+
+      if (authSecret === undefined) {
+        delete process.env.BACKEND_AUTH_SECRET;
+      } else {
+        process.env.BACKEND_AUTH_SECRET = authSecret;
+      }
+    }
   });
 });
