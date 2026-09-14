@@ -55,7 +55,6 @@ export type BriefingSnapshot = {
     dueAt: string | null;
   }>;
   remindersToday: Array<{ title: string; scheduledAt: string }>;
-  overdueReminders: Array<{ title: string; scheduledAt: string }>;
 };
 
 const BRIEFING_INSTRUCTIONS = `You write one user's daily briefing as a single chat message.

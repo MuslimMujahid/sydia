@@ -67,7 +67,16 @@ async function bootstrap(): Promise<void> {
         reminderOccurrenceKey: job.data.idempotencyKey,
       });
 
-      if (!reminder.recurrence) return;
+      // The reminder reached the user; acknowledgement is not required.
+      // Close it at dispatch so it can never accumulate as overdue.
+      if (!reminder.recurrence) {
+        await reminders.update(reminder.userId, reminder.id, {
+          status: 'completed',
+        });
+
+        return;
+      }
+
       const rule = new RRule({
         freq: {
           daily: RRule.DAILY,

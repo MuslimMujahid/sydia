@@ -11,7 +11,7 @@ import {
   type ITaskRepository,
   type IUserRepository,
 } from '../../database/interfaces';
-import type { SupportedLocale, User } from '../../database/entities';
+import type { User } from '../../database/entities';
 import { dayWindow } from '../../shared/date-time';
 import {
   LANGUAGE_MODEL,
@@ -24,13 +24,10 @@ import {
 } from './briefing-prompt';
 import { NotificationComposerService } from './notification-composer.service';
 import { NotificationService } from './notification.service';
+import { localeOf } from '../../shared/locale';
 
 const BRIEFING_MAX_OUTPUT_TOKENS = 400;
 const BRIEFING_TEMPERATURE = 0.5;
-
-function localeOf(locale: string | null | undefined): SupportedLocale {
-  return locale === 'id' ? 'id' : 'en';
-}
 
 function itemLines(items: readonly { title: string }[]): string {
   return items.length
@@ -64,7 +61,7 @@ export class DailyBriefingService {
       return { status: 'skipped_disabled' as const };
 
     const window = dayWindow(now, user.timezone);
-    const [todayTasks, overdueTasks, todayReminders, overdueReminders, events] =
+    const [todayTasks, overdueTasks, todayReminders, events] =
       await Promise.all([
         this.tasks.list(userId, {
           status: ['inbox', 'doing'],
@@ -81,12 +78,6 @@ export class DailyBriefingService {
         this.reminders.list(userId, {
           status: 'scheduled',
           schedule: 'today',
-          now,
-          timezone: user.timezone,
-        }),
-        this.reminders.list(userId, {
-          status: 'scheduled',
-          schedule: 'past',
           now,
           timezone: user.timezone,
         }),
@@ -113,10 +104,6 @@ export class DailyBriefingService {
         dueAt: task.dueAt?.toISOString() ?? null,
       })),
       remindersToday: todayReminders.map((reminder) => ({
-        title: reminder.title,
-        scheduledAt: reminder.scheduledAt.toISOString(),
-      })),
-      overdueReminders: overdueReminders.map((reminder) => ({
         title: reminder.title,
         scheduledAt: reminder.scheduledAt.toISOString(),
       })),
@@ -187,7 +174,6 @@ export class DailyBriefingService {
       `Tasks due today (${snapshot.tasksDueToday.length}):\n${lines(snapshot.tasksDueToday)}`,
       `Overdue tasks (${snapshot.overdueTasks.length}):\n${lines(snapshot.overdueTasks)}`,
       `Reminders today (${snapshot.remindersToday.length}):\n${lines(snapshot.remindersToday)}`,
-      `Overdue reminders (${snapshot.overdueReminders.length}):\n${lines(snapshot.overdueReminders)}`,
       'Reply with what you want to tackle first.',
     ].join('\n\n');
   }
@@ -198,8 +184,6 @@ export class FollowUpService {
   constructor(
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
     @Inject(TASK_REPOSITORY) private readonly tasks: ITaskRepository,
-    @Inject(REMINDER_REPOSITORY)
-    private readonly reminders: IReminderRepository,
     private readonly notifications: NotificationService,
     private readonly composer: NotificationComposerService,
   ) {}
@@ -210,71 +194,39 @@ export class FollowUpService {
       return { status: 'skipped_user_missing' as const, deliveries: [] };
 
     const window = dayWindow(now, user.timezone);
-    const [todayTasks, overdueTasks, todayReminders, overdueReminders] =
-      await Promise.all([
-        this.tasks.list(userId, {
-          status: ['inbox', 'doing'],
-          due: 'today',
-          now,
-          timezone: user.timezone,
-        }),
-        this.tasks.list(userId, {
-          status: ['inbox', 'doing'],
-          due: 'overdue',
-          now,
-          timezone: user.timezone,
-        }),
-        this.reminders.list(userId, {
-          status: 'scheduled',
-          schedule: 'today',
-          now,
-          timezone: user.timezone,
-        }),
-        this.reminders.list(userId, {
-          status: 'scheduled',
-          schedule: 'past',
-          now,
-          timezone: user.timezone,
-        }),
-      ]);
+    const [todayTasks, overdueTasks] = await Promise.all([
+      this.tasks.list(userId, {
+        status: ['inbox', 'doing'],
+        due: 'today',
+        now,
+        timezone: user.timezone,
+      }),
+      this.tasks.list(userId, {
+        status: ['inbox', 'doing'],
+        due: 'overdue',
+        now,
+        timezone: user.timezone,
+      }),
+    ]);
 
-    const dueTasks = [
+    const dueTasks = dedupeById([
       ...overdueTasks,
       ...todayTasks.filter((task) => task.dueAt && task.dueAt <= now),
-    ];
+    ]);
 
-    const dueReminders = [
-      ...overdueReminders,
-      ...todayReminders.filter((reminder) => reminder.scheduledAt <= now),
-    ];
+    if (dueTasks.length === 0)
+      return { status: 'nothing_due' as const, deliveries: [] };
 
-    const deliveries = [];
+    const result = await this.notifications.enqueue({
+      userId,
+      kind: 'follow_up',
+      content: this.composer.followUpTasksBody(user, dueTasks),
+      idempotencyKey: `follow-up:${window.date}`,
+      proactive: true,
+      sourceId: window.date,
+    });
 
-    for (const task of dedupeById(dueTasks)) {
-      deliveries.push(
-        await this.notifications.enqueue({
-          userId,
-          kind: 'follow_up',
-          content: this.composer.followUpTaskBody(user, task),
-          idempotencyKey: `follow-up:${window.date}:task:${task.id}`,
-          proactive: true,
-          sourceId: task.id,
-        }),
-      );
-    }
-
-    for (const reminder of dedupeById(dueReminders)) {
-      deliveries.push(
-        await this.notifications.enqueue({
-          userId,
-          kind: 'follow_up',
-          content: this.composer.followUpReminderBody(user, reminder),
-          idempotencyKey: `follow-up:${window.date}:reminder:${reminder.id}`,
-          proactive: true,
-          sourceId: reminder.id,
-        }),
-      );
-    }
+    const deliveries = result.deliveries;
 
     return {
       status: deliveries.length ? 'queued' : 'nothing_due',
