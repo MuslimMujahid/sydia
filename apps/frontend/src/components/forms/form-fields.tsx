@@ -20,13 +20,23 @@ export function FieldShell({
   errors = [],
   children,
 }: FieldShellProps) {
-  const messages = errors.map((error) =>
-    typeof error === "string"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : "Periksa nilai ini."
-  );
+  const messages = errors.map((error) => {
+    if (typeof error === "string") return error;
+    if (error instanceof Error) return error.message;
+
+    // TanStack Form surfaces standard-schema (zod) issues as objects carrying
+    // their own `message`; without this the user sees only the fallback copy.
+    if (
+      error !== null &&
+      typeof error === "object" &&
+      "message" in error &&
+      typeof error.message === "string" &&
+      error.message
+    )
+      return error.message;
+
+    return "Periksa nilai ini.";
+  });
 
   const invalid = messages.length > 0;
   const descriptionId = description ? `${id}-description` : undefined;
