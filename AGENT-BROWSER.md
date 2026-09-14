@@ -57,3 +57,14 @@
 ## Document lifecycle
 
 - Chat attach -> POST /documents -> 201 (status processing) -> BullMQ worker -> `ready` in ~4 s (text file). Then POST /conversations/messages -> 201.
+
+## /contacts (contact groups, verified 2026-09-14)
+
+- TabsList has exactly two tabs: "Kontak" (initially selected) and "Grup". Header action button flips text: "Tambah kontak" on Kontak tab, "Tambah grup" on Grup tab (both carry a plus icon — match on text).
+- Grup tab empty state: heading "Belum ada grup" + copy "Satu kontak bisa masuk ke beberapa grup. Buat grup seperti Keluarga atau Kantor untuk mengelompokkan kontak."
+- Group row: name StaticText, count button labelled "Lihat kontak di grup <name>" (text "N kontak"), and "Tindakan untuk <name>" menu button -> menuitems "Edit grup" / "Hapus grup".
+- "Grup baru"/"Edit grup" dialog: field "Nama grup" (maxLength 40), buttons "Batal"/"Simpan grup". Edit dialog description quotes the name: Perbarui nama grup "<name>". Duplicate name -> inline alert "Nama grup sudah digunakan." (HTTP 409), dialog stays open.
+- Clicking the count badge jumps to the Kontak tab with a filter chip (group name StaticText + "Hapus filter" button); clearing restores the full list.
+- Contact editor ("Kontak baru"/"Edit kontak") has a "Grup" fieldset: one checkbox per group when groups exist, else the text "Belum ada grup. Buat grup di tab Grup." Group badges on contact rows carry a small colored dot (span.size-2.bg-brand-deep) distinguishing them from alias badges.
+- Deleting a group uses a NATIVE confirm: "Hapus grup "<name>"? Kontak di dalamnya tidak akan dihapus." Deleting a contact from its editor uses native confirm "Hapus <name> dari kontak?" — arm `window.confirm` via eval to capture/accept headlessly.
+- **Dialog action buttons ("Simpan kontak", "Hapus kontak") also need `scrollintoview` before click** (same below-fold trap as "Masuk"): clicking while out of view closed the dialog with NO request sent and no error. With scrollintoview first, POST /contacts fires (201) normally.

@@ -3,6 +3,7 @@ import type { Prisma } from '../../../generated/prisma/client';
 import type { CalendarEventWrite, Document } from '../../../database/entities';
 import type {
   ICalendarRepository,
+  IContactGroupRepository,
   IContactRepository,
   IUserRepository,
 } from '../../../database/interfaces';
@@ -74,6 +75,26 @@ function integer(
   return found;
 }
 
+function texts(
+  value: Record<string, unknown>,
+  key: string,
+): string[] | undefined {
+  const found = value[key];
+  if (found === undefined) return undefined;
+  if (!Array.isArray(found))
+    throw new Error(`${key} must be a list of text values.`);
+  const result: string[] = [];
+
+  for (const item of found as unknown[]) {
+    if (typeof item !== 'string')
+      throw new Error(`${key} must be a list of text values.`);
+    const trimmed = item.trim();
+    if (trimmed) result.push(trimmed);
+  }
+
+  return result;
+}
+
 function date(
   value: Record<string, unknown>,
   key: string,
@@ -90,6 +111,7 @@ function date(
 
 export function createPhaseTools(deps: {
   contacts: IContactRepository;
+  contactGroups: IContactGroupRepository;
   documents: DocumentService;
   calendars: ICalendarRepository;
   calendarService: CalendarService;
@@ -109,7 +131,7 @@ Use it when the user asks to save, add, or remember a person's contact details.
 
 Do not use it to find an existing contact or when nothing should be persisted.
 
-The contact is created for the current user; aliases must be strings and omitted optional fields are stored as null.`,
+The contact is created for the current user; aliases must be strings and omitted optional fields are stored as null. Optional groupNames attach the new contact to existing groups; a contact may belong to several.`,
         parameters: schema(
           {
             name: { ...string, description: 'Required contact display name.' },
@@ -130,6 +152,12 @@ The contact is created for the current user; aliases must be strings and omitted
               ...string,
               description: 'Optional free-form notes about the contact.',
             },
+            groupNames: {
+              type: 'array',
+              description:
+                'Optional existing group names to place the contact in.',
+              items: { ...string, description: 'A contact group name.' },
+            },
           },
           ['name'],
         ),
@@ -137,6 +165,13 @@ The contact is created for the current user; aliases must be strings and omitted
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
+        const groupNames = texts(a, 'groupNames');
+        const groups = groupNames
+          ? await deps.contactGroups.findByNames(userId, groupNames)
+          : [];
+
+        if (groupNames && groups.length !== groupNames.length)
+          throw new Error('One or more contact groups were not found.');
 
         return {
           objectType: 'contact',
@@ -148,6 +183,7 @@ The contact is created for the current user; aliases must be strings and omitted
             email: text(a, 'email', false) ?? null,
             phone: text(a, 'phone', false) ?? null,
             notes: text(a, 'notes', false) ?? null,
+            ...(groupNames ? { groupIds: groups.map((g) => g.id) } : {}),
           }),
         };
       },
@@ -182,6 +218,252 @@ Matches the current user's contacts by name, alias, email, or phone; it does not
           text(record(raw), 'reference')!,
         ),
       }),
+    },
+    {
+      definition: {
+        name: 'list_contacts',
+        label: 'Find contacts',
+        description: `Use this tool to list or search the current user's contacts.
+
+Use it when the user asks who they know, or to browse contacts in a group.
+
+Do not use it when one contact must be matched by a reference, or when nothing should be read.
+
+Returns each contact's id, name, aliases, email, phone, notes, and groups. An optional query filters by name, alias, email, or phone; an optional groupName narrows the result to that group.`,
+        parameters: schema({
+          query: {
+            ...string,
+            description:
+              'Optional text matched against name, alias, email, or phone.',
+          },
+          groupName: {
+            ...string,
+            description: 'Optional group name to list members of.',
+          },
+        }),
+      },
+      readOnly: true,
+      parseArguments,
+      execute: async ({ userId, arguments: raw }) => {
+        const a = record(raw);
+        const groupName = text(a, 'groupName', false);
+        const group = groupName
+          ? (await deps.contactGroups.findByNames(userId, [groupName]))[0]
+          : undefined;
+
+        if (groupName && !group) throw new Error('Contact group not found.');
+
+        return {
+          contacts: await deps.contacts.list(userId, {
+            query: text(a, 'query', false),
+            groupId: group?.id,
+          }),
+        };
+      },
+    },
+    {
+      definition: {
+        name: 'list_contact_groups',
+        label: 'View contact groups',
+        description: `Use this tool to list the user's contact groups.
+
+Use it when you need group names before assigning contacts or managing groups.
+
+Do not use it to create, rename, or delete a group, or when group data is not needed.
+
+Returns each group's id, name, and contact count; it does not modify them.`,
+        parameters: schema({}),
+      },
+      readOnly: true,
+      parseArguments,
+      execute: async ({ userId }) => ({
+        contactGroups: await deps.contactGroups.list(userId),
+      }),
+    },
+    {
+      definition: {
+        name: 'create_contact_group',
+        label: 'Create contact group',
+        description: `Use this tool to create a new contact group.
+
+Use it when the user asks to organize contacts under a new group name.
+
+Do not use it when an existing group already fits, or to rename or delete one.
+
+name is required. If a group with that name already exists for the user, the existing group is returned instead of failing, so repeating a request is safe. No confirmation is required.`,
+        parameters: schema(
+          {
+            name: {
+              ...string,
+              description: 'Required contact group name.',
+            },
+          },
+          ['name'],
+        ),
+      },
+      parseArguments,
+      execute: async ({ userId, arguments: raw }) => {
+        const name = text(record(raw), 'name')!;
+        const existing = (
+          await deps.contactGroups.findByNames(userId, [name])
+        )[0];
+
+        return {
+          objectType: 'contact_group',
+          object:
+            existing ?? (await deps.contactGroups.create(userId, { name })),
+        };
+      },
+    },
+    {
+      definition: {
+        name: 'update_contact_group',
+        label: 'Update contact group',
+        description: `Use this tool to rename an existing contact group.
+
+Use it when the user asks to change a group's name.
+
+Do not use it to create a group, delete one, or change which contacts belong to it.
+
+Requires user approval. Identify the group by currentName; newName is required and must be unique for the user.`,
+        parameters: schema(
+          {
+            currentName: {
+              ...string,
+              description: 'Required current name of the group to rename.',
+            },
+            newName: {
+              ...string,
+              description: 'Required replacement group name.',
+            },
+          },
+          ['currentName', 'newName'],
+        ),
+      },
+      requiresConfirmation: true,
+      parseArguments,
+      execute: async ({ userId, arguments: raw }) => {
+        const a = record(raw);
+        const current = (
+          await deps.contactGroups.findByNames(userId, [
+            text(a, 'currentName')!,
+          ])
+        )[0];
+
+        if (!current) throw new Error('Contact group not found.');
+        const group = await deps.contactGroups.update(userId, current.id, {
+          name: text(a, 'newName')!,
+        });
+
+        return { objectType: 'contact_group', object: group };
+      },
+    },
+    {
+      definition: {
+        name: 'delete_contact_group',
+        label: 'Delete contact group',
+        description: `Use this tool to delete an existing contact group.
+
+Use it when the user explicitly asks to remove a group.
+
+Do not use it to remove contacts; contacts stay and only their group membership is removed.
+
+Requires user approval. Identify the group by name. contactCount is accepted as context but is not used.`,
+        parameters: schema(
+          {
+            name: {
+              ...string,
+              description: 'Required name of the group to delete.',
+            },
+            contactCount: {
+              type: 'integer',
+              minimum: 0,
+              description:
+                'Optional number of contacts currently in the group, for context.',
+            },
+          },
+          ['name'],
+        ),
+      },
+      requiresConfirmation: true,
+      parseArguments,
+      execute: async ({ userId, arguments: raw }) => {
+        const a = record(raw);
+        const current = (
+          await deps.contactGroups.findByNames(userId, [text(a, 'name')!])
+        )[0];
+
+        if (!current) throw new Error('Contact group not found.');
+        const group = await deps.contactGroups.delete(userId, current.id);
+
+        return { objectType: 'contact_group', object: group };
+      },
+    },
+    {
+      definition: {
+        name: 'assign_contact_groups',
+        label: 'Update contact groups',
+        description: `Use this tool to change which groups one contact belongs to.
+
+Use it when the user asks to put a contact in a group or take them out of one.
+
+Do not use it to create or delete groups, or to edit other contact details.
+
+Requires user approval. Identify the contact by contactName; groupNames is required and mode adds, removes, or sets the memberships. A contact can belong to several groups.`,
+        parameters: schema(
+          {
+            contactName: {
+              ...string,
+              description: 'Required name or alias of the contact to change.',
+            },
+            groupNames: {
+              type: 'array',
+              description: 'Group names to add, remove, or set.',
+              items: { ...string, description: 'A contact group name.' },
+            },
+            mode: {
+              type: 'string',
+              enum: ['add', 'remove', 'set'],
+              description:
+                'How groupNames change the memberships; defaults to add.',
+            },
+          },
+          ['contactName', 'groupNames'],
+        ),
+      },
+      requiresConfirmation: true,
+      parseArguments,
+      execute: async ({ userId, arguments: raw }) => {
+        const a = record(raw);
+        const contact = (
+          await deps.contacts.resolve(userId, text(a, 'contactName')!)
+        )[0];
+
+        if (!contact) throw new Error('Contact not found.');
+        const names = texts(a, 'groupNames') ?? [];
+        const groups = await deps.contactGroups.findByNames(userId, names);
+        if (groups.length !== names.length)
+          throw new Error('One or more contact groups were not found.');
+
+        const mode = a.mode ?? 'add';
+        if (mode !== 'add' && mode !== 'remove' && mode !== 'set')
+          throw new Error('mode must be add, remove, or set.');
+
+        const currentIds = contact.groups.map((group) => group.id);
+        const requested = groups.map((group) => group.id);
+        const groupIds =
+          mode === 'set'
+            ? requested
+            : mode === 'add'
+              ? [...currentIds, ...requested]
+              : currentIds.filter((id) => !requested.includes(id));
+
+        const updated = await deps.contacts.update(userId, contact.id, {
+          groupIds,
+        });
+
+        return { objectType: 'contact', object: updated };
+      },
     },
     {
       definition: {

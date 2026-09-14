@@ -115,6 +115,27 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
   },
   save_contact: { en: 'Save contact', id: 'Menyimpan kontak' },
   resolve_contact: { en: 'Find contact', id: 'Mencari kontak' },
+  list_contacts: { en: 'Find contacts', id: 'Mencari kontak' },
+  list_contact_groups: {
+    en: 'View contact groups',
+    id: 'Melihat grup kontak',
+  },
+  create_contact_group: {
+    en: 'Create contact group',
+    id: 'Membuat grup kontak',
+  },
+  update_contact_group: {
+    en: 'Update contact group',
+    id: 'Memperbarui grup kontak',
+  },
+  delete_contact_group: {
+    en: 'Delete contact group',
+    id: 'Menghapus grup kontak',
+  },
+  assign_contact_groups: {
+    en: 'Update contact groups',
+    id: 'Memperbarui grup kontak',
+  },
   list_documents: { en: 'List files', id: 'Menampilkan file' },
   read_document: { en: 'Read document', id: 'Membaca dokumen' },
   save_attached_files: {

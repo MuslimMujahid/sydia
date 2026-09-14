@@ -9,6 +9,7 @@ import {
   Search,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
@@ -38,8 +39,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
+import type { ContactGroup } from "@/lib/services/api/contact-groups/contact-groups.api";
+import { contactGroupsQueryOptions } from "@/lib/services/api/contact-groups/contact-groups.queries";
 import type {
   Contact,
   ContactWriteInput,
@@ -50,6 +54,8 @@ import {
   useDeleteContact,
   useUpdateContact,
 } from "@/lib/services/api/contacts/contacts.queries";
+import { ContactGroupPanel } from "./contact-group-panel";
+import { ContactGroupsPicker } from "./contact-groups-picker";
 
 const contactSchema = z.object({
   name: z.string().trim().min(2, "Masukkan nama minimal 2 karakter."),
@@ -57,6 +63,7 @@ const contactSchema = z.object({
   phone: z.string(),
   aliases: z.string(),
   notes: z.string(),
+  groupIds: z.array(z.string()),
 });
 
 type ContactEditorProps = {
@@ -68,6 +75,7 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
   const createMutation = useCreateContact();
   const updateMutation = useUpdateContact();
   const deleteMutation = useDeleteContact();
+  const groupsQuery = useQuery(contactGroupsQueryOptions());
   const mutation = contact ? updateMutation : createMutation;
   const form = useAppForm({
     defaultValues: {
@@ -75,6 +83,7 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
       email: contact?.email ?? "",
       phone: contact?.phone ?? "",
       aliases: contact?.aliases.join(", ") ?? "",
+      groupIds: contact?.groups.map((group) => group.id) ?? [],
       notes: contact?.notes ?? "",
     },
     validators: { onChange: contactSchema },
@@ -92,6 +101,7 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
           ),
         ],
         notes: value.notes.trim() || null,
+        groupIds: groupsQuery.isPending ? undefined : value.groupIds,
       };
 
       if (contact)
@@ -219,6 +229,16 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
             </FieldShell>
           )}
         </form.Field>
+        <form.Field name="groupIds">
+          {(field) => (
+            <ContactGroupsPicker
+              groups={groupsQuery.data ?? []}
+              selected={field.state.value}
+              loading={groupsQuery.isPending}
+              onChange={(value) => field.handleChange(value)}
+            />
+          )}
+        </form.Field>
         <FormError
           message={mutation.error?.message ?? deleteMutation.error?.message}
         />
@@ -282,8 +302,13 @@ function ContactRow({
             {contact.name}
           </span>
         </span>
-        {contact.aliases.length ? (
+        {contact.aliases.length || contact.groups.length ? (
           <span className="mt-2 flex flex-wrap gap-1.5 pl-12">
+            {contact.groups.map((group) => (
+              <Badge key={group.id} dot="brand">
+                {group.name}
+              </Badge>
+            ))}
             {contact.aliases.map((alias) => (
               <Badge key={alias}>{alias}</Badge>
             ))}
@@ -334,17 +359,30 @@ function ContactRow({
 }
 
 export function ContactPage() {
+  const [activeTab, setActiveTab] = useState("contacts");
   const [searchDraft, setSearchDraft] = useState("");
   const [queryText, setQueryText] = useState("");
+  const [groupFilter, setGroupFilter] = useState<ContactGroup | null>(null);
   const [editingContact, setEditingContact] = useState<Contact | "new" | null>(
     null
   );
 
-  const query = useQuery(contactsQueryOptions(queryText));
+  const [editingGroup, setEditingGroup] = useState<ContactGroup | "new" | null>(
+    null
+  );
+
+  const query = useQuery(contactsQueryOptions(queryText, groupFilter?.id));
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setQueryText(searchDraft.trim());
+  }
+
+  function showGroupMembers(group: ContactGroup) {
+    setGroupFilter(group);
+    setQueryText("");
+    setSearchDraft("");
+    setActiveTab("contacts");
   }
 
   return (
@@ -353,59 +391,103 @@ export function ContactPage() {
         title="Kontak"
         description="Kelola orang dan nama lain yang perlu dikenali Sydia dalam percakapan."
         action={
-          <Button onClick={() => setEditingContact("new")}>
-            <Plus /> Tambah kontak
-          </Button>
+          activeTab === "groups" ? (
+            <Button onClick={() => setEditingGroup("new")}>
+              <Plus /> Tambah grup
+            </Button>
+          ) : (
+            <Button onClick={() => setEditingContact("new")}>
+              <Plus /> Tambah kontak
+            </Button>
+          )
         }
       />
-      <form
-        className="flex max-w-xl gap-2"
-        role="search"
-        onSubmit={handleSearch}
-      >
-        <label htmlFor="contact-search" className="sr-only">
-          Cari kontak
-        </label>
-        <Input
-          id="contact-search"
-          type="search"
-          value={searchDraft}
-          placeholder="Cari nama, alias, email, atau telepon…"
-          onChange={(event) => setSearchDraft(event.target.value)}
-        />
-        <Button type="submit" variant="dark-outline">
-          <Search /> Cari
-        </Button>
-      </form>
-      {query.isPending ? <DomainListSkeleton label="Memuat kontak" /> : null}
-      {query.isError ? (
-        <DomainInlineError
-          title="Kontak tidak dapat dimuat"
-          message={query.error.message}
-          onRetry={() => void query.refetch()}
-        />
-      ) : null}
-      {query.isSuccess && !query.data.length ? (
-        <EmptyState
-          title={queryText ? "Kontak tidak ditemukan" : "Belum ada kontak"}
-          message={
-            queryText
-              ? "Periksa ejaan atau cari dengan nama lain."
-              : "Tambahkan orang pertama beserta alias yang biasa Anda gunakan di chat."
-          }
-        />
-      ) : null}
-      {query.isSuccess && query.data.length ? (
-        <ul className="divide-y divide-surface-1 border-y border-surface-1">
-          {query.data.map((contact) => (
-            <ContactRow
-              key={contact.id}
-              contact={contact}
-              onEdit={() => setEditingContact(contact)}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value)}>
+        <TabsList>
+          <TabsTab value="contacts">Kontak</TabsTab>
+          <TabsTab value="groups">Grup</TabsTab>
+        </TabsList>
+        <TabsPanel value="contacts" className="space-y-8">
+          {groupFilter ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge dot="brand">{groupFilter.name}</Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setGroupFilter(null)}
+              >
+                <X /> Hapus filter
+              </Button>
+            </div>
+          ) : null}
+          <form
+            className="flex max-w-xl gap-2"
+            role="search"
+            onSubmit={handleSearch}
+          >
+            <label htmlFor="contact-search" className="sr-only">
+              Cari kontak
+            </label>
+            <Input
+              id="contact-search"
+              type="search"
+              value={searchDraft}
+              placeholder="Cari nama, alias, email, atau telepon…"
+              onChange={(event) => setSearchDraft(event.target.value)}
             />
-          ))}
-        </ul>
-      ) : null}
+            <Button type="submit" variant="dark-outline">
+              <Search /> Cari
+            </Button>
+          </form>
+          {query.isPending ? (
+            <DomainListSkeleton label="Memuat kontak" />
+          ) : null}
+          {query.isError ? (
+            <DomainInlineError
+              title="Kontak tidak dapat dimuat"
+              message={query.error.message}
+              onRetry={() => void query.refetch()}
+            />
+          ) : null}
+          {query.isSuccess && !query.data.length ? (
+            <EmptyState
+              title={
+                groupFilter
+                  ? "Belum ada kontak di grup ini"
+                  : queryText
+                    ? "Kontak tidak ditemukan"
+                    : "Belum ada kontak"
+              }
+              message={
+                groupFilter
+                  ? `Tambahkan kontak ke grup ${groupFilter.name} lewat tombol Edit kontak.`
+                  : queryText
+                    ? "Periksa ejaan atau cari dengan nama lain."
+                    : "Tambahkan orang pertama beserta alias yang biasa Anda gunakan di chat."
+              }
+            />
+          ) : null}
+          {query.isSuccess && query.data.length ? (
+            <ul className="divide-y divide-surface-1 border-y border-surface-1">
+              {query.data.map((contact) => (
+                <ContactRow
+                  key={contact.id}
+                  contact={contact}
+                  onEdit={() => setEditingContact(contact)}
+                />
+              ))}
+            </ul>
+          ) : null}
+        </TabsPanel>
+        <TabsPanel value="groups">
+          <ContactGroupPanel
+            editingGroup={editingGroup}
+            onEditingGroupChange={setEditingGroup}
+            onShowMembers={showGroupMembers}
+          />
+        </TabsPanel>
+      </Tabs>
       <Dialog
         open={Boolean(editingContact)}
         onOpenChange={(open) => !open && setEditingContact(null)}

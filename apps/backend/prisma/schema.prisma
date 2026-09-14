@@ -53,6 +53,7 @@ model User {
   fileAssets             FileAsset[]
   documents              Document[]
   contacts               Contact[]
+  contactGroups          ContactGroup[]
   calendarIntegrations   CalendarIntegration[]
   calendarEvents         CalendarEvent[]
   whatsappLinkCodes      WhatsAppLinkCode[]
@@ -536,10 +537,37 @@ model Contact {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupMembers   ContactGroupMember[]
 
   @@index([userId, normalizedName])
   @@index([userId, updatedAt])
   @@map("contact")
+}
+
+model ContactGroup {
+  id             String               @id @default(cuid())
+  userId         String
+  name           String
+  normalizedName String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @default(now()) @updatedAt
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members        ContactGroupMember[]
+
+  @@unique([userId, normalizedName])
+  @@index([userId, name])
+  @@map("contact_group")
+}
+
+model ContactGroupMember {
+  contactId String
+  groupId   String
+  contact   Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  group     ContactGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, groupId])
+  @@index([groupId])
+  @@map("contact_group_member")
 }
 
 model CalendarIntegration {

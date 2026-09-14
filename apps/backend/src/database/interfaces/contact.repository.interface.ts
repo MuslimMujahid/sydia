@@ -1,7 +1,12 @@
 import type { Contact, ContactWrite } from '../entities';
 
+export type ContactFilters = {
+  query?: string;
+  groupId?: string;
+};
+
 export interface IContactRepository {
-  list(userId: string, query?: string): Promise<Contact[]>;
+  list(userId: string, filters?: ContactFilters): Promise<Contact[]>;
   findById(userId: string, id: string): Promise<Contact | null>;
   resolve(userId: string, reference: string): Promise<Contact[]>;
   create(userId: string, input: ContactWrite): Promise<Contact>;

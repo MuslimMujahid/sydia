@@ -9,6 +9,7 @@ export * from './prisma-task.repository';
 export * from './prisma-category.repository';
 export * from './prisma-document.repository';
 export * from './prisma-contact.repository';
+export * from './prisma-contact-group.repository';
 export * from './prisma-calendar.repository';
 export * from './prisma-whatsapp.repository';
 export * from './prisma-telegram.repository';

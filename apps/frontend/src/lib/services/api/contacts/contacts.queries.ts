@@ -4,6 +4,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
+import { contactGroupQueryKeys } from "../contact-groups/contact-groups.queries";
 import { conversationQueryKeys } from "../conversations/conversations.queries";
 import {
   createContact,
@@ -17,15 +18,16 @@ import {
 export const contactQueryKeys = {
   all: ["contacts"] as const,
   lists: () => ["contacts", "list"] as const,
-  list: (query: string) => ["contacts", "list", query] as const,
+  list: (query: string, groupId?: string) =>
+    ["contacts", "list", query, groupId ?? ""] as const,
   details: () => ["contacts", "detail"] as const,
   detail: (contactId: string) => ["contacts", "detail", contactId] as const,
 };
 
-export const contactsQueryOptions = (query = "") =>
+export const contactsQueryOptions = (query = "", groupId?: string) =>
   queryOptions({
-    queryKey: contactQueryKeys.list(query.trim()),
-    queryFn: () => getContacts(query),
+    queryKey: contactQueryKeys.list(query.trim(), groupId),
+    queryFn: () => getContacts(query, groupId),
     staleTime: 15_000,
   });
 
@@ -48,7 +50,11 @@ export function useCreateContact() {
     mutationFn: createContact,
     onSuccess: (contact) => cacheContact(queryClient, contact),
     meta: {
-      invalidateQueries: [contactQueryKeys.all, conversationQueryKeys.all],
+      invalidateQueries: [
+        contactQueryKeys.all,
+        conversationQueryKeys.all,
+        contactGroupQueryKeys.all,
+      ],
     },
   });
 }
@@ -60,7 +66,11 @@ export function useUpdateContact() {
     mutationFn: updateContact,
     onSuccess: (contact) => cacheContact(queryClient, contact),
     meta: {
-      invalidateQueries: [contactQueryKeys.all, conversationQueryKeys.all],
+      invalidateQueries: [
+        contactQueryKeys.all,
+        conversationQueryKeys.all,
+        contactGroupQueryKeys.all,
+      ],
     },
   });
 }
@@ -75,7 +85,11 @@ export function useDeleteContact() {
         queryKey: contactQueryKeys.detail(contactId),
       }),
     meta: {
-      invalidateQueries: [contactQueryKeys.all, conversationQueryKeys.all],
+      invalidateQueries: [
+        contactQueryKeys.all,
+        conversationQueryKeys.all,
+        contactGroupQueryKeys.all,
+      ],
     },
   });
 }

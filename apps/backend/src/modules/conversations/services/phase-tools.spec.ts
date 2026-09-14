@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type {
   ICalendarRepository,
+  IContactGroupRepository,
   IContactRepository,
   IUserRepository,
 } from '../../../database/interfaces';
@@ -11,6 +12,7 @@ import { createPhaseTools } from './phase-tools';
 function tools(
   overrides: Partial<{
     contacts: IContactRepository;
+    contactGroups: IContactGroupRepository;
     documents: DocumentService;
     calendars: ICalendarRepository;
     calendarService: CalendarService;
@@ -19,6 +21,7 @@ function tools(
 ) {
   return createPhaseTools({
     contacts: {} as IContactRepository,
+    contactGroups: {} as IContactGroupRepository,
     documents: {} as DocumentService,
     calendars: {} as ICalendarRepository,
     calendarService: {} as CalendarService,
@@ -78,6 +81,158 @@ describe('phase 5 and 6 assistant tools', () => {
     );
     expect(found).toEqual({ contacts: [{ id: 'contact-1', name: 'Rina' }] });
   });
+
+  test('assigns contact groups by adding, removing, or replacing memberships', async () => {
+    const groups = [
+      { id: 'group-1', name: 'Keluarga' },
+      { id: 'group-2', name: 'Kantor' },
+    ];
+
+    const findByNames = jest
+      .fn<(userId: string, names: string[]) => Promise<typeof groups>>()
+      .mockImplementation((_userId, names) =>
+        Promise.resolve(
+          groups.filter((group) =>
+            names.some(
+              (name) => name.toLowerCase() === group.name.toLowerCase(),
+            ),
+          ),
+        ),
+      );
+
+    const update = jest
+      .fn<(userId: string, id: string, input: unknown) => Promise<unknown>>()
+      .mockResolvedValue({ id: 'contact-1', name: 'Rina' });
+
+    const resolve = jest
+      .fn<(userId: string, reference: string) => Promise<unknown[]>>()
+      .mockResolvedValue([
+        {
+          id: 'contact-1',
+          name: 'Rina',
+          groups: [{ id: 'group-1', name: 'Keluarga' }],
+        },
+      ]);
+
+    const available = tools({
+      contacts: { resolve, update } as unknown as IContactRepository,
+      contactGroups: { findByNames } as unknown as IContactGroupRepository,
+    });
+
+    const execute = (argumentsValue: unknown) =>
+      available
+        .find((tool) => tool.definition.name === 'assign_contact_groups')
+        ?.execute({
+          userId: 'user-1',
+          sourceMessageId: 'message-3',
+          idempotencyKey: 'three',
+          arguments: argumentsValue as never,
+        });
+
+    await execute({ contactName: 'Rina', groupNames: ['Kantor'] });
+    await execute({
+      contactName: 'Rina',
+      groupNames: ['Keluarga'],
+      mode: 'remove',
+    });
+    await execute({
+      contactName: 'Rina',
+      groupNames: ['Kantor'],
+      mode: 'set',
+    });
+
+    expect(update).toHaveBeenNthCalledWith(1, 'user-1', 'contact-1', {
+      groupIds: ['group-1', 'group-2'],
+    });
+    expect(update).toHaveBeenNthCalledWith(2, 'user-1', 'contact-1', {
+      groupIds: [],
+    });
+    expect(update).toHaveBeenNthCalledWith(3, 'user-1', 'contact-1', {
+      groupIds: ['group-2'],
+    });
+  });
+
+  test('refuses to save a contact when a named group does not exist', async () => {
+    const create = jest
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValue({ id: 'contact-1', name: 'Rina' });
+
+    const findByNames = jest
+      .fn<() => Promise<Array<{ id: string; name: string }>>>()
+      .mockResolvedValue([]);
+
+    await expect(
+      tools({
+        contacts: { create } as unknown as IContactRepository,
+        contactGroups: { findByNames } as unknown as IContactGroupRepository,
+      })
+        .find((tool) => tool.definition.name === 'save_contact')
+        ?.execute({
+          userId: 'user-1',
+          sourceMessageId: 'message-4',
+          idempotencyKey: 'four',
+          arguments: { name: 'Rina', groupNames: ['Keluarga'] },
+        }),
+    ).rejects.toThrow('contact groups were not found');
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  test('creates a contact group immediately without requiring approval', async () => {
+    const create = jest
+      .fn<(userId: string, input: { name: string }) => Promise<unknown>>()
+      .mockResolvedValue({ id: 'group-1', name: 'Teman Kerja' });
+
+    const tool = tools({
+      contactGroups: {
+        create,
+        findByNames: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
+      } as unknown as IContactGroupRepository,
+    }).find(({ definition }) => definition.name === 'create_contact_group');
+
+    expect(tool?.requiresConfirmation).toBeUndefined();
+
+    await expect(
+      tool?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-5',
+        idempotencyKey: 'five',
+        arguments: { name: 'Teman Kerja' },
+      }),
+    ).resolves.toEqual({
+      objectType: 'contact_group',
+      object: { id: 'group-1', name: 'Teman Kerja' },
+    });
+    expect(create).toHaveBeenCalledWith('user-1', { name: 'Teman Kerja' });
+  });
+
+  test('returns the existing group instead of failing on a repeated name', async () => {
+    const existing = { id: 'group-9', name: 'Teman Kerja' };
+    type GroupRow = { id: string; name: string };
+
+    const create = jest
+      .fn<() => Promise<GroupRow>>()
+      .mockResolvedValue({ id: 'new', name: 'Teman Kerja' });
+
+    const result = await tools({
+      contactGroups: {
+        create,
+        findByNames: jest
+          .fn<() => Promise<GroupRow[]>>()
+          .mockResolvedValue([existing]),
+      } as unknown as IContactGroupRepository,
+    })
+      .find(({ definition }) => definition.name === 'create_contact_group')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-6',
+        idempotencyKey: 'six',
+        arguments: { name: 'teman kerja' },
+      });
+
+    expect(result).toEqual({ objectType: 'contact_group', object: existing });
+    expect(create).not.toHaveBeenCalled();
+  });
+
   test('lists document metadata without extracted content', async () => {
     const documents = [
       {
@@ -621,7 +776,7 @@ describe('phase 5 and 6 assistant tools', () => {
       if (schema.items) visit(schema.items);
     };
 
-    expect(available).toHaveLength(11);
+    expect(available).toHaveLength(17);
 
     for (const assistantTool of available) {
       expect(assistantTool.definition.description).toMatch(

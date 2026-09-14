@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_app/contacts")({
       { title: "Kontak · Sydia" },
       {
         name: "description",
-        content: "Kelola kontak dan nama lain yang dikenali Sydia.",
+        content: "Kelola kontak, grup, dan nama lain yang dikenali Sydia.",
       },
     ],
   }),

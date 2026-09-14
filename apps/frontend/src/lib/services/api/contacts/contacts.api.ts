@@ -4,6 +4,8 @@ import { z } from "zod";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
+export type ContactGroupRef = { id: string; name: string };
+
 export type Contact = {
   id: string;
   name: string;
@@ -11,6 +13,7 @@ export type Contact = {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  groups: ContactGroupRef[];
   createdAt: string;
   updatedAt: string;
 };
@@ -21,6 +24,7 @@ export type ContactWriteInput = {
   email?: string | null;
   phone?: string | null;
   notes?: string | null;
+  groupIds?: string[];
 };
 
 export type UpdateContactInput = {
@@ -28,16 +32,20 @@ export type UpdateContactInput = {
   values: Partial<ContactWriteInput>;
 };
 
-const contactQuerySchema = z.string();
+const contactQuerySchema = z.object({
+  query: z.string(),
+  groupId: z.string().optional(),
+});
+
 const contactIdSchema = z.string().min(1);
 
 const getContactsServer = createServerFn({ method: "GET" })
   .validator(contactQuerySchema)
-  .handler(async ({ data: query }) => {
+  .handler(async ({ data: { query, groupId } }) => {
     try {
       const cookie = getRequestHeader("cookie");
       const response = await api.get<ApiResponse<Contact[]>>("/contacts", {
-        params: { q: query.trim() || undefined },
+        params: { q: query.trim() || undefined, groupId: groupId || undefined },
         headers: cookie ? { cookie } : undefined,
       });
 
@@ -63,12 +71,16 @@ const getContactServer = createServerFn({ method: "GET" })
     }
   });
 
-export async function getContacts(query = ""): Promise<Contact[]> {
-  if (typeof window === "undefined") return getContactsServer({ data: query });
+export async function getContacts(
+  query = "",
+  groupId?: string
+): Promise<Contact[]> {
+  if (typeof window === "undefined")
+    return getContactsServer({ data: { query, groupId } });
 
   try {
     const response = await api.get<ApiResponse<Contact[]>>("/contacts", {
-      params: { q: query.trim() || undefined },
+      params: { q: query.trim() || undefined, groupId: groupId || undefined },
     });
 
     return response.data.data;

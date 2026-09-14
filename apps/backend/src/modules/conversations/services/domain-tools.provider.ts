@@ -2,12 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   CALENDAR_REPOSITORY,
   CATEGORY_REPOSITORY,
+  CONTACT_GROUP_REPOSITORY,
   CONTACT_REPOSITORY,
   MEMORY_REPOSITORY,
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
   type ICategoryRepository,
+  type IContactGroupRepository,
   type IMemoryRepository,
   type IReminderRepository,
   type ITaskRepository,
@@ -36,6 +38,8 @@ export class DomainToolsProvider {
     scheduler: ReminderSchedulerService,
     @Inject(USER_REPOSITORY) users: IUserRepository,
     @Inject(CONTACT_REPOSITORY) contacts: IContactRepository,
+    @Inject(CONTACT_GROUP_REPOSITORY)
+    contactGroups: IContactGroupRepository,
     documents: DocumentService,
     @Inject(CALENDAR_REPOSITORY) calendars: ICalendarRepository,
     calendarService: CalendarService,
@@ -54,6 +58,7 @@ export class DomainToolsProvider {
       }),
       ...createPhaseTools({
         contacts,
+        contactGroups,
         documents,
         calendars,
         calendarService,

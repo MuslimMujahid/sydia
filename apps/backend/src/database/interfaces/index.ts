@@ -9,6 +9,7 @@ export * from './task.repository.interface';
 export * from './category.repository.interface';
 export * from './document.repository.interface';
 export * from './contact.repository.interface';
+export * from './contact-group.repository.interface';
 export * from './calendar.repository.interface';
 export * from './whatsapp.repository.interface';
 export * from './telegram.repository.interface';
