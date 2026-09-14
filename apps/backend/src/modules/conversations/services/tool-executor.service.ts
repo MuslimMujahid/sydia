@@ -69,13 +69,26 @@ export type ToolExecutionResult = {
 const TOOL_STALE_AFTER_MS = 60_000;
 const MAX_TOOL_ERROR_LENGTH = 240;
 
+/** Prisma renders a code frame: a source path, then numbered source lines. */
+const PRISMA_CODE_FRAME_LINE =
+  /^\s*(?:→\s*)?(?:\d+\s+\S|\S*\.(?:ts|js|mjs|cjs|prisma):\d+(?::\d+)?\s*$)/;
+
 function toolErrorContent(error: unknown): string {
   const message =
     error instanceof Error && error.message.trim()
       ? error.message
       : 'Tool execution failed.';
 
-  const sanitized = message
+  // Prisma's gutter and source path are noise that crowd the actual cause out
+  // of the truncation window; drop them so the model still sees the reason.
+  const readable = message.includes('invocation in')
+    ? message
+        .split('\n')
+        .filter((line) => !PRISMA_CODE_FRAME_LINE.test(line))
+        .join(' ')
+    : message;
+
+  const sanitized = readable
     .replace(/[\p{Cc}]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()

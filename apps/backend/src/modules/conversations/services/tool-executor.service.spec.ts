@@ -285,6 +285,72 @@ describe('ToolExecutorService', () => {
     });
   });
 
+  it('keeps the real cause of a Prisma failure inside the truncation window', async () => {
+    const pending = {
+      id: 'tool-prisma',
+      assistantRunId: 'run-1',
+      name: 'create_contact_group',
+      label: 'Create contact group',
+      status: 'pending',
+      arguments: { name: 'teman kerja' },
+      idempotencyKey: 'message:call',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const repository = {
+      createToolInvocation: resolved(pending),
+      claimToolInvocation: resolved(true),
+      updateToolInvocation: jest
+        .fn()
+        .mockImplementation((_id: unknown, update: unknown) =>
+          Promise.resolve({ ...pending, ...(update as object) }),
+        ),
+    } as unknown as IConversationRepository;
+
+    const prismaError = new Error(
+      [
+        '',
+        'Invalid `this.prisma.contactGroup.create()` invocation in',
+        '/srv/app/src/database/repositories/prisma-contact-group.repository.ts:78:48',
+        '',
+        '  75   input: ContactGroupWrite,',
+        '  76 ): Promise<ContactGroup> {',
+        '  77   const name = input.name.trim().replace(/\\s+/g, " ");',
+        '→ 78   const row = await this.prisma.contactGroup.create(',
+        'Unique constraint failed on the constraint: `contact_group_userId_normalizedName_key`',
+      ].join('\n'),
+    );
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'create_contact_group',
+          label: 'Create contact group',
+          description: 'Create a group.',
+          parameters: { type: 'object' },
+        },
+        parseArguments: (value) => value as never,
+        execute: () => Promise.reject(prismaError),
+      },
+    ]);
+
+    const result = await executor.execute('user-1', 'run-1', 'message-1', {
+      id: 'call-1',
+      name: 'create_contact_group',
+      arguments: { name: 'teman kerja' },
+    });
+
+    const { message } = JSON.parse(result.content) as { message: string };
+
+    expect(message).toContain('Unique constraint failed');
+    // The code frame's source lines must be gone; the one-line call name that
+    // Prisma puts in the message itself is fine and keeps the origin visible.
+    expect(message).not.toContain('input: ContactGroupWrite');
+    expect(message).not.toMatch(/\d+:\d+/);
+  });
+
   it('waits for the burst gate before executing a tool', async () => {
     let release!: () => void;
     const toolsReady = new Promise<void>((resolve) => {
