@@ -690,6 +690,106 @@ describe('OpenRouterLanguageModel', () => {
     expect(tracing.calls.map(({ attempt }) => attempt)).toEqual([1, 2]);
   });
 
+  it('drops planning narration emitted in a step that calls a tool', async () => {
+    // The model narrates its plan in the same step as a tool call, in its own
+    // working language. That text is not an answer and must never reach the
+    // user, either as a streamed delta or as the persisted message.
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+        if (calls > 1)
+          return Promise.resolve(textStream('Grup berhasil dibuat.'));
+
+        return Promise.resolve({
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'text-start' as const, id: 'text-1' },
+              {
+                type: 'text-delta' as const,
+                id: 'text-1',
+                delta: "I'll create the group first, ",
+              },
+              {
+                type: 'text-delta' as const,
+                id: 'text-1',
+                delta: 'then save the contact into it.',
+              },
+              { type: 'text-end' as const, id: 'text-1' },
+              {
+                type: 'tool-call' as const,
+                toolCallId: 'call-1',
+                toolName: 'create_task',
+                input: '{}',
+              },
+              {
+                type: 'finish' as const,
+                finishReason: {
+                  unified: 'tool-calls' as const,
+                  raw: undefined,
+                },
+                logprobs: undefined,
+                usage: streamUsage,
+              },
+            ],
+          }),
+        });
+      },
+    });
+
+    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+    const onTextDelta = jest.fn<(delta: string) => void>();
+
+    await expect(
+      gateway.generate({
+        messages: [{ role: 'user', content: 'Simpan kontak.' }],
+        tools: fakeTools(),
+        onTextDelta,
+        onToolCall: jest.fn(),
+        retrySafeTools: new Set(['create_task']),
+      }),
+    ).resolves.toMatchObject({ text: 'Grup berhasil dibuat.' });
+
+    const streamed = onTextDelta.mock.calls.map(([delta]) => delta).join('');
+    expect(streamed).toBe('Grup berhasil dibuat.');
+    expect(streamed).not.toContain('create the group');
+  });
+
+  it('still streams text live when the request has no tools', async () => {
+    const languageModel = new MockLanguageModelV4({
+      doStream: () =>
+        Promise.resolve({
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'text-start' as const, id: 'text-1' },
+              { type: 'text-delta' as const, id: 'text-1', delta: 'Halo ' },
+              { type: 'text-delta' as const, id: 'text-1', delta: 'kembali.' },
+              { type: 'text-end' as const, id: 'text-1' },
+              {
+                type: 'finish' as const,
+                finishReason: { unified: 'stop' as const, raw: undefined },
+                logprobs: undefined,
+                usage: streamUsage,
+              },
+            ],
+          }),
+        }),
+    });
+
+    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+    const deltas: string[] = [];
+
+    await gateway.generate({
+      messages: [{ role: 'user', content: 'Halo' }],
+      onTextDelta: (delta) => deltas.push(delta),
+    });
+
+    // Without tools nothing can be narration, so deltas stay incremental.
+    expect(deltas).toEqual(['Halo ', 'kembali.']);
+  });
+
   it('does not retry after a mutating tool call', async () => {
     let calls = 0;
     const languageModel = new MockLanguageModelV4({

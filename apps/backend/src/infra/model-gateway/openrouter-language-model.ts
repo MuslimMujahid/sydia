@@ -470,7 +470,6 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             try {
               if (streaming) {
                 let streamError: unknown;
-                let text = '';
                 let usage:
                   { inputTokens?: unknown; outputTokens?: unknown } | undefined;
 
@@ -482,19 +481,46 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   },
                 });
 
+                // A step that calls a tool emits planning narration before the
+                // call ("I'll create the group first, then ..."). It is written
+                // in the model's own working language and is not an answer, so
+                // it must never reach the user. Such narration can only precede
+                // a tool call, so a request without tools streams straight
+                // through and only tool-capable turns hold their text until the
+                // step ends.
+                const mayCallTools = Boolean(
+                  request.tools && Object.keys(request.tools).length > 0,
+                );
+
+                let answer = '';
+                let stepText = '';
+                let stepCalledTool = false;
+
+                const flushStep = () => {
+                  if (stepText && !(mayCallTools && stepCalledTool)) {
+                    answer += stepText;
+                    request.onTextDelta?.(stepText);
+                  }
+
+                  stepText = '';
+                  stepCalledTool = false;
+                };
+
                 for await (const chunk of result.stream) {
                   if (chunk.type === 'text-delta') {
                     if (chunk.text) {
-                      text += chunk.text;
                       textEmitted = true;
                       lastTextEmitted = true;
-                      request.onTextDelta?.(chunk.text);
+                      stepText += chunk.text;
+                      if (!mayCallTools) flushStep();
                     }
                   } else if (chunk.type === 'tool-call') {
+                    stepCalledTool = true;
                     executedToolNames.add(chunk.toolName);
                     lastExecutedToolNames = [...executedToolNames];
                     request.onToolCall?.(chunk.toolName);
                   } else if (chunk.type === 'finish-step') {
+                    flushStep();
                     usage = chunk.usage;
                     providerMetadata = chunk.providerMetadata;
                   } else if (chunk.type === 'finish') {
@@ -504,7 +530,10 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
 
                 if (streamError) throw errorObject(streamError);
 
-                const finalText = text.trim();
+                // A stream that ends without a closing step still owes its text.
+                flushStep();
+
+                const finalText = answer.trim();
                 const normalizedUsage = {
                   inputTokens: tokenCount(usage?.inputTokens),
                   outputTokens: tokenCount(usage?.outputTokens),
