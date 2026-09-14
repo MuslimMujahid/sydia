@@ -6,6 +6,7 @@ import type {
   SupportedLocale,
 } from '../../database/entities';
 import type { ModelMessage } from '../../infra/model-gateway';
+import { LANGUAGE_NAMES } from '../../shared/locale';
 
 const PERSONA_FILES: Record<AssistantPersona, string> = {
   professional: 'professional.md',
@@ -97,7 +98,7 @@ export function buildBriefingMessages(input: {
   return [
     {
       role: 'system',
-      content: `${BRIEFING_INSTRUCTIONS}\n\nWrite in ${input.locale === 'id' ? 'Indonesian' : 'English'}.${addressInstruction}${personaBlock}`,
+      content: `${BRIEFING_INSTRUCTIONS}\n\nWrite in ${LANGUAGE_NAMES[input.locale]}.${addressInstruction}${personaBlock}`,
     },
     { role: 'user', content: JSON.stringify(input.snapshot) },
   ];

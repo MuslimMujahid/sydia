@@ -17,6 +17,7 @@ import type {
   User,
 } from '../../../database/entities';
 import type { MessageProvider } from '../../../shared/messaging';
+import { languageOf } from '../../../shared/locale';
 import type { ModelMessage } from '../../../infra/model-gateway';
 
 const SYSTEM_POLICY = `Respond in the user's language. Do not claim success unless tool results confirm it. Ask for clarification only when required information is genuinely ambiguous. Never invent facts or repeat obvious facts. Honor the user's timezone, profile, and preferred address.
@@ -260,7 +261,7 @@ export class ContextBuilderService {
     const channelPrompt = channel ? this.channelPrompts[channel] : undefined;
     // Deliberately free of volatile values: this block is part of the stable
     // prompt prefix that providers cache across turns.
-    const profile = `User profile: name ${user.name}; time zone ${user.timezone}; language ${user.locale}.`;
+    const profile = `User profile: name ${user.name}; time zone ${user.timezone}; language ${languageOf(user.locale)}.`;
     const addressInstruction = user.preferredAddress
       ? `\nPreferred address: ${user.preferredAddress}. Use it naturally.`
       : '';

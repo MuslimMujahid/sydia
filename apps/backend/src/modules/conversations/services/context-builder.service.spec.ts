@@ -140,6 +140,39 @@ describe('ContextBuilderService system policy', () => {
       estimateTokens(systemPolicy as string),
     );
   });
+
+  test('names the profile language instead of emitting the raw locale code', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+    );
+
+    const profile = messages.find(
+      (entry) =>
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('User profile'),
+    );
+
+    // A bare code such as "language id" reads as an identifier to the model;
+    // the language name is what a prompt can actually follow.
+    expect(profile?.content).toContain('language Indonesian');
+    expect(profile?.content).not.toMatch(/language id[.;]/);
+  });
+
+  test('renders the English language name for an English profile', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      { ...user, locale: 'en' },
+      'conversation-1',
+    );
+
+    const profile = messages.find(
+      (entry) =>
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('User profile'),
+    );
+
+    expect(profile?.content).toContain('language English');
+  });
 });
 describe('ContextBuilderService prompt prefix stability', () => {
   it('keeps the stable prefix byte-identical across turns', async () => {
@@ -273,7 +306,11 @@ describe('ContextBuilderService channel formatting', () => {
   });
 
   it('keeps Telegram context and token accounting within the configured budget', async () => {
-    const tokenBudget = 2_000;
+    // The fixed prefix (system policy + profile + persona + turn context + the
+    // whole Telegram prompt) already consumes almost this budget, so it must
+    // clear it with room to spare; otherwise this asserts nothing about the
+    // trimming it is meant to exercise.
+    const tokenBudget = 2_100;
     const { messages, tokenUsage } = await createBuilder(tokenBudget, {
       documents: [document('x'.repeat(100_000))],
       messages: [
