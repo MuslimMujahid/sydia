@@ -7,7 +7,13 @@ import type {
   ITaskRepository,
   IUserRepository,
 } from '../../../database/interfaces';
-import type { TaskStatus } from '../../../database/entities';
+import type {
+  Reminder,
+  ReminderRecurrence,
+  ReminderStatus,
+  TaskStatus,
+} from '../../../database/entities';
+import { firstOccurrence, zonedInstant } from '../../../shared/date-time';
 import type { AssistantTool } from './tool-executor.service';
 import { MemoryService } from '../../memories/memory.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
@@ -53,6 +59,7 @@ function schema(
 ): JSONSchema7 {
   const descriptions: Record<string, string> = {
     title: 'Task or reminder title.',
+    schedules: 'One entry per distinct notification time the user asked for.',
     description:
       'Optional extended details beyond the title and other fields; never restate them. Omit when empty; null clears it when updating.',
     priority: 'Task priority: low, medium, or high.',
@@ -65,7 +72,8 @@ function schema(
     categoryMode: 'How categoryNames change a task: add, remove, or set.',
     notes:
       'Optional extended details beyond the title and schedule; never restate them. Omit when empty; null clears them when updating.',
-    scheduledAt: 'Reminder date and time as an ISO datetime.',
+    date: 'Local calendar date of the notification, in YYYY-MM-DD form.',
+    time: 'Local 24 hour clock time of the notification, in HH:mm form.',
     recurrence:
       'Optional recurrence rule for the reminder, or null for no recurrence.',
     frequency: 'Recurrence frequency: daily, weekly, monthly, or yearly.',
@@ -98,6 +106,10 @@ function schema(
         )
       : undefined;
 
+    const items = value.items
+      ? describe(key, value.items as JSONSchema7)
+      : undefined;
+
     return {
       ...value,
       description:
@@ -105,6 +117,7 @@ function schema(
         descriptions[key] ??
         `Value for ${key}; follow the type and constraints defined by this schema.`,
       ...(nested ? { properties: nested } : {}),
+      ...(items ? { items } : {}),
     };
   };
 
@@ -123,6 +136,219 @@ function schema(
 
 const string = { type: 'string' } as const;
 const nullableString: JSONSchema7 = { type: ['string', 'null'] };
+
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
+
+/**
+ * Shared recurrence schema for reminder write tools.
+ *
+ * Weekday numbers stay Sunday-based (0 .. 6) to match the REST contract and the
+ * stored values; the scheduler translates them for `rrule`, which counts from
+ * Monday.
+ */
+function recurrenceSchema(): JSONSchema7 {
+  return {
+    type: ['object', 'null'],
+    properties: {
+      frequency: {
+        type: 'string',
+        enum: ['daily', 'weekly', 'monthly', 'yearly'],
+      },
+      interval: { type: 'integer', minimum: 1 },
+      daysOfWeek: {
+        type: 'array',
+        items: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 6,
+          description: 'A weekday number from 0 (Sunday) to 6 (Saturday).',
+        },
+        description: 'Weekdays the reminder repeats on.',
+      },
+      endsAt: nullableString,
+    },
+    required: ['frequency', 'interval'],
+    additionalProperties: false,
+  };
+}
+
+function invalid(key: string, expected: string): Error {
+  return new Error(`${key} ${expected}`);
+}
+
+/** Reads the optional recurrence rule supplied to a reminder write tool. */
+function recurrence(
+  record: Record<string, unknown>,
+): ReminderRecurrence | null | undefined {
+  const value = record.recurrence;
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value))
+    throw invalid('recurrence', 'must be an object or null.');
+
+  const raw = value as Record<string, unknown>;
+  const frequency = raw.frequency;
+  if (
+    frequency !== 'daily' &&
+    frequency !== 'weekly' &&
+    frequency !== 'monthly' &&
+    frequency !== 'yearly'
+  )
+    throw invalid(
+      'recurrence.frequency',
+      'must be daily, weekly, monthly, or yearly.',
+    );
+
+  const interval = raw.interval;
+  if (
+    typeof interval !== 'number' ||
+    !Number.isInteger(interval) ||
+    interval < 1
+  )
+    throw invalid('recurrence.interval', 'must be a positive whole number.');
+
+  const weekdays = raw.daysOfWeek;
+  let daysOfWeek: number[] | undefined;
+
+  if (weekdays !== undefined && weekdays !== null) {
+    if (!Array.isArray(weekdays))
+      throw invalid('recurrence.daysOfWeek', 'must be a list of weekdays.');
+    daysOfWeek = [
+      ...new Set(
+        weekdays.map((day) => {
+          if (
+            typeof day !== 'number' ||
+            !Number.isInteger(day) ||
+            day < 0 ||
+            day > 6
+          )
+            throw invalid(
+              'recurrence.daysOfWeek',
+              'weekdays must be whole numbers from 0 (Sunday) to 6 (Saturday).',
+            );
+
+          return day;
+        }),
+      ),
+    ].sort((left, right) => left - right);
+
+    if (frequency === 'weekly' && daysOfWeek.length === 0)
+      throw invalid(
+        'recurrence.daysOfWeek',
+        'must name at least one weekday for a weekly rule.',
+      );
+  }
+
+  const endsAt = optionalDate(raw, 'endsAt');
+  if (endsAt instanceof Date && endsAt.getTime() <= 0)
+    throw invalid('recurrence.endsAt', 'must be an ISO datetime.');
+
+  return {
+    frequency,
+    interval,
+    ...(daysOfWeek ? { daysOfWeek } : {}),
+    ...(endsAt instanceof Date ? { endsAt: endsAt.toISOString() } : {}),
+  };
+}
+
+/**
+ * The first notification for a schedule entry.
+ *
+ * A requested instant that already passed cannot be the next notification, so a
+ * recurring entry is anchored to the earliest matching moment from now on. This
+ * keeps "every Tuesday 17:00" firing on the next Tuesday instead of being
+ * skipped for a week when the model repeats a stale date.
+ *
+ * A one-off entry keeps the instant as given: a reminder the user scheduled for
+ * a past moment is still a reminder about that moment.
+ */
+function reminderStart(
+  rule: ReminderRecurrence | null,
+  at: Date,
+  timezone: string,
+): Date {
+  if (!rule) return at;
+  const now = new Date();
+
+  return firstOccurrence(
+    rule,
+    at.getTime() > now.getTime() ? at : now,
+    timezone,
+  );
+}
+
+const WEEKDAY_NAMES_TEXT =
+  'Sunday is 0, Monday is 1, Tuesday is 2, Wednesday is 3, Thursday is 4, Friday is 5, and Saturday is 6.';
+
+/**
+ * Turns the user's local wall clock into an absolute instant.
+ *
+ * The model supplies local fields rather than an ISO instant on purpose: zone
+ * arithmetic is the step LLMs get wrong, and a wrong offset moves the reminder
+ * by hours without failing anything. The conversion belongs on the server, which
+ * knows the profile zone.
+ */
+function localInstant(date: string, time: string, timezone: string): Date {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(date.trim());
+  const clock = /^(\d{1,2}):(\d{2})$/u.exec(time.trim());
+
+  if (!day) throw invalid('date', 'must be a local date in YYYY-MM-DD form.');
+  if (!clock) throw invalid('time', 'must be a local time in HH:mm form.');
+
+  const hour = Number(clock[1]);
+  const minute = Number(clock[2]);
+
+  if (hour > 23 || minute > 59)
+    throw invalid('time', 'must be a valid local time in HH:mm form.');
+
+  return zonedInstant(
+    {
+      year: Number(day[1]),
+      month: Number(day[2]),
+      day: Number(day[3]),
+      hour,
+      minute,
+      second: 0,
+    },
+    timezone,
+  );
+}
+
+/** The stored (Sunday-based) weekday of an instant, in the user's time zone. */
+function localWeekday(instant: Date, timezone: string): number {
+  const name = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'long',
+  }).format(instant);
+
+  return WEEKDAY_NAMES.indexOf(name as (typeof WEEKDAY_NAMES)[number]);
+}
+
+function localTime(instant: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(instant);
+}
+
+function localDate(instant: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant);
+}
 
 function texts(
   record: Record<string, unknown>,
@@ -382,61 +608,84 @@ Use it when the user asks to be reminded at a specific date or time, optionally 
 
 Do not use it for a task without a notification schedule or to take a note; use 'create_task' or 'save_memory' instead.
 
-title and ISO scheduledAt are required; notes and recurrence are optional. Recurrence is daily, weekly, monthly, or yearly with a positive interval and optional weekdays and endsAt.`,
+title is required and schedules holds one entry per distinct notification time. Each entry takes the user's local date and time plus an optional recurrence.
+
+date and time are the user's own wall clock, never a converted UTC instant: date is YYYY-MM-DD and time is 24 hour HH:mm. "jam 5 sore" is 17:00 and "jam 7 pagi" is 07:00. Use the date and clock the user stated, or the next one if that day has passed; do not shift them for the time zone, because the server converts them with the user's profile time zone.
+
+date must fall on one of that entry's recurrence weekdays, so it is the first time the user is notified. Weekdays use ${WEEKDAY_NAMES_TEXT} A weekly entry therefore needs daysOfWeek; when the user names weekdays, the date is the next such weekday at that time.
+
+Split schedules by time of day: one entry per distinct time. "Every Tuesday, Thursday, and Friday at 17:00, and Saturday at 07:00" is two entries with the same title, one with daysOfWeek [2,4,5] and time 17:00, the other with [6] and 07:00. Never widen daysOfWeek to absorb a second time of day.
+
+Call this tool once per reminder.`,
       parameters: schema(
         {
           title: string,
           notes: nullableString,
-          scheduledAt: string,
-          recurrence: {
-            type: ['object', 'null'],
-            properties: {
-              frequency: {
-                type: 'string',
-                enum: ['daily', 'weekly', 'monthly', 'yearly'],
+          schedules: {
+            type: 'array',
+            minItems: 1,
+            items: {
+              type: 'object',
+              description: 'One notification time and its repeat rule.',
+              properties: {
+                date: string,
+                time: string,
+                recurrence: recurrenceSchema(),
               },
-              interval: { type: 'integer', minimum: 1 },
-              daysOfWeek: {
-                type: 'array',
-                items: {
-                  type: 'integer',
-                  minimum: 0,
-                  maximum: 6,
-                  description:
-                    'A weekday number from 0 (Sunday) to 6 (Saturday).',
-                },
-              },
-              endsAt: nullableString,
+              required: ['date', 'time'],
+              additionalProperties: false,
             },
-            required: ['frequency', 'interval'],
           },
         },
-        ['title', 'scheduledAt'],
+        ['title', 'schedules'],
       ),
     },
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, sourceMessageId, arguments: raw }) => {
       const a = object(raw);
-      const scheduledAt = optionalDate(a, 'scheduledAt');
-      if (!(scheduledAt instanceof Date))
-        throw new Error('scheduledAt is required.');
-      const reminder = await deps.reminders.create(userId, {
-        title: text(a, 'title')!,
-        notes: text(a, 'notes', false) ?? null,
-        scheduledAt,
-        timezone:
-          (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta',
-        recurrence: (a.recurrence ?? null) as never,
-        sourceType: 'chat',
-        sourceMessageId,
+      const title = text(a, 'title')!;
+      const notes = text(a, 'notes', false) ?? null;
+      const timezone =
+        (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
+
+      const entries = a.schedules;
+
+      if (!Array.isArray(entries) || entries.length === 0)
+        throw invalid('schedules', 'must list at least one schedule.');
+
+      const schedules = entries.map((entry) => {
+        const item = object(entry);
+        const rule = recurrence(item) ?? null;
+        const at = localInstant(
+          text(item, 'date')!,
+          text(item, 'time')!,
+          timezone,
+        );
+
+        return {
+          scheduledAt: reminderStart(rule, at, timezone),
+          recurrence: rule,
+        };
       });
 
-      await deps.scheduler.schedule(reminder);
+      const reminders: Reminder[] = [];
 
-      return {
-        objectType: 'reminder',
-        object: reminder,
-      };
+      for (const schedule of schedules) {
+        const reminder = await deps.reminders.create(userId, {
+          title,
+          notes,
+          scheduledAt: schedule.scheduledAt,
+          timezone,
+          recurrence: schedule.recurrence,
+          sourceType: 'chat',
+          sourceMessageId,
+        });
+
+        await deps.scheduler.schedule(reminder);
+        reminders.push(reminder);
+      }
+
+      return { reminders };
     },
   };
 
@@ -446,17 +695,23 @@ title and ISO scheduledAt are required; notes and recurrence are optional. Recur
       label: 'Update reminder',
       description: `Use this tool to update an existing reminder.
 
-Use it when the user asks to change a reminder's title, notes, scheduled time, or status.
+Use it when the user asks to change a reminder's title, notes, scheduled time, recurrence, or status.
 
 Do not use it to create a reminder, modify a task, or search reminders without changing them.
 
-Identify the reminder with id or query. Only supplied fields change; status is scheduled, completed, or cancelled. A changed reminder is rescheduled.`,
+Identify the reminder with id or query. Only supplied fields change; status is scheduled, completed, or cancelled. recurrence may be set to change the rule or null to clear it.
+
+date and time are the user's own wall clock, never a converted UTC instant: date is YYYY-MM-DD and time is 24 hour HH:mm. Supply both to reschedule, or neither to leave the time alone. When the reminder remains recurrent, the date must fall on one of the new recurrence weekdays, because it becomes the next notification. Weekdays use ${WEEKDAY_NAMES_TEXT}
+
+A request that fits the existing rule is an update; one that cannot be expressed by it must become a split. Moving only some weekdays to a different time — "change the Thursday schedule to 20:00" on a reminder covering Tuesday, Thursday, and Friday at 17:00 — is a split: call 'list_reminders' to read the current rules, narrow this reminder's daysOfWeek so it keeps only the weekdays that keep the old time, then call 'create_reminder' with the remaining weekdays at the new time. Never widen daysOfWeek to absorb a second time of day, and never silently drop the weekdays that move.`,
       parameters: schema({
         id: string,
         query: string,
         title: string,
         notes: nullableString,
-        scheduledAt: string,
+        date: string,
+        time: string,
+        recurrence: recurrenceSchema(),
         status: {
           type: 'string',
           enum: ['scheduled', 'completed', 'cancelled'],
@@ -473,12 +728,31 @@ Identify the reminder with id or query. Only supplied fields change; status is s
       );
 
       if (!current) throw new Error('The specified reminder was not found.');
-      const parsedSchedule = optionalDate(a, 'scheduledAt');
+      const timezone =
+        (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
+
+      const date = text(a, 'date', false);
+      const time = text(a, 'time', false);
+
+      if ((date === undefined) !== (time === undefined))
+        throw invalid('date', 'and time must be supplied together.');
+
+      const rule = recurrence(a);
+      const requestedAt =
+        date !== undefined && time !== undefined
+          ? localInstant(date, time, timezone)
+          : undefined;
+
+      const effective = rule === undefined ? current.recurrence : rule;
+      const scheduledAt = requestedAt
+        ? reminderStart(effective, requestedAt, timezone)
+        : undefined;
+
       const reminder = await deps.reminders.update(userId, current.id, {
         title: text(a, 'title', false),
         notes: a.notes === null ? null : text(a, 'notes', false),
-        scheduledAt:
-          parsedSchedule instanceof Date ? parsedSchedule : undefined,
+        scheduledAt,
+        recurrence: rule,
         status: a.status as 'scheduled' | 'completed' | 'cancelled' | undefined,
       });
 
@@ -487,6 +761,52 @@ Identify the reminder with id or query. Only supplied fields change; status is s
       return {
         objectType: 'reminder',
         object: reminder,
+      };
+    },
+  };
+
+  const listReminders: AssistantTool = {
+    definition: {
+      name: 'list_reminders',
+      label: 'Find reminders',
+      description: `Use this tool to list or find the user's scheduled reminders.
+
+Use it when the user asks what reminders exist, or before changing a recurring schedule that may not fit the current rule.
+
+Do not use it to create or change a reminder.
+
+Each reminder reports its id, title, its local date and time with the weekday, and its recurrence. Read the recurrence before editing it; a request that cannot be expressed by the existing recurrence must become more than one reminder. The date and time fields are ready to pass straight back to 'update_reminder'.`,
+      parameters: schema({
+        query: string,
+        status: {
+          type: 'string',
+          enum: ['scheduled', 'completed', 'cancelled'],
+        },
+      }),
+    },
+    readOnly: true,
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, arguments: raw }) => {
+      const a = object(raw);
+      const timezone =
+        (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
+
+      const reminders = await deps.reminders.list(userId, {
+        status: (a.status as ReminderStatus | undefined) ?? 'scheduled',
+        search: text(a, 'query', false),
+      });
+
+      return {
+        reminders: reminders.map((reminder) => ({
+          id: reminder.id,
+          title: reminder.title,
+          notes: reminder.notes,
+          status: reminder.status,
+          date: localDate(reminder.scheduledAt, timezone),
+          time: localTime(reminder.scheduledAt, timezone),
+          weekday: localWeekday(reminder.scheduledAt, timezone),
+          recurrence: reminder.recurrence,
+        })),
       };
     },
   };
@@ -889,6 +1209,7 @@ Returns reveal-link metadata without the value. Secret storage must be configure
     deleteCategory,
     createReminder,
     updateReminder,
+    listReminders,
     createMemory,
     updateMemory,
     deleteMemory,

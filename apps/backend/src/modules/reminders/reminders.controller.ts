@@ -21,6 +21,7 @@ import {
   type IUserRepository,
 } from '../../database/interfaces';
 import { ApiException, ErrorCodes } from '../../shared/errors';
+import { firstOccurrence } from '../../shared/date-time';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
 import {
   CreateReminderDto,
@@ -54,10 +55,28 @@ export class RemindersController {
     @Session() s: UserSession,
     @Body() input: CreateReminderDto,
   ) {
+    const timezone = await this.scheduler.timezoneFor(s.user.id);
+    const scheduledAt = new Date(input.scheduledAt);
+    const recurrence = input.recurrence
+      ? {
+          ...input.recurrence,
+          ...(input.recurrence.daysOfWeek
+            ? {
+                daysOfWeek: [...input.recurrence.daysOfWeek].sort(
+                  (a, b) => a - b,
+                ),
+              }
+            : {}),
+        }
+      : null;
+
     const reminder = await this.reminders.create(s.user.id, {
       ...input,
-      scheduledAt: new Date(input.scheduledAt),
-      timezone: await this.scheduler.timezoneFor(s.user.id),
+      scheduledAt: recurrence
+        ? firstOccurrence(recurrence, scheduledAt, timezone)
+        : scheduledAt,
+      timezone,
+      recurrence,
     });
 
     await this.scheduler.schedule(reminder);
@@ -71,10 +90,35 @@ export class RemindersController {
     @Param('id') id: string,
     @Body() input: UpdateReminderDto,
   ) {
-    const scheduledAt = input.snoozeUntil ?? input.scheduledAt;
+    const requested = input.snoozeUntil ?? input.scheduledAt;
+    const current = this.required(await this.reminders.findById(s.user.id, id));
+    const recurrence =
+      input.recurrence === undefined || input.recurrence === null
+        ? input.recurrence
+        : {
+            ...input.recurrence,
+            ...(input.recurrence.daysOfWeek
+              ? {
+                  daysOfWeek: [...input.recurrence.daysOfWeek].sort(
+                    (a, b) => a - b,
+                  ),
+                }
+              : {}),
+          };
+
+    // A later recurrence replaces the rule, so the requested instant must be
+    // snapped onto it; a snooze keeps its absolute instant.
+    const effective = recurrence ?? current.recurrence;
+    const requestedAt = requested ? new Date(requested) : undefined;
+    const scheduledAt =
+      requestedAt && !input.snoozeUntil && effective
+        ? firstOccurrence(effective, requestedAt, current.timezone)
+        : requestedAt;
+
     const reminder = await this.reminders.update(s.user.id, id, {
       ...input,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      scheduledAt,
+      recurrence,
       status: input.snoozeUntil ? 'scheduled' : input.status,
     });
 

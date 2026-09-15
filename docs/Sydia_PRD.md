@@ -1,12 +1,12 @@
 # Sydia — Product Requirements Document (PRD)
 
 | Product | Sydia                                    |
-|---------|------------------------------------------|
+| ------- | ---------------------------------------- |
 | Version | 0.1                                      |
 | Date    | 5 September 2026                         |
 | Status  | Draft for product and engineering review |
 
-*Working specification. Pricing, packaging, and provider selections remain configurable.*
+_Working specification. Pricing, packaging, and provider selections remain configurable._
 
 > Companion document: `Sydia_System_Architecture.md`
 
@@ -104,10 +104,10 @@ flowchart LR
     P --> C
 ```
 
-*Figure 1. Sydia product capability map.*
+_Figure 1. Sydia product capability map._
 
 | **Core product rule:** AI is the interface, not the source of truth. Tasks, reminders, events, contacts, and subscription state are deterministic application data. Conversation context is temporary. Long-term memory is curated and retrievable. |
-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
 # 2. Product Context
 
@@ -158,7 +158,7 @@ Position the product as a personal assistant that remembers and takes care of sm
 ## 3.3 Success Metrics
 
 | **Metric**                | **Definition**                                                       | **Initial Target / Direction**                  |
-|---------------------------|----------------------------------------------------------------------|-------------------------------------------------|
+| ------------------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
 | Activation                | User links WhatsApp and successfully creates or retrieves one object | \>60% of completed sign-ups                     |
 | Week-4 retained users     | Activated users who perform at least one meaningful action in week 4 | Trend upward; benchmark after beta              |
 | Action success rate       | Structured actions completed without user correction                 | \>=95% for reminders/tasks; \>=90% overall      |
@@ -177,7 +177,7 @@ Individuals who already use WhatsApp heavily and need lightweight personal organ
 ## 4.2 Jobs-to-be-Done
 
 | **Job**        | **User Need**                                       | **Example Outcome**                           |
-|----------------|-----------------------------------------------------|-----------------------------------------------|
+| -------------- | --------------------------------------------------- | --------------------------------------------- |
 | Capture        | Save something immediately without organizing it    | "Remember my electricity customer number ..." |
 | Act            | Turn a message into a reliable scheduled action     | Reminder/task/event created with confirmation |
 | Retrieve       | Find something without remembering storage location | "What was the hotel I liked in Bali?"         |
@@ -220,7 +220,7 @@ Messaging and AI providers are adapters; domain rules should not depend on a spe
 ## 6.1 MVP Scope
 
 | **Capability**                         | **MVP** | **Notes**                                         |
-|----------------------------------------|---------|---------------------------------------------------|
+| -------------------------------------- | ------- | ------------------------------------------------- |
 | Account and authentication             | Yes     | Email/web account plus WhatsApp identity mapping  |
 | Single shared WhatsApp business number | Yes     | Primary conversational channel                    |
 | Web chat                               | Yes     | Useful fallback and dashboard entry point         |
@@ -260,7 +260,7 @@ Telegram, advanced automations, richer personal CRM, delegated/team workflows, a
 # 7. Core Domain Objects
 
 | **Object**       | **Purpose**                                         | **Source of Truth**                        |
-|------------------|-----------------------------------------------------|--------------------------------------------|
+| ---------------- | --------------------------------------------------- | ------------------------------------------ |
 | User             | Account, timezone, preferences, subscription        | Relational DB                              |
 | ExternalIdentity | Maps WhatsApp/Telegram/web identities to a user     | Relational DB                              |
 | Conversation     | Logical channel/thread metadata and rolling summary | Relational DB                              |
@@ -333,7 +333,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.1 Account, Onboarding, and WhatsApp Linking
 
 | **ID**     | **Requirement**                                                                                                      |
-|------------|----------------------------------------------------------------------------------------------------------------------|
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
 | FR-ACC-001 | Users can create and authenticate a web account.                                                                     |
 | FR-ACC-002 | Each user has an explicit timezone used for parsing relative times and scheduling reminders.                         |
 | FR-ACC-003 | A WhatsApp sender identity is mapped to exactly one active user account unless an administrator resolves a conflict. |
@@ -344,7 +344,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.2 Conversational Assistant
 
 | **ID**     | **Requirement**                                                                                                                |
-|------------|--------------------------------------------------------------------------------------------------------------------------------|
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | FR-AST-001 | Accept text, image, document, and voice messages from supported channels.                                                      |
 | FR-AST-002 | Resolve conversational references such as "it", "the first one", or "move that to tomorrow" using recent context.              |
 | FR-AST-003 | Use explicit tools for structured actions rather than asking the model to simulate state changes.                              |
@@ -357,7 +357,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.3 Memories and Notes
 
 | **ID**     | **Requirement**                                                                                  |
-|------------|--------------------------------------------------------------------------------------------------|
+| ---------- | ------------------------------------------------------------------------------------------------ |
 | FR-MEM-001 | Users can explicitly save a memory or note through chat or dashboard.                            |
 | FR-MEM-002 | Memories support type/category, content, source provenance, timestamps, and optional confidence. |
 | FR-MEM-003 | Memories are embedded for semantic retrieval after creation/update.                              |
@@ -370,7 +370,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.4 Reminders
 
 | **ID**     | **Requirement**                                                                                                                            |
-|------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | FR-REM-001 | Create one-time reminders using absolute or relative time.                                                                                 |
 | FR-REM-002 | Create recurring reminders using supported recurrence rules.                                                                               |
 | FR-REM-003 | Update, pause, resume, cancel, complete, snooze, and reschedule reminders.                                                                 |
@@ -378,11 +378,14 @@ Assistant: Uses recent working context to update the same event.
 | FR-REM-005 | Reminder delivery is idempotent and records provider delivery attempts.                                                                    |
 | FR-REM-006 | Outside the applicable WhatsApp conversation window, the system uses an approved message template or another permitted notification route. |
 | FR-REM-007 | Users can opt out of proactive reminders globally or by reminder.                                                                          |
+| FR-REM-008 | A request that names several times of day for one routine is stored as one recurring reminder per distinct time of day.                    |
+| FR-REM-009 | Changing the time of a subset of a recurring reminder's weekdays splits it rather than altering the untouched days.                        |
+| FR-REM-010 | Recurring reminders fire at the user's local time in their profile time zone, including across changes to that zone's UTC offset.          |
 
 ## 9.5 Tasks
 
 | **ID**     | **Requirement**                                                                                                                       |
-|------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | FR-TSK-001 | Create tasks with title, optional description, due date, priority, tags, and source.                                                  |
 | FR-TSK-002 | List tasks by today, upcoming, overdue, completed, tag, or semantic reference.                                                        |
 | FR-TSK-003 | Update status, due date, priority, and text through conversation.                                                                     |
@@ -392,7 +395,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.6 Calendar and Events
 
 | **ID**     | **Requirement**                                                                      |
-|------------|--------------------------------------------------------------------------------------|
+| ---------- | ------------------------------------------------------------------------------------ |
 | FR-CAL-001 | Connect Google Calendar using OAuth with minimum required scopes.                    |
 | FR-CAL-002 | Read availability and upcoming events after authorization.                           |
 | FR-CAL-003 | Create, update, and cancel events through tool calls.                                |
@@ -403,7 +406,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.7 Contacts
 
 | **ID**     | **Requirement**                                                                                   |
-|------------|---------------------------------------------------------------------------------------------------|
+| ---------- | ------------------------------------------------------------------------------------------------- |
 | FR-CON-001 | Create and update lightweight contacts with name, aliases, phone, email, company/role, and notes. |
 | FR-CON-002 | Resolve names/aliases when creating events or retrieving information.                             |
 | FR-CON-003 | Exact fields such as phone number and email use structured lookup, not vector-only retrieval.     |
@@ -412,7 +415,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.8 Documents and Files
 
 | **ID**     | **Requirement**                                                                                                                                |
-|------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | FR-DOC-001 | Users can upload supported files through WhatsApp and web.                                                                                     |
 | FR-DOC-002 | Original files are stored in object storage with access controlled by user ownership.                                                          |
 | FR-DOC-003 | Document ingestion extracts text and metadata, then chunks and embeds retrievable text.                                                        |
@@ -425,7 +428,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.9 Voice Notes
 
 | **ID**     | **Requirement**                                                                                                               |
-|------------|-------------------------------------------------------------------------------------------------------------------------------|
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | FR-VOI-001 | Download inbound voice media and transcribe it using the speech-to-text provider.                                             |
 | FR-VOI-002 | Persist transcription text and link it to the original message/media.                                                         |
 | FR-VOI-003 | Feed transcription through the same assistant pipeline as text.                                                               |
@@ -434,7 +437,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.10 Search and Retrieval
 
 | **ID**     | **Requirement**                                                                                                             |
-|------------|-----------------------------------------------------------------------------------------------------------------------------|
+| ---------- | --------------------------------------------------------------------------------------------------------------------------- |
 | FR-SRC-001 | Support hybrid retrieval: semantic similarity, keyword/full-text search, metadata filtering, and structured domain queries. |
 | FR-SRC-002 | All retrieval queries are constrained by user ownership before ranking.                                                     |
 | FR-SRC-003 | Retrieval can combine relevant memories, document chunks, contacts, and conversation summary.                               |
@@ -444,7 +447,7 @@ Assistant: Uses recent working context to update the same event.
 ## 9.11 Daily Briefing and Follow-ups
 
 | **ID**     | **Requirement**                                                                                            |
-|------------|------------------------------------------------------------------------------------------------------------|
+| ---------- | ---------------------------------------------------------------------------------------------------------- |
 | FR-PRO-001 | Users can opt into a daily briefing at a selected local time.                                              |
 | FR-PRO-002 | Briefing summarizes relevant events, due/overdue tasks, and reminders without fabricating obligations.     |
 | FR-PRO-003 | Follow-ups can ask whether a due task/reminder is complete and provide complete/snooze/reschedule actions. |
@@ -456,7 +459,7 @@ Assistant: Uses recent working context to update the same event.
 The dashboard is a control center, not the primary interaction surface. It must optimize inspection, correction, organization, and settings rather than analytics theater.
 
 | **Area**         | **Required Contents**                                                |
-|------------------|----------------------------------------------------------------------|
+| ---------------- | -------------------------------------------------------------------- |
 | Home / Today     | Today events, due tasks, upcoming reminders, concise assistant input |
 | Inbox / Activity | Recent conversation actions and assistant activity                   |
 | Tasks            | Filterable task list and edit controls                               |
@@ -470,7 +473,7 @@ The dashboard is a control center, not the primary interaction surface. It must 
 ## 9.13 Settings, Privacy, and Data Controls
 
 | **ID**     | **Requirement**                                                                                       |
-|------------|-------------------------------------------------------------------------------------------------------|
+| ---------- | ----------------------------------------------------------------------------------------------------- |
 | FR-SET-001 | Users can control automatic memory extraction.                                                        |
 | FR-SET-002 | Users can set timezone, daily briefing time, notification preferences, and assistant verbosity/style. |
 | FR-SET-003 | Users can export core account data in a portable format.                                              |
@@ -483,7 +486,7 @@ The dashboard is a control center, not the primary interaction surface. It must 
 Pricing is intentionally not fixed in this PRD. The product must support plan-based entitlements and metering without coupling domain logic to a specific billing provider.
 
 | **Entitlement Dimension** | **Examples**                                 |
-|---------------------------|----------------------------------------------|
+| ------------------------- | -------------------------------------------- |
 | AI usage                  | Monthly assistant turns or token-cost budget |
 | Storage                   | Total file storage / maximum file size       |
 | Document processing       | Pages or files processed per month           |
@@ -497,7 +500,7 @@ Pricing is intentionally not fixed in this PRD. The product must support plan-ba
 ## 10.1 Context Layers
 
 | **Layer**                    | **Purpose**                                          | **Persistence**                        |
-|------------------------------|------------------------------------------------------|----------------------------------------|
+| ---------------------------- | ---------------------------------------------------- | -------------------------------------- |
 | Working context              | Recent turns needed to resolve references            | Temporary per model request            |
 | Conversation summary         | Compressed prior context when history exceeds budget | Persisted and replaceable              |
 | Durable semantic memory      | Curated facts, preferences, notes                    | Persistent until changed/deleted       |
@@ -539,7 +542,7 @@ The SaaS operates a single WhatsApp Business identity. Users do not bring their 
 - Users receive a clear message if a proactive notification cannot be sent because of provider policy, account state, or opt-out.
 
 | **Implementation note:** The applicable customer-service window, template categories, pricing, and consent requirements must be re-verified against current Meta documentation before production launch. Do not hard-code policy assumptions into domain logic. |
-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
 # 12. UX Requirements
 
@@ -562,7 +565,7 @@ The SaaS operates a single WhatsApp Business identity. Users do not bring their 
 # 13. Analytics and Product Instrumentation
 
 | **Event**                    | **Purpose**         |
-|------------------------------|---------------------|
+| ---------------------------- | ------------------- |
 | account_created              | Funnel              |
 | whatsapp_linked              | Activation          |
 | assistant_message_received   | Usage               |
@@ -584,7 +587,7 @@ Analytics events must not include full message or document content by default. S
 # 14. Non-Functional Requirements
 
 | **Category**  | **Requirement**                                                                                                      |
-|---------------|----------------------------------------------------------------------------------------------------------------------|
+| ------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Availability  | Target 99.9% monthly availability for API and webhook ingestion after public beta.                                   |
 | Durability    | No acknowledged task/reminder/event creation may be lost after success response.                                     |
 | Latency       | Text requests should target \<5 s median end-to-end; p95 tracked independently. Long document jobs are asynchronous. |
@@ -647,7 +650,7 @@ Analytics events must not include full message or document content by default. S
 # 17. Dependencies and Risks
 
 | **Risk / Dependency**               | **Impact**                    | **Mitigation**                                                                       |
-|-------------------------------------|-------------------------------|--------------------------------------------------------------------------------------|
+| ----------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
 | WhatsApp policy or template changes | Can block proactive reminders | Abstract channel policy; maintain approved templates; verify before release          |
 | LLM misinterpretation               | Wrong action or memory        | Structured outputs, tool validation, low-friction correction, quality tests          |
 | Automatic memory pollution          | Loss of trust                 | Conservative extraction, provenance, user controls, confidence thresholds            |
@@ -661,7 +664,7 @@ Analytics events must not include full message or document content by default. S
 # 18. Rollout Plan
 
 | **Milestone**       | **Scope**                                                                | **Exit Criteria**                                  |
-|---------------------|--------------------------------------------------------------------------|----------------------------------------------------|
+| ------------------- | ------------------------------------------------------------------------ | -------------------------------------------------- |
 | M0 - Foundation     | Auth, user model, WhatsApp webhook, message persistence, basic LLM reply | Reliable inbound/outbound loop in staging          |
 | M1 - Actions        | Reminder + task tools, scheduler, timezone handling                      | Automated correctness/idempotency tests pass       |
 | M2 - Memory         | Memory CRUD, embeddings, hybrid retrieval, provenance                    | Evaluated retrieval quality meets beta threshold   |
@@ -693,7 +696,7 @@ Analytics events must not include full message or document content by default. S
 # Appendix A. Terminology
 
 | **Term**             | **Definition**                                                                                                             |
-|----------------------|----------------------------------------------------------------------------------------------------------------------------|
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Working context      | The temporary set of instructions, recent turns, summary, retrieved memories, and state sent to the model for one request. |
 | Conversation history | Persisted record of user/assistant messages. It is not equivalent to memory.                                               |
 | Durable memory       | Curated user information intended to be useful in future conversations.                                                    |

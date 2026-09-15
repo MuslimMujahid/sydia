@@ -111,6 +111,7 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
   list_tasks: { en: 'Find tasks', id: 'Mencari tugas' },
   create_reminder: { en: 'Create reminder', id: 'Membuat pengingat' },
   update_reminder: { en: 'Update reminder', id: 'Memperbarui pengingat' },
+  list_reminders: { en: 'Find reminders', id: 'Mencari pengingat' },
   save_memory: { en: 'Save memory', id: 'Menyimpan memori' },
   update_memory: { en: 'Update memory', id: 'Memperbarui memori' },
   forget_memory: { en: 'Forget memory', id: 'Menghapus memori' },

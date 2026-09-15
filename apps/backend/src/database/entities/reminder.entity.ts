@@ -27,6 +27,7 @@ export type Reminder = Pick<
   | 'title'
   | 'notes'
   | 'scheduledAt'
+  | 'timezone'
   | 'completedAt'
   | 'cancelledAt'
   | 'createdAt'

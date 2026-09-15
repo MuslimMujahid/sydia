@@ -13,6 +13,7 @@ const reminder: Reminder = {
   notes: null,
   status: 'scheduled',
   scheduledAt: new Date('2026-09-12T12:00:00.000Z'),
+  timezone: 'Asia/Jakarta',
   recurrence: null,
   completedAt: null,
   cancelledAt: null,

@@ -59,7 +59,18 @@ import {
   fromDateTimeLocal,
   toDateTimeLocal,
 } from "@/lib/utils/date-time";
+import { formatRecurrence } from "@/lib/utils/recurrence";
 import { cn } from "@/lib/utils/cn";
+
+const WEEKDAY_LABELS = [
+  "Min",
+  "Sen",
+  "Sel",
+  "Rab",
+  "Kam",
+  "Jum",
+  "Sab",
+] as const;
 
 const reminderSchema = z.object({
   title: z.string().trim().min(1, "Masukkan judul pengingat."),
@@ -67,6 +78,8 @@ const reminderSchema = z.object({
   scheduledAt: z.string().min(1, "Pilih waktu pengingat."),
   recurrenceFrequency: z.enum(["none", "daily", "weekly", "monthly", "yearly"]),
   recurrenceInterval: z.string(),
+  recurrenceDays: z.array(z.number().int().min(0).max(6)),
+  recurrenceEndsAt: z.string(),
 });
 
 const FREQUENCY_LABELS: Record<RecurrenceFrequency | "none", string> = {
@@ -91,18 +104,6 @@ const SCHEDULE_LABELS: Record<ReminderScheduleFilter | "all", string> = {
   past: "Sudah lewat",
 };
 
-function formatRecurrence(reminder: Reminder): string | null {
-  const recurrence = reminder.recurrence;
-  if (!recurrence) return null;
-  const frequencyLabel = FREQUENCY_LABELS[recurrence.frequency];
-  if (!frequencyLabel) return null;
-  const frequency = frequencyLabel.toLowerCase();
-
-  return recurrence.interval === 1
-    ? `Berulang ${frequency}`
-    : `Setiap ${recurrence.interval} periode ${frequency}`;
-}
-
 function reminderValues(reminder?: Reminder) {
   return {
     title: reminder?.title ?? "",
@@ -110,6 +111,8 @@ function reminderValues(reminder?: Reminder) {
     scheduledAt: toDateTimeLocal(reminder?.scheduledAt ?? null),
     recurrenceFrequency: reminder?.recurrence?.frequency ?? ("none" as const),
     recurrenceInterval: String(reminder?.recurrence?.interval ?? 1),
+    recurrenceDays: reminder?.recurrence?.daysOfWeek ?? [],
+    recurrenceEndsAt: toDateTimeLocal(reminder?.recurrence?.endsAt ?? null),
   };
 }
 
@@ -131,6 +134,15 @@ function ReminderEditor({
       const scheduledAt = fromDateTimeLocal(value.scheduledAt);
       if (!scheduledAt) return;
       const frequency = value.recurrenceFrequency;
+      const endsAt = value.recurrenceEndsAt
+        ? fromDateTimeLocal(value.recurrenceEndsAt)
+        : null;
+
+      const daysOfWeek =
+        frequency === "weekly"
+          ? [...value.recurrenceDays].sort((left, right) => left - right)
+          : [];
+
       const values: CreateReminderInput = {
         title: value.title.trim(),
         notes: value.notes.trim() || null,
@@ -144,6 +156,8 @@ function ReminderEditor({
                   1,
                   Number.parseInt(value.recurrenceInterval, 10) || 1
                 ),
+                ...(daysOfWeek.length ? { daysOfWeek } : {}),
+                ...(endsAt ? { endsAt } : {}),
               },
       };
 
@@ -286,6 +300,79 @@ function ReminderEditor({
             )}
           </form.Field>
         </div>
+        <form.Subscribe selector={(state) => state.values.recurrenceFrequency}>
+          {(frequency) =>
+            frequency === "weekly" ? (
+              <form.Field name="recurrenceDays">
+                {(field) => (
+                  <FieldShell id="reminder-days" label="Hari">
+                    {({ describedBy }) => (
+                      <div
+                        id="reminder-days"
+                        role="group"
+                        aria-label="Hari pengulangan"
+                        aria-describedby={describedBy}
+                        className="flex flex-wrap gap-2"
+                      >
+                        {WEEKDAY_LABELS.map((label, day) => {
+                          const selected = field.state.value.includes(day);
+
+                          return (
+                            <Button
+                              key={label}
+                              type="button"
+                              size="sm"
+                              variant={selected ? "primary" : "dark-outline"}
+                              aria-pressed={selected}
+                              onClick={() =>
+                                field.handleChange(
+                                  selected
+                                    ? field.state.value.filter(
+                                        (value) => value !== day
+                                      )
+                                    : [...field.state.value, day]
+                                )
+                              }
+                            >
+                              {label}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </FieldShell>
+                )}
+              </form.Field>
+            ) : null
+          }
+        </form.Subscribe>
+        <form.Subscribe selector={(state) => state.values.recurrenceFrequency}>
+          {(frequency) =>
+            frequency === "none" ? null : (
+              <form.Field name="recurrenceEndsAt">
+                {(field) => (
+                  <FieldShell
+                    id="reminder-repeat-ends"
+                    label="Berakhir (opsional)"
+                  >
+                    {({ describedBy }) => (
+                      <TextField
+                        id="reminder-repeat-ends"
+                        type="datetime-local"
+                        value={field.state.value}
+                        aria-describedby={describedBy}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                      />
+                    )}
+                  </FieldShell>
+                )}
+              </form.Field>
+            )
+          }
+        </form.Subscribe>
         <FormError
           message={mutation.error?.message ?? deleteMutation.error?.message}
         />
@@ -447,7 +534,7 @@ function ReminderRow({
 }) {
   const statusMutation = useSetReminderStatus();
   const active = reminder.status === "scheduled";
-  const recurrence = formatRecurrence(reminder);
+  const recurrence = formatRecurrence(reminder.recurrence);
 
   return (
     <li className="grid gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -729,9 +816,9 @@ export function CompactReminderRow({ reminder }: { reminder: Reminder }) {
         <p className="mt-1 text-sm text-ink-muted">
           {formatDateTime(reminder.scheduledAt)}
         </p>
-        {formatRecurrence(reminder) ? (
+        {formatRecurrence(reminder.recurrence) ? (
           <p className="mt-1 text-sm text-ink-muted">
-            {formatRecurrence(reminder)}
+            {formatRecurrence(reminder.recurrence)}
           </p>
         ) : null}
         {mutation.error ? (

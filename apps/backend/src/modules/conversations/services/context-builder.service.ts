@@ -92,7 +92,7 @@ function estimateTokens(content: string): number {
 function localDateTime(
   timezone: string,
   at: Date,
-): { date: string; time: string } {
+): { date: string; time: string; weekday: string } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
     year: 'numeric',
@@ -110,6 +110,10 @@ function localDateTime(
   return {
     date: `${part('year')}-${part('month')}-${part('day')}`,
     time: `${part('hour')}:${part('minute')}:${part('second')}`,
+    weekday: new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      weekday: 'long',
+    }).format(at),
   };
 }
 
@@ -273,7 +277,7 @@ export class ContextBuilderService {
     // fixed blocks rather than competing with optional context for budget.
     const now = new Date();
     const local = localDateTime(user.timezone, now);
-    const turnContext = `Turn context: current instant ${now.toISOString()}; local ${local.date} ${local.time}.`;
+    const turnContext = `Turn context: current instant ${now.toISOString()}; local ${local.weekday} ${local.date} ${local.time} (${user.timezone}).`;
     tokenUsage.turnContext = estimateTokens(turnContext);
 
     const fixedTokens =

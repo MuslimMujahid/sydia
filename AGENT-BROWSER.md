@@ -68,3 +68,20 @@
 - Contact editor ("Kontak baru"/"Edit kontak") has a "Grup" fieldset: one checkbox per group when groups exist, else the text "Belum ada grup. Buat grup di tab Grup." Group badges on contact rows carry a small colored dot (span.size-2.bg-brand-deep) distinguishing them from alias badges.
 - Deleting a group uses a NATIVE confirm: "Hapus grup "<name>"? Kontak di dalamnya tidak akan dihapus." Deleting a contact from its editor uses native confirm "Hapus <name> dari kontak?" — arm `window.confirm` via eval to capture/accept headlessly.
 - **Dialog action buttons ("Simpan kontak", "Hapus kontak") also need `scrollintoview` before click** (same below-fold trap as "Masuk"): clicking while out of view closed the dialog with NO request sent and no error. With scrollintoview first, POST /contacts fires (201) normally.
+
+## /chat (reminder verification, 2026-09-15)
+
+- Conversation URLs use `/?conversation=<id>` (NOT `/chat`); sending from the fresh `/` composer redirects there. Extract id via `new URL(location.href).searchParams.get('conversation')`.
+- Each assistant turn renders its own `article[aria-label="Jawaban Sydia"]`; multi-turn conversations have several — index with `querySelectorAll(...)[n]`.
+- Run-completion poll: button-label matching via eval (`/kirim pesan|mengirim pesan/i` on `textContent`) is flaky when sidebar conversation buttons also contain "Kirim…" prefixes; more reliable is the conversation API: `fetch('http://localhost:5000/conversations/'+id,{credentials:'include'})` -> `assistantRuns.at(-1).status` + `toolInvocations` (name/status/arguments).
+- Reminder answers render one "Pengingat tersimpan" card per reminder with text "<title> / <D MMM YYYY, HH.MM> / Berulang mingguan pada <Hari…>" — count cards via `innerText.split('Pengingat tersimpan').length - 1`.
+- `reminder.scheduledAt` is a naive timestamp holding the UTC instant (e.g. 17:00 WITA stored as 09:00). The obvious `"scheduledAt" AT TIME ZONE 'Asia/Makassar'` renders the wrong direction; true WITA wall time needs `"scheduledAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar'`.
+
+## /reminders
+
+- List text lives in `<main>`: read via `document.querySelector('main')?.innerText` — `document.body.innerText` is mostly sidebar noise. Recurrence renders as "Berulang mingguan pada Selasa, Jumat" etc. (day names, not just "Berulang mingguan").
+
+## Tabs (shared daemon)
+
+- `agent-browser tab` lists stable ids (`t1`, `t2`); `tab 1` / `tab close 2` with positional integers are REJECTED — use `tab t1`, `tab close t2`.
+- `agent-browser get text` REQUIRES a selector argument (`get text <selector>`); bare `get text` errors.

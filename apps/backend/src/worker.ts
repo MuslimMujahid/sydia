@@ -2,8 +2,8 @@ import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { UnrecoverableError, Worker } from 'bullmq';
-import { RRule } from 'rrule';
 import { AppModule } from './app.module';
+import { nextOccurrence } from './shared/date-time';
 import {
   REMINDER_REPOSITORY,
   type IReminderRepository,
@@ -77,22 +77,12 @@ async function bootstrap(): Promise<void> {
         return;
       }
 
-      const rule = new RRule({
-        freq: {
-          daily: RRule.DAILY,
-          weekly: RRule.WEEKLY,
-          monthly: RRule.MONTHLY,
-          yearly: RRule.YEARLY,
-        }[reminder.recurrence.frequency],
-        interval: reminder.recurrence.interval,
-        byweekday: reminder.recurrence.daysOfWeek,
-        dtstart: reminder.scheduledAt,
-        until: reminder.recurrence.endsAt
-          ? new Date(reminder.recurrence.endsAt)
-          : undefined,
-      });
+      const next = nextOccurrence(
+        reminder.recurrence,
+        reminder.scheduledAt,
+        reminder.timezone,
+      );
 
-      const next = rule.after(reminder.scheduledAt, false);
       if (!next) return;
       const updated = await reminders.updateDeliverySchedule(reminder.id, next);
 

@@ -23,24 +23,70 @@ function partsAt(instant: Date, timeZone: string): Record<string, number> {
   );
 }
 
+/** Calendar fields as the user's zone shows them; all values are numbers. */
+export type ZonedParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+export function zonedParts(instant: Date, timeZone: string): ZonedParts {
+  const parts = partsAt(instant, timeZone);
+
+  return {
+    year: parts.year ?? instant.getUTCFullYear(),
+    month: parts.month ?? instant.getUTCMonth() + 1,
+    day: parts.day ?? instant.getUTCDate(),
+    hour: parts.hour ?? 0,
+    minute: parts.minute ?? 0,
+    second: parts.second ?? 0,
+  };
+}
+
+/**
+ * The instant at which the user's zone shows the supplied wall clock.
+ *
+ * The offset is read back from the zone itself rather than assumed, so the
+ * result is correct for any offset, including zones with daylight saving at the
+ * moment of the call. A wall clock that the zone skips or repeats is resolved
+ * to the first instant that matches it.
+ */
+export function zonedInstant(parts: ZonedParts, timeZone: string): Date {
+  const estimate = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+
+  const observed = partsAt(new Date(estimate), timeZone);
+  const represented = Date.UTC(
+    observed.year ?? parts.year,
+    (observed.month ?? parts.month) - 1,
+    observed.day ?? parts.day,
+    observed.hour ?? parts.hour,
+    observed.minute ?? parts.minute,
+    observed.second ?? parts.second,
+  );
+
+  return new Date(estimate - (represented - estimate));
+}
+
 function zonedMidnight(
   year: number,
   month: number,
   day: number,
   timeZone: string,
 ): Date {
-  const estimate = Date.UTC(year, month - 1, day);
-  const observed = partsAt(new Date(estimate), timeZone);
-  const represented = Date.UTC(
-    observed.year ?? year,
-    (observed.month ?? month) - 1,
-    observed.day ?? day,
-    observed.hour ?? 0,
-    observed.minute ?? 0,
-    observed.second ?? 0,
+  return zonedInstant(
+    { year, month, day, hour: 0, minute: 0, second: 0 },
+    timeZone,
   );
-
-  return new Date(estimate - (represented - estimate));
 }
 
 export function dayWindow(now: Date, timeZone: string): DayWindow {

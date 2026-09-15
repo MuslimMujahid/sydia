@@ -736,6 +736,10 @@ Side-effect tools can accept an internal idempotency key derived from message_id
 
 Each recurrence occurrence has a deterministic dispatch key such as reminder_id + occurrence timestamp. A unique constraint prevents duplicate provider sends from worker retries.
 
+A reminder stores an absolute `scheduled_at` plus the owner's `timezone`. Recurrence weekdays are stored Sunday-based (0 = Sunday .. 6 = Saturday) for both the REST DTO and the assistant tool contract; the scheduler translates them to the Monday-based numbering `rrule` expects, and evaluates the rule in the owner's wall clock so "every Tuesday 17:00" stays 17:00 across a zone-offset change. The stored `scheduled_at` is the first occurrence and always falls on one of the rule's weekdays.
+
+One reminder therefore carries exactly one time of day. A request that mixes times of day ("Tuesday, Thursday, Friday at 17:00, and Saturday at 07:00") becomes one reminder per distinct time, and moving a subset of weekdays to another time splits the reminder rather than widening its rule.
+
 ## 14.4 Optimistic Concurrency
 
 For user edits that may race with assistant updates, use updated_at/version checks for critical objects. Return a conflict to orchestration rather than silently overwriting newer state.
@@ -1173,31 +1177,35 @@ create_reminder({
 
 title: string,
 
-scheduled_at: ISODateTime,
+schedules: \[{
 
-timezone: string,
+date: "YYYY-MM-DD", // owner's local calendar date
 
-recurrence?: string
+time: "HH:mm", // owner's local clock; the server converts with the profile zone
+
+recurrence?: { frequency, interval, daysOfWeek?, endsAt? }
+
+}\],
 
 }) → {
 
-reminder_id: string,
-
-status: "ACTIVE",
-
-next_occurrence_at: ISODateTime
+reminders: ReminderSummary\[\], // one per distinct time of day
 
 }
 
 update_reminder({
 
-reminder_id: string,
+id?: string,
 
-scheduled_at?: ISODateTime,
+query?: string,
 
-recurrence?: string,
+date?: "YYYY-MM-DD",
 
-status?: "ACTIVE" \| "PAUSED" \| "CANCELLED"
+time?: "HH:mm",
+
+recurrence?: { frequency, interval, daysOfWeek?, endsAt? } | null,
+
+status?: "scheduled" \| "completed" \| "cancelled"
 
 }) → ReminderSummary
 
