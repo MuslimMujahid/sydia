@@ -289,11 +289,12 @@ export class DocumentService {
       .map((_chunk, index) => index)
       .filter((index) => !reusable || !existing[index]?.embedded);
 
-    const embeddings = await Promise.all(
-      pending.map((index) =>
-        this.embeddings.embed(parsedChunks[index]!.content),
-      ),
-    );
+    const embeddings =
+      pending.length === 0
+        ? []
+        : await this.embeddings.embedMany(
+            pending.map((index) => parsedChunks[index]!.content),
+          );
 
     if (embeddings.some((embedding) => !embedding))
       throw new NonRetryableDocumentError(

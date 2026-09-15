@@ -183,6 +183,11 @@ function dependencies() {
     embed: jest
       .fn<(text: string) => Promise<number[] | null>>()
       .mockResolvedValue([0.1, 0.2]),
+    embedMany: jest
+      .fn<(texts: string[]) => Promise<Array<number[] | null>>>()
+      .mockImplementation((texts) =>
+        Promise.resolve(texts.map(() => [0.1, 0.2])),
+      ),
     modelName: jest.fn<() => string>().mockReturnValue('test-model'),
     version: 'test-version',
   } as unknown as EmbeddingsService;
@@ -374,7 +379,7 @@ describe('DocumentService processDocument', () => {
 
   test('rejects missing embeddings without publishing chunks', async () => {
     const { service, documents, embeddings } = dependencies();
-    jest.spyOn(embeddings, 'embed').mockResolvedValue(null);
+    jest.spyOn(embeddings, 'embedMany').mockResolvedValue([null]);
 
     await expect(service.processDocument('document-1', userId)).rejects.toThrow(
       'Layanan embedding belum dikonfigurasi',
@@ -482,7 +487,7 @@ describe('DocumentService processDocument', () => {
     await service.processDocument('document-1', userId);
 
     expect(documents.replaceChunks).not.toHaveBeenCalled();
-    expect(embeddings.embed).not.toHaveBeenCalled();
+    expect(embeddings.embedMany).not.toHaveBeenCalled();
     expect(documents.setChunkEmbedding).not.toHaveBeenCalled();
     expect(documents.complete).toHaveBeenCalled();
   });

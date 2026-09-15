@@ -73,6 +73,7 @@ function parsePositiveInteger(
     | 'BACKEND_MEMORY_DREAM_MIN_TOKENS'
     | 'BACKEND_MEMORY_DREAM_IDLE_MS'
     | 'BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS'
+    | 'BACKEND_EMBEDDING_CONCURRENCY'
     | 'BACKEND_WHATSAPP_COMMAND_TIMEOUT'
     | 'BACKEND_WHATSAPP_STATUS_POLL_MS'
     | 'BACKEND_PROACTIVE_SWEEP_MINUTES'
@@ -307,6 +308,11 @@ export function validateEnvironment(
       config.BACKEND_EMBEDDING_MODEL.trim() !== ''
         ? config.BACKEND_EMBEDDING_MODEL.trim()
         : 'openai/text-embedding-3-small',
+    BACKEND_EMBEDDING_CONCURRENCY: parsePositiveInteger(
+      config,
+      'BACKEND_EMBEDDING_CONCURRENCY',
+      8,
+    ),
     BACKEND_STT_MODEL:
       typeof config.BACKEND_STT_MODEL === 'string' &&
       config.BACKEND_STT_MODEL.trim() !== ''
