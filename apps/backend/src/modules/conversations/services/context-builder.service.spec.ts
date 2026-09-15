@@ -138,6 +138,9 @@ describe('ContextBuilderService system policy', () => {
       'Treat your own earlier statements and established facts as valid context; do not re-verify them unless the user asks or the state may have changed.',
     );
     expect(systemPolicy).toContain(
+      "Always search the user's saved documents before answering a question that depends on their files; a document list is metadata, not content, and never answers such a question by itself.",
+    );
+    expect(systemPolicy).toContain(
       'Before sending files, confirm exactly which file or files the user wants.',
     );
     expect(systemPolicy).not.toContain('Do not bypass confirmation.');

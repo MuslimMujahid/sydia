@@ -31,22 +31,40 @@ describe('conversation context lifecycle', () => {
       }),
     } as unknown as IConversationRepository;
 
-    // Budget must stay above the fixed system policy plus the always-emitted
-    // turn context, otherwise optional context truncates to a bare ellipsis.
-    const config = new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 760 });
+    const user = {
+      id: 'user-1',
+      name: 'Ayu',
+      timezone: 'Asia/Jakarta',
+      locale: 'id',
+      persona: 'professional' as const,
+      preferredAddress: null,
+    };
+
+    // The fixed blocks (system policy, persona, profile, turn context) are
+    // emitted at any budget, so the fixture is derived from their measured size
+    // rather than hardcoded; otherwise editing the system policy silently
+    // starves the optional context this test is about.
+    const measured = await new ContextBuilderService(
+      repository,
+      new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: 10_000 }),
+    ).build(user, 'conversation-1');
+
+    const fixedTokens =
+      measured.tokenUsage.systemPolicy +
+      measured.tokenUsage.persona +
+      measured.tokenUsage.profile +
+      measured.tokenUsage.channelPrompt +
+      measured.tokenUsage.turnContext;
+
+    // Budget must stay above that fixed cost plus the always-emitted turn
+    // context, otherwise optional context truncates to a bare ellipsis.
+    const config = new ConfigService({
+      BACKEND_ASSISTANT_CONTEXT_TOKENS: fixedTokens + 130,
+    });
+
     const builder = new ContextBuilderService(repository, config);
 
-    const { messages: context } = await builder.build(
-      {
-        id: 'user-1',
-        name: 'Ayu',
-        timezone: 'Asia/Jakarta',
-        locale: 'id',
-        persona: 'professional',
-        preferredAddress: null,
-      },
-      'conversation-1',
-    );
+    const { messages: context } = await builder.build(user, 'conversation-1');
 
     expect(
       context.some(

@@ -679,9 +679,9 @@ matchingDocumentIds must list every saved file that matches the user's request; 
         label: 'Search documents',
         description: `Use this tool to search the current user's document chunks for a semantic query.
 
-Use it when a question needs information from saved documents or the active message's attachments.
+Use it when a question needs information from saved documents or the active message's attachments, including whether the user has a file about a topic: a file's name may not match the topic while its content does, so search before answering that the file is absent.
 
-Do not use it for a complete document read or a metadata-only file list.
+Do not use it for a complete document read or when only the file list itself is wanted.
 
 Returns up to six relevance-ranked sources with document identity, filename, position, and a truncated quote; results may not cover the whole document.`,
         parameters: schema(
