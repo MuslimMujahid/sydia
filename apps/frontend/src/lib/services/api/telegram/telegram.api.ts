@@ -5,6 +5,7 @@ import type { ApiResponse } from "../api.types";
 
 export type TelegramStatus = {
   available: boolean;
+  notice: string | null;
   linked: boolean;
   externalId: string | null;
   username: string | null;

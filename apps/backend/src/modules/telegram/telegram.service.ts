@@ -55,6 +55,7 @@ export class TelegramService implements OnModuleInit {
 
     return {
       available: this.gateway.isAvailable(),
+      notice: this.gateway.getRuntimeNotice(),
       linked: Boolean(identity),
       externalId: identity?.externalId ?? null,
       username: profile?.username ?? null,

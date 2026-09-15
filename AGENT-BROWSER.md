@@ -85,3 +85,7 @@
 
 - `agent-browser tab` lists stable ids (`t1`, `t2`); `tab 1` / `tab close 2` with positional integers are REJECTED — use `tab t1`, `tab close t2`.
 - `agent-browser get text` REQUIRES a selector argument (`get text <selector>`); bare `get text` errors.
+
+## /chat (SMRT verification, 2026-09-16)
+
+- Conversation API run objects expose ONLY `id, conversationId, assistantMessageId, status, errorMessage, createdAt, updatedAt` — there is NO `toolInvocations` field, so tool usage must be inferred from the rendered `Sumber` aside or persisted message text. Message texts readable via `messages[].content || messages[].text` filtered by `role`.

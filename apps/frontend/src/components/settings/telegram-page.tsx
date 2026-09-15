@@ -138,9 +138,16 @@ export function TelegramIntegrationCard() {
 
       {status ? (
         status.available === false && connectionState !== "connected" ? (
-          <p className="mt-4 text-sm text-ink-muted" role="status">
-            Integrasi Telegram belum tersedia di server ini.
-          </p>
+          <>
+            <p className="mt-4 text-sm text-ink-muted" role="status">
+              Integrasi Telegram belum tersedia di server ini.
+            </p>
+            {status.notice ? (
+              <p className="mt-2 text-sm text-ink-muted" role="status">
+                {status.notice}
+              </p>
+            ) : null}
+          </>
         ) : (
           <div className="mt-3 max-w-xl">
             <p className="sr-only" aria-live="polite">
