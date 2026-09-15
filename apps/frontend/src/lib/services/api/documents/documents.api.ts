@@ -26,6 +26,7 @@ export type DocumentChunk = {
 export type Document = {
   id: string;
   title: string;
+  description: string | null;
   status: DocumentStatus;
   textContent: string | null;
   transcript: string | null;
@@ -41,6 +42,11 @@ export type Document = {
 export type UploadDocumentInput = {
   file: File;
   conversationId?: string;
+};
+
+export type UpdateDocumentInput = {
+  title: string;
+  description: string | null;
 };
 
 const documentIdSchema = z.string().min(1);
@@ -146,5 +152,21 @@ export async function deleteDocument(documentId: string): Promise<void> {
     await api.delete(`/documents/${encodeURIComponent(documentId)}`);
   } catch (error) {
     throw toApiError(error, "File tidak dapat dihapus.");
+  }
+}
+
+export async function updateDocument(
+  documentId: string,
+  input: UpdateDocumentInput
+): Promise<Document> {
+  try {
+    const response = await api.patch<ApiResponse<Document>>(
+      `/documents/${encodeURIComponent(documentId)}`,
+      input
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw toApiError(error, "Perubahan file tidak dapat disimpan.");
   }
 }

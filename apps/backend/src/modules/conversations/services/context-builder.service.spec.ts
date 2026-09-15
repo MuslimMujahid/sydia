@@ -29,6 +29,7 @@ function document(textContent: string, originalName = 'catatan.txt'): Document {
   return {
     id: 'document-1',
     title: originalName,
+    description: null,
     textContent,
     transcript: null,
     imageDescription: null,

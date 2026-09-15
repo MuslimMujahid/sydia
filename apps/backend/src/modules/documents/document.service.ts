@@ -11,19 +11,31 @@ type UploadedFile = {
 };
 import {
   DOCUMENT_REPOSITORY,
+  USER_REPOSITORY,
   type IDocumentRepository,
+  type IUserRepository,
 } from '../../database/interfaces';
 import { PDFParse } from 'pdf-parse';
 import type {
   Document,
   DocumentChunk,
   DocumentMetadata,
+  DocumentUpdate,
   FileKind,
 } from '../../database/entities';
 import { EmbeddingsService } from '../../infra/embeddings';
-import { OpenRouterMediaService } from '../../infra/model-gateway';
+import {
+  LANGUAGE_MODEL,
+  type LanguageModelGateway,
+  OpenRouterMediaService,
+} from '../../infra/model-gateway';
 import { QueueService } from '../../infra/queue';
 import { StorageService } from '../../infra/storage';
+import {
+  buildFallbackTitle,
+  isUndescriptiveName,
+  sanitizeDerivedTitle,
+} from './document-naming';
 
 const CHUNK_SIZE = 1400;
 const CHUNK_OVERLAP = 180;
@@ -147,16 +159,24 @@ export class DocumentService {
   constructor(
     @Inject(DOCUMENT_REPOSITORY)
     private readonly documents: IDocumentRepository,
+    @Inject(USER_REPOSITORY)
+    private readonly users: IUserRepository,
     private readonly storage: StorageService,
     private readonly embeddings: EmbeddingsService,
     private readonly media: OpenRouterMediaService,
     private readonly queue: QueueService,
+    @Inject(LANGUAGE_MODEL)
+    private readonly languageModel: LanguageModelGateway,
     private readonly config: ConfigService,
   ) {
     this.publicBaseUrl = config.getOrThrow<string>('BACKEND_AUTH_URL');
   }
 
-  async ingest(userId: string, file: UploadedFile): Promise<Document> {
+  async ingest(
+    userId: string,
+    file: UploadedFile,
+    options?: { hint?: string },
+  ): Promise<Document> {
     const kind = kindFor(file.mimetype);
     const storageKey = `${userId}/${randomUUID()}`;
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
@@ -181,6 +201,14 @@ export class DocumentService {
       await this.storage.delete(storageKey).catch(() => {});
       throw error;
     }
+
+    document = await this.applyDerivedTitle(
+      userId,
+      document,
+      file,
+      kind,
+      options?.hint,
+    );
 
     try {
       await this.queue.documents.add(
@@ -358,6 +386,14 @@ export class DocumentService {
     return this.documents.listMetadata(userId);
   }
 
+  async update(
+    userId: string,
+    documentId: string,
+    input: DocumentUpdate,
+  ): Promise<Document | null> {
+    return this.documents.update(userId, documentId, input);
+  }
+
   async listAttached(userId: string, messageId: string): Promise<Document[]> {
     return this.documents.findByMessageId(userId, messageId);
   }
@@ -465,6 +501,89 @@ export class DocumentService {
     } catch {
       return diversifyByDocument(keyword, limit);
     }
+  }
+
+  private async applyDerivedTitle(
+    userId: string,
+    document: Document,
+    file: UploadedFile,
+    kind: FileKind,
+    hint?: string,
+  ): Promise<Document> {
+    if (!isUndescriptiveName(file.originalname)) return document;
+
+    try {
+      const user = await this.users.findById(userId);
+      const timezone = user?.timezone || 'UTC';
+      const title = await this.deriveTitle(file, kind, hint, timezone);
+      const updated = await this.documents.update(userId, document.id, {
+        title,
+      });
+
+      return updated ?? document;
+    } catch {
+      return document;
+    }
+  }
+
+  private async deriveTitle(
+    file: UploadedFile,
+    kind: FileKind,
+    hint: string | undefined,
+    timezone: string,
+  ): Promise<string> {
+    const normalizedHint = hint?.trim() ?? '';
+    let extracted = '';
+
+    if (kind === 'document') {
+      try {
+        const content =
+          file.mimetype === 'application/pdf'
+            ? (await this.parsePdf(file)).text
+            : this.parseDocument(file);
+
+        if (content.trim().length >= MIN_EXTRACTED_TEXT_LENGTH)
+          extracted = content.trim().slice(0, 4000);
+      } catch {
+        extracted = '';
+      }
+    }
+
+    if (extracted || normalizedHint) {
+      try {
+        const result = await this.languageModel.generate({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Namai file yang diunggah untuk perpustakaan file pribadi. Balas HANYA dengan nama file singkat (3–8 kata) dalam bahasa yang sama dengan isi, tanpa pemisah path, tanpa tanda kutip, dan pertahankan ekstensi file asli.',
+            },
+            {
+              role: 'user',
+              content: [
+                `Nama file asli: ${file.originalname}`,
+                normalizedHint
+                  ? `Deskripsi dari pengguna: ${normalizedHint}`
+                  : '',
+                extracted
+                  ? `Isi file: ${extracted}`
+                  : 'Isi file tidak tersedia.',
+              ]
+                .filter(Boolean)
+                .join('\n'),
+            },
+          ],
+          maxOutputTokens: 60,
+        });
+
+        const title = sanitizeDerivedTitle(result.text, file.originalname);
+        if (title) return title;
+      } catch {
+        // A model failure must not prevent ingestion or derived fallback naming.
+      }
+    }
+
+    return buildFallbackTitle(kind, file.originalname, new Date(), timezone);
   }
 
   private chunkPages(

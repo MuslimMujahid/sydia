@@ -11,9 +11,11 @@ import type {
   DocumentChunk,
   DocumentCreate,
   DocumentMetadata,
+  DocumentUpdate,
   FileAsset,
   FileKind,
 } from '../entities';
+
 import type { IDocumentRepository } from '../interfaces';
 
 const fileSelect = {
@@ -35,6 +37,7 @@ const chunkSelect = {
 const documentSelect = {
   id: true,
   title: true,
+  description: true,
   status: true,
   textContent: true,
   transcript: true,
@@ -49,6 +52,7 @@ const documentSelect = {
 const documentMetadataSelect = {
   id: true,
   title: true,
+  description: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -59,6 +63,7 @@ type DocumentRow = Pick<
   PrismaDocument,
   | 'id'
   | 'title'
+  | 'description'
   | 'status'
   | 'textContent'
   | 'transcript'
@@ -82,6 +87,7 @@ function present(row: DocumentRow): Document {
   return {
     id: row.id,
     title: row.title,
+    description: row.description,
     status: row.status as Document['status'],
     textContent: row.textContent,
     transcript: row.transcript,
@@ -97,7 +103,7 @@ function present(row: DocumentRow): Document {
 
 type DocumentMetadataRow = Pick<
   PrismaDocument,
-  'id' | 'title' | 'status' | 'createdAt' | 'updatedAt'
+  'id' | 'title' | 'description' | 'status' | 'createdAt' | 'updatedAt'
 > & {
   fileAsset: Pick<PrismaFileAsset, keyof typeof fileSelect>;
 };
@@ -106,6 +112,7 @@ function presentMetadata(row: DocumentMetadataRow): DocumentMetadata {
   return {
     id: row.id,
     title: row.title,
+    description: row.description,
     status: row.status as DocumentMetadata['status'],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -194,6 +201,29 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     });
 
     return row ? present(row) : null;
+  }
+
+  async update(
+    userId: string,
+    id: string,
+    input: DocumentUpdate,
+  ): Promise<Document | null> {
+    try {
+      const row = await this.prisma.document.update({
+        where: { id, userId },
+        data: input,
+        select: documentSelect,
+      });
+
+      return present(row);
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      )
+        return null;
+      throw error;
+    }
   }
 
   async findByMessageId(

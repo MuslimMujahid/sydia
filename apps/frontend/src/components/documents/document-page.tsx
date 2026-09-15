@@ -10,10 +10,12 @@ import {
   LoaderCircle,
   MessageSquareText,
   MoreHorizontal,
+  Pencil,
   Trash2,
   Upload,
 } from "lucide-react";
 import { useRef, useState, type ChangeEvent } from "react";
+import { DocumentEditDialog } from "@/components/documents/document-edit-dialog";
 import { EmptyState } from "@/components/app-states";
 import {
   DomainInlineError,
@@ -45,13 +47,7 @@ import {
 } from "@/lib/services/api/documents/documents.queries";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { cn } from "@/lib/utils/cn";
-
-function formatSize(bytes: number): string {
-  if (bytes < 1_024) return `${bytes} B`;
-  if (bytes < 1_048_576) return `${(bytes / 1_024).toFixed(1)} KB`;
-
-  return `${(bytes / 1_048_576).toFixed(1)} MB`;
-}
+import { formatFileSize } from "@/lib/utils/format";
 
 function FileKindIcon({ kind }: { kind: FileKind }) {
   const Icon =
@@ -107,6 +103,8 @@ function DocumentStatus({ document }: { document: Document }) {
 export function DocumentPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
+  const [editTarget, setEditTarget] = useState<Document | null>(null);
+  const [editPending, setEditPending] = useState(false);
   const query = useQuery(documentsQueryOptions());
   const uploadMutation = useUploadDocument();
   const deleteMutation = useDeleteDocument();
@@ -154,7 +152,8 @@ export function DocumentPage() {
               onClick={() => inputRef.current?.click()}
               disabled={uploadMutation.isPending}
             >
-              <Upload /> {uploadMutation.isPending ? "Mengunggah…" : "Unggah file"}
+              <Upload />{" "}
+              {uploadMutation.isPending ? "Mengunggah…" : "Unggah file"}
             </Button>
           </>
         }
@@ -207,8 +206,14 @@ export function DocumentPage() {
                   {document.title}
                 </span>
                 <span className="mt-1 block truncate text-sm text-ink-muted">
-                  {formatSize(document.file.size)} · {formatDateTime(document.createdAt)}
+                  {formatFileSize(document.file.size)} ·{" "}
+                  {formatDateTime(document.createdAt)}
                 </span>
+                {document.description ? (
+                  <span className="mt-1 block truncate text-sm text-ink-muted">
+                    {document.description}
+                  </span>
+                ) : null}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -223,6 +228,9 @@ export function DocumentPage() {
                   <MoreHorizontal />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditTarget(document)}>
+                    <Pencil /> Edit
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     render={
                       <a
@@ -299,6 +307,21 @@ export function DocumentPage() {
             </Button>
           </div>
         </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !editPending) setEditTarget(null);
+        }}
+      >
+        {editTarget ? (
+          <DocumentEditDialog
+            key={editTarget.id}
+            document={editTarget}
+            onClose={() => setEditTarget(null)}
+            onPendingChange={setEditPending}
+          />
+        ) : null}
       </Dialog>
     </div>
   );

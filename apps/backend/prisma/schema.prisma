@@ -491,6 +491,7 @@ model Document {
   fileAssetId      String          @unique
   status           String          @default("processing")
   title            String
+  description      String?
   textContent      String?
   transcript       String?
   imageDescription String?

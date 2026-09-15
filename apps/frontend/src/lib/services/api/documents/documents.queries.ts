@@ -10,8 +10,10 @@ import {
   getDocument,
   getDocuments,
   retryDocument,
+  updateDocument,
   uploadDocument,
   type Document,
+  type UpdateDocumentInput,
 } from "./documents.api";
 
 export const documentQueryKeys = {
@@ -64,6 +66,22 @@ export function useRetryDocument() {
 
   return useMutation({
     mutationFn: retryDocument,
+    onSuccess: (document) => cacheDocument(queryClient, document),
+    meta: { invalidateQueries: [documentQueryKeys.all] },
+  });
+}
+
+export function useUpdateDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      documentId,
+      values,
+    }: {
+      documentId: string;
+      values: UpdateDocumentInput;
+    }) => updateDocument(documentId, values),
     onSuccess: (document) => cacheDocument(queryClient, document),
     meta: { invalidateQueries: [documentQueryKeys.all] },
   });

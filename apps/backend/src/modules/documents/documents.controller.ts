@@ -1,11 +1,13 @@
 import {
   Controller,
+  Body,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Inject,
   Param,
+  Patch,
   Post,
   Res,
   UploadedFile,
@@ -20,7 +22,9 @@ import {
 } from '../../database/interfaces';
 import { StorageService } from '../../infra/storage';
 import { ApiException, ErrorCodes } from '../../shared/errors';
+import type { Document } from '../../database/entities';
 import { DocumentService } from './document.service';
+import { UpdateDocumentDto } from './dto';
 
 type UploadedDocument = {
   originalname: string;
@@ -92,6 +96,22 @@ export class DocumentsController {
       });
 
     return this.service.ingest(session.user.id, file);
+  }
+
+  @Patch(':id')
+  async update(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() body: UpdateDocumentDto,
+  ): Promise<Document> {
+    if (body.title === undefined && body.description === undefined)
+      throw new ApiException({
+        code: ErrorCodes.BAD_REQUEST,
+        message: 'Tidak ada perubahan yang dikirim.',
+        status: HttpStatus.BAD_REQUEST,
+      });
+
+    return this.required(await this.service.update(session.user.id, id, body));
   }
 
   @Post(':id/retry') async retry(

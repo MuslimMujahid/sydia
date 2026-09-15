@@ -21,6 +21,7 @@ export type Document = Pick<
   PrismaDocument,
   | 'id'
   | 'title'
+  | 'description'
   | 'textContent'
   | 'transcript'
   | 'imageDescription'
@@ -36,7 +37,7 @@ export type Document = Pick<
 
 export type DocumentMetadata = Pick<
   Document,
-  'id' | 'title' | 'status' | 'createdAt' | 'updatedAt'
+  'id' | 'title' | 'description' | 'status' | 'createdAt' | 'updatedAt'
 > & {
   file: FileAsset;
 };
@@ -44,4 +45,9 @@ export type DocumentMetadata = Pick<
 export type DocumentCreate = {
   fileAssetId: string;
   title: string;
+};
+
+export type DocumentUpdate = {
+  title?: string;
+  description?: string | null;
 };

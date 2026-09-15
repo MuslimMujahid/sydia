@@ -434,12 +434,19 @@ export class TelegramService implements OnModuleInit {
       };
     }
 
-    const document = await this.documents.ingest(userId, {
+    const hint = message.caption?.trim() || message.text.trim();
+    const ingestOptions = hint && !/^\/\S+/.test(hint) ? { hint } : undefined;
+
+    const uploadedFile = {
       originalname: filename,
       mimetype: mimeType,
       size: buffer.length,
       buffer,
-    });
+    };
+
+    const document = ingestOptions
+      ? await this.documents.ingest(userId, uploadedFile, ingestOptions)
+      : await this.documents.ingest(userId, uploadedFile);
 
     // Images are no longer described by a vision model, so there is nothing to
     // wait for; other kinds are indexed before the turn continues.

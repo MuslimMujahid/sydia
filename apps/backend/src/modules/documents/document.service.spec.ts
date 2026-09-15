@@ -5,9 +5,15 @@ import type {
   DocumentStatus,
   FileAsset,
 } from '../../database/entities';
-import type { IDocumentRepository } from '../../database/interfaces';
+import type {
+  IDocumentRepository,
+  IUserRepository,
+} from '../../database/interfaces';
 import type { EmbeddingsService } from '../../infra/embeddings';
-import type { OpenRouterMediaService } from '../../infra/model-gateway';
+import type {
+  LanguageModelGateway,
+  OpenRouterMediaService,
+} from '../../infra/model-gateway';
 import type { QueueService } from '../../infra/queue';
 import type { StorageService } from '../../infra/storage';
 import { DocumentService, NonRetryableDocumentError } from './document.service';
@@ -35,6 +41,7 @@ function document(status: DocumentStatus = 'processing'): Document {
   return {
     id: 'document-1',
     title: file.originalname,
+    description: null,
     textContent: null,
     transcript: null,
     imageDescription: null,
@@ -212,13 +219,28 @@ function dependencies() {
     },
   };
 
+  const languageModel = {
+    provider: 'openrouter' as const,
+    model: 'test-model',
+    generate: jest.fn<LanguageModelGateway['generate']>().mockResolvedValue({
+      text: '',
+      usage: {},
+    }),
+  } satisfies LanguageModelGateway;
+
+  const users = {
+    findById: jest.fn<IUserRepository['findById']>().mockResolvedValue(null),
+  } as unknown as IUserRepository;
+
   return {
     service: new DocumentService(
       documents,
+      users,
       storage,
       embeddings,
       media,
       queue as unknown as QueueService,
+      languageModel,
       new ConfigService({ BACKEND_AUTH_URL: 'http://localhost:5000' }),
     ),
     storage,
@@ -226,6 +248,7 @@ function dependencies() {
     embeddings,
     media,
     queue,
+    users,
   };
 }
 

@@ -6,6 +6,14 @@ import {
   type SendMessageResult,
 } from "./conversations.api";
 
+// The app renders `<html lang="id">` (see src/routes/__root.tsx) and
+// getConversationFallback picks its copy from that attribute. Node has no
+// document, so the tests must establish the same condition the browser does,
+// otherwise the app-level error copy under test is never the one asserted.
+(globalThis as { document?: unknown }).document = {
+  documentElement: { lang: "id" },
+};
+
 function turn(status: "running" | "completed" | "failed"): SendMessageResult {
   const timestamp = "2026-09-09T00:00:00.000Z";
 

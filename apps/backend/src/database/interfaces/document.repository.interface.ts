@@ -4,6 +4,7 @@ import type {
   DocumentCreate,
   DocumentChunk,
   DocumentMetadata,
+  DocumentUpdate,
   FileAsset,
   FileKind,
 } from '../entities';
@@ -27,6 +28,12 @@ export interface IDocumentRepository {
     userId: string,
     id: string,
     chunks?: boolean,
+  ): Promise<Document | null>;
+  /** Owner-scoped rename/description write. Returns null when the document is not the caller's. */
+  update(
+    userId: string,
+    id: string,
+    input: DocumentUpdate,
   ): Promise<Document | null>;
   findByMessageId(userId: string, messageId: string): Promise<Document[]>;
   findMetadataByMessageId(

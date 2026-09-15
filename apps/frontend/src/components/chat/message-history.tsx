@@ -8,6 +8,7 @@ import type {
   ToolInvocation,
 } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
+import { formatFileSize } from "@/lib/utils/format";
 import { AssistantMarkdown } from "./assistant-markdown";
 import { ChatActionCards } from "./action-cards";
 
@@ -123,13 +124,6 @@ function toolLabel(
   const labels = TOOL_LABELS[invocation.name as ProductionToolName];
 
   return labels?.[locale] ?? invocation.label;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 type DocumentSource = {

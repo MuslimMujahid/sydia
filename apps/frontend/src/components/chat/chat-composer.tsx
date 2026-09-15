@@ -170,7 +170,7 @@ export function ChatComposer({
             ? {
                 ...item,
                 documentId: document.id,
-                name: document.file.originalName,
+                name: document.title,
                 kind: document.file.kind,
                 status: "ready",
                 errorMessage: undefined,
