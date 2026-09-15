@@ -1,6 +1,7 @@
 import type {
   AssistantRun as PrismaAssistantRun,
   Conversation as PrismaConversation,
+  Document as PrismaDocument,
   FileAsset as PrismaFileAsset,
   Message as PrismaMessage,
   Prisma,
@@ -40,7 +41,9 @@ export type ConversationSummary = Conversation & {
 export type MessageAttachment = Pick<
   PrismaFileAsset,
   'id' | 'originalName' | 'mimeType' | 'size' | 'kind'
->;
+> & {
+  document: Pick<PrismaDocument, 'title'> | null;
+};
 
 export type Message = Pick<
   PrismaMessage,

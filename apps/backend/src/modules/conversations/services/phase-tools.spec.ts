@@ -235,14 +235,14 @@ describe('phase 5 and 6 assistant tools', () => {
     const documents = [
       {
         id: 'doc-1',
-        title: 'invoice.pdf',
+        title: 'KTP Muh Muslim Al-Mujahid.jpg',
         status: 'ready' as const,
         createdAt: new Date('2026-09-01T00:00:00Z'),
         updatedAt: new Date('2026-09-01T00:00:00Z'),
         file: {
           id: 'file-1',
-          originalName: 'invoice.pdf',
-          mimeType: 'application/pdf',
+          originalName: 'AQADPhVrG2a7SVV.jpg',
+          mimeType: 'image/jpeg',
           size: 1234,
           kind: 'document' as const,
           createdAt: new Date('2026-09-01T00:00:00Z'),
@@ -270,8 +270,8 @@ describe('phase 5 and 6 assistant tools', () => {
       documents: [
         {
           id: 'doc-1',
-          filename: 'invoice.pdf',
-          mimeType: 'application/pdf',
+          filename: 'KTP Muh Muslim Al-Mujahid.jpg',
+          mimeType: 'image/jpeg',
           size: 1234,
           status: 'ready',
           createdAt: new Date('2026-09-01T00:00:00Z'),
@@ -284,14 +284,14 @@ describe('phase 5 and 6 assistant tools', () => {
   test('reads ordered document chunks with pagination metadata', async () => {
     const document = {
       id: 'doc-1',
-      title: 'deck.pdf',
+      title: 'KTP Muh Muslim Al-Mujahid.jpg',
       status: 'ready' as const,
       createdAt: new Date('2026-09-01T00:00:00Z'),
       updatedAt: new Date('2026-09-01T00:00:00Z'),
       file: {
         id: 'file-1',
-        originalName: 'deck.pdf',
-        mimeType: 'application/pdf',
+        originalName: 'AQADPhVrG2a7SVV.jpg',
+        mimeType: 'image/jpeg',
         size: 1234,
         kind: 'document' as const,
         createdAt: new Date('2026-09-01T00:00:00Z'),
@@ -343,12 +343,50 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(read).toHaveBeenCalledWith('user-1', 'doc-1', 3, 1);
     expect(result).toEqual({
       documentId: 'doc-1',
-      filename: 'deck.pdf',
+      filename: 'KTP Muh Muslim Al-Mujahid.jpg',
       status: 'ready',
       chunks: [{ chunk: 3, page: 2, content: 'Bagian kedua dokumen.' }],
       nextCursor: 4,
       hasMore: true,
     });
+    expect(JSON.stringify(result)).not.toContain('AQADPhVrG2a7SVV.jpg');
+  });
+  test('does not expose original upload ids in document tool results', async () => {
+    const documents = [
+      {
+        id: 'doc-1',
+        title: 'KTP Muh Muslim Al-Mujahid.jpg',
+        status: 'ready' as const,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+        updatedAt: new Date('2026-09-01T00:00:00Z'),
+        file: {
+          id: 'file-1',
+          originalName: 'AQADPhVrG2a7SVV.jpg',
+          mimeType: 'image/jpeg',
+          size: 1234,
+          kind: 'document' as const,
+          createdAt: new Date('2026-09-01T00:00:00Z'),
+        },
+      },
+    ];
+
+    const listMetadata = jest
+      .fn<(userId: string) => Promise<typeof documents>>()
+      .mockResolvedValue(documents);
+
+    const result = await tools({
+      documents: { listMetadata } as unknown as DocumentService,
+    })
+      .find(({ definition }) => definition.name === 'list_documents')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'list-files-friendly-name',
+        arguments: {},
+      });
+
+    expect(JSON.stringify(result)).toContain('KTP Muh Muslim Al-Mujahid.jpg');
+    expect(JSON.stringify(result)).not.toContain('AQADPhVrG2a7SVV.jpg');
   });
 
   test('saves every file attached to the source message as compact metadata', async () => {

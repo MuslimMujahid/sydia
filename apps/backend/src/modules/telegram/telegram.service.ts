@@ -415,9 +415,10 @@ export class TelegramService implements OnModuleInit {
         ? message.mediaMessage.mimeType
         : 'application/octet-stream';
 
+    const providedFilename = message.mediaMessage?.fileName;
     const filename =
-      typeof message.mediaMessage?.fileName === 'string'
-        ? message.mediaMessage.fileName
+      typeof providedFilename === 'string'
+        ? providedFilename
         : message.providerMessageId;
 
     if (message.kind === 'voice') {

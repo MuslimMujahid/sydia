@@ -5,10 +5,7 @@ import type {
   DocumentStatus,
   FileAsset,
 } from '../../database/entities';
-import type {
-  IDocumentRepository,
-  IUserRepository,
-} from '../../database/interfaces';
+import type { IDocumentRepository } from '../../database/interfaces';
 import type { EmbeddingsService } from '../../infra/embeddings';
 import type {
   LanguageModelGateway,
@@ -20,7 +17,7 @@ import { DocumentService, NonRetryableDocumentError } from './document.service';
 
 const userId = 'user-1';
 const file = {
-  originalname: 'notes.txt',
+  originalname: 'AQADPhVrG2a7SVV.jpg',
   mimetype: 'text/plain',
   size: 11,
   buffer: Buffer.from('hello world'),
@@ -40,7 +37,7 @@ function asset(mimeType = file.mimetype): FileAsset {
 function document(status: DocumentStatus = 'processing'): Document {
   return {
     id: 'document-1',
-    title: file.originalname,
+    title: 'KTP Muh Muslim Al-Mujahid.jpg',
     description: null,
     textContent: null,
     transcript: null,
@@ -234,14 +231,9 @@ function dependencies() {
     }),
   } satisfies LanguageModelGateway;
 
-  const users = {
-    findById: jest.fn<IUserRepository['findById']>().mockResolvedValue(null),
-  } as unknown as IUserRepository;
-
   return {
     service: new DocumentService(
       documents,
-      users,
       storage,
       embeddings,
       media,
@@ -255,7 +247,6 @@ function dependencies() {
     media,
     queue,
     languageModel,
-    users,
   };
 }
 
@@ -264,15 +255,106 @@ describe('DocumentService links', () => {
     const { service, storage, documents } = dependencies();
 
     await expect(service.linkFor('user-1', 'document-1')).resolves.toEqual({
-      filename: 'notes.txt',
+      filename: 'KTP Muh Muslim Al-Mujahid.jpg',
       url: 'http://localhost:5000/documents/document-1/content',
     });
     expect(documents.findById).toHaveBeenCalledWith('user-1', 'document-1');
     expect(storage.get).not.toHaveBeenCalled();
   });
+  test('loads the user-facing title instead of the original upload id', async () => {
+    const { service, storage, documents } = dependencies();
+
+    await expect(service.loadFile('user-1', 'document-1')).resolves.toEqual({
+      filename: 'KTP Muh Muslim Al-Mujahid.jpg',
+      mimeType: 'text/plain',
+      buffer: file.buffer,
+    });
+    expect(documents.findById).toHaveBeenCalledWith('user-1', 'document-1');
+    expect(storage.get).toHaveBeenCalledWith('user-1/blob');
+  });
 });
 
 describe('DocumentService ingest', () => {
+  test('persists the name the model chooses for a machine-made upload name', async () => {
+    const { service, documents, languageModel } = dependencies();
+    languageModel.generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({
+        text: 'Kartu Anggota Perpustakaan.jpg',
+        usage: {},
+      });
+
+    await service.ingest(userId, file, { hint: 'library membership card' });
+
+    expect(documents.update).toHaveBeenCalledWith(userId, 'document-1', {
+      title: 'Kartu Anggota Perpustakaan.jpg',
+    });
+  });
+
+  test('keeps the uploaded name when the model returns it unchanged', async () => {
+    const { service, documents, languageModel } = dependencies();
+    languageModel.generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({ text: 'Rencana.png', usage: {} });
+
+    await service.ingest(
+      userId,
+      { ...file, originalname: 'Rencana.png' },
+      { hint: 'rencana kegiatan' },
+    );
+
+    expect(languageModel.generate).toHaveBeenCalledTimes(1);
+    expect(documents.update).not.toHaveBeenCalled();
+  });
+
+  test('treats a case or padding difference as the same name', async () => {
+    const { service, documents, languageModel } = dependencies();
+    languageModel.generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({ text: '  rencana.PNG  ', usage: {} });
+
+    await service.ingest(
+      userId,
+      { ...file, originalname: 'Rencana.png' },
+      { hint: 'rencana kegiatan' },
+    );
+
+    expect(documents.update).not.toHaveBeenCalled();
+  });
+
+  test('keeps the uploaded name when the model fails', async () => {
+    const { service, documents, languageModel, queue } = dependencies();
+    languageModel.generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockRejectedValue(new Error('provider unavailable'));
+
+    await expect(
+      service.ingest(userId, file, { hint: 'nota pembelian' }),
+    ).resolves.toEqual(document());
+    expect(documents.update).not.toHaveBeenCalled();
+    expect(queue.documents.add).toHaveBeenCalled();
+  });
+
+  test('keeps the uploaded name when the model reply scrubs away to nothing', async () => {
+    const { service, documents, languageModel } = dependencies();
+    languageModel.generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({ text: '"   "', usage: {} });
+
+    await service.ingest(userId, file, { hint: 'nota pembelian' });
+
+    expect(documents.update).not.toHaveBeenCalled();
+  });
+
+  test('does not ask the model when there is no content and no hint', async () => {
+    const { service, documents, languageModel } = dependencies();
+
+    await service.ingest(userId, file);
+
+    expect(languageModel.generate).not.toHaveBeenCalled();
+    expect(documents.update).not.toHaveBeenCalled();
+  });
+
   test('deletes the blob and propagates a createFile failure', async () => {
     const { service, storage, documents, queue } = dependencies();
     const error = new Error('database unavailable');
@@ -481,13 +563,14 @@ describe('DocumentService processDocument', () => {
     );
   });
 
-  test('does not rename an image with a descriptive original name', async () => {
+  test('lets the model keep an image name it judges already clear', async () => {
     const { service, documents, media, languageModel } = dependencies();
     const description = 'An OLLO guest-laundry dashboard.';
     documents.findById = jest
       .fn<IDocumentRepository['findById']>()
       .mockResolvedValue({
         ...document(),
+        title: 'ollo-guest-laundry-dashboard.png',
         file: {
           ...asset('image/png'),
           kind: 'image',
@@ -497,10 +580,16 @@ describe('DocumentService processDocument', () => {
     media.describeImage = jest
       .fn<OpenRouterMediaService['describeImage']>()
       .mockResolvedValue(description);
+    languageModel.generate.mockResolvedValue({
+      text: 'ollo-guest-laundry-dashboard.png',
+      usage: {},
+    });
 
     await service.processDocument('document-1', userId);
 
-    expect(languageModel.generate).not.toHaveBeenCalled();
+    // The model is consulted, decides the name is already clear, and returns it
+    // unchanged — so nothing is written.
+    expect(languageModel.generate).toHaveBeenCalledTimes(1);
     expect(documents.update).not.toHaveBeenCalled();
     expect(documents.complete).toHaveBeenCalledWith(
       'document-1',
@@ -508,14 +597,14 @@ describe('DocumentService processDocument', () => {
     );
   });
 
-  test('keeps the deterministic image title when naming fails', async () => {
+  test('keeps the current image title when naming fails', async () => {
     const { service, documents, media, languageModel } = dependencies();
     const description = 'An OLLO guest-laundry dashboard.';
     documents.findById = jest
       .fn<IDocumentRepository['findById']>()
       .mockResolvedValue({
         ...document(),
-        title: 'Gambar 15 Sep 2026, 17.33.png',
+        title: 'AQADkhRrG2a7SVV-.png',
         file: {
           ...asset('image/png'),
           kind: 'image',

@@ -171,7 +171,7 @@ function knownDocumentManifest(documents: DocumentMetadata[]): string {
   return documents
     .map(
       (document) =>
-        `- document id: ${document.id}; name: ${document.file.originalName}; type: ${document.file.mimeType}; size: ${document.file.size} bytes; status: ${document.status}; created: ${document.createdAt.toISOString()}`,
+        `- document id: ${document.id}; name: ${document.title}; type: ${document.file.mimeType}; size: ${document.file.size} bytes; status: ${document.status}; created: ${document.createdAt.toISOString()}`,
     )
     .join('\n');
 }
@@ -408,7 +408,7 @@ export class ContextBuilderService {
       const manifest = attached
         .map(
           (document) =>
-            `- document id: ${document.id}; message id: ${inputMessageId}; name: ${document.file.originalName}; type: ${document.file.mimeType}; size: ${document.file.size} bytes; status: ${document.status}`,
+            `- document id: ${document.id}; message id: ${inputMessageId}; name: ${document.title}; type: ${document.file.mimeType}; size: ${document.file.size} bytes; status: ${document.status}`,
         )
         .join('\n');
 

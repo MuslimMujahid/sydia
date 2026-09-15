@@ -73,7 +73,7 @@ export class DocumentsController {
       .type(document.file.mimeType)
       .setHeader(
         'Content-Disposition',
-        `inline; filename*=UTF-8''${encodeURIComponent(document.file.originalName)}`,
+        `inline; filename*=UTF-8''${encodeURIComponent(document.title)}`,
       )
       .send(file);
   }

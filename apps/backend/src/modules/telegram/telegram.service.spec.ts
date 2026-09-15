@@ -41,6 +41,7 @@ function setup(options: { linked?: boolean } = {}) {
     setInboundHandler: jest.fn(),
     getOutboundAdapter: jest.fn(() => outbound),
     sendTyping: jest.fn(() => Promise.resolve()),
+    download: jest.fn(() => Promise.resolve(new Uint8Array([1, 2, 3]))),
   } as unknown as TelegramGatewayService;
 
   const messages = {
@@ -81,13 +82,20 @@ function setup(options: { linked?: boolean } = {}) {
     recordOutcome: jest.fn(() => Promise.resolve(notificationDelivery)),
   } as unknown as NotificationService;
 
+  const documents = {
+    ingest: jest.fn(() =>
+      Promise.resolve({ id: 'document-1', file: { id: 'asset-1' } }),
+    ),
+    waitUntilReady: jest.fn(() => Promise.resolve({ imageDescription: null })),
+  } as unknown as DocumentService;
+
   const service = new TelegramService(
     gateway,
     telegram,
     {} as IUserRepository,
     {} as IAuditEventRepository,
     messages,
-    {} as DocumentService,
+    documents,
     {} as OpenRouterMediaService,
     notifications,
   );
@@ -98,12 +106,42 @@ function setup(options: { linked?: boolean } = {}) {
 
       return adapter;
     },
+    documents,
     gateway,
     notifications,
     outbound,
     service,
   };
 }
+
+describe('TelegramService media names', () => {
+  it('uses the provider-id fallback as the original filename', async () => {
+    const { adapter, documents, service } = setup();
+    await service.onModuleInit();
+
+    await adapter().prepare?.('user-1', message);
+
+    expect(documents.ingest).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ originalname: '123:42' }),
+    );
+  });
+
+  it('uses provider-supplied filenames as-is', async () => {
+    const { adapter, documents, service } = setup();
+    await service.onModuleInit();
+
+    await adapter().prepare?.('user-1', {
+      ...message,
+      mediaMessage: { fileId: 'file-1', fileName: 'Rencana.png' },
+    });
+
+    expect(documents.ingest).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ originalname: 'Rencana.png' }),
+    );
+  });
+});
 
 describe('TelegramService notification delivery', () => {
   it('delivers a reminder to the linked Telegram identity', async () => {

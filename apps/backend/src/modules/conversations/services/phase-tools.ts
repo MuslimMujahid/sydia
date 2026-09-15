@@ -25,7 +25,7 @@ function bounded(value: string, limit: number): string {
 function documentSummary(document: Document) {
   return {
     id: document.id,
-    filename: document.file.originalName,
+    filename: document.title,
     mimeType: document.file.mimeType,
     size: document.file.size,
     status: document.status,
@@ -483,7 +483,7 @@ Returns each document's id, filename, MIME type, size, status, and creation time
           .slice(0, LIST_DOCUMENTS_LIMIT)
           .map((document) => ({
             id: document.id,
-            filename: document.file.originalName,
+            filename: document.title,
             mimeType: document.file.mimeType,
             size: document.file.size,
             status: document.status,
@@ -548,7 +548,7 @@ documentId is required; cursor defaults to 0 and limit defaults to 4 (1 through 
 
         return {
           documentId: result.document.id,
-          filename: result.document.file.originalName,
+          filename: result.document.title,
           status: result.document.status,
           chunks: result.chunks.map((chunk) => ({
             chunk: chunk.chunkIndex,

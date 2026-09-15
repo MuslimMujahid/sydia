@@ -25,10 +25,14 @@ function resolved<T>(value: T) {
   return jest.fn<() => Promise<T>>().mockResolvedValue(value);
 }
 
-function document(textContent: string, originalName = 'catatan.txt'): Document {
+function document(
+  textContent: string,
+  title = 'catatan.txt',
+  originalName = title,
+): Document {
   return {
     id: 'document-1',
-    title: originalName,
+    title,
     description: null,
     textContent,
     transcript: null,
@@ -408,6 +412,17 @@ describe('ContextBuilderService attachments', () => {
     expect(attachment).toContain('message id: message-1');
     expect(tokenUsage.attachmentManifest).toBe(estimateTokens(attachment));
   });
+  it('uses document titles, not original upload ids in attachment manifests', async () => {
+    const { messages } = await createBuilder(1_000, {
+      documents: [
+        document('isi', 'KTP Muh Muslim Al-Mujahid.jpg', 'AQADPhVrG2a7SVV.jpg'),
+      ],
+    }).build(user, 'conversation-1', 'message-1');
+
+    const attachment = attachmentMessageContent(messages);
+    expect(attachment).toContain('KTP Muh Muslim Al-Mujahid.jpg');
+    expect(attachment).not.toContain('AQADPhVrG2a7SVV.jpg');
+  });
 
   it('keeps the complete context within the configured token budget', async () => {
     const tokenBudget = 1_000;
@@ -456,6 +471,17 @@ describe('ContextBuilderService known documents', () => {
     expect(manifest).toContain('status: ready');
     expect(manifest).not.toContain('isi rahasia');
     expect(tokenUsage.knownDocuments).toBe(estimateTokens(manifest as string));
+  });
+  it('uses document titles, not original upload ids in saved-document manifests', async () => {
+    const { messages } = await createBuilder(1_000, {
+      documents: [
+        document('isi', 'KTP Muh Muslim Al-Mujahid.jpg', 'AQADPhVrG2a7SVV.jpg'),
+      ],
+    }).build(user, 'conversation-1');
+
+    const manifest = knownDocumentsContent(messages);
+    expect(manifest).toContain('KTP Muh Muslim Al-Mujahid.jpg');
+    expect(manifest).not.toContain('AQADPhVrG2a7SVV.jpg');
   });
 
   it('omits documents already listed as current-message attachments', async () => {

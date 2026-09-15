@@ -445,9 +445,10 @@ export class WhatsAppService implements OnModuleInit {
             ? 'audio/ogg'
             : 'application/octet-stream';
 
+    const providedFilename = media.fileName;
     const filename =
-      typeof media.fileName === 'string'
-        ? media.fileName
+      typeof providedFilename === 'string'
+        ? providedFilename
         : `${message.providerMessageId}.${message.kind === 'voice' ? 'ogg' : 'bin'}`;
 
     if (message.kind === 'voice') {

@@ -11,9 +11,7 @@ type UploadedFile = {
 };
 import {
   DOCUMENT_REPOSITORY,
-  USER_REPOSITORY,
   type IDocumentRepository,
-  type IUserRepository,
 } from '../../database/interfaces';
 import { PDFParse } from 'pdf-parse';
 import type {
@@ -31,11 +29,7 @@ import {
 } from '../../infra/model-gateway';
 import { QueueService } from '../../infra/queue';
 import { StorageService } from '../../infra/storage';
-import {
-  buildFallbackTitle,
-  isUndescriptiveName,
-  sanitizeDerivedTitle,
-} from './document-naming';
+import { sanitizeDerivedTitle } from './document-naming';
 
 const CHUNK_SIZE = 1400;
 const CHUNK_OVERLAP = 180;
@@ -159,8 +153,6 @@ export class DocumentService {
   constructor(
     @Inject(DOCUMENT_REPOSITORY)
     private readonly documents: IDocumentRepository,
-    @Inject(USER_REPOSITORY)
-    private readonly users: IUserRepository,
     private readonly storage: StorageService,
     private readonly embeddings: EmbeddingsService,
     private readonly media: OpenRouterMediaService,
@@ -290,27 +282,18 @@ export class DocumentService {
       );
       const descriptionForTitle = imageDescription?.trim() ?? '';
 
-      if (
-        isUndescriptiveName(record.file.originalName) &&
-        descriptionForTitle
-      ) {
-        try {
-          // Retries re-derive the title from the same persisted description.
-          const user = await this.users.findById(userId);
-          const timezone = user?.timezone || 'UTC';
-          const title = await this.deriveTitle(
-            file,
-            kind,
-            undefined,
-            timezone,
-            descriptionForTitle,
-          );
-
-          if (title) await this.documents.update(userId, documentId, { title });
-        } catch {
-          // Naming failures must not fail an otherwise successfully described image.
-        }
-      }
+      // The model decides whether the uploaded name is worth keeping; there is
+      // no filename pattern analysis. Retries re-derive from the same persisted
+      // description, so a retry cannot change an already-chosen name.
+      if (descriptionForTitle)
+        await this.applyDerivedTitle(
+          userId,
+          record,
+          file,
+          kind,
+          undefined,
+          descriptionForTitle,
+        );
 
       parsedChunks = this.chunkPages([{ text: imageDescription ?? '' }]);
     } else if (file.mimetype === 'application/pdf') {
@@ -427,7 +410,7 @@ export class DocumentService {
   }
 
   /**
-   * Public content URL for a stored document, with its original filename. Used to
+   * Public content URL for a stored document, with its user-facing filename. Used to
    * hand files back to web chat as links instead of reading the stored bytes.
    */
   async linkFor(
@@ -438,7 +421,7 @@ export class DocumentService {
     if (!document) return null;
 
     return {
-      filename: document.file.originalName,
+      filename: document.title,
       url: `${this.publicBaseUrl}/documents/${encodeURIComponent(documentId)}/content`,
     };
   }
@@ -457,7 +440,7 @@ export class DocumentService {
     if (!storageKey) return null;
 
     return {
-      filename: document.file.originalName,
+      filename: document.title,
       mimeType: document.file.mimeType,
       buffer: await this.storage.get(storageKey),
     };
@@ -531,19 +514,21 @@ export class DocumentService {
     }
   }
 
+  /**
+   * Applies the model's naming decision to a document. A naming problem is
+   * never allowed to fail the surrounding ingestion, so every failure path
+   * returns the document with its current title.
+   */
   private async applyDerivedTitle(
     userId: string,
     document: Document,
     file: UploadedFile,
     kind: FileKind,
     hint?: string,
+    content?: string,
   ): Promise<Document> {
-    if (!isUndescriptiveName(file.originalname)) return document;
-
     try {
-      const user = await this.users.findById(userId);
-      const timezone = user?.timezone || 'UTC';
-      const title = await this.deriveTitle(file, kind, hint, timezone);
+      const title = await this.deriveTitle(file, kind, hint, content);
       if (!title) return document;
       const updated = await this.documents.update(userId, document.id, {
         title,
@@ -555,11 +540,16 @@ export class DocumentService {
     }
   }
 
+  /**
+   * Asks the model what the file should be called. Returns the chosen name, or
+   * null to mean "keep the current title" — which covers a model that is
+   * unavailable, a reply that scrubs to nothing, a reply that is the current
+   * name, and a file with nothing to decide from.
+   */
   private async deriveTitle(
     file: UploadedFile,
     kind: FileKind,
     hint: string | undefined,
-    timezone: string,
     content?: string,
   ): Promise<string | null> {
     const normalizedHint = hint?.trim() ?? '';
@@ -580,45 +570,45 @@ export class DocumentService {
       }
     }
 
-    if (extracted || normalizedHint) {
-      try {
-        const result = await this.languageModel.generate({
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Namai file yang diunggah untuk perpustakaan file pribadi. Balas HANYA dengan nama file singkat (3–8 kata) dalam bahasa yang sama dengan isi, tanpa pemisah path, tanpa tanda kutip, dan pertahankan ekstensi file asli.',
-            },
-            {
-              role: 'user',
-              content: [
-                `Nama file asli: ${file.originalname}`,
-                normalizedHint
-                  ? `Deskripsi dari pengguna: ${normalizedHint}`
-                  : '',
-                extracted
-                  ? `Isi file: ${extracted}`
-                  : 'Isi file tidak tersedia.',
-              ]
-                .filter(Boolean)
-                .join('\n'),
-            },
-          ],
-          maxOutputTokens: 60,
-        });
+    // Without content or a user hint there is nothing to base a name on, so the
+    // uploaded name is kept rather than replaced with an invented one.
+    if (!extracted && !normalizedHint) return null;
 
-        const title = sanitizeDerivedTitle(result.text, file.originalname);
-        if (title) return title;
-      } catch {
-        // A model failure must not prevent ingestion or derived fallback naming.
-      }
+    try {
+      const result = await this.languageModel.generate({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Tentukan nama file untuk perpustakaan file pribadi. Balas HANYA dengan satu nama file singkat dan jelas (maksimal 8 kata) dalam bahasa yang sama dengan isi file. Jika nama file asli sudah jelas dan bermakna bagi manusia, balas nama itu PERSIS tanpa perubahan. Jika nama file asli tampak dibuat mesin (id acak, kode, stempel waktu, seperti IMG_1234), susun nama deskriptif dari isi file. Pertahankan ekstensi file asli, tanpa pemisah path, dan tanpa tanda kutip.',
+          },
+          {
+            role: 'user',
+            content: [
+              `Nama file asli: ${file.originalname}`,
+              normalizedHint
+                ? `Deskripsi dari pengguna: ${normalizedHint}`
+                : '',
+              extracted ? `Isi file: ${extracted}` : 'Isi file tidak tersedia.',
+            ]
+              .filter(Boolean)
+              .join('\n'),
+          },
+        ],
+        maxOutputTokens: 60,
+      });
+
+      const title = sanitizeDerivedTitle(result.text, file.originalname);
+      if (!title) return null;
+      const unchanged =
+        title.toLocaleLowerCase() ===
+        file.originalname.trim().toLocaleLowerCase();
+
+      return unchanged ? null : title;
+    } catch {
+      // A model failure keeps the uploaded name; it must never break ingestion.
+      return null;
     }
-
-    // Content supplied by processing is named only on a successful model result;
-    // the existing deterministic title must survive an unusable response.
-    if (normalizedContent) return null;
-
-    return buildFallbackTitle(kind, file.originalname, new Date(), timezone);
   }
 
   private chunkPages(

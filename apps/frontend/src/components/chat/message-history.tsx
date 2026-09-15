@@ -500,23 +500,28 @@ export function MessageHistory({
                       }
                       className="mt-3 space-y-2 border-t border-ink/10 pt-3"
                     >
-                      {message.attachments.map(({ fileAsset }) => (
-                        <li
-                          key={fileAsset.id}
-                          className="flex min-w-0 items-center gap-2"
-                        >
-                          <FileText className="size-4 shrink-0 text-ink-muted" />
-                          <span
-                            className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
-                            title={fileAsset.originalName}
+                      {message.attachments.map(({ fileAsset }) => {
+                        const attachmentName =
+                          fileAsset.document?.title ?? fileAsset.originalName;
+
+                        return (
+                          <li
+                            key={fileAsset.id}
+                            className="flex min-w-0 items-center gap-2"
                           >
-                            {fileAsset.originalName}
-                          </span>
-                          <span className="shrink-0 font-mono text-xs text-ink-muted">
-                            {formatFileSize(fileAsset.size)}
-                          </span>
-                        </li>
-                      ))}
+                            <FileText className="size-4 shrink-0 text-ink-muted" />
+                            <span
+                              className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
+                              title={attachmentName}
+                            >
+                              {attachmentName}
+                            </span>
+                            <span className="shrink-0 font-mono text-xs text-ink-muted">
+                              {formatFileSize(fileAsset.size)}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : null}
                 </>

@@ -279,9 +279,8 @@ export function DocumentPage() {
         <DialogContent>
           <DialogTitle>Hapus file ini?</DialogTitle>
           <DialogDescription className="mt-3 break-all">
-            &ldquo;{deleteTarget?.file.originalName}&rdquo; beserta hasil
-            pemrosesannya akan dihapus permanen. Tindakan ini tidak dapat
-            dibatalkan.
+            &ldquo;{deleteTarget?.title}&rdquo; beserta hasil pemrosesannya akan
+            dihapus permanen. Tindakan ini tidak dapat dibatalkan.
           </DialogDescription>
           {deleteMutation.error ? (
             <p className="mt-4 text-sm text-destructive" role="alert">
