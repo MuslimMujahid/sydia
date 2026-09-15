@@ -5,27 +5,39 @@ import type {
   TelegramProfile,
 } from '../entities';
 
+/**
+ * Outcome of atomically consuming a link token into a verified identity.
+ *
+ * `identity_conflict` and `token_unavailable` are decided before any write, so
+ * a refused link never consumes the token or releases the current identity.
+ */
+export type TelegramLinkCommit =
+  | { status: 'linked'; identity: ExternalIdentity }
+  | { status: 'token_unavailable' }
+  | { status: 'identity_conflict' };
+
 export interface ITelegramRepository {
   findIdentity(userId: string): Promise<ExternalIdentity | null>;
   findIdentityByExternalId(
     externalId: string,
   ): Promise<ExternalIdentity | null>;
-  createIdentity(input: {
-    userId: string;
-    externalId: string;
-    verifiedAt: Date;
-  }): Promise<ExternalIdentity>;
   revokeIdentity(userId: string): Promise<boolean>;
   createLinkToken(input: {
     userId: string;
     tokenHash: string;
     expiresAt: Date;
   }): Promise<TelegramLinkToken>;
-  findLinkTokenByHash(
-    tokenHash: string,
-    now: Date,
-  ): Promise<TelegramLinkToken | null>;
-  consumeLinkToken(id: string, externalId: string, now: Date): Promise<boolean>;
+  /**
+   * Consumes the token matching `tokenHash` and binds `externalId` to the token's
+   * owner in one transaction. The token's `userId` is resolved inside that
+   * transaction, and the user's previous identity is only released once the new
+   * binding is written, so a mid-flight failure cannot leave the user unlinked.
+   */
+  commitLink(input: {
+    tokenHash: string;
+    externalId: string;
+    now: Date;
+  }): Promise<TelegramLinkCommit>;
   getProfile(externalIdentityId: string): Promise<TelegramProfile | null>;
   upsertProfile(input: {
     externalIdentityId: string;

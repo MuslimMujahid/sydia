@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
-import type { ExternalIdentity } from '../entities';
-import type { ITelegramRepository } from '../interfaces';
+import type { ITelegramRepository, TelegramLinkCommit } from '../interfaces';
 
 const identitySelect = {
   id: true,
@@ -64,17 +63,6 @@ export class PrismaTelegramRepository implements ITelegramRepository {
     });
   }
 
-  createIdentity(input: {
-    userId: string;
-    externalId: string;
-    verifiedAt: Date;
-  }): Promise<ExternalIdentity> {
-    return this.prisma.externalIdentity.create({
-      data: { ...input, provider: 'telegram' },
-      select: identitySelect,
-    });
-  }
-
   async revokeIdentity(userId: string): Promise<boolean> {
     const result = await this.prisma.externalIdentity.deleteMany({
       where: { userId, provider: 'telegram' },
@@ -94,20 +82,75 @@ export class PrismaTelegramRepository implements ITelegramRepository {
     });
   }
 
-  findLinkTokenByHash(tokenHash: string, now: Date) {
-    return this.prisma.telegramLinkToken.findFirst({
-      where: { tokenHash, consumedAt: null, expiresAt: { gt: now } },
-      select: tokenSelect,
-    });
-  }
+  /**
+   * Consumes the token and binds the identity in one transaction. The previous
+   * binding is released only after the new one exists, so a failure anywhere in
+   * between rolls the whole swap back instead of stranding the user unlinked.
+   */
+  async commitLink(input: {
+    tokenHash: string;
+    externalId: string;
+    now: Date;
+  }): Promise<TelegramLinkCommit> {
+    return this.prisma.$transaction(async (transaction) => {
+      const token = await transaction.telegramLinkToken.findFirst({
+        where: {
+          tokenHash: input.tokenHash,
+          consumedAt: null,
+          expiresAt: { gt: input.now },
+        },
+        select: tokenSelect,
+      });
 
-  async consumeLinkToken(id: string, externalId: string, now: Date) {
-    const result = await this.prisma.telegramLinkToken.updateMany({
-      where: { id, consumedAt: null, expiresAt: { gt: now } },
-      data: { consumedAt: now, consumedByExternalId: externalId },
-    });
+      if (!token) return { status: 'token_unavailable' };
 
-    return result.count === 1;
+      const existing = await transaction.externalIdentity.findUnique({
+        where: {
+          provider_externalId: {
+            provider: 'telegram',
+            externalId: input.externalId,
+          },
+        },
+        select: identitySelect,
+      });
+
+      // One Telegram account belongs to at most one Sydia account.
+      if (existing && existing.userId !== token.userId)
+        return { status: 'identity_conflict' };
+
+      const consumed = await transaction.telegramLinkToken.updateMany({
+        where: {
+          id: token.id,
+          consumedAt: null,
+          expiresAt: { gt: input.now },
+        },
+        data: { consumedAt: input.now, consumedByExternalId: input.externalId },
+      });
+
+      if (consumed.count !== 1) return { status: 'token_unavailable' };
+
+      const identity =
+        existing ??
+        (await transaction.externalIdentity.create({
+          data: {
+            userId: token.userId,
+            provider: 'telegram',
+            externalId: input.externalId,
+            verifiedAt: input.now,
+          },
+          select: identitySelect,
+        }));
+
+      await transaction.externalIdentity.deleteMany({
+        where: {
+          userId: token.userId,
+          provider: 'telegram',
+          id: { not: identity.id },
+        },
+      });
+
+      return { status: 'linked', identity };
+    });
   }
 
   getProfile(externalIdentityId: string) {

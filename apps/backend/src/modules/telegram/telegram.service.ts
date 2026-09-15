@@ -244,25 +244,22 @@ export class TelegramService implements OnModuleInit {
     message: NormalizedInboundMessage,
     inboundId: string,
   ) {
-    const link = await this.telegram.findLinkTokenByHash(
-      this.hashToken(token),
-      new Date(),
-    );
+    const outcome = await this.telegram.commitLink({
+      tokenHash: this.hashToken(token),
+      externalId: message.senderExternalId,
+      now: new Date(),
+    });
 
-    if (!link) {
+    if (outcome.status === 'token_unavailable') {
       await this.send(
         message,
-        'Tautan ini tidak valid atau sudah kedaluwarsa. Buat tautan baru dari pengaturan Sydia.',
+        'Tautan ini tidak valid, sudah digunakan, atau sudah kedaluwarsa. Buat tautan baru dari pengaturan Sydia.',
       );
 
       return null;
     }
 
-    const priorForTelegram = await this.telegram.findIdentityByExternalId(
-      message.senderExternalId,
-    );
-
-    if (priorForTelegram && priorForTelegram.userId !== link.userId) {
+    if (outcome.status === 'identity_conflict') {
       await this.send(
         message,
         'Akun Telegram ini sudah tertaut ke akun Sydia lain. Putuskan tautan lama terlebih dahulu.',
@@ -271,33 +268,11 @@ export class TelegramService implements OnModuleInit {
       return null;
     }
 
-    if (
-      !(await this.telegram.consumeLinkToken(
-        link.id,
-        message.senderExternalId,
-        new Date(),
-      ))
-    ) {
-      await this.send(message, 'Tautan ini sudah digunakan.');
-
-      return null;
-    }
-
-    const priorForUser = await this.telegram.findIdentity(link.userId);
-    if (priorForUser && priorForUser.externalId !== message.senderExternalId)
-      await this.telegram.revokeIdentity(link.userId);
-    const identity =
-      priorForTelegram ??
-      (await this.telegram.createIdentity({
-        userId: link.userId,
-        externalId: message.senderExternalId,
-        verifiedAt: new Date(),
-      }));
-
+    const identity = outcome.identity;
     await this.telegram.associateInbound(inboundId, identity.id);
     await this.updateProfile(identity.id, ctx, message.receivedAt);
     await this.audit.record({
-      userId: link.userId,
+      userId: identity.userId,
       eventType: 'telegram.identity.linked',
       metadata: { externalId: message.senderExternalId },
     });
