@@ -265,6 +265,7 @@ export class DocumentService {
     const kind = record.file.kind;
     let textContent: string | null = null;
     let transcript: string | null = null;
+    let imageDescription: string | null = null;
     let parsedChunks: ParsedChunk[] = [];
 
     if (kind === 'audio') {
@@ -283,9 +284,35 @@ export class DocumentService {
 
       parsedChunks = this.chunkPages([{ text: transcript ?? '' }]);
     } else if (kind === 'image') {
-      throw new NonRetryableDocumentError(
-        'Gambar tidak dapat diindeks tanpa pengenalan teks (OCR).',
+      imageDescription = await this.media.describeImage(
+        file.buffer,
+        file.mimetype,
       );
+      const descriptionForTitle = imageDescription?.trim() ?? '';
+
+      if (
+        isUndescriptiveName(record.file.originalName) &&
+        descriptionForTitle
+      ) {
+        try {
+          // Retries re-derive the title from the same persisted description.
+          const user = await this.users.findById(userId);
+          const timezone = user?.timezone || 'UTC';
+          const title = await this.deriveTitle(
+            file,
+            kind,
+            undefined,
+            timezone,
+            descriptionForTitle,
+          );
+
+          if (title) await this.documents.update(userId, documentId, { title });
+        } catch {
+          // Naming failures must not fail an otherwise successfully described image.
+        }
+      }
+
+      parsedChunks = this.chunkPages([{ text: imageDescription ?? '' }]);
     } else if (file.mimetype === 'application/pdf') {
       const parsed = await this.parsePdf(file);
       textContent = parsed.text;
@@ -345,10 +372,11 @@ export class DocumentService {
       ),
     );
 
-    const searchable = textContent ?? transcript ?? '';
+    const searchable = textContent ?? transcript ?? imageDescription ?? '';
     await this.documents.complete(documentId, {
       textContent,
       transcript,
+      imageDescription,
       structuredData: this.extractStructured(searchable),
     });
   }
@@ -516,6 +544,7 @@ export class DocumentService {
       const user = await this.users.findById(userId);
       const timezone = user?.timezone || 'UTC';
       const title = await this.deriveTitle(file, kind, hint, timezone);
+      if (!title) return document;
       const updated = await this.documents.update(userId, document.id, {
         title,
       });
@@ -531,19 +560,21 @@ export class DocumentService {
     kind: FileKind,
     hint: string | undefined,
     timezone: string,
-  ): Promise<string> {
+    content?: string,
+  ): Promise<string | null> {
     const normalizedHint = hint?.trim() ?? '';
-    let extracted = '';
+    const normalizedContent = content?.trim() ?? '';
+    let extracted = normalizedContent ? normalizedContent.slice(0, 4000) : '';
 
-    if (kind === 'document') {
+    if (!extracted && kind === 'document') {
       try {
-        const content =
+        const parsedContent =
           file.mimetype === 'application/pdf'
             ? (await this.parsePdf(file)).text
             : this.parseDocument(file);
 
-        if (content.trim().length >= MIN_EXTRACTED_TEXT_LENGTH)
-          extracted = content.trim().slice(0, 4000);
+        if (parsedContent.trim().length >= MIN_EXTRACTED_TEXT_LENGTH)
+          extracted = parsedContent.trim().slice(0, 4000);
       } catch {
         extracted = '';
       }
@@ -582,6 +613,10 @@ export class DocumentService {
         // A model failure must not prevent ingestion or derived fallback naming.
       }
     }
+
+    // Content supplied by processing is named only on a successful model result;
+    // the existing deterministic title must survive an unusable response.
+    if (normalizedContent) return null;
 
     return buildFallbackTitle(kind, file.originalname, new Date(), timezone);
   }

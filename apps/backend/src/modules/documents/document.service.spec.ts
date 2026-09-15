@@ -91,6 +91,9 @@ function dependencies() {
         ) => Promise<Document>
       >()
       .mockResolvedValue(document()),
+    update: jest
+      .fn<IDocumentRepository['update']>()
+      .mockResolvedValue(document()),
     replaceChunks: jest
       .fn<
         (
@@ -203,6 +206,9 @@ function dependencies() {
     transcribe: jest
       .fn<OpenRouterMediaService['transcribe']>()
       .mockResolvedValue(null),
+    describeImage: jest
+      .fn<OpenRouterMediaService['describeImage']>()
+      .mockResolvedValue(null),
   } as unknown as OpenRouterMediaService;
 
   const queue = {
@@ -248,6 +254,7 @@ function dependencies() {
     embeddings,
     media,
     queue,
+    languageModel,
     users,
   };
 }
@@ -428,19 +435,151 @@ describe('DocumentService processDocument', () => {
     expect(documents.complete).not.toHaveBeenCalled();
   });
 
-  test('rejects images as non-retryable now that vision is removed', async () => {
-    const { service, documents } = dependencies();
+  test('describes, names, indexes, and completes a machine-named image', async () => {
+    const { service, documents, media, languageModel } = dependencies();
+    const description =
+      'A dashboard for OLLO guest laundry showing machine availability.';
+
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        file: {
+          ...asset('image/png'),
+          kind: 'image',
+          originalName: 'AQADkhRrG2a7SVV-.jpg',
+        },
+      });
+    media.describeImage = jest
+      .fn<OpenRouterMediaService['describeImage']>()
+      .mockResolvedValue(description);
+    languageModel.generate.mockResolvedValue({
+      text: 'OLLO guest laundry dashboard.jpg',
+      usage: {},
+    });
+
+    await service.processDocument('document-1', userId);
+
+    expect(media.describeImage).toHaveBeenCalledWith(file.buffer, 'image/png');
+    expect(media.transcribe).not.toHaveBeenCalled();
+    expect(languageModel.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining(description),
+          }),
+        ]),
+      }),
+    );
+    expect(documents.update).toHaveBeenCalledWith('user-1', 'document-1', {
+      title: 'OLLO guest laundry dashboard.jpg',
+    });
+    expect(documents.complete).toHaveBeenCalledWith(
+      'document-1',
+      expect.objectContaining({ imageDescription: description }),
+    );
+  });
+
+  test('does not rename an image with a descriptive original name', async () => {
+    const { service, documents, media, languageModel } = dependencies();
+    const description = 'An OLLO guest-laundry dashboard.';
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        file: {
+          ...asset('image/png'),
+          kind: 'image',
+          originalName: 'ollo-guest-laundry-dashboard.png',
+        },
+      });
+    media.describeImage = jest
+      .fn<OpenRouterMediaService['describeImage']>()
+      .mockResolvedValue(description);
+
+    await service.processDocument('document-1', userId);
+
+    expect(languageModel.generate).not.toHaveBeenCalled();
+    expect(documents.update).not.toHaveBeenCalled();
+    expect(documents.complete).toHaveBeenCalledWith(
+      'document-1',
+      expect.objectContaining({ imageDescription: description }),
+    );
+  });
+
+  test('keeps the deterministic image title when naming fails', async () => {
+    const { service, documents, media, languageModel } = dependencies();
+    const description = 'An OLLO guest-laundry dashboard.';
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        title: 'Gambar 15 Sep 2026, 17.33.png',
+        file: {
+          ...asset('image/png'),
+          kind: 'image',
+          originalName: 'AQADkhRrG2a7SVV-.png',
+        },
+      });
+    media.describeImage = jest
+      .fn<OpenRouterMediaService['describeImage']>()
+      .mockResolvedValue(description);
+    languageModel.generate.mockRejectedValue(new Error('model unavailable'));
+
+    await service.processDocument('document-1', userId);
+
+    expect(documents.update).not.toHaveBeenCalled();
+    expect(documents.complete).toHaveBeenCalledWith(
+      'document-1',
+      expect.objectContaining({ imageDescription: description }),
+    );
+  });
+
+  test('describes and indexes an image', async () => {
+    const { service, documents, media } = dependencies();
+    const description = 'A receipt showing the total amount and date.';
     documents.findById = jest
       .fn<IDocumentRepository['findById']>()
       .mockResolvedValue({
         ...document(),
         file: { ...asset('image/png'), kind: 'image' },
       });
+    media.describeImage = jest
+      .fn<OpenRouterMediaService['describeImage']>()
+      .mockResolvedValue(description);
+
+    await service.processDocument('document-1', userId);
+
+    expect(media.describeImage).toHaveBeenCalledWith(file.buffer, 'image/png');
+    expect(media.transcribe).not.toHaveBeenCalled();
+    expect(documents.saveExtraction).not.toHaveBeenCalled();
+    expect(documents.complete).toHaveBeenCalledWith(
+      'document-1',
+      expect.objectContaining({ imageDescription: description }),
+    );
+    expect(documents.replaceChunks).toHaveBeenCalledWith('document-1', userId, [
+      { chunkIndex: 0, pageNumber: null, content: description },
+    ]);
+  });
+
+  test('rejects an image without a description as non-retryable', async () => {
+    const { service, documents, media } = dependencies();
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        file: { ...asset('image/png'), kind: 'image' },
+      });
+    media.describeImage = jest
+      .fn<OpenRouterMediaService['describeImage']>()
+      .mockResolvedValue(null);
 
     await expect(
       service.processDocument('document-1', userId),
     ).rejects.toBeInstanceOf(NonRetryableDocumentError);
     expect(documents.complete).not.toHaveBeenCalled();
+    expect(documents.saveExtraction).not.toHaveBeenCalled();
   });
 
   test('reuses a stored transcript instead of transcribing again', async () => {

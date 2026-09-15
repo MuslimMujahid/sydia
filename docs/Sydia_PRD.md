@@ -414,16 +414,16 @@ Assistant: Uses recent working context to update the same event.
 
 ## 9.8 Documents and Files
 
-| **ID**     | **Requirement**                                                                                                                                |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| FR-DOC-001 | Users can upload supported files through WhatsApp and web.                                                                                     |
-| FR-DOC-002 | Original files are stored in object storage with access controlled by user ownership.                                                          |
-| FR-DOC-003 | Document ingestion extracts text and metadata, then chunks and embeds retrievable text.                                                        |
-| FR-DOC-004 | Use OCR or multimodal analysis only when native parsing is insufficient.                                                                       |
-| FR-DOC-005 | For common structured documents, extract fields such as dates, parties, totals, invoice numbers, or identifiers when confidence is sufficient. |
-| FR-DOC-006 | Users can ask questions across their files using semantic retrieval plus document metadata filters.                                            |
-| FR-DOC-007 | Answers derived from documents can expose source filename and page/chunk provenance.                                                           |
-| FR-DOC-008 | Deleting a document deletes or tombstones all derived chunks and embeddings.                                                                   |
+| **ID**     | **Requirement**                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FR-DOC-001 | Users can upload supported files through WhatsApp and web.                                                                                       |
+| FR-DOC-002 | Original files are stored in object storage with access controlled by user ownership.                                                            |
+| FR-DOC-003 | Supported document ingestion extracts text and metadata, then chunks and embeds retrievable text.                                                |
+| FR-DOC-004 | Use multimodal analysis for standalone images when native parsing is insufficient; scanned/image-only PDFs without a text layer are not indexed. |
+| FR-DOC-005 | For common structured documents, extract fields such as dates, parties, totals, invoice numbers, or identifiers when confidence is sufficient.   |
+| FR-DOC-006 | Users can ask questions across their files using semantic retrieval plus document metadata filters.                                              |
+| FR-DOC-007 | Answers derived from documents can expose source filename and page/chunk provenance.                                                             |
+| FR-DOC-008 | Deleting a document deletes or tombstones all derived chunks and embeddings.                                                                     |
 
 ## 9.9 Voice Notes
 

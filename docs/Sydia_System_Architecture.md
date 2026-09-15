@@ -259,22 +259,22 @@ _Figure 3. Recommended deployment topology._
 
 # 6. Application Module Boundaries
 
-| **Module**      | **Responsibilities**                                                 | **Depends On**                         |
-| --------------- | -------------------------------------------------------------------- | -------------------------------------- |
-| Identity        | Users, sessions, external identities, linking                        | DB, auth provider                      |
-| WhatsApp        | Webhook verification, normalization, outbound adapter, templates     | Identity, Conversation                 |
-| Conversation    | Conversations, messages, context builder, summaries                  | DB, Memory, Assistant                  |
-| Assistant       | Orchestration, tool registry, prompt policy, response composition    | Model Gateway + domain tools           |
-| Model Gateway   | LLM, embeddings, transcription adapters; usage/cost metadata         | External AI providers                  |
-| Memory          | Memory CRUD, extraction, embeddings, retrieval, provenance           | DB/pgvector, Model Gateway             |
-| Document        | File metadata, parsing, chunking, OCR/multimodal fallback, retrieval | Object storage, workers, Model Gateway |
-| Task            | Task lifecycle and query tools                                       | DB                                     |
-| Reminder        | Reminder lifecycle, recurrence, scheduling, delivery state           | DB, queue, Channel adapter             |
-| Calendar        | OAuth, event tools, provider sync metadata                           | Google Calendar adapter                |
-| Contact         | Structured contacts and alias resolution                             | DB                                     |
-| Notification    | Channel-independent proactive message intent                         | WhatsApp adapter, Reminder             |
-| Entitlement     | Plans, usage limits, billing state                                   | Billing provider                       |
-| Audit/Telemetry | Audit trail, traces, model/tool metrics                              | Observability stack                    |
+| **Module**      | **Responsibilities**                                                                                                  | **Depends On**                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Identity        | Users, sessions, external identities, linking                                                                         | DB, auth provider                      |
+| WhatsApp        | Webhook verification, normalization, outbound adapter, templates                                                      | Identity, Conversation                 |
+| Conversation    | Conversations, messages, context builder, summaries                                                                   | DB, Memory, Assistant                  |
+| Assistant       | Orchestration, tool registry, prompt policy, response composition                                                     | Model Gateway + domain tools           |
+| Model Gateway   | LLM, embeddings, transcription adapters; usage/cost metadata                                                          | External AI providers                  |
+| Memory          | Memory CRUD, extraction, embeddings, retrieval, provenance                                                            | DB/pgvector, Model Gateway             |
+| Document        | File metadata, parsing, chunking, vision-model image descriptions, retrieval; scanned/image-only PDFs are not indexed | Object storage, workers, Model Gateway |
+| Task            | Task lifecycle and query tools                                                                                        | DB                                     |
+| Reminder        | Reminder lifecycle, recurrence, scheduling, delivery state                                                            | DB, queue, Channel adapter             |
+| Calendar        | OAuth, event tools, provider sync metadata                                                                            | Google Calendar adapter                |
+| Contact         | Structured contacts and alias resolution                                                                              | DB                                     |
+| Notification    | Channel-independent proactive message intent                                                                          | WhatsApp adapter, Reminder             |
+| Entitlement     | Plans, usage limits, billing state                                                                                    | Billing provider                       |
+| Audit/Telemetry | Audit trail, traces, model/tool metrics                                                                               | Observability stack                    |
 
 Cross-domain behavior should be coordinated by application/orchestration services rather than direct table access. For example, the assistant calls ReminderService through a tool adapter; it does not write reminder rows directly.
 
@@ -344,15 +344,16 @@ Scheduling must not depend solely on Redis delayed jobs surviving forever. The R
 flowchart LR
     A[WhatsApp / Web file] --> B[Store original]
     B --> C[Parse text / metadata]
-    C --> D{Extraction sufficient?}
-    D -->|No| E[OCR or multimodal fallback]
-    D -->|Yes| F[Normalize + classify]
+    C --> D{Supported text content?}
+    D -->|Standalone image| E[Vision model description]
+    D -->|Text layer present| F[Normalize + classify]
+    D -->|Scanned/image-only PDF| X[Not indexed]
     E --> F
     F --> G[Chunk]
     G --> H[Embed]
     H --> DB[(Document + Chunks<br/>PostgreSQL / pgvector)]
-    F --> X[Structured extraction<br/>invoice / date / entity etc.]
-    X --> DB
+    F --> Y[Structured extraction<br/>invoice / date / entity etc.]
+    Y --> DB
 ```
 
 _Figure 5. Document ingestion and indexing pipeline._
@@ -423,15 +424,15 @@ transcribe(objectRef: MediaRef, options: TranscriptionOptions): Promise\<Transcr
 
 ## 8.3 Model Classes
 
-| **Workload**               | **Model Class**                       | **Routing Guidance**                                     |
-| -------------------------- | ------------------------------------- | -------------------------------------------------------- |
-| Interactive assistant      | Fast multimodal, tool-capable LLM     | Default user request path                                |
-| Complex reasoning          | Stronger reasoning tier               | Escalate only when task needs it                         |
-| Memory extraction          | Small/cheap structured-output LLM     | Async; conservative policy                               |
-| Conversation summarization | Small/cheap LLM                       | Async and replaceable                                    |
-| Document extraction        | Parser first; multimodal LLM fallback | Use AI only when conventional extraction is insufficient |
-| Embeddings                 | Dedicated embedding model             | Stable embedding version per index                       |
-| Speech-to-text             | Dedicated transcription model         | Voice notes                                              |
+| **Workload**               | **Model Class**                        | **Routing Guidance**                                         |
+| -------------------------- | -------------------------------------- | ------------------------------------------------------------ |
+| Interactive assistant      | Fast multimodal, tool-capable LLM      | Default user request path                                    |
+| Complex reasoning          | Stronger reasoning tier                | Escalate only when task needs it                             |
+| Memory extraction          | Small/cheap structured-output LLM      | Async; conservative policy                                   |
+| Conversation summarization | Small/cheap LLM                        | Async and replaceable                                        |
+| Document extraction        | Native parser; vision model for images | Scanned/image-only PDFs without a text layer are not indexed |
+| Embeddings                 | Dedicated embedding model              | Stable embedding version per index                           |
+| Speech-to-text             | Dedicated transcription model          | Voice notes                                                  |
 
 ## 8.4 Tool Safety
 
@@ -713,7 +714,7 @@ Domain tool interfaces are versioned TypeScript contracts validated at runtime. 
 | interactive-ai       | Deferred assistant work when synchronous budget exceeded | High         |
 | reminder-dispatch    | Scheduled reminder occurrences and retry                 | High         |
 | media-transcription  | Voice note STT                                           | Medium       |
-| document-ingestion   | Download/parse/OCR/chunk/extract                         | Medium       |
+| document-ingestion   | Download/parse/chunk/extract                             | Medium       |
 | embedding            | Memory/document embedding and re-embedding               | Medium       |
 | memory-extraction    | Candidate durable memory extraction                      | Low/Medium   |
 | conversation-summary | Rolling summary generation                               | Low          |
@@ -835,7 +836,7 @@ Generate a correlation_id at webhook/API entry and propagate it through assistan
 | Assistant | latency, token usage, cost, tool-loop count, model errors            |
 | Tools     | success/failure by tool, validation error, retry                     |
 | Retrieval | candidate count, selected count, zero-result rate, latency           |
-| Documents | queue depth, processing duration, parse/OCR failure                  |
+| Documents | queue depth, processing duration, parse/extraction failure           |
 | Reminders | due backlog, dispatch success, provider failure, duplicate prevented |
 | Queues    | waiting/active/failed/delayed counts, oldest job age                 |
 | Database  | connections, slow queries, vector query latency, storage growth      |
@@ -957,7 +958,7 @@ CI should run lint/typecheck, unit tests, database migration validation, integra
 
 - Use cheap models for summarization and memory extraction; reserve stronger models for requests that need them.
 
-- Parse documents conventionally before invoking multimodal models.
+- Parse documents conventionally; invoke the vision model for standalone images.
 
 - Chunk/embed once per content version; avoid repeated embedding of unchanged text.
 

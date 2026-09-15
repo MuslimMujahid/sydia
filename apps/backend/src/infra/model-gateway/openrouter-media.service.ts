@@ -6,6 +6,7 @@ export class OpenRouterMediaService {
   private readonly apiKey?: string;
   private readonly baseUrl: string;
   private readonly sttModel: string;
+  private readonly visionModel: string;
 
   constructor(config: ConfigService) {
     this.apiKey = config.get<string>('BACKEND_MODEL_API_KEY');
@@ -16,6 +17,10 @@ export class OpenRouterMediaService {
     this.sttModel = config.get<string>(
       'BACKEND_STT_MODEL',
       'openai/whisper-large-v3-turbo',
+    );
+    this.visionModel = config.get<string>(
+      'BACKEND_VISION_MODEL',
+      'google/gemini-2.5-flash',
     );
   }
 
@@ -50,5 +55,61 @@ export class OpenRouterMediaService {
       throw new Error('The transcription model returned an invalid response.');
 
     return (payload as Record<string, unknown>).text as string;
+  }
+
+  async describeImage(value: Buffer, mimeType: string): Promise<string | null> {
+    if (!this.apiKey) return null;
+
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.visionModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Describe the contents of this image factually and in detail in English. Transcribe any important visible text.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mimeType};base64,${value.toString('base64')}`,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok)
+      throw new Error(`Image provider returned ${response.status}`);
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== 'object')
+      throw new Error('The image model returned an invalid response.');
+
+    const choices = (payload as Record<string, unknown>).choices;
+    if (
+      !Array.isArray(choices) ||
+      !choices[0] ||
+      typeof choices[0] !== 'object'
+    )
+      throw new Error('The image model returned an invalid response.');
+
+    const message = (choices[0] as Record<string, unknown>).message;
+    if (!message || typeof message !== 'object')
+      throw new Error('The image model returned an invalid response.');
+
+    const content = (message as Record<string, unknown>).content;
+    if (typeof content !== 'string')
+      throw new Error('The image model returned an invalid response.');
+
+    return content;
   }
 }
