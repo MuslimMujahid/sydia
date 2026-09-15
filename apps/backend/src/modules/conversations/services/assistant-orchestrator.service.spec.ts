@@ -337,7 +337,7 @@ describe('AssistantOrchestratorService', () => {
     );
   });
 
-  it('fails instead of persisting tool confirmations as an answer', async () => {
+  it('fails a finished turn with no assistant text without persisting a message', async () => {
     const failedRun = createRun('failed');
     const completeRun = jest.fn();
     const updateRun = resolved(failedRun);
@@ -363,31 +363,8 @@ describe('AssistantOrchestratorService', () => {
       replaceSummary: jest.fn(),
     } as unknown as IConversationRepository;
 
-    const invocation = {
-      id: 'tool-1',
-      assistantRunId: 'run-1',
-      name: 'search_documents',
-      label: 'Search documents',
-      status: 'completed',
-      objectId: null,
-      objectType: null,
-      state: null,
-      output: { sources: [] },
-      createdAt: now,
-      updatedAt: now,
-    } as never;
-
     const toolExecutor = {
-      aiTools: (
-        _userId: string,
-        _runId: string,
-        _messageId: string,
-        onExecution: (result: { invocation: typeof invocation }) => void,
-      ) => {
-        onExecution({ invocation });
-
-        return {};
-      },
+      aiTools: () => ({}),
       activityLabel: () => 'Search documents',
     } as unknown as ToolExecutorService;
 

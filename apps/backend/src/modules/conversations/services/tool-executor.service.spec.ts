@@ -176,68 +176,6 @@ describe('ToolExecutorService', () => {
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
-  it('defers confirmed tools and executes only after approval', async () => {
-    const pending = {
-      id: 'tool-category',
-      assistantRunId: 'run-1',
-      name: 'delete_category',
-      label: 'Delete category',
-      status: 'pending',
-      arguments: { id: 'cat-1', name: 'Kerja' },
-      idempotencyKey: 'message:call',
-      result: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const awaiting = { ...pending, status: 'awaiting_confirmation' };
-    const completed = {
-      ...pending,
-      status: 'completed',
-      result: { objectType: 'category' },
-    };
-
-    const execute = resolved({ objectType: 'category' });
-    const updateToolInvocation =
-      jest.fn<(id: string, value: unknown) => Promise<unknown>>();
-
-    updateToolInvocation
-      .mockResolvedValueOnce(awaiting)
-      .mockResolvedValueOnce(completed);
-    const repository = {
-      createToolInvocation: resolved(pending),
-      updateToolInvocation,
-      findToolInvocation: resolved(awaiting),
-      claimToolConfirmation: resolved(true),
-    } as unknown as IConversationRepository;
-
-    const executor = new ToolExecutorService(repository, [
-      {
-        definition: {
-          name: 'delete_category',
-          label: 'Delete category',
-          description: 'Delete the category.',
-          parameters: { type: 'object' },
-        },
-        parseArguments: (value) => value as never,
-        requiresConfirmation: true,
-        execute,
-      },
-    ]);
-
-    const proposed = await executor.execute('user-1', 'run-1', 'message-1', {
-      id: 'call-1',
-      name: 'delete_category',
-      arguments: pending.arguments,
-    });
-
-    expect(proposed.invocation.status).toBe('awaiting_confirmation');
-    expect(execute).not.toHaveBeenCalled();
-    expect(proposed.content).toBe('Delete category is awaiting user approval.');
-    await executor.resolveConfirmation('user-1', pending.id, true);
-    expect(execute).toHaveBeenCalledTimes(1);
-  });
-
   it('returns a sanitized actionable error to the model', async () => {
     const pending = {
       id: 'tool-1',

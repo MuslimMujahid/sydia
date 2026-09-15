@@ -135,6 +135,7 @@ describe('ContextBuilderService system policy', () => {
     expect(systemPolicy).toContain(
       'Before sending files, confirm exactly which file or files the user wants.',
     );
+    expect(systemPolicy).not.toContain('Do not bypass confirmation.');
     expect(systemPolicy).not.toContain('Available tool descriptions:');
     expect(tokenUsage.systemPolicy).toBe(
       estimateTokens(systemPolicy as string),

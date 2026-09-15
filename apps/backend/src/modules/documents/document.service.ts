@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 type UploadedFile = {
   originalname: string;
@@ -141,6 +142,8 @@ function fuseCandidates<T extends { id: string; content: string }>(
 
 @Injectable()
 export class DocumentService {
+  private readonly publicBaseUrl: string;
+
   constructor(
     @Inject(DOCUMENT_REPOSITORY)
     private readonly documents: IDocumentRepository,
@@ -148,7 +151,10 @@ export class DocumentService {
     private readonly embeddings: EmbeddingsService,
     private readonly media: OpenRouterMediaService,
     private readonly queue: QueueService,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.publicBaseUrl = config.getOrThrow<string>('BACKEND_AUTH_URL');
+  }
 
   async ingest(userId: string, file: UploadedFile): Promise<Document> {
     const kind = kindFor(file.mimetype);
@@ -353,6 +359,23 @@ export class DocumentService {
 
   async listAttached(userId: string, messageId: string): Promise<Document[]> {
     return this.documents.findByMessageId(userId, messageId);
+  }
+
+  /**
+   * Public content URL for a stored document, with its original filename. Used to
+   * hand files back to web chat as links instead of reading the stored bytes.
+   */
+  async linkFor(
+    userId: string,
+    documentId: string,
+  ): Promise<{ filename: string; url: string } | null> {
+    const document = await this.documents.findById(userId, documentId);
+    if (!document) return null;
+
+    return {
+      filename: document.file.originalName,
+      url: `${this.publicBaseUrl}/documents/${encodeURIComponent(documentId)}/content`,
+    };
   }
 
   async loadFile(

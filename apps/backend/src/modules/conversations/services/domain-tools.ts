@@ -256,7 +256,7 @@ Use it when the user asks to change a task's title, details, priority, due date,
 
 Do not use it to create a task, list tasks unchanged, or change a reminder.
 
-Identify the task with id or query. Only supplied fields change; categoryMode adds, removes, or sets categories. No confirmation required.`,
+Identify the task with id or query. Only supplied fields change; categoryMode adds, removes, or sets categories.`,
       parameters: schema(
         {
           id: string,
@@ -578,11 +578,10 @@ Use it when the user explicitly asks to forget or remove a memory.
 
 Do not use it for tasks, reminders, categories, or an unclear memory match.
 
-Requires user approval. Identify the memory with id or query; a query deletes the first search match.`,
+Identify the memory with id or query; a query deletes the first search match.`,
       parameters: schema({ id: string, query: string }),
     },
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
-    requiresConfirmation: true,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
       let id = text(a, 'id', false);
@@ -662,7 +661,7 @@ Use it when the user asks to organize tasks with a new named category.
 
 Do not use it when an existing category fits, or to rename, edit, or delete one.
 
-Requires user approval. name, color, and iconKey are required and must use their enumerated values.`,
+name, color, and iconKey are required and must use their enumerated values.`,
       parameters: schema(
         {
           name: string,
@@ -697,7 +696,6 @@ Requires user approval. name, color, and iconKey are required and must use their
         ['name', 'color', 'iconKey'],
       ),
     },
-    requiresConfirmation: true,
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
@@ -721,7 +719,7 @@ Use it when the user asks to rename a category or change its color or icon.
 
 Do not use it to create, remove, or only view categories.
 
-Requires user approval. Identify the category by categoryName; newName, color, and iconKey are optional and use enumerated values.`,
+Identify the category by categoryName; newName, color, and iconKey are optional and use enumerated values.`,
       parameters: schema(
         {
           categoryName: string,
@@ -757,7 +755,6 @@ Requires user approval. Identify the category by categoryName; newName, color, a
         ['categoryName'],
       ),
     },
-    requiresConfirmation: true,
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
@@ -786,13 +783,12 @@ Use it when the user explicitly asks to remove a category.
 
 Do not use it to remove tasks, rename a category, or inspect category usage.
 
-Requires user approval. Identify the category by name. taskCount is accepted as context but is not used.`,
+Identify the category by name. taskCount is accepted as context but is not used.`,
       parameters: schema(
         { name: string, taskCount: { type: 'integer', minimum: 0 } },
         ['name'],
       ),
     },
-    requiresConfirmation: true,
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);

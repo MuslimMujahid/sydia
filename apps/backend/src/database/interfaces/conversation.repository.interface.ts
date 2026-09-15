@@ -125,15 +125,6 @@ export interface IConversationRepository {
     externalIdentityId: string,
     chatExternalId: string,
   ): Promise<void>;
-  rejectPendingToolInvocations(
-    userId: string,
-    conversationId: string,
-    now: Date,
-  ): Promise<void>;
-  findLatestPendingToolInvocation(
-    userId: string,
-    conversationId: string,
-  ): Promise<ToolInvocationRecord | null>;
   writeUserMessage(input: UserMessageWrite): Promise<UserMessageWriteResult>;
   findUserMessageContent(
     userId: string,
@@ -193,11 +184,6 @@ export interface IConversationRepository {
       completedAt?: Date;
     },
   ): Promise<ToolInvocationRecord>;
-  findToolInvocation(
-    userId: string,
-    id: string,
-  ): Promise<ToolInvocationRecord | null>;
-  claimToolConfirmation(id: string): Promise<boolean>;
   replaceSummary(
     userId: string,
     conversationId: string,

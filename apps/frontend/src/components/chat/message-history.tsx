@@ -227,21 +227,15 @@ function currentActivity(
   const copy =
     locale === "en"
       ? {
-          confirmation: "Your approval is needed to continue",
           queued: "Waiting for its turn…",
           preparing: "Sydia is preparing an answer…",
           executing: "Sydia is",
         }
       : {
-          confirmation: "Butuh persetujuan Anda untuk melanjutkan",
           queued: "Menunggu giliran…",
           preparing: "Sydia sedang menyiapkan jawaban…",
           executing: "Sydia sedang",
         };
-
-  if (latestTool?.status === "awaiting_confirmation") {
-    return { phase: "awaiting_confirmation", label: copy.confirmation };
-  }
 
   if (
     latestTool &&

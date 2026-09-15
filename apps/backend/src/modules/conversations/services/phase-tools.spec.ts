@@ -177,7 +177,7 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  test('creates a contact group immediately without requiring approval', async () => {
+  test('creates a contact group immediately', async () => {
     const create = jest
       .fn<(userId: string, input: { name: string }) => Promise<unknown>>()
       .mockResolvedValue({ id: 'group-1', name: 'Teman Kerja' });
@@ -188,8 +188,6 @@ describe('phase 5 and 6 assistant tools', () => {
         findByNames: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
       } as unknown as IContactGroupRepository,
     }).find(({ definition }) => definition.name === 'create_contact_group');
-
-    expect(tool?.requiresConfirmation).toBeUndefined();
 
     await expect(
       tool?.execute({
@@ -418,7 +416,7 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(JSON.stringify(result)).not.toContain('transcript');
   });
 
-  test('requires confirmation and sends one resolved document through the active channel', async () => {
+  test('sends one resolved document through the active channel', async () => {
     const file = {
       filename: 'invoice.pdf',
       mimeType: 'application/pdf',
@@ -443,13 +441,15 @@ describe('phase 5 and 6 assistant tools', () => {
       documents: { loadFile } as unknown as DocumentService,
     }).find(({ definition }) => definition.name === 'send_file');
 
-    expect(tool?.requiresConfirmation).toBe(true);
     await expect(
       tool?.execute({
         userId: 'user-1',
         sourceMessageId: 'message-1',
         idempotencyKey: 'send-file',
-        arguments: { documentId: 'doc-1' },
+        arguments: {
+          documentId: 'doc-1',
+          matchingDocumentIds: ['doc-1'],
+        },
         context: { channel: 'telegram', sendFile },
       }),
     ).resolves.toEqual({
@@ -462,6 +462,81 @@ describe('phase 5 and 6 assistant tools', () => {
     });
     expect(loadFile).toHaveBeenCalledWith('user-1', 'doc-1');
     expect(sendFile).toHaveBeenCalledWith(file);
+  });
+
+  test('refuses ambiguous matches without sending a file', async () => {
+    const sendFile = jest
+      .fn<
+        (value: {
+          filename: string;
+          mimeType: string;
+          buffer: Buffer;
+        }) => Promise<{ providerMessageId: string }>
+      >()
+      .mockResolvedValue({ providerMessageId: 'chat:44' });
+
+    const loadFile = jest.fn();
+    const tool = tools({
+      documents: { loadFile } as unknown as DocumentService,
+    }).find(({ definition }) => definition.name === 'send_file');
+
+    await expect(
+      tool?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'ambiguous',
+        arguments: {
+          documentId: 'doc-1',
+          matchingDocumentIds: ['doc-1', 'doc-2'],
+        },
+        context: { channel: 'telegram', sendFile },
+      }),
+    ).rejects.toThrow(
+      'Several files match the request. Ask the user which single file to send, then call again with that documentId.',
+    );
+    expect(sendFile).not.toHaveBeenCalled();
+    expect(loadFile).not.toHaveBeenCalled();
+  });
+
+  test('returns a web link without loading the file buffer', async () => {
+    const linkFor = jest
+      .fn<
+        (
+          userId: string,
+          documentId: string,
+        ) => Promise<{ filename: string; url: string } | null>
+      >()
+      .mockResolvedValue({
+        filename: 'Product Requirement.pdf',
+        url: 'http://localhost:5000/documents/doc-1/content',
+      });
+
+    const loadFile = jest.fn();
+    const tool = tools({
+      documents: { linkFor, loadFile } as unknown as DocumentService,
+    }).find(({ definition }) => definition.name === 'send_file');
+
+    await expect(
+      tool?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        idempotencyKey: 'web-link',
+        arguments: {
+          documentId: 'doc-1',
+          matchingDocumentIds: ['doc-1'],
+        },
+      }),
+    ).resolves.toEqual({
+      objectType: 'file',
+      object: {
+        documentId: 'doc-1',
+        filename: 'Product Requirement.pdf',
+        url: 'http://localhost:5000/documents/doc-1/content',
+        markdownLink:
+          '[Product Requirement.pdf](http://localhost:5000/documents/doc-1/content)',
+      },
+    });
+    expect(loadFile).not.toHaveBeenCalled();
   });
 
   test('rejects saving when the source message has no attached files', async () => {
@@ -747,14 +822,6 @@ describe('phase 5 and 6 assistant tools', () => {
       expect.objectContaining({ title: 'Review final' }),
     );
     expect(cancel).toHaveBeenCalledWith('user-1', 'event-1');
-    expect(
-      available.find((tool) => tool.definition.name === 'update_calendar_event')
-        ?.requiresConfirmation,
-    ).toBe(true);
-    expect(
-      available.find((tool) => tool.definition.name === 'cancel_calendar_event')
-        ?.requiresConfirmation,
-    ).toBe(true);
   });
 
   test('documents every phase tool and parameter in English', () => {

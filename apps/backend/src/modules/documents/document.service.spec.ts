@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
+import { ConfigService } from '@nestjs/config';
 import type {
   Document,
   DocumentStatus,
@@ -213,6 +214,7 @@ function dependencies() {
       embeddings,
       media,
       queue as unknown as QueueService,
+      new ConfigService({ BACKEND_AUTH_URL: 'http://localhost:5000' }),
     ),
     storage,
     documents,
@@ -221,6 +223,19 @@ function dependencies() {
     queue,
   };
 }
+
+describe('DocumentService links', () => {
+  test('builds a public content URL without reading storage', async () => {
+    const { service, storage, documents } = dependencies();
+
+    await expect(service.linkFor('user-1', 'document-1')).resolves.toEqual({
+      filename: 'notes.txt',
+      url: 'http://localhost:5000/documents/document-1/content',
+    });
+    expect(documents.findById).toHaveBeenCalledWith('user-1', 'document-1');
+    expect(storage.get).not.toHaveBeenCalled();
+  });
+});
 
 describe('DocumentService ingest', () => {
   test('deletes the blob and propagates a createFile failure', async () => {

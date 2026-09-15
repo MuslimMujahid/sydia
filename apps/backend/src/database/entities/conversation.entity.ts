@@ -21,7 +21,6 @@ export type AssistantRunStatus = (typeof ASSISTANT_RUN_STATUSES)[number];
 export const TOOL_INVOCATION_STATUSES = [
   'pending',
   'running',
-  'awaiting_confirmation',
   'completed',
   'failed',
   'rejected',
@@ -75,7 +74,7 @@ export type ToolInvocation = Pick<
   | 'updatedAt'
 > & {
   objectId: string | null;
-  objectType: 'task' | 'reminder' | 'category' | 'category_confirmation' | null;
+  objectType: 'task' | 'reminder' | 'category' | null;
   state: Record<string, unknown> | null;
   output: Prisma.JsonValue | null;
 };

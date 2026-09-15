@@ -290,7 +290,7 @@ Use it when the user asks to organize contacts under a new group name.
 
 Do not use it when an existing group already fits, or to rename or delete one.
 
-name is required. If a group with that name already exists for the user, the existing group is returned instead of failing, so repeating a request is safe. No confirmation is required.`,
+name is required. If a group with that name already exists for the user, the existing group is returned instead of failing, so repeating a request is safe.`,
         parameters: schema(
           {
             name: {
@@ -325,7 +325,7 @@ Use it when the user asks to change a group's name.
 
 Do not use it to create a group, delete one, or change which contacts belong to it.
 
-Requires user approval. Identify the group by currentName; newName is required and must be unique for the user.`,
+Identify the group by currentName; newName is required and must be unique for the user.`,
         parameters: schema(
           {
             currentName: {
@@ -340,7 +340,6 @@ Requires user approval. Identify the group by currentName; newName is required a
           ['currentName', 'newName'],
         ),
       },
-      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
@@ -368,7 +367,7 @@ Use it when the user explicitly asks to remove a group.
 
 Do not use it to remove contacts; contacts stay and only their group membership is removed.
 
-Requires user approval. Identify the group by name. contactCount is accepted as context but is not used.`,
+Identify the group by name. contactCount is accepted as context but is not used.`,
         parameters: schema(
           {
             name: {
@@ -385,7 +384,6 @@ Requires user approval. Identify the group by name. contactCount is accepted as 
           ['name'],
         ),
       },
-      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
@@ -409,7 +407,7 @@ Use it when the user asks to put a contact in a group or take them out of one.
 
 Do not use it to create or delete groups, or to edit other contact details.
 
-Requires user approval. Identify the contact by contactName; groupNames is required and mode adds, removes, or sets the memberships. A contact can belong to several groups.`,
+Identify the contact by contactName; groupNames is required and mode adds, removes, or sets the memberships. A contact can belong to several groups.`,
         parameters: schema(
           {
             contactName: {
@@ -431,7 +429,6 @@ Requires user approval. Identify the contact by contactName; groupNames is requi
           ['contactName', 'groupNames'],
         ),
       },
-      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
@@ -596,45 +593,82 @@ The active message comes from execution context rather than a parameter; if none
       definition: {
         name: 'send_file',
         label: 'Send file',
-        description: `Use this tool to send one specific saved file back through the active WhatsApp or Telegram conversation.
+        description: `Use this tool to send one specific saved file back to the user through the active conversation.
 
-Use it when the user has identified and confirmed the exact saved document. If several could match, list them and ask first.
+Use it when the user has identified the exact saved file they want and you know its documentId.
 
-Do not use it on dashboard chat, for unsaved attachments, or to send multiple files in one call; it always requires user confirmation. After approval the channel sends a “📂 Sending file ...” notice in English or “📂 Mengirimi file ...” in Indonesian.
+Do not use it when more than one saved file could match the request, when the file is an unsaved attachment, or to send several files in one call.
 
-documentId is required; the file is loaded from the current user's storage and sent only through the active channel.`,
+matchingDocumentIds must list every saved file that matches the user's request; the tool sends only when exactly that one file is listed, so when several match it refuses and you must ask the user to choose. On WhatsApp and Telegram the file is sent as an attachment after a “📂 Sending file ...” notice. In web chat the result carries the file's url and a ready-to-paste Markdown link; include that link in your reply with the file name as its text.`,
         parameters: schema(
           {
             documentId: {
               ...string,
               description: 'Identifier of the single saved document to send.',
             },
+            matchingDocumentIds: {
+              type: 'array',
+              items: {
+                ...string,
+                description: 'A saved document matching the request.',
+              },
+              description:
+                'Every saved document that matches the request; the file is sent only when exactly one is listed.',
+            },
           },
-          ['documentId'],
+          ['documentId', 'matchingDocumentIds'],
         ),
       },
-      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw, context }) => {
-        if (
-          !context?.sendFile ||
-          (context.channel !== 'whatsapp' && context.channel !== 'telegram')
-        )
+        const a = record(raw);
+        const documentId = text(a, 'documentId')!;
+        const matchingDocumentIds = [
+          ...new Set(texts(a, 'matchingDocumentIds') ?? []),
+        ];
+
+        if (matchingDocumentIds.length === 0)
           throw new Error(
-            'Files can only be sent from an active WhatsApp or Telegram conversation.',
+            'matchingDocumentIds must list the matching saved files.',
+          );
+        if (matchingDocumentIds.length > 1)
+          throw new Error(
+            'Several files match the request. Ask the user which single file to send, then call again with that documentId.',
+          );
+        if (matchingDocumentIds[0] !== documentId)
+          throw new Error(
+            'documentId must be the single matching file listed in matchingDocumentIds.',
           );
 
-        const documentId = text(record(raw), 'documentId')!;
-        const file = await deps.documents.loadFile(userId, documentId);
-        if (!file) throw new Error('Document not found.');
-        const sent = await context.sendFile(file);
+        if (
+          (context?.channel === 'whatsapp' ||
+            context?.channel === 'telegram') &&
+          context.sendFile
+        ) {
+          const file = await deps.documents.loadFile(userId, documentId);
+          if (!file) throw new Error('Document not found.');
+          const sent = await context.sendFile(file);
+
+          return {
+            objectType: 'file',
+            object: {
+              documentId,
+              filename: file.filename,
+              providerMessageId: sent.providerMessageId,
+            },
+          };
+        }
+
+        const link = await deps.documents.linkFor(userId, documentId);
+        if (!link) throw new Error('Document not found.');
 
         return {
           objectType: 'file',
           object: {
             documentId,
-            filename: file.filename,
-            providerMessageId: sent.providerMessageId,
+            filename: link.filename,
+            url: link.url,
+            markdownLink: `[${link.filename}](${link.url})`,
           },
         };
       },
@@ -833,7 +867,6 @@ id is required and the other fields are optional; only supplied fields are passe
           ['id'],
         ),
       },
-      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
@@ -864,7 +897,7 @@ Use it when the user explicitly asks to cancel an event and provides its id.
 
 Do not use it to create or edit an event, or when the event is not identified by id.
 
-Cancels for the current user; a missing event raises an error. This is a mutation that should follow the user's approval expectations.`,
+Cancels for the current user; a missing event raises an error.`,
         parameters: schema(
           {
             id: {
@@ -875,7 +908,6 @@ Cancels for the current user; a missing event raises an error. This is a mutatio
           ['id'],
         ),
       },
-      requiresConfirmation: true,
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const cancelled = await deps.calendarService.cancel(

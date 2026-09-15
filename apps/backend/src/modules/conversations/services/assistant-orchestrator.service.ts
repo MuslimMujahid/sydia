@@ -42,7 +42,6 @@ const ASSISTANT_MESSAGES = {
     queued: 'Waiting for turn…',
     preparing: 'Sydia is preparing a response…',
     workingOn: 'Sydia is',
-    approvalRequired: 'Your approval is required to continue',
   },
   id: {
     safeFailure:
@@ -50,7 +49,6 @@ const ASSISTANT_MESSAGES = {
     queued: 'Menunggu giliran…',
     preparing: 'Sydia sedang menyiapkan jawaban…',
     workingOn: 'Sydia sedang',
-    approvalRequired: 'Butuh persetujuan Anda untuk melanjutkan',
   },
 } satisfies Record<SupportedLocale, Record<string, string>>;
 
@@ -74,8 +72,7 @@ type GenerationUsage = {
   outputTokens?: number;
   costUsd?: number;
 };
-export type AssistantActivityPhase =
-  'queued' | 'preparing' | 'executing_tool' | 'awaiting_confirmation';
+export type AssistantActivityPhase = 'queued' | 'preparing' | 'executing_tool';
 
 export type AssistantStreamMessage = UIMessage<
   never,
@@ -88,7 +85,6 @@ export type AssistantStreamMessage = UIMessage<
 type ExecutionObserver = {
   onTextDelta(delta: string): void;
   onToolCall(label: string): void;
-  onToolResult(invocation: ToolInvocation): void;
 };
 
 const AssistantTurnState = Annotation.Root({
@@ -257,17 +253,6 @@ export class AssistantOrchestratorService {
                 data: {
                   phase: 'executing_tool',
                   label: `${assistantMessage(user.locale, 'workingOn')} ${label.toLocaleLowerCase(user.locale === 'id' ? 'id-ID' : 'en-US')}…`,
-                },
-                transient: true,
-              });
-            },
-            onToolResult: (invocation) => {
-              if (invocation.status !== 'awaiting_confirmation') return;
-              writer.write({
-                type: 'data-activity',
-                data: {
-                  phase: 'awaiting_confirmation',
-                  label: assistantMessage(user.locale, 'approvalRequired'),
                 },
                 transient: true,
               });
@@ -608,7 +593,6 @@ export class AssistantOrchestratorService {
             state.inputMessage.id,
             (result) => {
               toolInvocations.push(result.invocation);
-              observer?.onToolResult(result.invocation);
             },
             toolsReady,
             abortSignal,

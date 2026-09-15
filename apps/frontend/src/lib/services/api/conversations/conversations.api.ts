@@ -55,12 +55,7 @@ export type AssistantRun = {
 };
 
 export type ToolInvocationStatus =
-  | "pending"
-  | "running"
-  | "awaiting_confirmation"
-  | "completed"
-  | "failed"
-  | "rejected";
+  "pending" | "running" | "completed" | "failed" | "rejected";
 
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -72,7 +67,7 @@ export type ToolInvocation = {
   label: string;
   status: ToolInvocationStatus;
   objectId: string | null;
-  objectType: "task" | "reminder" | "category" | "category_confirmation" | null;
+  objectType: "task" | "reminder" | "category" | null;
   state: Record<string, JsonValue> | null;
   output: JsonValue;
   createdAt: string;
@@ -92,8 +87,7 @@ export type SendMessageVariables = {
   idempotencyKey: string;
   attachmentIds?: string[];
 };
-export type AssistantActivityPhase =
-  "queued" | "preparing" | "executing_tool" | "awaiting_confirmation";
+export type AssistantActivityPhase = "queued" | "preparing" | "executing_tool";
 
 export type AssistantActivity = {
   phase: AssistantActivityPhase;
@@ -214,12 +208,7 @@ export type ConversationStreamHandlers = {
 };
 
 const activitySchema = z.object({
-  phase: z.enum([
-    "queued",
-    "preparing",
-    "executing_tool",
-    "awaiting_confirmation",
-  ]),
+  phase: z.enum(["queued", "preparing", "executing_tool"]),
   label: z.string(),
 });
 
@@ -264,18 +253,9 @@ const toolInvocationSchema = z.object({
   assistantRunId: z.string(),
   name: z.string(),
   label: z.string(),
-  status: z.enum([
-    "pending",
-    "running",
-    "awaiting_confirmation",
-    "completed",
-    "failed",
-    "rejected",
-  ]),
+  status: z.enum(["pending", "running", "completed", "failed", "rejected"]),
   objectId: z.string().nullable(),
-  objectType: z
-    .enum(["task", "reminder", "category", "category_confirmation"])
-    .nullable(),
+  objectType: z.enum(["task", "reminder", "category"]).nullable(),
   state: z.record(z.string(), z.json()).nullable(),
   output: z.json(),
   createdAt: z.string(),

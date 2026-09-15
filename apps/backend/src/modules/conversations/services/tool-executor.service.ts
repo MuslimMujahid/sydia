@@ -42,10 +42,8 @@ export type AssistantTool = {
     sourceMessageId: string;
     arguments: Prisma.InputJsonValue;
     idempotencyKey: string;
-    deferConfirmation?: boolean;
     context?: AssistantToolExecutionContext;
   }): Promise<Prisma.InputJsonValue>;
-  requiresConfirmation?: boolean;
   internal?: boolean;
   sensitive?: boolean;
   exposeTransientResult?: boolean;
@@ -288,76 +286,6 @@ export class ToolExecutorService {
     );
   }
 
-  async resolveConfirmation(
-    userId: string,
-    invocationId: string,
-    approved: boolean,
-    context?: AssistantToolExecutionContext,
-  ): Promise<ToolExecutionResult | null> {
-    const invocation = await this.conversations.findToolInvocation(
-      userId,
-      invocationId,
-    );
-
-    if (!invocation || invocation.status !== 'awaiting_confirmation')
-      return null;
-    if (!(await this.conversations.claimToolConfirmation(invocation.id)))
-      return null;
-
-    if (!approved) {
-      const rejected = await this.conversations.updateToolInvocation(
-        invocation.id,
-        {
-          status: 'rejected',
-          errorMessage: 'Cancelled by the user.',
-          completedAt: new Date(),
-        },
-      );
-
-      return {
-        invocation: rejected,
-        content: `${invocation.label} was cancelled by the user.`,
-      };
-    }
-
-    const assistantTool = this.toolsByName[invocation.name];
-    if (!assistantTool) return null;
-
-    try {
-      const result = await assistantTool.execute({
-        userId,
-        sourceMessageId: invocation.id,
-        arguments: assistantTool.parseArguments(invocation.arguments),
-        idempotencyKey: invocation.idempotencyKey,
-        deferConfirmation: false,
-        context,
-      });
-
-      const completed = await this.conversations.updateToolInvocation(
-        invocation.id,
-        {
-          status: 'completed',
-          result,
-          completedAt: new Date(),
-        },
-      );
-
-      return { invocation: completed, content: JSON.stringify(result) };
-    } catch (error) {
-      const failed = await this.conversations.updateToolInvocation(
-        invocation.id,
-        {
-          status: 'failed',
-          errorMessage:
-            error instanceof Error ? error.message : 'Tool execution failed.',
-          completedAt: new Date(),
-        },
-      );
-
-      return { invocation: failed, content: toolErrorContent(error) };
-    }
-  }
-
   async execute(
     userId: string,
     runId: string,
@@ -435,26 +363,6 @@ export class ToolExecutorService {
       arguments: persistedArguments,
       idempotencyKey,
     });
-
-    if (assistantTool.requiresConfirmation) {
-      const awaiting = await this.conversations.updateToolInvocation(
-        invocation.id,
-        {
-          status: 'awaiting_confirmation',
-          result: {
-            objectType: 'category_confirmation',
-            action: call.name,
-            arguments: argumentsValue,
-            label: assistantTool.definition.label,
-          },
-        },
-      );
-
-      return {
-        invocation: awaiting,
-        content: `${assistantTool.definition.label} is awaiting user approval.`,
-      };
-    }
 
     const staleBefore = new Date(Date.now() - TOOL_STALE_AFTER_MS);
     const claimed = await this.conversations.claimToolInvocation(

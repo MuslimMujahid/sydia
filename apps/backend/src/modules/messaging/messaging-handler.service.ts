@@ -11,10 +11,7 @@ import type {
   MessageProvider,
   NormalizedInboundMessage,
 } from '../../shared/messaging';
-import {
-  AssistantOrchestratorService,
-  ToolExecutorService,
-} from '../conversations/services';
+import { AssistantOrchestratorService } from '../conversations/services';
 import type { AssistantFile } from '../conversations/services/tool-executor.service';
 
 const CHANNEL_MESSAGES = {
@@ -22,23 +19,12 @@ const CHANNEL_MESSAGES = {
     cancelled: 'Proses aktif dan pesan yang menunggu telah dibatalkan.',
     newConversation: 'Percakapan baru dimulai.',
     unavailable: 'Provider atau pengguna tidak tersedia.',
-    confirmationExpired: 'Konfirmasi ini sudah tidak berlaku.',
-    actionCompleted: 'Tindakan berhasil dijalankan.',
-    actionRejected: 'Tindakan dibatalkan.',
-    actionFailed: 'Tindakan gagal dijalankan.',
-    confirmationPrompt:
-      'Balas tepat “Ya” untuk menyetujui atau “Tidak” untuk membatalkan.',
     processingFailed: 'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
   },
   en: {
     cancelled: 'Active processing and queued messages have been cancelled.',
     newConversation: 'A new conversation has started.',
     unavailable: 'The provider or user is unavailable.',
-    confirmationExpired: 'This confirmation is no longer valid.',
-    actionCompleted: 'The action was completed successfully.',
-    actionRejected: 'The action was cancelled.',
-    actionFailed: 'The action failed.',
-    confirmationPrompt: 'Reply exactly “Yes” to approve or “No” to cancel.',
     processingFailed:
       'Sorry, your message could not be processed. Please try again.',
   },
@@ -89,7 +75,6 @@ export class MessagingHandlerService implements OnModuleDestroy {
 
   constructor(
     private readonly assistant: AssistantOrchestratorService,
-    private readonly toolExecutor: ToolExecutorService,
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversations: IConversationRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
@@ -131,11 +116,6 @@ export class MessagingHandlerService implements OnModuleDestroy {
       );
 
       activeIds.forEach((id) => this.abortControllers.get(id)?.abort());
-      await this.conversations.rejectPendingToolInvocations(
-        input.user.id,
-        channel.conversation.id,
-        now,
-      );
       await this.sendFor(
         input.user,
         input.externalIdentityId,
@@ -153,11 +133,6 @@ export class MessagingHandlerService implements OnModuleDestroy {
       );
 
       activeIds.forEach((id) => this.abortControllers.get(id)?.abort());
-      await this.conversations.rejectPendingToolInvocations(
-        input.user.id,
-        channel.conversation.id,
-        now,
-      );
       await this.conversations.resetChannelConversation(
         input.message.provider,
         input.externalIdentityId,
@@ -173,12 +148,6 @@ export class MessagingHandlerService implements OnModuleDestroy {
       return true;
     }
 
-    if (command !== 'ya' && command !== 'tidak')
-      await this.conversations.rejectPendingToolInvocations(
-        input.user.id,
-        channel.conversation.id,
-        now,
-      );
     const queuedMessage = JSON.parse(
       JSON.stringify({ message: input.message }),
     ) as Record<string, unknown>;
@@ -324,92 +293,39 @@ export class MessagingHandlerService implements OnModuleDestroy {
         ({ attachmentIds }) => attachmentIds ?? [],
       );
 
-      const command = content.trim().toLocaleLowerCase('id-ID');
-      const approving = command === 'ya' || command === 'yes';
-      const rejecting = command === 'tidak' || command === 'no';
-      const pending =
-        approving || rejecting
-          ? await this.conversations.findLatestPendingToolInvocation(
-              user.id,
-              batch.conversationId,
-            )
-          : null;
+      const result = await this.assistant.sendAndWait(user, {
+        conversationId: batch.conversationId,
+        content,
+        idempotencyKey: `${batch.provider}:${batch.turns.map(({ providerMessageId }) => providerMessageId).join('+')}`,
+        attachmentIds,
+        channel: batch.provider,
+        abortSignal: controller.signal,
+        toolsReady,
+        sendFile: adapter.sendFile
+          ? async (file) => adapter.sendFile!(user, last.message, file)
+          : undefined,
+      });
 
-      if (pending) {
-        const result = await this.toolExecutor.resolveConfirmation(
-          user.id,
-          pending.id,
-          approving,
-          {
-            channel: batch.provider,
-            sendFile: adapter.sendFile
-              ? async (file) => adapter.sendFile!(user, last.message, file)
-              : undefined,
-          },
-        );
+      if (result.assistantRun.status === 'failed')
+        throw new Error('Assistant processing failed.');
 
-        const messagesForLocale = channelMessages(user.locale);
-        const response = !result
-          ? messagesForLocale.confirmationExpired
-          : result.invocation.status === 'completed'
-            ? pending.name === 'send_file'
-              ? null
-              : messagesForLocale.actionCompleted
-            : result.invocation.status === 'rejected'
-              ? messagesForLocale.actionRejected
-              : messagesForLocale.actionFailed;
+      const remaining = windowEndsAt - Date.now();
+      if (remaining > 0)
+        await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+      if (controller.signal.aborted) throw controller.signal.reason;
+
+      if (result.assistantMessage) {
+        const response = result.assistantMessage.content;
 
         stopProcessing?.();
         stopProcessing = undefined;
 
-        if (response)
-          await adapter.send(
-            user,
-            batch.externalIdentityId,
-            last.message,
-            response,
-          );
-      } else {
-        const result = await this.assistant.sendAndWait(user, {
-          conversationId: batch.conversationId,
-          content,
-          idempotencyKey: `${batch.provider}:${batch.turns.map(({ providerMessageId }) => providerMessageId).join('+')}`,
-          attachmentIds,
-          channel: batch.provider,
-          abortSignal: controller.signal,
-          toolsReady,
-          sendFile: adapter.sendFile
-            ? async (file) => adapter.sendFile!(user, last.message, file)
-            : undefined,
-        });
-
-        if (result.assistantRun.status === 'failed')
-          throw new Error('Assistant processing failed.');
-
-        const remaining = windowEndsAt - Date.now();
-        if (remaining > 0)
-          await new Promise<void>((resolve) => setTimeout(resolve, remaining));
-        if (controller.signal.aborted) throw controller.signal.reason;
-
-        if (result.assistantMessage) {
-          const confirmation = result.toolInvocations.find(
-            ({ status }) => status === 'awaiting_confirmation',
-          );
-
-          const response = confirmation
-            ? `${result.assistantMessage.content}\n\n${confirmation.label}. ${channelMessages(user.locale).confirmationPrompt}`
-            : result.assistantMessage.content;
-
-          stopProcessing?.();
-          stopProcessing = undefined;
-
-          await adapter.send(
-            user,
-            batch.externalIdentityId,
-            last.message,
-            response,
-          );
-        }
+        await adapter.send(
+          user,
+          batch.externalIdentityId,
+          last.message,
+          response,
+        );
       }
 
       await this.conversations.completeChannelTurns(turnIds, new Date());

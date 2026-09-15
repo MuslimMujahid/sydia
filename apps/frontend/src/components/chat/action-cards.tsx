@@ -16,7 +16,6 @@ import {
   useSnoozeReminder,
 } from "@/lib/services/api/reminders/reminders.queries";
 import { useSetTaskStatus } from "@/lib/services/api/tasks/tasks.queries";
-import { useResolveToolConfirmation } from "@/lib/services/api/conversations/conversations.queries";
 import type { TaskStatus } from "@/lib/services/api/tasks/tasks.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 
@@ -339,137 +338,6 @@ function ReminderActionCard({
   );
 }
 
-/** How each confirmation-gated tool reads in the approval card. */
-const CONFIRMATION_COPY: Record<
-  string,
-  {
-    en: { subject: string; verb: string };
-    id: { subject: string; verb: string };
-  }
-> = {
-  create_category: {
-    en: { subject: "category", verb: "create" },
-    id: { subject: "kategori", verb: "membuat" },
-  },
-  update_category: {
-    en: { subject: "category", verb: "update" },
-    id: { subject: "kategori", verb: "memperbarui" },
-  },
-  delete_category: {
-    en: { subject: "category", verb: "delete" },
-    id: { subject: "kategori", verb: "menghapus" },
-  },
-  update_contact_group: {
-    en: { subject: "contact group", verb: "rename" },
-    id: { subject: "grup kontak", verb: "mengganti nama" },
-  },
-  delete_contact_group: {
-    en: { subject: "contact group", verb: "delete" },
-    id: { subject: "grup kontak", verb: "menghapus" },
-  },
-  assign_contact_groups: {
-    en: { subject: "contact group", verb: "update the groups of" },
-    id: { subject: "grup kontak", verb: "memperbarui grup" },
-  },
-};
-
-function ConfirmationCard({
-  invocation,
-  locale,
-}: {
-  invocation: ToolInvocation;
-  locale: SupportedLocale;
-}) {
-  const mutation = useResolveToolConfirmation();
-  const output = asRecord(invocation.output);
-  const args = asRecord(output?.arguments);
-  const copy = CONFIRMATION_COPY[invocation.name] ?? {
-    en: { subject: "item", verb: "change" },
-    id: { subject: "item", verb: "mengubah" },
-  };
-
-  const name =
-    stringValue(args, "name") ??
-    stringValue(args, "currentName") ??
-    stringValue(args, "categoryName") ??
-    stringValue(args, "newName") ??
-    stringValue(args, "contactName") ??
-    (locale === "en" ? `this ${copy.en.subject}` : `${copy.id.subject} ini`);
-
-  const taskCount = typeof args?.taskCount === "number" ? args.taskCount : null;
-  const contactCount =
-    typeof args?.contactCount === "number" ? args.contactCount : null;
-
-  const groupNames = Array.isArray(args?.groupNames)
-    ? args.groupNames.filter(
-        (value): value is string => typeof value === "string"
-      )
-    : [];
-
-  const isContactGroupTool = invocation.name.includes("contact_group");
-
-  return (
-    <section
-      className="rounded-lg border border-warn/35 bg-warn/5 p-5"
-      aria-label={`${locale === "en" ? "Confirmation" : "Konfirmasi"} ${invocation.label}`}
-    >
-      <p className="text-xs font-semibold tracking-wide text-warn uppercase">
-        {locale === "en" ? "Approval required" : "Perlu persetujuan"}
-      </p>
-      <h3 className="mt-1 font-display font-bold text-ink">
-        {locale === "en"
-          ? `Sydia will ${copy.en.verb} ${copy.en.subject} “${name}”`
-          : `Sydia akan ${copy.id.verb} ${copy.id.subject} “${name}”`}
-      </h3>
-      <p className="mt-1 text-sm text-ink-muted">
-        {isContactGroupTool
-          ? locale === "en"
-            ? "Contacts stay in the current group until you change them; deleting a group never deletes its contacts."
-            : "Kontak tetap ada dan hanya keanggotaan grupnya yang berubah; menghapus grup tidak menghapus kontaknya."
-          : locale === "en"
-            ? "This change applies to all tasks using this category."
-            : "Perubahan ini berlaku di seluruh tugas yang menggunakan kategori tersebut."}
-        {invocation.name === "delete_category" && taskCount !== null
-          ? locale === "en"
-            ? ` The category will be removed from ${taskCount} tasks.`
-            : ` Kategori akan dilepas dari ${taskCount} tugas.`
-          : ""}
-        {invocation.name === "delete_contact_group" && contactCount !== null
-          ? locale === "en"
-            ? ` The group will be removed from ${contactCount} contacts.`
-            : ` Grup akan dilepas dari ${contactCount} kontak.`
-          : ""}
-        {groupNames.length
-          ? locale === "en"
-            ? ` Groups: ${groupNames.join(", ")}.`
-            : ` Grup: ${groupNames.join(", ")}.`
-          : ""}
-      </p>
-      <div className="mt-4 flex gap-2">
-        <Button
-          size="sm"
-          disabled={mutation.isPending}
-          onClick={() =>
-            mutation.mutate({ invocationId: invocation.id, approved: true })
-          }
-        >
-          {locale === "en" ? "Approve" : "Setujui"}
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={mutation.isPending}
-          onClick={() =>
-            mutation.mutate({ invocationId: invocation.id, approved: false })
-          }
-        >
-          {locale === "en" ? "Decline" : "Tolak"}
-        </Button>
-      </div>
-    </section>
-  );
-}
-
 export function ChatActionCards({
   invocations,
   locale,
@@ -481,9 +349,8 @@ export function ChatActionCards({
     () =>
       invocations.filter(
         (invocation) =>
-          invocation.status === "awaiting_confirmation" ||
-          (invocation.status === "completed" &&
-            invocationKind(invocation) !== null)
+          invocation.status === "completed" &&
+          invocationKind(invocation) !== null
       ),
     [invocations]
   );
@@ -493,13 +360,7 @@ export function ChatActionCards({
   return (
     <div className="mt-4 max-w-xl space-y-3">
       {actions.map((invocation) =>
-        invocation.status === "awaiting_confirmation" ? (
-          <ConfirmationCard
-            key={invocation.id}
-            invocation={invocation}
-            locale={locale}
-          />
-        ) : invocationKind(invocation) === "task" ? (
+        invocationKind(invocation) === "task" ? (
           <TaskActionCard
             key={invocation.id}
             invocation={invocation}

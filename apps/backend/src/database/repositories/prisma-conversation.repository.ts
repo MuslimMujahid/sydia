@@ -115,8 +115,7 @@ function presentInvocation(invocation: InvocationRow): ToolInvocationRecord {
   const objectType =
     record?.objectType === 'task' ||
     record?.objectType === 'reminder' ||
-    record?.objectType === 'category' ||
-    record?.objectType === 'category_confirmation'
+    record?.objectType === 'category'
       ? record.objectType
       : invocation.name.includes('task')
         ? 'task'
@@ -645,24 +644,6 @@ export class PrismaConversationRepository implements IConversationRepository {
     return rows.map(({ channelConversationId }) => channelConversationId);
   }
 
-  async rejectPendingToolInvocations(
-    userId: string,
-    conversationId: string,
-    now: Date,
-  ): Promise<void> {
-    await this.prisma.toolInvocation.updateMany({
-      where: {
-        status: 'awaiting_confirmation',
-        assistantRun: { conversationId, conversation: { userId } },
-      },
-      data: {
-        status: 'rejected',
-        errorMessage: 'Dibatalkan oleh pesan atau percakapan baru.',
-        completedAt: now,
-      },
-    });
-  }
-
   async resetChannelConversation(
     provider: 'whatsapp' | 'telegram',
     externalIdentityId: string,
@@ -672,22 +653,6 @@ export class PrismaConversationRepository implements IConversationRepository {
       where: { provider, externalIdentityId, chatExternalId },
       data: { lastInboundAt: new Date(0) },
     });
-  }
-
-  async findLatestPendingToolInvocation(
-    userId: string,
-    conversationId: string,
-  ): Promise<ToolInvocationRecord | null> {
-    const invocation = await this.prisma.toolInvocation.findFirst({
-      where: {
-        status: 'awaiting_confirmation',
-        assistantRun: { conversationId, conversation: { userId } },
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: toolInvocationSelect,
-    });
-
-    return invocation ? presentInvocation(invocation) : null;
   }
 
   async writeUserMessage(
@@ -1103,27 +1068,6 @@ export class PrismaConversationRepository implements IConversationRepository {
     });
 
     return presentInvocation(invocation);
-  }
-
-  async findToolInvocation(
-    userId: string,
-    id: string,
-  ): Promise<ToolInvocationRecord | null> {
-    const invocation = await this.prisma.toolInvocation.findFirst({
-      where: { id, assistantRun: { conversation: { userId } } },
-      select: toolInvocationSelect,
-    });
-
-    return invocation ? presentInvocation(invocation) : null;
-  }
-
-  async claimToolConfirmation(id: string): Promise<boolean> {
-    const result = await this.prisma.toolInvocation.updateMany({
-      where: { id, status: 'awaiting_confirmation' },
-      data: { status: 'running', startedAt: new Date() },
-    });
-
-    return result.count === 1;
   }
 
   async replaceSummary(
