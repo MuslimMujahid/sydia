@@ -14,6 +14,7 @@ import {
   type ReminderJob,
   type DocumentJob,
   type ConversationSummaryJob,
+  type DailyNoteIndexJob,
   type FollowUpJob,
   type MemoryDreamJob,
 } from './infra/queue';
@@ -23,6 +24,7 @@ import {
 } from './modules/documents/document.service';
 import { MemoryDreamService } from './modules/memories/memory-dream.service';
 import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-scheduler.service';
+import { DailyNoteService } from './modules/daily-notes/daily-note.service';
 import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
 import {
   DailyBriefingService,
@@ -40,6 +42,7 @@ async function bootstrap(): Promise<void> {
   const documents = context.get(DocumentService);
   const memoryDream = context.get(MemoryDreamService);
   const memoryDreamScheduler = context.get(MemoryDreamSchedulerService);
+  const dailyNotes = context.get(DailyNoteService);
   const conversationSummarizer = context.get(ConversationSummarizerService);
   const notifications = context.get(NotificationService);
   const briefings = context.get(DailyBriefingService);
@@ -161,6 +164,23 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
+  const dailyNoteIndexWorker = new Worker<DailyNoteIndexJob>(
+    'daily-note-indexes',
+    async (job) =>
+      job.data.kind === 'recover'
+        ? dailyNotes.recoverPending()
+        : dailyNotes.index(job.data.userId, job.data.date),
+    { connection },
+  );
+
+  // A note saved while the embedding provider was down keeps its pending flag,
+  // so a periodic sweep is what brings it back into the retrieval index.
+  await queues.dailyNoteIndexes.upsertJobScheduler(
+    'daily-note-index-recovery',
+    { every: 6 * 60 * 60 * 1000 },
+    { name: 'recover', data: { kind: 'recover' } },
+  );
+
   const conversationSummaryWorker = new Worker<ConversationSummaryJob>(
     'conversation-summaries',
     async (job) => {
@@ -197,6 +217,7 @@ async function bootstrap(): Promise<void> {
       reminderWorker.close(),
       documentWorker.close(),
       memoryDreamWorker.close(),
+      dailyNoteIndexWorker.close(),
       briefingWorker.close(),
       conversationSummaryWorker.close(),
       followUpWorker.close(),

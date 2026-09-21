@@ -22,8 +22,10 @@ import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.ser
 import { CalendarService } from '../../calendar/calendar.service';
 import { SecretsService } from '../../secrets/secrets.service';
 import { DocumentService } from '../../documents/document.service';
+import { DailyNoteService } from '../../daily-notes/daily-note.service';
 import { createDomainTools } from './domain-tools';
 import { createPhaseTools } from './phase-tools';
+import { createDailyNoteTools } from './daily-note-tools';
 import type { AssistantTool } from './tool-executor.service';
 
 @Injectable()
@@ -44,6 +46,7 @@ export class DomainToolsProvider {
     @Inject(CALENDAR_REPOSITORY) calendars: ICalendarRepository,
     calendarService: CalendarService,
     secrets: SecretsService,
+    dailyNotes: DailyNoteService,
   ) {
     this.tools = [
       ...createDomainTools({
@@ -64,6 +67,7 @@ export class DomainToolsProvider {
         calendarService,
         users,
       }),
+      ...createDailyNoteTools({ dailyNotes }),
     ];
   }
 }

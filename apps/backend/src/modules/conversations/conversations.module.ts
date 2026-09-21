@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ModelGatewayModule } from '../../infra/model-gateway';
 import { MemoriesModule } from '../memories/memories.module';
+import { DailyNotesModule } from '../daily-notes/daily-notes.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
@@ -31,6 +32,7 @@ import {
     TasksModule,
     RemindersModule,
     MemoriesModule,
+    DailyNotesModule,
     DocumentsModule,
     ContactsModule,
     CalendarModule,

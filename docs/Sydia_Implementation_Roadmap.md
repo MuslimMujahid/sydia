@@ -352,6 +352,43 @@
 
 ---
 
+# Phase 8.5 — Daily Notes (Catatan Harian)
+
+## Backend
+
+- [x] BE-0851 Create Daily Note domain
+- [x] BE-0852 Create Daily Note chunk domain
+- [x] BE-0853 Enforce one note per owner-local day
+- [x] BE-0854 Implement rich-text document normalisation
+- [x] BE-0855 Implement daily note embeddings
+- [x] BE-0856 Implement hybrid daily note retrieval
+- [x] BE-0857 Implement date-windowed retrieval
+- [x] BE-0858 Implement indexing recovery sweep
+- [x] BE-0859 Add assistant daily note tools
+- [x] BE-0860 Implement daily note REST surface
+
+## Frontend
+
+- [x] FE-0851 Create Daily Notes page
+- [x] FE-0852 Add Tiptap rich-text editor
+- [x] FE-0853 Add editor toolbar
+- [x] FE-0854 Add month grid navigation
+- [x] FE-0855 Add previous/next day navigation
+- [x] FE-0856 Add recent notes list
+- [x] FE-0857 Implement debounced autosave
+- [x] FE-0858 Add Daily Notes navigation entry
+
+## Phase Exit
+
+- [x] User can write one note per day in the web editor
+- [x] User can jump between daily notes by date
+- [x] User can ask the assistant to write in a daily note
+- [x] User can ask what was written on a given day
+- [x] User can ask what they noted about a person over a period
+- [x] Daily notes are indexed for semantic retrieval
+
+---
+
 # Phase 9 — Entitlements, Reliability, and Beta Hardening
 
 ## Backend

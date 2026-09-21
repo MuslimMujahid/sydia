@@ -3,6 +3,7 @@ export * from './conversation.entity';
 export * from './external-identity.entity';
 export * from './user.entity';
 export * from './memory.entity';
+export * from './daily-note.entity';
 export * from './reminder.entity';
 export * from './task.entity';
 export * from './category.entity';

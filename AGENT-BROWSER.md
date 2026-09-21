@@ -89,3 +89,18 @@
 ## /chat (SMRT verification, 2026-09-16)
 
 - Conversation API run objects expose ONLY `id, conversationId, assistantMessageId, status, errorMessage, createdAt, updatedAt` — there is NO `toolInvocations` field, so tool usage must be inferred from the rendered `Sumber` aside or persisted message text. Message texts readable via `messages[].content || messages[].text` filtered by `role`.
+
+## /daily-notes
+
+- Route `/daily-notes` ("Catatan harian"); nav "Catatan" sits right after "Kalender". Day URLs use `?date=YYYY-MM-DD`; today is bare `/daily-notes` (no param). Day nav buttons: "Hari sebelumnya" / "Hari ini" (disabled on today) / "Hari berikutnya".
+- Month grid: one region per month, buttons "Bulan sebelumnya"/"Bulan berikutnya", weekday headers SEN…MIN, legend "Titik menandai hari dengan catatan." Days with notes carry aria-label suffix "memiliki catatan" (plus "hari ini" for today) — assert dots via aria-label, not pixels.
+- Month navigation is stable; a single "Sesi Anda tidak dapat diverifikasi." error boundary was observed once (2026-09-21) while the backend was being restarted mid-session, and did not reproduce across 9 month round trips afterwards. That message comes from the SSR auth path, so treat it as a backend-availability symptom, not a daily-notes bug. If the grid vanishes leaving only "Terjadi gangguan pada halaman", re-open the URL.
+- Saving an EMPTY document clears the day: `PUT /daily-notes/<date>` with an empty doc returns `{"data":{"note":null,"cleared":true}}`, the row is deleted, a later `GET` returns `{"data":{"note":null}}`, and the day's dot plus its "Catatan terbaru" entry disappear.
+- Day cells are `role="gridcell"`; click via DOM `cell.click()` in eval (snapshot refs go stale after each day switch). Re-snapshot before touching toolbar refs after a day change.
+- Editor is a TipTap `contenteditable`; empty day shows placeholder "Mulai dari hal yang ingin Anda ingat." + status "Belum ada perubahan". Typing autosaves via PUT /daily-notes/<date> ("Menyimpan…" → "Tersimpan"). Opening an empty day fires only GETs — verify with `fetch('http://localhost:5000/daily-notes/<date>',{credentials:'include'})` → `{"data":{"note":null}}`.
+- Toolbar: "Judul 1/2/3", "Daftar berpoin/bernomor", "Tebal", "Miring", "Garis bawah", native `select` "Ukuran huruf" (Default/Kecil/Biasa/Besar; Besar = 26px), "Tambah tautan" → textbox "Alamat tautan" (placeholder `https://contoh.com`) + "Terapkan". Headless click on the select option fails (CDP box-model error); set `select.value` + dispatch change/input instead. Keep a ProseMirror text selection alive via the Range API before clicking mark buttons.
+- Programmatic editor edits need `ce.dispatchEvent(new InputEvent('input', {bubbles:true}))` after execCommand or TipTap won't notice.
+- Viewport resize is `agent-browser set viewport <w> <h>` (bare `viewport` is unknown). With `--cdp` mode `screenshot <path>` saves directly to the path.
+- Month chevrons are ICON-ONLY buttons (empty textContent; find via `button[aria-label="Bulan sebelumnya"/"Bulan berikutnya"]`, NOT text search). Month title lives at `#daily-note-month-title`.
+- Clearing the editor (selectAll+delete+input event) autosaves an empty doc: the day row is deleted, grid dot + "Catatan terbaru" entry vanish, `GET /daily-notes/<date>` returns `{"data":{"note":null}}`, reload shows placeholder + "Belum ada perubahan".
+- Link toolbar: "Tambah tautan" flips to "Ubah tautan" when selection is inside a link; "Hapus tautan" appears ONLY when the link form is opened on an active link, and removes the anchor leaving plain text. Applied links render rgb(239,90,138) + underline.

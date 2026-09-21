@@ -29,10 +29,9 @@ import {
 } from '../../infra/model-gateway';
 import { QueueService } from '../../infra/queue';
 import { StorageService } from '../../infra/storage';
+import { chunkText } from '../../shared/text';
 import { sanitizeDerivedTitle } from './document-naming';
 
-const CHUNK_SIZE = 1400;
-const CHUNK_OVERLAP = 180;
 const MIN_EXTRACTED_TEXT_LENGTH = 24;
 
 /**
@@ -58,24 +57,6 @@ function kindFor(mimeType: string): FileKind {
   if (mimeType.startsWith('audio/')) return 'audio';
 
   return 'document';
-}
-
-export function chunkText(content: string): string[] {
-  const normalized = content
-    .replace(/\r\n/g, '\n')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
-
-  if (!normalized) return [];
-  const chunks: string[] = [];
-  for (
-    let start = 0;
-    start < normalized.length;
-    start += CHUNK_SIZE - CHUNK_OVERLAP
-  )
-    chunks.push(normalized.slice(start, start + CHUNK_SIZE));
-
-  return chunks;
 }
 
 function diversifyByDocument<T extends { documentId: string }>(

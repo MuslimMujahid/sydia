@@ -63,6 +63,7 @@ model User {
   secrets                Secret[]
   secretRevealTokens     SecretRevealToken[]
   secretVaultUnlocks     SecretVaultUnlock[]
+  dailyNotes             DailyNote[]
 
   @@index([role])
   @@index([banned])
@@ -419,6 +420,51 @@ model Memory {
   @@index([userId, status, pinned])
   @@index([userId, updatedAt])
   @@map("memory")
+}
+
+/// One diary entry per owner-local calendar day. `date` is the owner's local
+/// calendar date in `timezone`, so a note never shifts when the reader travels.
+model DailyNote {
+  id              String           @id @default(cuid())
+  userId          String
+  date            String
+  timezone        String
+  content         Json
+  text            String           @default("")
+  sourceType      String           @default("dashboard")
+  sourceMessageId String?
+  /// True while the retrieval index does not yet match `text`. The indexer
+  /// clears it after embedding, so it doubles as crash-recovery backlog.
+  indexPending    Boolean          @default(true)
+  indexSignature  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @default(now()) @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks          DailyNoteChunk[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("daily_note")
+}
+
+/// Retrieval index for a daily note, scoped to the owner-local day it came from.
+/// `date` is denormalised here so a date-windowed search never has to join back.
+model DailyNoteChunk {
+  id               String                       @id @default(cuid())
+  dailyNoteId      String
+  userId           String
+  date             String
+  chunkIndex       Int
+  content          String
+  embedding        Unsupported("vector(1536)")?
+  embeddingModel   String?
+  embeddingVersion String?
+  createdAt        DateTime                     @default(now())
+  dailyNote        DailyNote                    @relation(fields: [dailyNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([dailyNoteId, chunkIndex])
+  @@index([userId, date])
+  @@map("daily_note_chunk")
 }
 
 model MemoryDreamRun {

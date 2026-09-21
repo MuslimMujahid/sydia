@@ -35,6 +35,8 @@ export type BriefingJob =
   { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
 export type FollowUpJob =
   { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
+export type DailyNoteIndexJob =
+  { kind: 'index'; userId: string; date: string } | { kind: 'recover' };
 @Injectable()
 export class QueueService implements OnModuleDestroy {
   readonly reminders: Queue<ReminderJob>;
@@ -45,6 +47,7 @@ export class QueueService implements OnModuleDestroy {
   readonly telegramNotifications: Queue<NotificationJob>;
   readonly briefings: Queue<BriefingJob>;
   readonly followUps: Queue<FollowUpJob>;
+  readonly dailyNoteIndexes: Queue<DailyNoteIndexJob>;
   constructor(config: ConfigService) {
     const connection = {
       url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
@@ -92,6 +95,10 @@ export class QueueService implements OnModuleDestroy {
       connection,
       defaultJobOptions,
     });
+    this.dailyNoteIndexes = new Queue<DailyNoteIndexJob>('daily-note-indexes', {
+      connection,
+      defaultJobOptions,
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -104,6 +111,7 @@ export class QueueService implements OnModuleDestroy {
       this.telegramNotifications.close(),
       this.briefings.close(),
       this.followUps.close(),
+      this.dailyNoteIndexes.close(),
     ]);
   }
 }

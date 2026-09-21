@@ -367,6 +367,24 @@ Assistant: Uses recent working context to update the same event.
 | FR-MEM-007 | Deleting a memory removes it from future retrieval and triggers vector/index cleanup.            |
 | FR-MEM-008 | Conversation history is not automatically treated as durable memory.                             |
 
+## 9.3.1 Daily Notes
+
+A daily note is a dated journal entry. It is a distinct domain object from a memory: a memory is an undated durable fact, while a daily note belongs to exactly one owner-local calendar day and is read back by date.
+
+| **ID**     | **Requirement**                                                                                                                                       |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-DNT-001 | A user has at most one daily note per owner-local calendar day; saving the same day replaces that day's note.                                         |
+| FR-DNT-002 | Users can create and edit daily notes in the web dashboard with headings, bulleted and numbered lists, bold, italic, underline, font size, and links. |
+| FR-DNT-003 | Daily notes are indexed for semantic retrieval with source provenance back to the note's date.                                                        |
+| FR-DNT-004 | The user can ask the assistant to write in a daily note from web, WhatsApp, or Telegram, naming the day implicitly or explicitly.                     |
+| FR-DNT-005 | The assistant resolves relative days ("hari ini", "kemarin", "minggu kemarin") in the user's timezone.                                                |
+| FR-DNT-006 | The user can ask what was written on a given day and receive that note's content.                                                                     |
+| FR-DNT-007 | The user can ask what they recorded about a person or topic across a period, answered from a date-windowed hybrid retrieval.                          |
+| FR-DNT-008 | A day with no note is an empty state, not an error, and opening one does not create an empty note.                                                    |
+| FR-DNT-009 | Retrieval is constrained by owner and date window before ranking.                                                                                     |
+| FR-DNT-010 | A note saved while the embedding provider is unavailable is indexed later rather than being silently unsearchable.                                    |
+| FR-DNT-011 | Saving an empty document clears the day: the note is removed rather than stored as an empty entry.                                                    |
+
 ## 9.4 Reminders
 
 | **ID**     | **Requirement**                                                                                                                            |

@@ -4,6 +4,7 @@ export * from './conversation.repository.interface';
 export * from './external-identity.repository.interface';
 export * from './user.repository.interface';
 export * from './memory.repository.interface';
+export * from './daily-note.repository.interface';
 export * from './reminder.repository.interface';
 export * from './task.repository.interface';
 export * from './category.repository.interface';

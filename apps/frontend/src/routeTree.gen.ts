@@ -20,6 +20,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppDailyNotesRouteImport } from './routes/_app.daily-notes'
 import { Route as AppFilesRouteImport } from './routes/_app.files'
 import { Route as AppMemoryRouteImport } from './routes/_app.memory'
 import { Route as AppRemindersRouteImport } from './routes/_app.reminders'
@@ -87,6 +88,11 @@ const AppChatRoute = AppChatRouteImport.update({
 const AppContactsRoute = AppContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDailyNotesRoute = AppDailyNotesRouteImport.update({
+  id: '/daily-notes',
+  path: '/daily-notes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFilesRoute = AppFilesRouteImport.update({
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
   '/contacts': typeof AppContactsRoute
+  '/daily-notes': typeof AppDailyNotesRoute
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
   '/contacts': typeof AppContactsRoute
+  '/daily-notes': typeof AppDailyNotesRoute
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
   '/reminders': typeof AppRemindersRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/contacts': typeof AppContactsRoute
+  '/_app/daily-notes': typeof AppDailyNotesRoute
   '/_app/files': typeof AppFilesRoute
   '/_app/memory': typeof AppMemoryRoute
   '/_app/reminders': typeof AppRemindersRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/chat'
     | '/contacts'
+    | '/daily-notes'
     | '/files'
     | '/memory'
     | '/reminders'
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/chat'
     | '/contacts'
+    | '/daily-notes'
     | '/files'
     | '/memory'
     | '/reminders'
@@ -306,6 +317,7 @@ export interface FileRouteTypes {
     | '/_app/calendar'
     | '/_app/chat'
     | '/_app/contacts'
+    | '/_app/daily-notes'
     | '/_app/files'
     | '/_app/memory'
     | '/_app/reminders'
@@ -412,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/contacts'
       fullPath: '/contacts'
       preLoaderRoute: typeof AppContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/daily-notes': {
+      id: '/_app/daily-notes'
+      path: '/daily-notes'
+      fullPath: '/daily-notes'
+      preLoaderRoute: typeof AppDailyNotesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/files': {
@@ -541,6 +560,7 @@ interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppChatRoute: typeof AppChatRoute
   AppContactsRoute: typeof AppContactsRoute
+  AppDailyNotesRoute: typeof AppDailyNotesRoute
   AppFilesRoute: typeof AppFilesRoute
   AppMemoryRoute: typeof AppMemoryRoute
   AppRemindersRoute: typeof AppRemindersRoute
@@ -554,6 +574,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppChatRoute: AppChatRoute,
   AppContactsRoute: AppContactsRoute,
+  AppDailyNotesRoute: AppDailyNotesRoute,
   AppFilesRoute: AppFilesRoute,
   AppMemoryRoute: AppMemoryRoute,
   AppRemindersRoute: AppRemindersRoute,
