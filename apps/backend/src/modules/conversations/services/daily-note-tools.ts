@@ -1,7 +1,10 @@
 import type { JSONSchema7 } from 'ai';
 import type { Prisma } from '../../../generated/prisma/client';
 import { DAY_KEY_PATTERN } from '../../../database/entities';
-import { plainTextToRichText } from '../../../shared/rich-text';
+import {
+  plainTextToRichText,
+  richTextToMarkedText,
+} from '../../../shared/rich-text';
 import {
   DailyNoteService,
   dayKeyOffset,
@@ -85,13 +88,23 @@ Do not use it for a durable fact or preference with no date (use save_memory), f
 
 date defaults to today in the owner's timezone; pass an explicit date only when the user names a different day.
 
-mode defaults to append, which adds the text as new paragraphs at the end of that day's note. Use append unless the user asks to replace, rewrite, or correct the whole entry — for a correction of one line, prefer append with the corrected line, or read the note first and then replace it with the full corrected text.`,
+mode defaults to append, which adds the text as new paragraphs at the end of that day's note. Use append unless the user asks to replace, rewrite, or correct the whole entry — for a correction of one line, prefer append with the corrected line, or read the note first and then replace it with the full corrected text.
+
+How to write the note. A note is a record to be scanned and retrieved later, not prose to be read once, so preserve what the user actually said and add nothing.
+
+- Write the user's information as short note-style lines. Do not pad them into complete or polished sentences.
+- Do not merge unrelated facts into one paragraph or sentence. Give each distinct fact, person, item, or event its own line or list item.
+- Group related information together. When a day has several distinct contexts — for example attendance, materials, and follow-ups — give each group a heading on its own line, written as \`## Judul\`, followed by that group's lines. This \`##\` marker builds the note's structure and is not chat formatting, so it applies even on WhatsApp and Telegram where your reply itself must stay plain text. Use a heading only when a day genuinely has more than one group; a single group needs no heading.
+- Separate groups with a blank line so they stay visually distinct.
+- Start a line with "- " for a bulleted list and "1. " for a sequence when the information is a list rather than a single fact.
+- Record only what the user said or clearly implied. Do not add commentary, interpretation, opinions, conclusions, or next steps of your own, and do not repeat a fact in the summary and again in the body.
+- Keep the user's own wording and language, including names and places, unchanged.`,
       parameters: schema(
         {
           text: {
             type: 'string',
             description:
-              'The note content to write, as clean prose. Write complete sentences in the language the user wrote in. Markdown list markers at the start of a line become real list items.',
+              'The note content to write, in the language the user wrote in, formatted as the note-writing rules above describe. Separate blocks with a blank line. A line starting with "## " becomes a heading, "- " or "1. " becomes a list item.',
           },
           date: DAY_KEY,
           mode: {
@@ -162,7 +175,7 @@ Use it when the user asks what was written on a known day — "apa yang saya cat
 
 Do not use it to search across many days by topic; use search_daily_notes for that.
 
-date defaults to today in the owner's timezone. Returns the note's text, or null when that day has no note.`,
+date defaults to today in the owner's timezone. Returns the note's text, or null when that day has no note. Headings and lists are returned with their \`##\`, \`- \` and \`1. \` markers so a subsequent replace preserves the note's structure; pass that text back to write_daily_note unchanged if you are only changing part of it.`,
       parameters: schema({ date: DAY_KEY }),
     },
     internal: true,
@@ -182,7 +195,7 @@ date defaults to today in the owner's timezone. Returns the note's text, or null
       return {
         date,
         found: Boolean(note),
-        text: note?.text ?? null,
+        text: note ? richTextToMarkedText(note.content) : null,
         updatedAt: note?.updatedAt.toISOString() ?? null,
       };
     },

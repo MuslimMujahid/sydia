@@ -325,7 +325,7 @@
 - [x] BE-0807 Implement conversation deletion
 - [x] BE-0808 Implement account deletion
 - [x] BE-0809 Implement integration revocation
-- [x] BE-0810 Implement data retention jobs
+- [ ] BE-0810 Implement data retention jobs
 - [x] BE-0811 Expand assistant preferences
 
 ## Frontend
@@ -333,8 +333,8 @@
 - [x] FE-0801 Create Assistant settings
 - [x] FE-0802 Create Notification settings
 - [x] FE-0803 Create Integrations settings
-- [x] FE-0804 Create Memory & Privacy settings
-- [x] FE-0805 Create Data settings
+- [ ] FE-0804 Create Memory & Privacy settings
+- [ ] FE-0805 Create Data settings
 - [x] FE-0806 Add daily briefing controls
 - [x] FE-0807 Add proactive messaging pause
 - [x] FE-0808 Add data export flow

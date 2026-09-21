@@ -25,13 +25,6 @@ type ToolbarButtonProps = {
   onClick: () => void;
 };
 
-const FONT_SIZES = [
-  { label: "Default", value: "" },
-  { label: "Kecil", value: "15px" },
-  { label: "Biasa", value: "17px" },
-  { label: "Besar", value: "26px" },
-] as const;
-
 function ToolbarButton({
   label,
   active = false,
@@ -59,7 +52,6 @@ export function DailyNoteToolbar({ editor }: DailyNoteToolbarProps) {
   const toolbarState = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => {
-      const textStyle = currentEditor.getAttributes("textStyle");
       const link = currentEditor.getAttributes("link");
 
       return {
@@ -72,8 +64,6 @@ export function DailyNoteToolbar({ editor }: DailyNoteToolbarProps) {
         italic: currentEditor.isActive("italic"),
         underline: currentEditor.isActive("underline"),
         link: currentEditor.isActive("link"),
-        fontSize:
-          typeof textStyle.fontSize === "string" ? textStyle.fontSize : "",
         href: typeof link.href === "string" ? link.href : "",
       };
     },
@@ -164,25 +154,6 @@ export function DailyNoteToolbar({ editor }: DailyNoteToolbarProps) {
         >
           <Underline />
         </ToolbarButton>
-        <label className="ml-1">
-          <span className="sr-only">Ukuran huruf</span>
-          <select
-            value={toolbarState.fontSize}
-            aria-label="Ukuran huruf"
-            className="h-10 rounded-sm border border-ink/16 bg-canvas px-3 text-sm font-semibold text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15"
-            onChange={(event) => {
-              const value = event.target.value;
-              if (value) editor.chain().focus().setFontSize(value).run();
-              else editor.chain().focus().unsetFontSize().run();
-            }}
-          >
-            {FONT_SIZES.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
         <ToolbarButton
           label={toolbarState.link ? "Ubah tautan" : "Tambah tautan"}
           active={toolbarState.link}

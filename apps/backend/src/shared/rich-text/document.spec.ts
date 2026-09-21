@@ -4,6 +4,7 @@ import {
   indexSignature,
   parseRichTextDocument,
   plainTextToRichText,
+  richTextToMarkedText,
   richTextToPlainText,
 } from './document';
 
@@ -164,6 +165,76 @@ describe('plain text to rich text', () => {
         },
       ],
     });
+  });
+
+  test('turns a Markdown heading line into a real heading node', () => {
+    expect(plainTextToRichText('## Kehadiran').content).toEqual([
+      {
+        type: 'heading',
+        attrs: { level: 2 },
+        content: [{ type: 'text', text: 'Kehadiran' }],
+      },
+    ]);
+  });
+
+  test('clamps a heading to the levels the editor renders', () => {
+    expect(plainTextToRichText('##### Terlalu dalam').content).toEqual([
+      {
+        type: 'heading',
+        attrs: { level: 3 },
+        content: [{ type: 'text', text: 'Terlalu dalam' }],
+      },
+    ]);
+  });
+
+  test('starts a new list under a heading instead of continuing the last one', () => {
+    const document = plainTextToRichText(
+      '- Fotosintesis\n## Tugas\n- PR halaman 20',
+    );
+
+    const [first, heading, second] = document.content;
+
+    expect(document.content).toHaveLength(3);
+    expect(first).toMatchObject({ type: 'bulletList' });
+    expect(heading).toMatchObject({ type: 'heading', attrs: { level: 2 } });
+    expect(second).toMatchObject({ type: 'bulletList' });
+  });
+
+  test('drops heading and list markers from the retrievable text', () => {
+    expect(
+      richTextToPlainText(plainTextToRichText('# Kehadiran\n- Bryan hadir')),
+    ).toBe('Kehadiran\nBryan hadir');
+  });
+
+  test('keeps headings and lists when a note is read and written back', () => {
+    const text =
+      '## Kehadiran\n- Bryan hadir\n- Salsa izin\n\nMateri IPA: fotosintesis';
+
+    const once = richTextToMarkedText(plainTextToRichText(text));
+
+    // A blank separator line is not a document node, so it is normalized away;
+    // the headings and list items must survive it.
+    expect(once).toBe(
+      '## Kehadiran\n- Bryan hadir\n- Salsa izin\nMateri IPA: fotosintesis',
+    );
+    // The decisive property: the text the assistant reads back re-parses to
+    // exactly the stored structure, so a read-then-replace edit cannot flatten
+    // a heading or a list into plain paragraphs.
+    expect(plainTextToRichText(once).content).toEqual(
+      plainTextToRichText(text).content,
+    );
+  });
+
+  test('renumbers an ordered list so a read then rewrite keeps it valid', () => {
+    const document = plainTextToRichText('1. Satu\n1. Dua\n1. Tiga');
+
+    expect(richTextToMarkedText(document)).toBe('1. Satu\n2. Dua\n3. Tiga');
+  });
+
+  test('keeps headings readable when the note has no list', () => {
+    expect(richTextToMarkedText(plainTextToRichText('## Tugas'))).toBe(
+      '## Tugas',
+    );
   });
 
   test('does not make a blank line its own paragraph', () => {

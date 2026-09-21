@@ -19,6 +19,13 @@ const BLOCK_NODES: Record<string, true> = {
 
 const BULLET_LINE = /^\s*[-*•]\s+(.*)$/;
 const ORDERED_LINE = /^\s*\d+[.)]\s+(.*)$/;
+const HEADING_LINE = /^\s*(#{1,6})\s+(.*)$/;
+
+/**
+ * The editor exposes heading levels 1–3, so a deeper marker clamps to the
+ * deepest real level instead of producing a node it cannot render.
+ */
+const MAX_HEADING_LEVEL = 3;
 
 /**
  * A Tiptap document as the editor serialises it. The node vocabulary belongs to
@@ -42,6 +49,14 @@ function isNode(value: unknown): value is JsonNode {
 
 function paragraphOf(line: string): Prisma.InputJsonValue {
   return { type: 'paragraph', content: [{ type: 'text', text: line }] };
+}
+
+function headingOf(level: number, line: string): Prisma.InputJsonValue {
+  return {
+    type: 'heading',
+    attrs: { level },
+    content: [{ type: 'text', text: line }],
+  };
 }
 
 /**
@@ -103,6 +118,74 @@ export function richTextToPlainText(document: RichTextDocument): string {
 }
 
 /**
+ * Serialises a stored document back to the same marked-up text
+ * `plainTextToRichText` accepts, so the assistant can read a note and rewrite it
+ * without silently flattening its headings and lists. The two functions are
+ * deliberate inverses: reading a note through this and writing it back with the
+ * same markers reproduces the original structure.
+ */
+export function richTextToMarkedText(document: RichTextDocument): string {
+  const budget = { nodes: MAX_NODES };
+
+  return document.content
+    .map((child) => (isNode(child) ? collectMarkedText(child, 1, budget) : ''))
+    .join('')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, MAX_TEXT_LENGTH);
+}
+
+function collectMarkedText(
+  node: JsonNode,
+  depth: number,
+  budget: { nodes: number },
+): string {
+  if (depth > MAX_DEPTH || budget.nodes-- <= 0) return '';
+
+  if (node.type === 'text')
+    return typeof node.text === 'string' ? node.text : '';
+
+  if (node.type === 'hardBreak') return '\n';
+
+  const children = (Array.isArray(node.content) ? node.content : []).filter(
+    isNode,
+  );
+
+  if (node.type === 'heading') {
+    const level = Math.min(
+      typeof node.attrs === 'object' && node.attrs !== null
+        ? Number((node.attrs as JsonNode).level) || 1
+        : 1,
+      MAX_HEADING_LEVEL,
+    );
+
+    return `${'#'.repeat(level)} ${collectMarkedText(children[0] ?? {}, depth + 1, budget)}\n`;
+  }
+
+  if (node.type === 'bulletList' || node.type === 'orderedList') {
+    return children
+      .map((item, position) => {
+        const marker = node.type === 'orderedList' ? `${position + 1}. ` : '- ';
+        const body = (Array.isArray(item.content) ? item.content : [])
+          .filter(isNode)
+          .map((child) => collectMarkedText(child, depth + 1, budget))
+          .join('')
+          .replace(/\n+$/, '');
+
+        return `${marker}${body}\n`;
+      })
+      .join('');
+  }
+
+  const inner = children
+    .map((child) => collectMarkedText(child, depth + 1, budget))
+    .join('');
+
+  return BLOCK_NODES[String(node.type)] ? `${inner}\n` : inner;
+}
+
+/**
  * Turns writer input into a document the editor can open. Consecutive bulleted
  * or numbered lines collapse into a real list so a dictated list does not
  * arrive as literal dash-prefixed paragraphs.
@@ -129,6 +212,21 @@ export function plainTextToRichText(text: string): RichTextDocument {
   }
 
   for (const raw of lines) {
+    // A heading owns its line, so it closes any list being accumulated rather
+    // than being absorbed into it.
+    const heading = HEADING_LINE.exec(raw);
+
+    if (heading) {
+      if (pendingKind) flush();
+
+      const level = Math.min(heading[1]!.length, MAX_HEADING_LEVEL);
+      const title = heading[2]!.trim();
+
+      // `#` alone carries no text; keeping it would store an empty heading.
+      if (title !== '') content.push(headingOf(level, title));
+      continue;
+    }
+
     const bullet = BULLET_LINE.exec(raw);
     const ordered = bullet ? null : ORDERED_LINE.exec(raw);
     const kind = bullet

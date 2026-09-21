@@ -1,4 +1,3 @@
-import { FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { useEditor, type JSONContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,8 +20,6 @@ const EDITOR_EXTENSIONS = [
       defaultProtocol: "https",
     },
   }),
-  TextStyle,
-  FontSize,
 ];
 
 function asTiptapNodes(content: JSONContent[]): TiptapNode[] {
