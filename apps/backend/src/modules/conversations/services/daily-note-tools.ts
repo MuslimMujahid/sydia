@@ -70,8 +70,9 @@ const DAY_KEY = {
 /**
  * Daily note tools. The diary is addressed by local calendar day rather than by
  * record id, because that is how the user talks about it — "kemarin", "minggu
- * kemarin", "hari ini". Recording text and reading it back are separate tools
- * so the model never has to reconstruct a whole day's document to add a line.
+ * kemarin", "hari ini". Writing always saves the day's complete document, so
+ * reading a note back and writing it are separate tools: the model reads the
+ * current day, edits its text, and sends the whole result.
  */
 export function createDailyNoteTools(deps: {
   dailyNotes: DailyNoteService;
@@ -88,7 +89,9 @@ Do not use it for a durable fact or preference with no date (use save_memory), f
 
 date defaults to today in the owner's timezone; pass an explicit date only when the user names a different day.
 
-mode defaults to append, which adds the text as new paragraphs at the end of that day's note. Use append unless the user asks to replace, rewrite, or correct the whole entry — for a correction of one line, prefer append with the corrected line, or read the note first and then replace it with the full corrected text.
+The note is addressed as a whole. text is the complete resulting note for that day, not a fragment to add — whatever you send replaces the day's content in its entirety. So read_daily_note for that date first, fold the new information into the text you read, and send the full note back. When the day has no note yet, the text you send is the new note and there is nothing to read.
+
+Place and format the information where it belongs in that note. You may insert a line into an existing group, start a new group with its own heading, reorder groups, reword, or restructure the whole note when that makes it easier to scan — the result, not the edit history, is what the user keeps. Keep everything the user already recorded unless they asked for it to be changed or removed.
 
 How to write the note. A note is a record to be scanned and retrieved later, not prose to be read once, so preserve what the user actually said and add nothing.
 
@@ -104,15 +107,9 @@ How to write the note. A note is a record to be scanned and retrieved later, not
           text: {
             type: 'string',
             description:
-              'The note content to write, in the language the user wrote in, formatted as the note-writing rules above describe. Separate blocks with a blank line. A line starting with "## " becomes a heading, "- " or "1. " becomes a list item.',
+              'The complete resulting note for that day, in the language the user wrote in, formatted as the note-writing rules above describe. Include the note’s existing lines and the new information together. Separate blocks with a blank line. A line starting with "## " becomes a heading, "- " or "1. " becomes a list item.',
           },
           date: DAY_KEY,
-          mode: {
-            type: 'string',
-            enum: ['append', 'replace'],
-            description:
-              'append (default) adds the text to the end of the day’s note; replace overwrites the whole note with the text.',
-          },
         },
         ['text'],
       ),
@@ -122,34 +119,23 @@ How to write the note. A note is a record to be scanned and retrieved later, not
       const a = object(raw);
       const content = text(a, 'text')!;
       const requested = text(a, 'date', false);
-      const mode = text(a, 'mode', false) ?? 'append';
 
       if (requested && !DAY_KEY_PATTERN.test(requested))
         throw new Error(
           'date must be a local calendar date in YYYY-MM-DD form.',
         );
-      if (mode !== 'append' && mode !== 'replace')
-        throw new Error('mode must be append or replace.');
 
       const date = requested ?? (await deps.dailyNotes.today(userId));
 
-      // Both modes are given non-blank text by `text()`, so the day cannot end
-      // up empty; `append` returns its note directly and `replace` is guarded
-      // here so a future change cannot silently turn a write into a deletion.
-      const note =
-        mode === 'replace'
-          ? await deps.dailyNotes.save(userId, {
-              date,
-              document: plainTextToRichText(content),
-              sourceType: 'chat',
-              sourceMessageId,
-            })
-          : await deps.dailyNotes.append(userId, {
-              date,
-              text: content,
-              sourceType: 'chat',
-              sourceMessageId,
-            });
+      // `text()` rejects blank content, so the day always keeps the text the
+      // model wrote; the guard below only documents that saving the complete
+      // note can never silently turn a write into a deletion.
+      const note = await deps.dailyNotes.save(userId, {
+        date,
+        document: plainTextToRichText(content),
+        sourceType: 'chat',
+        sourceMessageId,
+      });
 
       if (!note)
         throw new Error(
@@ -158,7 +144,6 @@ How to write the note. A note is a record to be scanned and retrieved later, not
 
       return {
         date: note.date,
-        mode,
         written: content,
         noteId: note.id,
       };
@@ -175,7 +160,7 @@ Use it when the user asks what was written on a known day — "apa yang saya cat
 
 Do not use it to search across many days by topic; use search_daily_notes for that.
 
-date defaults to today in the owner's timezone. Returns the note's text, or null when that day has no note. Headings and lists are returned with their \`##\`, \`- \` and \`1. \` markers so a subsequent replace preserves the note's structure; pass that text back to write_daily_note unchanged if you are only changing part of it.`,
+date defaults to today in the owner's timezone. Returns the note's text, or null when that day has no note. Headings and lists are returned with their \`##\`, \`- \` and \`1. \` markers, and that text is the note exactly as it stands — read it before any write_daily_note call so the full note you send back keeps everything already recorded, then add or adjust what the user asked for.`,
       parameters: schema({ date: DAY_KEY }),
     },
     internal: true,
