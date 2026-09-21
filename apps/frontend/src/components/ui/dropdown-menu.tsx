@@ -10,6 +10,7 @@ type DropdownMenuContentProps = MenuPrimitive.Popup.Props & {
   side?: MenuPrimitive.Positioner.Props["side"];
   align?: MenuPrimitive.Positioner.Props["align"];
   sideOffset?: MenuPrimitive.Positioner.Props["sideOffset"];
+  collisionAvoidance?: MenuPrimitive.Positioner.Props["collisionAvoidance"];
 };
 
 function DropdownMenuContent({
@@ -17,6 +18,7 @@ function DropdownMenuContent({
   side = "bottom",
   align = "start",
   sideOffset = 6,
+  collisionAvoidance,
   ...props
 }: DropdownMenuContentProps) {
   return (
@@ -25,6 +27,7 @@ function DropdownMenuContent({
         side={side}
         align={align}
         sideOffset={sideOffset}
+        collisionAvoidance={collisionAvoidance}
         className="z-50"
       >
         <MenuPrimitive.Popup

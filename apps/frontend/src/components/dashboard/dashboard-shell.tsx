@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckSquare2,
   ContactRound,
+  Ellipsis,
   Files,
   LogOut,
   Menu,
@@ -53,10 +54,13 @@ const DEBUG_ENABLED = import.meta.env.VITE_DEBUG_ENABLED === "true";
 
 const NAV_ITEMS = [
   { to: "/tasks", label: "Tugas", icon: CheckSquare2 },
-  { to: "/reminders", label: "Pengingat", icon: Bell },
   { to: "/calendar", label: "Kalender", icon: CalendarDays },
   { to: "/daily-notes", label: "Catatan", icon: NotebookPen },
   { to: "/files", label: "File", icon: Files },
+] as const;
+
+const MORE_NAV_ITEMS = [
+  { to: "/reminders", label: "Pengingat", icon: Bell },
   { to: "/contacts", label: "Kontak", icon: ContactRound },
   { to: "/secrets", label: "Rahasia", icon: ShieldCheck },
   ...(DEBUG_ENABLED
@@ -100,6 +104,9 @@ export function DashboardShell({
   );
 
   const chatSurface = activePath === "/";
+  const moreActive = MORE_NAV_ITEMS.some((item) =>
+    activePath.startsWith(item.to)
+  );
 
   useEffect(() => {
     document.documentElement.lang = user.locale;
@@ -201,7 +208,7 @@ export function DashboardShell({
         ) : null}
       </div>
 
-      <nav aria-label="Navigasi utama" className="space-y-1 px-3">
+      <nav aria-label="Navigasi utama" className="space-y-0.5 px-3">
         <Link
           to="/"
           search={{ conversation: undefined, attachment: undefined }}
@@ -209,18 +216,15 @@ export function DashboardShell({
           aria-current={
             chatSurface && !selectedConversationId ? "page" : undefined
           }
+          aria-label={collapsed ? "Chat baru" : undefined}
           className={cn(
-            "flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50",
+            "flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-normal outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50",
             chatSurface && !selectedConversationId && "bg-surface-1 text-ink",
             collapsed && "justify-center px-0"
           )}
         >
           <MessageSquarePlus className="size-4 shrink-0" />
-          {!collapsed ? (
-            "Chat baru"
-          ) : (
-            <span className="sr-only">Chat baru</span>
-          )}
+          {!collapsed ? "Chat baru" : null}
         </Link>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -234,7 +238,7 @@ export function DashboardShell({
               aria-current={active ? "page" : undefined}
               aria-label={collapsed ? item.label : undefined}
               className={cn(
-                "flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-semibold text-ink-muted outline-none hover:bg-surface-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
+                "flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-normal text-ink-muted outline-none hover:bg-surface-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
                 active && "bg-surface-1 text-ink",
                 collapsed && "justify-center px-0"
               )}
@@ -244,6 +248,50 @@ export function DashboardShell({
             </Link>
           );
         })}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            openOnHover
+            delay={60}
+            closeDelay={120}
+            aria-label={collapsed ? "Menu lainnya" : undefined}
+            className={cn(
+              "flex min-h-10 w-full items-center gap-2.5 rounded-md px-3 text-sm font-normal text-ink-muted outline-none hover:bg-surface-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:bg-surface-1 data-[popup-open]:text-ink",
+              moreActive && "bg-surface-1 text-ink",
+              collapsed && "justify-center px-0"
+            )}
+          >
+            <Ellipsis className="size-4 shrink-0" />
+            {!collapsed ? "Lainnya" : null}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="right"
+            align="start"
+            sideOffset={8}
+            collisionAvoidance={{ fallbackAxisSide: "end" }}
+          >
+            {MORE_NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <DropdownMenuItem
+                  key={item.to}
+                  render={
+                    <Link
+                      to={item.to}
+                      aria-current={
+                        activePath.startsWith(item.to) ? "page" : undefined
+                      }
+                    />
+                  }
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Icon />
+                  {item.label}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
 
       {!collapsed ? (
