@@ -143,6 +143,15 @@ describe('ContextBuilderService system policy', () => {
     expect(systemPolicy).toContain(
       'Before sending files, confirm exactly which file or files the user wants.',
     );
+    expect(systemPolicy).toContain(
+      'Your capabilities are limited to the tools provided in this session.',
+    );
+    expect(systemPolicy).toContain(
+      'These tools are the complete extent of what you can do.',
+    );
+    expect(systemPolicy).toContain(
+      'Never claim, imply, or offer any capability beyond them',
+    );
     expect(systemPolicy).not.toContain('Do not bypass confirmation.');
     expect(systemPolicy).not.toContain('Available tool descriptions:');
     expect(tokenUsage.systemPolicy).toBe(
@@ -319,7 +328,7 @@ describe('ContextBuilderService channel formatting', () => {
     // whole Telegram prompt) already consumes almost this budget, so it must
     // clear it with room to spare; otherwise this asserts nothing about the
     // trimming it is meant to exercise.
-    const tokenBudget = 2_100;
+    const tokenBudget = 2_500;
     const { messages, tokenUsage } = await createBuilder(tokenBudget, {
       documents: [document('x'.repeat(100_000))],
       messages: [
@@ -401,7 +410,7 @@ describe('ContextBuilderService preferred address', () => {
 describe('ContextBuilderService attachments', () => {
   it('includes attachment metadata without extracted file content', async () => {
     const secretBody = 'isi rahasia yang tidak boleh masuk ke prompt';
-    const { messages, tokenUsage } = await createBuilder(1_000, {
+    const { messages, tokenUsage } = await createBuilder(1_400, {
       documents: [document(secretBody)],
     }).build(user, 'conversation-1', 'message-1');
 
@@ -416,7 +425,7 @@ describe('ContextBuilderService attachments', () => {
     expect(tokenUsage.attachmentManifest).toBe(estimateTokens(attachment));
   });
   it('uses document titles, not original upload ids in attachment manifests', async () => {
-    const { messages } = await createBuilder(1_000, {
+    const { messages } = await createBuilder(1_400, {
       documents: [
         document('isi', 'KTP Muh Muslim Al-Mujahid.jpg', 'AQADPhVrG2a7SVV.jpg'),
       ],
@@ -428,7 +437,7 @@ describe('ContextBuilderService attachments', () => {
   });
 
   it('keeps the complete context within the configured token budget', async () => {
-    const tokenBudget = 1_000;
+    const tokenBudget = 1_400;
     const { messages, tokenUsage } = await createBuilder(tokenBudget, {
       documents: [document('x'.repeat(100_000))],
       messages: [
@@ -476,7 +485,7 @@ describe('ContextBuilderService known documents', () => {
     expect(tokenUsage.knownDocuments).toBe(estimateTokens(manifest as string));
   });
   it('uses document titles, not original upload ids in saved-document manifests', async () => {
-    const { messages } = await createBuilder(1_000, {
+    const { messages } = await createBuilder(1_400, {
       documents: [
         document('isi', 'KTP Muh Muslim Al-Mujahid.jpg', 'AQADPhVrG2a7SVV.jpg'),
       ],
@@ -518,7 +527,8 @@ describe('ContextBuilderService known documents', () => {
 
 describe('ContextBuilderService prioritization and trust', () => {
   it('retains a bounded current user message under context pressure', async () => {
-    const { messages, tokenUsage } = await createBuilder(1_000, {
+    const tokenBudget = 1_400;
+    const { messages, tokenUsage } = await createBuilder(tokenBudget, {
       rollingSummary: 'Ringkasan lama '.repeat(500),
       documents: [document('x'.repeat(100_000))],
       messages: [
@@ -539,7 +549,7 @@ describe('ContextBuilderService prioritization and trust', () => {
       expect.stringContaining('Pertanyaan terbaru'),
     );
     expect(tokenUsage.history).toBeGreaterThan(0);
-    expect(tokenUsage.total).toBeLessThanOrEqual(1_000);
+    expect(tokenUsage.total).toBeLessThanOrEqual(tokenBudget);
     // The turn context always trails the retained history.
     expect(messages.at(-1)?.content).toContain('current instant');
   });
