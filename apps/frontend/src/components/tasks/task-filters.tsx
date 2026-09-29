@@ -274,7 +274,8 @@ export function TaskStatusChips({
               aria-pressed={active}
               className={cn(
                 "inline-flex min-h-10 shrink-0 snap-start items-center gap-2 rounded-pill border border-ink/10 bg-canvas py-1 pr-1.5 pl-3.5 text-sm font-medium whitespace-nowrap text-ink-muted outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50",
-                active && "border-ink bg-ink text-canvas"
+                // Matches the active option in the desktop filter panel.
+                active && "border-brand/40 bg-brand/10 font-semibold text-ink"
               )}
               onClick={() => onStatusChange(value)}
             >
@@ -284,7 +285,7 @@ export function TaskStatusChips({
                   className={cn(
                     "min-w-7 rounded-pill px-1.5 py-0.5 text-center font-mono text-xs tabular-nums",
                     active
-                      ? "bg-canvas/20 text-canvas"
+                      ? "bg-brand text-canvas"
                       : "bg-surface-1 text-ink-soft"
                   )}
                 >

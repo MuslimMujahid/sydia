@@ -19,7 +19,7 @@ function Avatar({
       className={cn("relative inline-flex", className)}
       {...props}
     >
-      <span className="flex size-10 items-center justify-center rounded-pill bg-ink font-display text-sm font-semibold text-background">
+      <span className="flex size-10 items-center justify-center rounded-pill bg-brand/12 font-display text-sm font-semibold text-brand-deep">
         {initials}
       </span>
       {presence ? (
