@@ -10,17 +10,17 @@ import {
 } from '../src/database/entities/category.entity';
 
 const DEMO_USER_ID = 'demo-user-seed';
-const DEMO_USER_EMAIL = 'demo.user@example.test';
+const DEMO_USER_EMAIL = 'user@demo.com';
 const DEMO_USER_NAME = 'Demo User';
 const DEMO_TIMEZONE = 'Asia/Jakarta';
 const DEMO_LOCALE = 'id';
-const DEMO_USER_PASSWORD = 'DemoSeed1!';
+const DEMO_USER_PASSWORD = 'Demo1234!';
 const DEMO_ACCOUNT_ISSUER = createLocalAccountIssuer('credential');
 const DEMO_ACCOUNT_ID = `${DEMO_USER_ID}-credential`;
 const ADMIN_USER_ID = 'admin-user-seed';
-const ADMIN_USER_EMAIL = 'admin.user@example.test';
+const ADMIN_USER_EMAIL = 'admin@demo.com';
 const ADMIN_USER_NAME = 'Sydia Admin';
-const ADMIN_USER_PASSWORD = 'AdminSeed1!';
+const ADMIN_USER_PASSWORD = 'Demo1234!';
 const ADMIN_ACCOUNT_ID = `${ADMIN_USER_ID}-credential`;
 
 function requiredEnvironmentVariable(name: string): string {
