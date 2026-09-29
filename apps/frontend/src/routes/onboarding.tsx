@@ -86,8 +86,8 @@ const PERSONA_OPTIONS: {
 
 const STEP_HEADINGS = [
   "Atur bahasa dan zona waktu",
-  "Sydia boleh memanggil Anda apa?",
-  "Pilih gaya bicara Sydia",
+  "Kamu mau dipanggil apa?",
+  "Interaksi seperti apa yang kamu harapkan?",
 ] as const;
 
 export const Route = createFileRoute("/onboarding")({
