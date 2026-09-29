@@ -13,7 +13,8 @@ export const Route = createFileRoute("/_app/tasks")({
       { title: "Tugas · Sydia" },
       {
         name: "description",
-        content: "Pantau dan pindahkan tugas melalui papan kerja empat tahap.",
+        content:
+          "Kelola semua tugas dalam satu daftar dengan filter status, tenggat, dan kategori.",
       },
     ],
   }),
@@ -31,7 +32,5 @@ function TasksRoute() {
     });
   };
 
-  return (
-    <TaskPage taskId={search.id} onTaskIdChange={handleTaskIdChange} />
-  );
+  return <TaskPage taskId={search.id} onTaskIdChange={handleTaskIdChange} />;
 }

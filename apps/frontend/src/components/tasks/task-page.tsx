@@ -1,30 +1,15 @@
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Ban,
-  CalendarClock,
-  Check,
-  CheckCircle2,
-  CircleDot,
-  Inbox,
-  Flag,
+  ArrowDownUp,
+  ListFilter,
   LoaderCircle,
-  MoreVertical,
   Pencil,
   Plus,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { z } from "zod";
 import {
   DomainInlineError,
@@ -37,10 +22,10 @@ import {
   SelectField,
   TextField,
 } from "@/components/forms/form-fields";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -48,15 +33,13 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSubmenu,
-  DropdownMenuSubmenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
-import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   categoriesQueryOptions,
   useCreateCategory,
@@ -69,6 +52,20 @@ import type {
   CategoryIconKey,
 } from "@/lib/services/api/categories/categories.api";
 import { CategoryIcon } from "./category-icon";
+import { TaskFilterPanel, TaskStatusChips } from "./task-filters";
+import { TaskListSkeleton, TaskRow } from "./task-row";
+import {
+  PRIORITY_LABELS,
+  SORT_LABELS,
+  STATUS_FILTER_LABELS,
+  STATUS_LABELS,
+  countTasksByStatus,
+  filterTasksByStatus,
+  isTaskSortKey,
+  sortTasks,
+  type TaskSortKey,
+  type TaskStatusFilter,
+} from "./task-view";
 import {
   taskQueryOptions,
   tasksQueryOptions,
@@ -85,12 +82,7 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "@/lib/services/api/tasks/tasks.api";
-import {
-  formatDateTime,
-  formatRelativeDay,
-  fromDateTimeLocal,
-  toDateTimeLocal,
-} from "@/lib/utils/date-time";
+import { fromDateTimeLocal, toDateTimeLocal } from "@/lib/utils/date-time";
 import { cn } from "@/lib/utils/cn";
 
 export type TaskPageProps = {
@@ -107,26 +99,8 @@ const taskSchema = z.object({
   categoryIds: z.array(z.string()).max(5, "Pilih maksimal 5 kategori."),
 });
 
-const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  low: "Rendah",
-  medium: "Sedang",
-  high: "Tinggi",
-};
-
-const STATUS_LABELS: Record<TaskStatus, string> = {
-  inbox: "Inbox",
-  doing: "Dikerjakan",
-  done: "Selesai",
-  cancelled: "Dibatalkan",
-};
-
-const DUE_LABELS: Record<TaskDueFilter | "all", string> = {
-  all: "Semua tenggat",
-  today: "Hari ini",
-  upcoming: "Mendatang",
-  overdue: "Terlambat",
-  none: "Tanpa tenggat",
-};
+// Task dialogs are bottom sheets on phones and roomy centered dialogs from `sm`.
+const TASK_SHEET_CLASS = "sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto";
 
 function taskValues(task?: Task) {
   return {
@@ -302,7 +276,7 @@ function CategoryManager({
     const mutation = editing ? updateMutation : createMutation;
 
     return (
-      <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+      <DialogContent variant="sheet" className={TASK_SHEET_CLASS}>
         <DialogTitle>
           {editing ? "Ubah kategori" : "Tambah kategori"}
         </DialogTitle>
@@ -400,7 +374,7 @@ function CategoryManager({
   }
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+    <DialogContent variant="sheet" className={TASK_SHEET_CLASS}>
       <DialogTitle>Kelola kategori</DialogTitle>
       <DialogDescription className="mt-2">
         Buat, ubah, atau hapus kategori. Perubahan berlaku untuk semua tugas.
@@ -534,7 +508,7 @@ function TaskEditor({ task, onClose }: { task?: Task; onClose: () => void }) {
   }
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+    <DialogContent variant="sheet" className={TASK_SHEET_CLASS}>
       <DialogTitle>{task ? "Rincian tugas" : "Tugas baru"}</DialogTitle>
       <DialogDescription className="mt-2">
         {task
@@ -560,7 +534,9 @@ function TaskEditor({ task, onClose }: { task?: Task; onClose: () => void }) {
               {({ describedBy, invalid }) => (
                 <TextField
                   id="task-title"
-                  autoFocus
+                  // Only new tasks grab focus, so opening details on a phone
+                  // does not pop the keyboard over the content.
+                  autoFocus={!task}
                   value={field.state.value}
                   aria-describedby={describedBy}
                   aria-invalid={invalid}
@@ -718,7 +694,7 @@ function TaskEditorLoader({
 
   if (query.isPending) {
     return (
-      <DialogContent>
+      <DialogContent variant="sheet" className={TASK_SHEET_CLASS}>
         <DialogTitle>Rincian tugas</DialogTitle>
         <DialogDescription className="mt-2">
           Memuat tugas yang tersimpan…
@@ -730,7 +706,7 @@ function TaskEditorLoader({
 
   if (query.isError) {
     return (
-      <DialogContent>
+      <DialogContent variant="sheet" className={TASK_SHEET_CLASS}>
         <DialogTitle>Tugas tidak dapat dimuat</DialogTitle>
         <DialogDescription className="mt-2">
           {query.error.message}
@@ -749,265 +725,56 @@ function TaskEditorLoader({
   return <TaskEditor task={query.data} onClose={onClose} />;
 }
 
-const TASK_COLUMNS: Array<{
-  status: TaskStatus;
-  label: string;
-  emptyMessage: string;
-  icon: typeof Inbox;
-}> = [
-  {
-    status: "inbox",
-    label: STATUS_LABELS.inbox,
-    emptyMessage: "Belum ada tugas baru.",
-    icon: Inbox,
-  },
-  {
-    status: "doing",
-    label: STATUS_LABELS.doing,
-    emptyMessage: "Tidak ada tugas yang sedang dikerjakan.",
-    icon: CircleDot,
-  },
-  {
-    status: "done",
-    label: STATUS_LABELS.done,
-    emptyMessage: "Belum ada tugas yang selesai.",
-    icon: CheckCircle2,
-  },
-  {
-    status: "cancelled",
-    label: STATUS_LABELS.cancelled,
-    emptyMessage: "Tidak ada tugas yang dibatalkan.",
-    icon: Ban,
-  },
-];
-
-function TaskCard({
-  task,
-  dragEnabled,
-  onEdit,
-  onMove,
-}: {
-  task: Task;
-  dragEnabled: boolean;
-  onEdit: () => void;
-  onMove: (status: TaskStatus) => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: task.id,
-      data: { status: task.status },
-      disabled: !dragEnabled,
-    });
-
-  const dragStyle =
-    dragEnabled && transform
-      ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-      : undefined;
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={dragStyle}
-      className={cn("relative", dragEnabled && "touch-none")}
-    >
-      <article
-        {...(dragEnabled ? attributes : { role: "button", tabIndex: 0 })}
-        {...listeners}
-        className={cn(
-          "group h-full rounded-sm border border-surface-1 bg-canvas p-4 transition-[border-color,box-shadow,transform] duration-200 ease-out hover:border-ink-weak/50 hover:shadow-[0_8px_24px_-18px_var(--color-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep",
-          dragEnabled &&
-            "cursor-grab hover:-translate-y-0.5 active:cursor-grabbing",
-          task.status === "doing" && "border-warn/40",
-          task.status === "done" && "border-brand-deep/30 bg-surface-2",
-          task.status === "cancelled" &&
-            "border-destructive/30 bg-destructive/5",
-          isDragging && "z-20 scale-[1.02] cursor-grabbing opacity-70 shadow-lg"
-        )}
-        onClick={() => {
-          if (!isDragging) onEdit();
-        }}
-        onKeyDown={(event) => {
-          listeners?.onKeyDown?.(event);
-          if (event.key === "Enter" && !event.defaultPrevented) onEdit();
-        }}
-      >
-        <h3
-          className={cn(
-            "pr-7 font-display text-base leading-snug font-semibold text-ink",
-            task.status === "done" && "text-editorial",
-            task.status === "cancelled" && "text-ink-muted line-through"
-          )}
-        >
-          {task.title}
-        </h3>
-        {task.categories.length ? (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {task.categories.map((category) => (
-              <span
-                key={category.id}
-                className="inline-flex items-center gap-1 rounded-pill bg-surface-1 py-1 pr-2 pl-1 text-xs font-medium text-ink-soft"
-              >
-                <CategoryIcon
-                  iconKey={category.iconKey}
-                  color={category.color}
-                  className="size-4.5 rounded-md [&_svg]:size-3"
-                />
-                {category.name}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {task.description ? (
-          <p className="mt-3 line-clamp-3 text-sm text-ink-muted">
-            {task.description}
-          </p>
-        ) : null}
-        <div className="mt-5 flex items-center gap-4 border-t border-surface-1 pt-3 text-xs text-ink-muted">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <CalendarClock className="size-3.5 shrink-0" />
-            <span className="truncate">
-              {task.dueAt ? formatRelativeDay(task.dueAt) : "Tanpa tenggat"}
-            </span>
-          </span>
-          <span
-            className={cn(
-              "ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-1",
-              task.priority === "high" && "bg-warn/15 text-warn",
-              task.priority === "low" && "text-ink-weak"
-            )}
-            title={`Prioritas ${PRIORITY_LABELS[task.priority].toLowerCase()}`}
-            aria-label={`Prioritas ${PRIORITY_LABELS[task.priority].toLowerCase()}`}
-          >
-            <Flag className="size-3.5" aria-hidden="true" />
-          </span>
-        </div>
-      </article>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="absolute top-2 right-2"
-              aria-label={`Aksi untuk ${task.title}`}
-            />
-          }
-        >
-          <MoreVertical />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuSubmenu>
-            <DropdownMenuSubmenuTrigger>
-              Pindahkan ke
-            </DropdownMenuSubmenuTrigger>
-            <DropdownMenuContent side="right" align="start" sideOffset={4}>
-              {TASK_COLUMNS.filter(
-                (column) => column.status !== task.status
-              ).map(({ status, label, icon: Icon }) => (
-                <DropdownMenuItem key={status} onClick={() => onMove(status)}>
-                  <Icon /> {label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenuSubmenu>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </li>
-  );
-}
-
-function TaskColumn({
-  status,
-  label,
-  emptyMessage,
-  icon: Icon,
-  tasks,
-  filtered,
-  dragEnabled,
-  onEdit,
-  onMove,
-}: (typeof TASK_COLUMNS)[number] & {
-  tasks: Task[];
+type TaskListEmptyProps = {
   filtered: boolean;
-  dragEnabled: boolean;
-  onEdit: (task: Task) => void;
-  onMove: (task: Task, status: TaskStatus) => void;
-}) {
-  const headingId = `task-column-${status}`;
-  const { setNodeRef, isOver } = useDroppable({
-    id: status,
-    disabled: !dragEnabled,
-  });
+  onReset: () => void;
+  onCreate: () => void;
+};
 
+function TaskListEmpty({ filtered, onReset, onCreate }: TaskListEmptyProps) {
   return (
-    <section
-      ref={setNodeRef}
-      className={cn(
-        "min-w-72 snap-start snap-always rounded-sm transition-colors xl:min-w-0",
-        isOver &&
-          "bg-brand-soft/35 outline-2 outline-offset-4 outline-brand-deep/30"
-      )}
-      aria-labelledby={headingId}
-    >
-      <header className="flex items-center justify-between gap-3 border-b border-hairline pb-3">
-        <div className="flex items-center gap-2">
-          <Icon
-            className={cn(
-              "size-5 text-ink-weak",
-              status === "doing" && "text-warn",
-              status === "done" && "text-brand-deep",
-              status === "cancelled" && "text-destructive"
-            )}
-          />
-          <h2 id={headingId} className="font-display text-base font-semibold">
-            {label}
-          </h2>
-        </div>
-        <span
-          className="min-w-8 rounded-pill bg-surface-1 px-2 py-1 text-center font-mono text-xs text-ink-soft tabular-nums"
-          aria-label={`${tasks.length} tugas`}
+    <div className="rounded-lg border border-dashed border-ink/12 px-6 py-12 text-center">
+      <p className="font-display text-base font-semibold text-ink">
+        {filtered ? "Tidak ada tugas yang cocok" : "Belum ada tugas"}
+      </p>
+      <p className="mx-auto mt-1.5 max-w-sm text-sm text-ink-muted">
+        {filtered
+          ? "Coba ubah kata kunci pencarian atau longgarkan filternya."
+          : "Tambahkan tugas pertamamu, lalu centang saat sudah selesai."}
+      </p>
+      {filtered ? (
+        <Button
+          type="button"
+          variant="dark-outline"
+          size="sm"
+          className="mt-5"
+          onClick={onReset}
         >
-          {tasks.length}
-        </span>
-      </header>
-      {tasks.length ? (
-        <ul className="mt-4 min-h-24 space-y-3">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              dragEnabled={dragEnabled}
-              onEdit={() => onEdit(task)}
-              onMove={(nextStatus) => onMove(task, nextStatus)}
-            />
-          ))}
-        </ul>
+          Hapus filter
+        </Button>
       ) : (
-        <div className="py-8 text-sm text-ink-muted">
-          <p>
-            {filtered
-              ? "Tidak ada tugas yang cocok di tahap ini."
-              : emptyMessage}
-          </p>
-        </div>
+        <Button type="button" size="sm" className="mt-5" onClick={onCreate}>
+          <Plus /> Tugas baru
+        </Button>
       )}
-    </section>
+    </div>
   );
 }
 
 export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
+  const [status, setStatus] = useState<TaskStatusFilter>("all");
   const [due, setDue] = useState<TaskDueFilter | "all">("all");
+  const [sort, setSort] = useState<TaskSortKey>("due");
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [newEditorOpen, setNewEditorOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Captured once so relative due dates stay stable across re-renders.
+  const [now] = useState(() => new Date());
   const statusMutation = useSetTaskStatus();
-  const dragEnabled = useMediaQuery("(min-width: 80rem)");
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor)
-  );
+  const deleteMutation = useDeleteTask();
 
   const categoriesQuery = useQuery(categoriesQueryOptions());
   const filters: TaskFilters = {
@@ -1017,169 +784,319 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
   };
 
   const query = useQuery(tasksQueryOptions(filters));
-  const filtered = Boolean(
-    search || due !== "all" || selectedCategoryIds.length
+
+  const counts = useMemo(
+    () => (query.data ? countTasksByStatus(query.data) : undefined),
+    [query.data]
   );
+
+  const deletingTaskId = deleteMutation.isPending
+    ? deleteMutation.variables
+    : undefined;
+
+  const visibleTasks = useMemo(
+    () =>
+      sortTasks(filterTasksByStatus(query.data ?? [], status), sort).filter(
+        (task) => task.id !== deletingTaskId
+      ),
+    [query.data, status, sort, deletingTaskId]
+  );
+
+  const sheetFilterCount = (due === "all" ? 0 : 1) + selectedCategoryIds.length;
+
+  const filtered = Boolean(search || status !== "all" || sheetFilterCount);
+  const rowError = statusMutation.error ?? deleteMutation.error;
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
     setSearch(searchDraft.trim());
   }
 
-  function moveTask(event: DragEndEvent) {
-    const destination = event.over?.id as TaskStatus | undefined;
-    const current = event.active.data.current?.status as TaskStatus | undefined;
-    if (!destination || !current || destination === current) return;
-    statusMutation.mutate({
-      taskId: String(event.active.id),
-      status: destination,
-    });
+  function toggleCategory(categoryId: string) {
+    setSelectedCategoryIds((ids) =>
+      ids.includes(categoryId)
+        ? ids.filter((id) => id !== categoryId)
+        : [...ids, categoryId]
+    );
   }
 
-  function moveTaskToStatus(task: Task, status: TaskStatus) {
-    if (status === task.status) return;
-    statusMutation.mutate({ taskId: task.id, status });
+  function resetSheetFilters() {
+    setDue("all");
+    setSelectedCategoryIds([]);
   }
+
+  function resetFilters() {
+    resetSheetFilters();
+    setStatus("all");
+    setSearch("");
+    setSearchDraft("");
+  }
+
+  function changeTaskStatus(task: Task, nextStatus: TaskStatus) {
+    if (nextStatus === task.status) return;
+    deleteMutation.reset();
+    statusMutation.mutate({ taskId: task.id, status: nextStatus });
+  }
+
+  function removeTask(task: Task) {
+    if (
+      !window.confirm(
+        `Hapus tugas “${task.title}”? Tindakan ini tidak dapat dibatalkan.`
+      )
+    )
+      return;
+    statusMutation.reset();
+    deleteMutation.mutate(task.id);
+  }
+
+  function openCategoryManager() {
+    setFiltersOpen(false);
+    setCategoryManagerOpen(true);
+  }
+
+  const filterPanelProps = {
+    status,
+    counts,
+    due,
+    categories: categoriesQuery.data ?? [],
+    categoriesLoading: categoriesQuery.isPending,
+    selectedCategoryIds,
+    onStatusChange: setStatus,
+    onDueChange: setDue,
+    onCategoryToggle: toggleCategory,
+    onManageCategories: openCategoryManager,
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <DomainPageHeader
         title="Tugas"
-        description="Pantau setiap tugas dari tangkapan awal sampai selesai—atau batalkan dengan jelas saat rencana berubah."
         action={
           <Button onClick={() => setNewEditorOpen(true)}>
             <Plus /> Tugas baru
           </Button>
         }
       />
-      <section
-        aria-label="Filter tugas"
-        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]"
-      >
-        <form className="flex gap-2" role="search" onSubmit={submitSearch}>
-          <label className="sr-only" htmlFor="task-search">
-            Cari tugas
-          </label>
-          <Input
-            id="task-search"
-            type="search"
-            placeholder="Cari judul atau catatan"
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-          />
-          <Button
-            type="submit"
-            variant="dark-outline"
-            size="icon"
-            aria-label="Cari tugas"
-          >
-            <Search />
-          </Button>
-        </form>
-        <label>
-          <span className="sr-only">Tenggat tugas</span>
-          <SelectField
-            value={due}
-            onChange={(event) =>
-              setDue(event.target.value as TaskDueFilter | "all")
-            }
-          >
-            {Object.entries(DUE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
-        </label>
-      </section>
-      <fieldset>
-        <legend className="sr-only">Filter kategori</legend>
-        <div className="flex flex-wrap items-center gap-2">
-          {(categoriesQuery.data ?? []).map((category) => {
-            const active = selectedCategoryIds.includes(category.id);
-
-            return (
-              <button
-                key={category.id}
-                type="button"
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1.5 text-sm",
-                  active
-                    ? "border-brand-deep bg-brand-deep text-white"
-                    : "border-surface-1 bg-canvas text-ink-soft"
-                )}
-                aria-pressed={active}
-                onClick={() =>
-                  setSelectedCategoryIds(
-                    active
-                      ? selectedCategoryIds.filter((id) => id !== category.id)
-                      : [...selectedCategoryIds, category.id]
-                  )
+      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_16rem] xl:items-start xl:gap-8">
+        <section
+          aria-labelledby="task-list-heading"
+          className="min-w-0 space-y-4"
+        >
+          <h2 id="task-list-heading" className="sr-only">
+            Daftar tugas
+          </h2>
+          <div className="flex gap-2">
+            <form
+              className="relative min-w-0 flex-1"
+              role="search"
+              onSubmit={submitSearch}
+            >
+              <label className="sr-only" htmlFor="task-search">
+                Cari tugas
+              </label>
+              <Input
+                id="task-search"
+                type="search"
+                enterKeyHint="search"
+                placeholder="Cari judul atau catatan"
+                className="pr-12"
+                value={searchDraft}
+                onChange={(event) => {
+                  setSearchDraft(event.target.value);
+                  // Clearing the field (including the native ✕) resets results.
+                  if (!event.target.value) setSearch("");
+                }}
+              />
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute top-0.5 right-0.5 px-0"
+                aria-label="Cari tugas"
+              >
+                <Search />
+              </Button>
+            </form>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="dark-outline"
+                    size="icon"
+                    className="relative sm:w-auto sm:px-4"
+                  />
                 }
               >
-                <CategoryIcon
-                  iconKey={category.iconKey}
-                  color={category.color}
-                  className="size-5 rounded-md [&_svg]:size-3.5"
-                />
-                {category.name}
-              </button>
-            );
-          })}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Kelola kategori"
-            title="Kelola kategori"
-            onClick={() => setCategoryManagerOpen(true)}
+                <ArrowDownUp />
+                <span className="max-sm:sr-only">Urutkan</span>
+                <span className="sr-only">: {SORT_LABELS[sort]}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuRadioGroup
+                  aria-label="Urutkan tugas"
+                  value={sort}
+                  onValueChange={(value: unknown) => {
+                    if (isTaskSortKey(value)) setSort(value);
+                  }}
+                >
+                  {(Object.keys(SORT_LABELS) as TaskSortKey[]).map((value) => (
+                    <DropdownMenuRadioItem key={value} value={value}>
+                      {SORT_LABELS[value]}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              type="button"
+              variant="dark-outline"
+              size="icon"
+              className="relative sm:w-auto sm:px-4 xl:hidden"
+              onClick={() => setFiltersOpen(true)}
+            >
+              <ListFilter />
+              <span className="max-sm:sr-only">Filter</span>
+              {sheetFilterCount ? (
+                <>
+                  <span className="sr-only"> ({sheetFilterCount} aktif)</span>
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-pill bg-brand px-1 text-[11px] font-bold text-canvas"
+                  >
+                    {sheetFilterCount}
+                  </span>
+                </>
+              ) : null}
+            </Button>
+          </div>
+          <TaskStatusChips
+            className="xl:hidden"
+            status={status}
+            counts={counts}
+            onStatusChange={setStatus}
+          />
+          <div
+            className="flex min-h-9 items-center justify-between gap-3 text-sm text-ink-muted"
+            aria-live="polite"
           >
-            <Pencil />
-          </Button>
-        </div>
-      </fieldset>
-      {query.isPending ? (
-        <DomainListSkeleton label="Memuat papan tugas" />
-      ) : null}
-      {query.isError ? (
-        <DomainInlineError
-          title="Tugas tidak dapat dimuat"
-          message={query.error.message}
-          onRetry={() => void query.refetch()}
-        />
-      ) : null}
-      {query.isSuccess ? (
-        <section aria-label="Papan tugas">
-          <p className="mb-3 text-sm text-ink-muted xl:sr-only">
-            Geser papan ke samping untuk melihat semua tahap.{" "}
-            {dragEnabled
-              ? "Seret kartu untuk memindahkan tugas."
-              : "Buka menu kartu untuk memindahkan tugas ke tahap lain."}
-          </p>
-          {statusMutation.error ? (
-            <p className="mb-3 text-sm text-destructive" role="alert">
-              {statusMutation.error.message}
+            <p>
+              {query.isSuccess ? (
+                <>
+                  <span className="font-semibold text-ink tabular-nums">
+                    {visibleTasks.length}
+                  </span>{" "}
+                  tugas
+                  {status === "all"
+                    ? null
+                    : ` · ${STATUS_FILTER_LABELS[status]}`}
+                  {search ? ` · “${search}”` : null}
+                </>
+              ) : null}
+            </p>
+            {filtered ? (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="min-h-9 px-0 py-0"
+                onClick={resetFilters}
+              >
+                <X /> Hapus filter
+              </Button>
+            ) : null}
+          </div>
+          {rowError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {rowError.message}
             </p>
           ) : null}
-          <DndContext sensors={sensors} onDragEnd={moveTask}>
-            <div className="-mx-5 grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(18rem,85vw)] gap-4 overflow-x-auto overscroll-x-contain scroll-px-5 px-5 pb-4 sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:-mx-12 lg:scroll-px-12 lg:px-12 xl:mx-0 xl:snap-none xl:grid-flow-row xl:auto-cols-auto xl:grid-cols-4 xl:scroll-px-0 xl:px-0">
-              {TASK_COLUMNS.map((column) => (
-                <TaskColumn
-                  key={column.status}
-                  {...column}
-                  tasks={query.data.filter(
-                    (task) => task.status === column.status
-                  )}
-                  filtered={filtered}
-                  dragEnabled={dragEnabled}
-                  onEdit={(task) => onTaskIdChange(task.id)}
-                  onMove={moveTaskToStatus}
-                />
-              ))}
-            </div>
-          </DndContext>
+          {query.isPending ? (
+            <TaskListSkeleton label="Memuat daftar tugas" />
+          ) : null}
+          {query.isError ? (
+            <DomainInlineError
+              title="Tugas tidak dapat dimuat"
+              message={query.error.message}
+              onRetry={() => void query.refetch()}
+            />
+          ) : null}
+          {query.isSuccess ? (
+            visibleTasks.length ? (
+              <ul className="space-y-2">
+                {visibleTasks.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    now={now}
+                    pendingStatus={
+                      statusMutation.isPending &&
+                      statusMutation.variables.taskId === task.id
+                        ? statusMutation.variables.status
+                        : undefined
+                    }
+                    onOpen={() => onTaskIdChange(task.id)}
+                    onStatusChange={(nextStatus) =>
+                      changeTaskStatus(task, nextStatus)
+                    }
+                    onDelete={() => removeTask(task)}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <TaskListEmpty
+                filtered={filtered}
+                onReset={resetFilters}
+                onCreate={() => setNewEditorOpen(true)}
+              />
+            )
+          ) : null}
         </section>
-      ) : null}
+        <aside
+          aria-label="Filter tugas"
+          className="hidden rounded-lg border border-hairline bg-canvas p-2 shadow-card xl:sticky xl:top-12 xl:block"
+        >
+          <TaskFilterPanel {...filterPanelProps} />
+        </aside>
+      </div>
+      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DialogContent variant="sheet" showClose={false}>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle>Filter tugas</DialogTitle>
+            <DialogClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="-mr-2"
+                  aria-label="Tutup"
+                />
+              }
+            >
+              <X />
+            </DialogClose>
+          </div>
+          <TaskFilterPanel
+            {...filterPanelProps}
+            showStatus={false}
+            className="-mx-3 mt-3"
+          />
+          <div className="mt-5 flex gap-3">
+            <Button
+              type="button"
+              variant="dark-outline"
+              className="flex-1"
+              disabled={!sheetFilterCount}
+              onClick={resetSheetFilters}
+            >
+              Atur ulang
+            </Button>
+            <DialogClose render={<Button type="button" className="flex-1" />}>
+              Terapkan
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={newEditorOpen || taskId !== undefined}
         onOpenChange={(open) => {
@@ -1216,79 +1133,5 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
         ) : null}
       </Dialog>
     </div>
-  );
-}
-
-export function CompactTaskRow({ task }: { task: Task }) {
-  const mutation = useSetTaskStatus();
-  const isDone = task.status === "done";
-  const isCancelled = task.status === "cancelled";
-
-  return (
-    <li className="flex items-start gap-3 py-4">
-      <Button
-        variant={isDone ? "secondary" : "ghost"}
-        size="icon-sm"
-        aria-label={
-          isCancelled
-            ? `${task.title} dibatalkan`
-            : isDone
-              ? `Kembalikan ${task.title} ke inbox`
-              : `Tandai ${task.title} selesai`
-        }
-        disabled={mutation.isPending || isCancelled}
-        onClick={() =>
-          mutation.mutate({
-            taskId: task.id,
-            status: isDone ? "inbox" : "done",
-          })
-        }
-      >
-        {mutation.isPending ? (
-          <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-        ) : isDone ? (
-          <Check />
-        ) : isCancelled ? (
-          <Ban />
-        ) : (
-          <CircleDot />
-        )}
-      </Button>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p
-            className={cn(
-              "font-display font-bold",
-              isDone && "text-editorial",
-              isCancelled && "text-ink-muted line-through"
-            )}
-          >
-            {task.title}
-          </p>
-          {task.status !== "inbox" ? (
-            <Badge
-              dot={
-                task.status === "doing"
-                  ? "warn"
-                  : task.status === "done"
-                    ? "brand"
-                    : "destructive"
-              }
-              className="px-2 py-0.5 text-xs"
-            >
-              {STATUS_LABELS[task.status]}
-            </Badge>
-          ) : null}
-        </div>
-        <p className="mt-1 text-sm text-ink-muted">
-          {task.dueAt ? formatDateTime(task.dueAt) : "Tanpa tenggat"}
-        </p>
-        {mutation.error ? (
-          <p className="mt-1 text-sm text-destructive" role="alert">
-            {mutation.error.message}
-          </p>
-        ) : null}
-      </div>
-    </li>
   );
 }

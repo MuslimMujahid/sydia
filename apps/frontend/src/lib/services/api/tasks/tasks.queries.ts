@@ -42,6 +42,15 @@ function cacheTask(queryClient: QueryClient, task: Task) {
   queryClient.setQueryData(taskQueryKeys.detail(task.id), task);
 }
 
+// Patch cached lists right away so a toggled row does not flicker back to its
+// old status while the invalidated lists refetch.
+function cacheTaskInLists(queryClient: QueryClient, task: Task) {
+  queryClient.setQueriesData<Task[]>(
+    { queryKey: taskQueryKeys.lists() },
+    (tasks) => tasks?.map((item) => (item.id === task.id ? task : item))
+  );
+}
+
 export function useCreateTask() {
   return useMutation({
     mutationFn: createTask,
@@ -100,7 +109,10 @@ export function useSetTaskStatus() {
       taskId: string;
       status: Task["status"];
     }) => updateTask({ taskId, values: { status } }),
-    onSuccess: (task) => cacheTask(queryClient, task),
+    onSuccess: (task) => {
+      cacheTask(queryClient, task);
+      cacheTaskInLists(queryClient, task);
+    },
     meta: {
       invalidateQueries: [
         taskQueryKeys.all,

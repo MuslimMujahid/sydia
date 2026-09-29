@@ -9,18 +9,28 @@ export function DomainPageHeader({
   action,
 }: {
   title: string;
-  description: string;
+  description?: string;
   action?: ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-6 border-b border-ink/8 pb-8 sm:flex-row sm:items-end sm:justify-between">
+    <header
+      className={cn(
+        "flex gap-6 border-b border-ink/8 pb-8",
+        // Without a description the title and action fit on one row.
+        description
+          ? "flex-col sm:flex-row sm:items-end sm:justify-between"
+          : "flex-row items-center justify-between gap-4"
+      )}
+    >
       <div className="max-w-2xl">
         <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
           {title}
         </h1>
-        <p className="mt-3 text-[15px] leading-[1.6] text-ink-muted">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-3 text-[15px] leading-[1.6] text-ink-muted">
+            {description}
+          </p>
+        ) : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>
