@@ -33,6 +33,7 @@ import {
   type ContextTokenUsage,
 } from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
+import { buildTerminalToolResponse } from './terminal-tool-response';
 import { ToolExecutorService } from './tool-executor.service';
 
 const ASSISTANT_MESSAGES = {
@@ -616,6 +617,20 @@ export class AssistantOrchestratorService {
 
               if (label) observer?.onToolCall(label);
             },
+            // Every completed tool step is offered here: when the tools have
+            // fully answered the user, their deterministic acknowledgement ends
+            // the turn instead of paying for a second model call that would
+            // only restate them.
+            acknowledgeTerminalStep: (executions, decidedBy) =>
+              buildTerminalToolResponse(
+                {
+                  locale: state.user.locale === 'id' ? 'id' : 'en',
+                  timezone: state.user.timezone,
+                  channel: state.channel,
+                },
+                executions,
+                decidedBy,
+              ),
           });
 
           this.logger.debug(

@@ -2,6 +2,10 @@ import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { APICallError, jsonSchema, simulateReadableStream, tool } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
+import type {
+  ToolStepAcknowledger,
+  ToolStepExecution,
+} from './model-gateway.types';
 import {
   ModelGatewayError,
   OpenRouterLanguageModel,
@@ -819,6 +823,575 @@ describe('OpenRouterLanguageModel', () => {
       }),
     ).rejects.toBeInstanceOf(ModelGatewayError);
     expect(tracing.calls).toHaveLength(1);
+  });
+
+  function toolCallChunk(toolCallId: string, toolName: string, input: unknown) {
+    return {
+      type: 'tool-call' as const,
+      toolCallId,
+      toolName,
+      input: JSON.stringify(input),
+    };
+  }
+
+  function toolCallsFinish() {
+    return {
+      type: 'finish' as const,
+      finishReason: { unified: 'tool-calls' as const, raw: undefined },
+      logprobs: undefined,
+      usage: streamUsage,
+    };
+  }
+
+  function toolCallResult(
+    content: {
+      type: 'tool-call';
+      toolCallId: string;
+      toolName: string;
+      input: string;
+    }[],
+    finishReason: 'stop' | 'tool-calls',
+  ) {
+    return {
+      content,
+      finishReason: { unified: finishReason, raw: undefined },
+      usage: streamUsage,
+      warnings: [],
+    };
+  }
+
+  /**
+   * Tools for the terminal-step cases. `create_task` resolves last on purpose:
+   * a step with siblings proves the acknowledgement waits for every call and
+   * still reports them in call order.
+   */
+  function terminalTools(overrides: Record<string, unknown> = {}) {
+    const schema = {
+      type: 'object' as const,
+      properties: { title: { type: 'string' as const } },
+      additionalProperties: false,
+    };
+
+    return {
+      create_task: tool({
+        description: 'Create task',
+        inputSchema: jsonSchema(schema),
+        execute: () =>
+          new Promise<string>((resolve) => {
+            setTimeout(
+              () =>
+                resolve(
+                  JSON.stringify({
+                    objectType: 'task',
+                    object: { title: 'Kirim laporan', dueAt: null },
+                  }),
+                ),
+              25,
+            );
+          }),
+      }),
+      save_memory: tool({
+        description: 'Save memory',
+        inputSchema: jsonSchema(schema),
+        execute: () =>
+          Promise.resolve(JSON.stringify({ memory: { content: 'Suka kopi' } })),
+      }),
+      search_documents: tool({
+        description: 'Search documents',
+        inputSchema: jsonSchema(schema),
+        execute: () => Promise.resolve('ok'),
+      }),
+      ...overrides,
+    };
+  }
+
+  /**
+   * Stands in for the domain acknowledger: it speaks only for the tools it
+   * knows and only when every call completes the turn, which is the exact
+   * distinction the gateway must preserve — text ends the loop, `null` hands
+   * the step back to the model. It also records what it was shown, so the
+   * payload of a completed step is observable.
+   */
+  function stepAcknowledger() {
+    const seen: ToolStepExecution[][] = [];
+
+    const acknowledge: ToolStepAcknowledger = (executions) => {
+      seen.push([...executions]);
+
+      const labels: string[] = [];
+
+      for (const execution of executions) {
+        const argumentsValue = execution.arguments as {
+          completeTurn?: boolean;
+        } | null;
+
+        if (argumentsValue?.completeTurn === false) return null;
+
+        if (execution.toolName === 'create_task') {
+          const title = (
+            execution.result as { object?: { title?: string } } | null
+          )?.object?.title;
+
+          if (typeof title !== 'string' || !title) return null;
+
+          labels.push(`Created task “${title}”.`);
+          continue;
+        }
+
+        if (execution.toolName === 'save_memory') {
+          const content = (
+            execution.result as { memory?: { content?: string } } | null
+          )?.memory?.content;
+
+          if (typeof content !== 'string' || !content) return null;
+
+          labels.push(`Saved memory: “${content}”.`);
+          continue;
+        }
+
+        return null;
+      }
+
+      return labels.join(' ');
+    };
+
+    return { acknowledge, seen };
+  }
+
+  /** Reads the task title out of a tool result without asserting its shape. */
+  function taskTitle(result: unknown): string {
+    if (!result || typeof result !== 'object' || !('object' in result)) {
+      throw new Error('The tool result carried no object.');
+    }
+
+    const { object } = result;
+
+    if (!object || typeof object !== 'object' || !('title' in object)) {
+      throw new Error('The tool result carried no title.');
+    }
+
+    const { title } = object;
+
+    if (typeof title !== 'string') {
+      throw new Error('The tool result title was not a string.');
+    }
+
+    return title;
+  }
+
+  /** Whether a call declared that another tool call must still run. */
+  function declinesTurn(argumentsValue: unknown): boolean {
+    if (
+      !argumentsValue ||
+      typeof argumentsValue !== 'object' ||
+      !('completeTurn' in argumentsValue)
+    ) {
+      return false;
+    }
+
+    return argumentsValue.completeTurn === false;
+  }
+
+  function gatewayFor(languageModel: MockLanguageModelV4) {
+    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
+
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+    return gateway;
+  }
+
+  it('ends the turn after one terminal tool call instead of calling the model again', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+
+        return Promise.resolve({
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'text-start' as const, id: 'text-1' },
+              {
+                type: 'text-delta' as const,
+                id: 'text-1',
+                delta: 'I will create the task first.',
+              },
+              { type: 'text-end' as const, id: 'text-1' },
+              toolCallChunk('call-1', 'create_task', {
+                title: 'Kirim laporan',
+              }),
+              toolCallsFinish(),
+            ],
+          }),
+        });
+      },
+    });
+
+    const { acknowledge, seen } = stepAcknowledger();
+    const onTextDelta = jest.fn<(delta: string) => void>();
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Buat tugas.' }],
+      tools: terminalTools(),
+      onTextDelta,
+      onToolCall: jest.fn(),
+      acknowledgeTerminalStep: acknowledge,
+    });
+
+    // The tools already answered, so the turn ends with their acknowledgement
+    // and no second model call is paid for.
+    expect(result.text).toBe('Created task “Kirim laporan”.');
+    expect(calls).toBe(1);
+    expect(languageModel.doStreamCalls).toHaveLength(1);
+
+    // Neither the planning narration nor a restatement reaches the user; the
+    // acknowledgement is streamed exactly once.
+    expect(onTextDelta).toHaveBeenCalledTimes(1);
+    expect(onTextDelta).toHaveBeenCalledWith('Created task “Kirim laporan”.');
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual([
+      {
+        toolCallId: 'call-1',
+        toolName: 'create_task',
+        arguments: { title: 'Kirim laporan' },
+        // The tool output crossed the SDK boundary as a string and is decoded
+        // before the domain layer sees it.
+        result: {
+          objectType: 'task',
+          object: { title: 'Kirim laporan', dueAt: null },
+        },
+      },
+    ]);
+  });
+
+  it('confirms earlier steps too when a turn takes several tool steps', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+
+        return Promise.resolve({
+          stream: simulateReadableStream({
+            chunks:
+              calls === 1
+                ? [
+                    toolCallChunk('call-1', 'create_task', {
+                      title: 'Tugas A',
+                      // The model knows a second task must follow, so this call
+                      // does not finish the turn.
+                      completeTurn: false,
+                    }),
+                    toolCallsFinish(),
+                  ]
+                : [
+                    toolCallChunk('call-2', 'create_task', {
+                      title: 'Tugas B',
+                    }),
+                    toolCallsFinish(),
+                  ],
+          }),
+        });
+      },
+    });
+
+    // The first step asks for a follow-up, so the loop runs on; the second step
+    // finishes the request and must confirm BOTH tasks, not just its own.
+    const calls2: ToolStepExecution[][] = [];
+
+    const acknowledge: ToolStepAcknowledger = (executions, decidedBy) => {
+      calls2.push([...executions]);
+
+      const labels = executions.map(
+        (execution) => `Created task “${taskTitle(execution.result)}”.`,
+      );
+
+      return decidedBy.some((execution) => declinesTurn(execution.arguments))
+        ? null
+        : labels.join(' ');
+    };
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Buat dua tugas.' }],
+      tools: {
+        create_task: tool({
+          description: 'Create task',
+          inputSchema: jsonSchema({
+            type: 'object' as const,
+            properties: { title: { type: 'string' as const } },
+            additionalProperties: false,
+          }),
+          execute: (input: unknown) =>
+            Promise.resolve(
+              JSON.stringify({
+                objectType: 'task',
+                object: { title: taskTitle({ object: input }), dueAt: null },
+              }),
+            ),
+        }),
+      },
+      onTextDelta: jest.fn(),
+      onToolCall: jest.fn(),
+      acknowledgeTerminalStep: acknowledge,
+    });
+
+    expect(result.text).toBe('Created task “Tugas A”. Created task “Tugas B”.');
+    expect(calls).toBe(2);
+
+    // The acknowledger is shown the accumulated turn, and the deciding step
+    // holds only the second call.
+    expect(calls2).toEqual([
+      [expect.objectContaining({ toolCallId: 'call-1' })],
+      [
+        expect.objectContaining({ toolCallId: 'call-1' }),
+        expect.objectContaining({ toolCallId: 'call-2' }),
+      ],
+    ]);
+  });
+
+  it('waits for every sibling call and acknowledges them in call order', async () => {
+    const languageModel = new MockLanguageModelV4({
+      doStream: () =>
+        Promise.resolve({
+          stream: simulateReadableStream({
+            chunks: [
+              toolCallChunk('call-1', 'create_task', {
+                title: 'Kirim laporan',
+              }),
+              toolCallChunk('call-2', 'save_memory', { content: 'Suka kopi' }),
+              toolCallsFinish(),
+            ],
+          }),
+        }),
+    });
+
+    const { acknowledge, seen } = stepAcknowledger();
+    const onTextDelta = jest.fn<(delta: string) => void>();
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Buat tugas dan simpan memori.' }],
+      tools: terminalTools(),
+      onTextDelta,
+      onToolCall: jest.fn(),
+      acknowledgeTerminalStep: acknowledge,
+    });
+
+    // The slow first call finishes after its sibling, yet the acknowledgement
+    // describes both calls, in the order the model asked for them.
+    expect(result.text).toBe(
+      'Created task “Kirim laporan”. Saved memory: “Suka kopi”.',
+    );
+    expect(languageModel.doStreamCalls).toHaveLength(1);
+    expect(onTextDelta).toHaveBeenCalledTimes(1);
+    expect(onTextDelta).toHaveBeenCalledWith(
+      'Created task “Kirim laporan”. Saved memory: “Suka kopi”.',
+    );
+
+    expect(seen.flat().map(({ toolCallId }) => toolCallId)).toEqual([
+      'call-1',
+      'call-2',
+    ]);
+  });
+
+  it('continues to the model when a call declines to complete the turn', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+
+        return calls === 1
+          ? Promise.resolve({
+              stream: simulateReadableStream({
+                chunks: [
+                  toolCallChunk('call-1', 'create_task', {
+                    title: 'Kirim laporan',
+                    completeTurn: false,
+                  }),
+                  toolCallsFinish(),
+                ],
+              }),
+            })
+          : Promise.resolve(textStream('Tugas dan pengingatnya sudah dibuat.'));
+      },
+    });
+
+    const { acknowledge, seen } = stepAcknowledger();
+    const onTextDelta = jest.fn<(delta: string) => void>();
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Buat tugas lalu pengingatnya.' }],
+      tools: terminalTools(),
+      onTextDelta,
+      onToolCall: jest.fn(),
+      acknowledgeTerminalStep: acknowledge,
+    });
+
+    expect(result.text).toBe('Tugas dan pengingatnya sudah dibuat.');
+    expect(languageModel.doStreamCalls).toHaveLength(2);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.[0]?.arguments).toEqual({
+      title: 'Kirim laporan',
+      completeTurn: false,
+    });
+    expect(onTextDelta.mock.calls.map(([delta]) => delta)).toEqual([
+      'Tugas dan pengingatnya sudah dibuat.',
+    ]);
+  });
+
+  it('continues to the model when a sibling call is not terminal', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+
+        return calls === 1
+          ? Promise.resolve({
+              stream: simulateReadableStream({
+                chunks: [
+                  toolCallChunk('call-1', 'create_task', {
+                    title: 'Kirim laporan',
+                  }),
+                  toolCallChunk('call-2', 'search_documents', {
+                    query: 'laporan',
+                  }),
+                  toolCallsFinish(),
+                ],
+              }),
+            })
+          : Promise.resolve(textStream('Ada filenya.'));
+      },
+    });
+
+    const { acknowledge, seen } = stepAcknowledger();
+    const onTextDelta = jest.fn<(delta: string) => void>();
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Ada file laporannya?' }],
+      tools: terminalTools(),
+      onTextDelta,
+      onToolCall: jest.fn(),
+      acknowledgeTerminalStep: acknowledge,
+    });
+
+    expect(result.text).toBe('Ada filenya.');
+    expect(languageModel.doStreamCalls).toHaveLength(2);
+    expect(seen[0]?.map(({ toolName }) => toolName)).toEqual([
+      'create_task',
+      'search_documents',
+    ]);
+    expect(onTextDelta).toHaveBeenCalledTimes(1);
+    expect(onTextDelta).toHaveBeenCalledWith('Ada filenya.');
+  });
+
+  it('continues to the model when a call in the step failed', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+
+        return calls === 1
+          ? Promise.resolve({
+              stream: simulateReadableStream({
+                chunks: [
+                  toolCallChunk('call-1', 'create_task', {
+                    title: 'Kirim laporan',
+                  }),
+                  toolCallsFinish(),
+                ],
+              }),
+            })
+          : Promise.resolve(textStream('Tugasnya belum bisa disimpan.'));
+      },
+    });
+
+    const { acknowledge, seen } = stepAcknowledger();
+    const onTextDelta = jest.fn<(delta: string) => void>();
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Buat tugas.' }],
+      tools: terminalTools({
+        create_task: tool({
+          description: 'Create task',
+          inputSchema: jsonSchema({ type: 'object' as const }),
+          execute: (): Promise<string> =>
+            Promise.reject(new Error('Task store unavailable.')),
+        }),
+      }),
+      onTextDelta,
+      onToolCall: jest.fn(),
+      acknowledgeTerminalStep: acknowledge,
+    });
+
+    // A failed call has no result to describe, so the step is not terminal and
+    // the model answers instead of a confirmation nobody produced.
+    expect(result.text).toBe('Tugasnya belum bisa disimpan.');
+    expect(languageModel.doStreamCalls).toHaveLength(2);
+    expect(seen).toEqual([]);
+    expect(onTextDelta).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns the acknowledgement for a non-streamed terminal step', async () => {
+    const languageModel = new MockLanguageModelV4({
+      doGenerate: () =>
+        Promise.resolve(
+          toolCallResult(
+            [
+              {
+                type: 'tool-call' as const,
+                toolCallId: 'call-1',
+                toolName: 'create_task',
+                input: JSON.stringify({ title: 'Kirim laporan' }),
+              },
+            ],
+            'tool-calls',
+          ),
+        ),
+    });
+
+    const { acknowledge, seen } = stepAcknowledger();
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Buat tugas.' }],
+      tools: terminalTools(),
+      acknowledgeTerminalStep: acknowledge,
+    });
+
+    expect(result).toEqual({
+      text: 'Created task “Kirim laporan”.',
+      usage: { inputTokens: 3, outputTokens: 4 },
+    });
+    expect(languageModel.doGenerateCalls).toHaveLength(1);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.[0]?.result).toEqual({
+      objectType: 'task',
+      object: { title: 'Kirim laporan', dueAt: null },
+    });
+  });
+
+  it('leaves generation untouched when the request supplies no acknowledger', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+
+        return Promise.resolve(
+          calls === 1
+            ? toolCallStream('create_task')
+            : textStream('Ada filenya.'),
+        );
+      },
+    });
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Buat tugas.' }],
+      tools: terminalTools(),
+      onTextDelta: jest.fn(),
+      onToolCall: jest.fn(),
+    });
+
+    // Without an acknowledger the step continues exactly as before, so the
+    // model still gets the last word.
+    expect(result.text).toBe('Ada filenya.');
+    expect(languageModel.doStreamCalls).toHaveLength(2);
   });
 
   it('hides provider failure details behind a stable gateway error', async () => {

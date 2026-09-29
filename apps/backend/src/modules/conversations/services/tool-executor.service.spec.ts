@@ -1,10 +1,28 @@
 import { jest } from '@jest/globals';
 import type { Prisma } from '../../../generated/prisma/client';
 import type { IConversationRepository } from '../../../database/interfaces';
-import { ToolExecutorService } from './tool-executor.service';
+import {
+  ToolExecutorService,
+  type AssistantToolDefinition,
+} from './tool-executor.service';
 
 function resolved<T>(value: T) {
   return jest.fn<() => Promise<T>>().mockResolvedValue(value);
+}
+
+function guardRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+/** The SDK wraps a JSON schema, so the advertised properties are read back. */
+function advertisedProperties(schema: unknown): Record<string, unknown> {
+  const wrapper = guardRecord(schema);
+  const json = wrapper && 'jsonSchema' in wrapper ? wrapper.jsonSchema : null;
+  const properties = guardRecord(json)?.properties;
+
+  return guardRecord(properties) ?? {};
 }
 
 describe('ToolExecutorService', () => {
@@ -530,5 +548,152 @@ describe('ToolExecutorService', () => {
     );
     expect(result.content).toContain('bearer-token');
     expect(JSON.stringify(result.invocation)).not.toContain('bearer-token');
+  });
+
+  it('keeps completeTurn out of tool arguments and the stored invocation', async () => {
+    const pending = {
+      id: 'tool-task',
+      assistantRunId: 'run-1',
+      name: 'create_task',
+      label: 'Create task',
+      status: 'pending',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const createToolInvocation = resolved(pending);
+    const execute = resolved({ objectType: 'task', object: { title: 'x' } });
+    const repository = {
+      createToolInvocation,
+      claimToolInvocation: resolved(true),
+      updateToolInvocation: jest
+        .fn()
+        .mockImplementation((_id: unknown, update: unknown) =>
+          Promise.resolve({ ...pending, ...(update as object) }),
+        ),
+    } as unknown as IConversationRepository;
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'create_task',
+          label: 'Create task',
+          description: 'Create a task.',
+          parameters: { type: 'object' },
+        },
+        parseArguments: (value) => value as never,
+        execute,
+      },
+    ]);
+
+    const input = { title: 'x', completeTurn: false };
+
+    await executor.execute('user-1', 'run-1', 'message-1', {
+      id: 'call-1',
+      name: 'create_task',
+      arguments: input,
+    });
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ arguments: { title: 'x' } }),
+    );
+    expect(createToolInvocation).toHaveBeenCalledWith(
+      expect.objectContaining({ arguments: { title: 'x' } }),
+    );
+    // The gateway reads the flag off the SDK's own step input, so the object it
+    // handed over must keep it.
+    expect(input).toEqual({ title: 'x', completeTurn: false });
+  });
+
+  it('returns a transient reveal link while masking the stored one', async () => {
+    const pending = {
+      id: 'tool-secret',
+      assistantRunId: 'run-1',
+      name: 'create_secret_reveal_link',
+      label: 'Create secret link',
+      status: 'pending',
+      result: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const repository = {
+      createToolInvocation: resolved(pending),
+      claimToolInvocation: resolved(true),
+      updateToolInvocation: jest
+        .fn()
+        .mockImplementation((_id: unknown, update: unknown) =>
+          Promise.resolve({ ...pending, ...(update as object) }),
+        ),
+    } as unknown as IConversationRepository;
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name: 'create_secret_reveal_link',
+          label: 'Create secret link',
+          description: 'Create a secret link.',
+          parameters: { type: 'object' },
+        },
+        sensitive: true,
+        exposeTransientResult: true,
+        parseArguments: (value) => value as never,
+        execute: () =>
+          Promise.resolve({
+            objectType: 'secret_reveal',
+            object: {
+              id: 'secret-1',
+              label: 'ATM',
+              url: 'https://sydia.test/secret-reveal#bearer-token',
+            },
+          }),
+      },
+    ]);
+
+    const result = await executor.execute('user-1', 'run-1', 'message-1', {
+      id: 'call-1',
+      name: 'create_secret_reveal_link',
+      arguments: { query: 'ATM' },
+    });
+
+    expect(result.content).toContain('bearer-token');
+    expect(JSON.stringify(result.invocation)).not.toContain('bearer-token');
+  });
+
+  it('advertises completeTurn only for eligible tools', () => {
+    const repository = {} as unknown as IConversationRepository;
+    const definition = (name: string): AssistantToolDefinition => ({
+      name,
+      label: name,
+      description: `${name}.`,
+      parameters: {
+        type: 'object',
+        properties: { title: { type: 'string' } },
+        required: ['title'],
+      },
+    });
+
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: definition('create_task'),
+        parseArguments: () => ({}),
+        execute: () => Promise.resolve({}),
+      },
+      {
+        definition: definition('list_tasks'),
+        parseArguments: () => ({}),
+        execute: () => Promise.resolve({}),
+      },
+    ]);
+
+    const tools = executor.aiTools('user-1', 'run-1', 'message-1');
+
+    expect(advertisedProperties(tools.create_task?.inputSchema)).toHaveProperty(
+      'completeTurn',
+    );
+    expect(
+      advertisedProperties(tools.list_tasks?.inputSchema),
+    ).not.toHaveProperty('completeTurn');
   });
 });

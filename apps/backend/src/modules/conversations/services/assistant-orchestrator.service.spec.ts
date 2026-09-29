@@ -14,6 +14,7 @@ import {
 import { AssistantOrchestratorService } from './assistant-orchestrator.service';
 import { ContextBuilderService } from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
+import type { TerminalToolExecution } from './terminal-tool-response';
 import { ToolExecutorService } from './tool-executor.service';
 
 function resolved<T>(value: T) {
@@ -534,6 +535,114 @@ describe('AssistantOrchestratorService', () => {
     expect('createRun' in repository).toBe(false);
     expect(scheduleMemoryDream).not.toHaveBeenCalled();
   });
+  it('passes a locale-aware acknowledger and persists its deterministic text', async () => {
+    const execution: TerminalToolExecution = {
+      toolCallId: 'call-1',
+      toolName: 'create_task',
+      arguments: { title: 'Kirim laporan' },
+      result: {
+        objectType: 'task',
+        object: { title: 'Kirim laporan', dueAt: null },
+      },
+    };
+
+    const runTurn = async (locale: 'id' | 'en') => {
+      const turnUser = { ...user, locale };
+      const completeRun = jest.fn((input: { content: string }) =>
+        Promise.resolve({
+          assistantMessage: {
+            ...userMessage,
+            id: 'message-2',
+            role: 'assistant' as const,
+            content: input.content,
+          },
+          assistantRun: createRun('completed'),
+        }),
+      );
+
+      const repository = {
+        writeUserMessage: resolved({
+          conversation,
+          userMessage,
+          replayed: false,
+        }),
+        findLatestRunForMessage: resolved(null),
+        createRun: resolved(createRun()),
+        claimRun: resolved(true),
+        findContext: resolved({
+          conversation: {
+            id: conversation.id,
+            rollingSummary: null,
+            summaryThroughMessageId: null,
+          },
+          messages: [userMessage],
+        }),
+        completeRun,
+        replaceSummary: jest.fn(),
+      } as unknown as IConversationRepository;
+
+      const deltas: string[] = [];
+      let acknowledged: string | null = null;
+
+      const generate = jest.fn<LanguageModelGateway['generate']>((request) => {
+        // Stands in for the gateway: the step finished, so the domain's own
+        // acknowledger decides the reply and whether the loop ends.
+        acknowledged =
+          request.acknowledgeTerminalStep?.([execution], [execution]) ?? null;
+
+        expect(acknowledged).not.toBeNull();
+
+        request.onTextDelta?.(acknowledged as string);
+
+        return Promise.resolve({ text: acknowledged as string, usage: {} });
+      });
+
+      const model: LanguageModelGateway = {
+        provider: 'openrouter',
+        model: 'test-model',
+        generate,
+      };
+
+      const config = new ConfigService();
+      const orchestrator = new AssistantOrchestratorService(
+        repository,
+        model,
+        new ContextBuilderService(repository, config),
+        new ConversationSummarizerService(repository, model, config),
+        new ToolExecutorService(repository, []),
+        { conversationSummaries: { add: resolved({}) } } as never,
+        { schedule: resolved(undefined) } as never,
+      );
+
+      for await (const chunk of orchestrator.stream(turnUser, {
+        content: 'Buat tugas.',
+        idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
+      })) {
+        const part = chunk as { type: string; delta?: string };
+
+        if (part.type === 'text-delta' && part.delta) deltas.push(part.delta);
+      }
+
+      return {
+        acknowledged,
+        persisted: completeRun.mock.calls[0]?.[0]?.content,
+        deltas,
+      };
+    };
+
+    const indonesian = await runTurn('id');
+
+    expect(indonesian.acknowledged).toBe('✅ Tugas dibuat');
+    expect(indonesian.persisted).toBe('✅ Tugas dibuat');
+    expect(indonesian.deltas).toEqual(['✅ Tugas dibuat']);
+
+    const english = await runTurn('en');
+
+    expect(english.acknowledged).toBe('✅ Task created');
+    expect(english.persisted).toBe('✅ Task created');
+    expect(english.deltas).toEqual(['✅ Task created']);
+  });
+
   it('passes the channel through to context building and model generation', async () => {
     const completedRun = createRun('completed');
     const assistantMessage: Message = {

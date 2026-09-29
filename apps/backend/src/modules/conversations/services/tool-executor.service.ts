@@ -16,6 +16,7 @@ import type {
   SupportedLocale,
 } from '../../../database/entities';
 import type { MessageProvider } from '../../../shared/messaging';
+import { terminalToolInputSchema } from './terminal-tool-response';
 
 export type AssistantToolDefinition = {
   name: string;
@@ -66,6 +67,23 @@ export type ToolExecutionResult = {
 
 const TOOL_STALE_AFTER_MS = 60_000;
 const MAX_TOOL_ERROR_LENGTH = 240;
+
+/**
+ * `completeTurn` is orchestration metadata for the loop, not tool input: the
+ * model-facing schema advertises it and the model gateway reads it from the
+ * step's tool call, but no domain tool or stored invocation may see it. The
+ * SDK hands `execute` the same input object it keeps on the completed step, so
+ * this copies rather than mutates — deleting the flag in place would erase the
+ * only record the gateway has in the non-streaming path.
+ */
+function stripCompleteTurn(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  if (!('completeTurn' in value)) return value;
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => key !== 'completeTurn'),
+  );
+}
 
 /** Prisma renders a code frame: a source path, then numbered source lines. */
 const PRISMA_CODE_FRAME_LINE =
@@ -231,7 +249,7 @@ export class ToolExecutorService {
         const { definition } = assistantTool;
         const wrapped = tool({
           description: definition.description,
-          inputSchema: jsonSchema(definition.parameters),
+          inputSchema: jsonSchema(terminalToolInputSchema(definition)),
           execute: async (
             input: unknown,
             options: ToolExecutionOptions<Record<string, unknown>>,
@@ -243,7 +261,9 @@ export class ToolExecutorService {
               const result = await assistantTool.execute({
                 userId,
                 sourceMessageId: inputMessageId,
-                arguments: assistantTool.parseArguments(input),
+                arguments: assistantTool.parseArguments(
+                  stripCompleteTurn(input),
+                ),
                 idempotencyKey: `${inputMessageId}:${options.toolCallId}`,
                 context,
               });
@@ -331,7 +351,9 @@ export class ToolExecutorService {
     let argumentsValue: Prisma.InputJsonValue;
 
     try {
-      argumentsValue = assistantTool.parseArguments(call.arguments);
+      argumentsValue = assistantTool.parseArguments(
+        stripCompleteTurn(call.arguments),
+      );
     } catch (error) {
       const invocation = await this.conversations.createToolInvocation({
         assistantRunId: runId,

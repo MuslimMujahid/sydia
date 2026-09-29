@@ -8,7 +8,11 @@ import {
   stepCountIs,
   streamText,
 } from 'ai';
-import type { LanguageModel as AiLanguageModel } from 'ai';
+import type {
+  LanguageModel as AiLanguageModel,
+  StopCondition,
+  ToolSet,
+} from 'ai';
 import {
   ObservabilityService,
   type GenerationTraceUpdate,
@@ -18,6 +22,8 @@ import type {
   GenerateRequest,
   GenerateResult,
   LanguageModelGateway,
+  ToolStepAcknowledger,
+  ToolStepExecution,
 } from './model-gateway.types';
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
@@ -304,6 +310,103 @@ function delayMs(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/**
+ * The successful executions of a completed step in call order, or `null` when
+ * the step cannot be considered finished: no calls at all, or a call that never
+ * produced a result. A failed call surfaces as a tool error rather than a
+ * result, so a partially failed step always returns `null` and the loop runs
+ * on. Tool outputs cross the SDK boundary as the string a tool returned, while
+ * the formatters describe the value behind it, so JSON is decoded here.
+ */
+function completedStepExecutions(step: {
+  toolCalls: readonly {
+    toolCallId: string;
+    toolName: string;
+    input: unknown;
+  }[];
+  toolResults: readonly { toolCallId: string; output: unknown }[];
+}): ToolStepExecution[] | null {
+  if (step.toolCalls.length === 0) return null;
+
+  const outputsByCallId = new Map(
+    step.toolResults.map((result) => [result.toolCallId, result.output]),
+  );
+
+  const executions: ToolStepExecution[] = [];
+
+  for (const call of step.toolCalls) {
+    if (!outputsByCallId.has(call.toolCallId)) return null;
+    const output = outputsByCallId.get(call.toolCallId);
+
+    let result = output;
+
+    if (typeof output === 'string') {
+      try {
+        result = JSON.parse(output) as unknown;
+      } catch {
+        result = output;
+      }
+    }
+
+    executions.push({
+      toolCallId: call.toolCallId,
+      toolName: call.toolName,
+      arguments: call.input,
+      result,
+    });
+  }
+
+  return executions;
+}
+
+/**
+ * Stops the tool loop after a step whose tools fully answered the user, and
+ * records the deterministic acknowledgement to return in place of a second
+ * model call.
+ *
+ * The SDK evaluates stop conditions only once every sibling call of the
+ * finished step has settled, so an acknowledgement always describes all of
+ * them, in call order. A turn can also take several steps (create A, then
+ * create B); every step's successful calls accumulate here so the final
+ * confirmation still lists the earlier work instead of only the last step's.
+ * A step that is not terminal — an ineligible or failed call, or one that
+ * declared follow-up work — leaves the loop untouched and the existing
+ * multi-step behaviour runs unchanged.
+ */
+function terminalStepStop(
+  acknowledge: ToolStepAcknowledger,
+  terminal: { text: string | null },
+): StopCondition<ToolSet> {
+  const turnExecutions: ToolStepExecution[] = [];
+  const recorded = new Set<string>();
+
+  return ({ steps }) => {
+    const last = steps[steps.length - 1];
+    if (!last) return false;
+
+    const executions = completedStepExecutions(last);
+    if (!executions) return false;
+
+    // A stop condition may be asked about the same step more than once, so the
+    // running list is keyed by call id. Only what already succeeded is
+    // recorded, so a step the loop continued past (follow-up requested,
+    // read-only, failure) contributes nothing.
+    const fresh = executions.filter(
+      (execution) => !recorded.has(execution.toolCallId),
+    );
+
+    for (const execution of fresh) recorded.add(execution.toolCallId);
+    turnExecutions.push(...fresh);
+
+    const acknowledgement = acknowledge(turnExecutions, executions);
+    if (acknowledgement === null) return false;
+
+    terminal.text = acknowledgement;
+
+    return true;
+  };
+}
+
 function retryableApiError(error: unknown): boolean {
   return APICallError.isInstance(error) && error.isRetryable === true;
 }
@@ -425,7 +528,12 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       ? { [SESSION_ID_HEADER]: request.conversationId }
       : undefined;
 
-    const options = () => ({
+    // A step that fully answers the user ends the turn with a deterministic
+    // acknowledgement instead of paying for a second model call that would only
+    // restate what the tools already confirmed. The decision is made inside the
+    // SDK's own stop condition, which runs once every sibling call of the
+    // finished step has settled; the text is stashed for the result below.
+    const options = (terminal: { text: string | null }) => ({
       model: this.languageModel,
       messages: request.messages,
       allowSystemInMessages: true as const,
@@ -433,7 +541,12 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       headers,
       temperature: request.temperature ?? this.temperature,
       maxOutputTokens: request.maxOutputTokens ?? this.maxOutputTokens,
-      stopWhen: stepCountIs(request.maxSteps ?? this.maxSteps),
+      stopWhen: request.acknowledgeTerminalStep
+        ? [
+            stepCountIs(request.maxSteps ?? this.maxSteps),
+            terminalStepStop(request.acknowledgeTerminalStep, terminal),
+          ]
+        : stepCountIs(request.maxSteps ?? this.maxSteps),
       timeout: REQUEST_TIMEOUT_MS,
       abortSignal: request.abortSignal
         ? AbortSignal.any([
@@ -468,6 +581,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
           },
           async (trace) => {
             try {
+              // Resolved inside the SDK stop condition when a step is terminal.
+              const terminalText: { text: string | null } = { text: null };
+
               if (streaming) {
                 let streamError: unknown;
                 let usage:
@@ -475,7 +591,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
 
                 let providerMetadata: unknown;
                 const result = streamText({
-                  ...options(),
+                  ...options(terminalText),
                   onError: ({ error }) => {
                     streamError = error;
                   },
@@ -533,7 +649,16 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 // A stream that ends without a closing step still owes its text.
                 flushStep();
 
-                const finalText = answer.trim();
+                // A terminal step has no model answer of its own: the tools
+                // already answered the user, so the acknowledgement takes the
+                // place of the suppressed narration and is streamed once.
+                if (terminalText.text !== null) {
+                  request.onTextDelta?.(terminalText.text);
+                  textEmitted = true;
+                  lastTextEmitted = true;
+                }
+
+                const finalText = (terminalText.text ?? answer).trim();
                 const normalizedUsage = {
                   inputTokens: tokenCount(usage?.inputTokens),
                   outputTokens: tokenCount(usage?.outputTokens),
@@ -565,8 +690,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 return { text: finalText, usage: normalizedUsage };
               }
 
-              const result = await generateText(options());
-              const finalText = result.text.trim();
+              const result = await generateText(options(terminalText));
+              const finalText = (terminalText.text ?? result.text).trim();
               const normalizedUsage = {
                 inputTokens: tokenCount(result.usage.inputTokens),
                 outputTokens: tokenCount(result.usage.outputTokens),
