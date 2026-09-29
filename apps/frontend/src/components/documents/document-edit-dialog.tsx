@@ -73,7 +73,10 @@ export function DocumentEditDialog({
   });
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+    <DialogContent
+      variant="sheet"
+      className="sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto"
+    >
       <DialogTitle>Edit file</DialogTitle>
       <DialogDescription className="mt-2">
         Perbarui nama file “{document.title}”.

@@ -8,11 +8,10 @@ import {
   Pin,
   PinOff,
   Plus,
-  Search,
   Trash2,
   UserRound,
 } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { z } from "zod";
 import { EmptyState } from "@/components/app-states";
 import {
@@ -20,6 +19,7 @@ import {
   DomainListSkeleton,
   DomainPageHeader,
 } from "@/components/domain/domain-page";
+import { DomainPageSearch } from "@/components/domain/domain-page-search";
 import {
   FieldShell,
   FormError,
@@ -34,7 +34,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
 import type {
@@ -87,6 +86,9 @@ const SOURCE_ICONS: Record<MemorySourceType, ReactNode> = {
   automatic: <Bot className="size-4" />,
 };
 
+// Memory dialogs are bottom sheets on phones and roomy centered dialogs from `sm`.
+const MEMORY_SHEET_CLASS = "sm:max-h-[90dvh] sm:max-w-2xl sm:overflow-y-auto";
+
 function MemoryEditor({
   memory,
   onClose,
@@ -130,7 +132,7 @@ function MemoryEditor({
   }
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
+    <DialogContent variant="sheet" className={MEMORY_SHEET_CLASS}>
       <DialogTitle>{memory ? "Rincian memori" : "Simpan memori"}</DialogTitle>
       <DialogDescription className="mt-2">
         {memory
@@ -278,7 +280,7 @@ function MemoryEditorLoader({
 
   if (query.isPending) {
     return (
-      <DialogContent>
+      <DialogContent variant="sheet" className={MEMORY_SHEET_CLASS}>
         <DialogTitle>Rincian memori</DialogTitle>
         <DialogDescription className="mt-2">
           Memuat memori yang tersimpan…
@@ -290,7 +292,7 @@ function MemoryEditorLoader({
 
   if (query.isError) {
     return (
-      <DialogContent>
+      <DialogContent variant="sheet" className={MEMORY_SHEET_CLASS}>
         <DialogTitle>Memori tidak dapat dimuat</DialogTitle>
         <DialogDescription className="mt-2">
           {query.error.message}
@@ -315,8 +317,8 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
     memory.status === "superseded" || Boolean(memory.supersededById);
 
   return (
-    <li className="grid gap-5 py-6 sm:grid-cols-[minmax(0,1fr)_auto]">
-      <div className="min-w-0">
+    <li className="flex items-start gap-2 py-5 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-5 sm:py-6">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           {memory.pinned ? (
             <Badge dot="brand">
@@ -353,7 +355,8 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
           </p>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-start gap-2">
+      {/* Phones stack icon-only actions so the text keeps the full width. */}
+      <div className="-mt-2 -mr-2 flex shrink-0 flex-col items-center gap-1 sm:m-0 sm:flex-row sm:flex-wrap sm:items-start sm:gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -371,8 +374,13 @@ function MemoryRow({ memory, onEdit }: { memory: Memory; onEdit: () => void }) {
             <Pin />
           )}
         </Button>
-        <Button variant="ghost" size="sm" onClick={onEdit}>
-          <Pencil /> Rincian
+        <Button
+          variant="ghost"
+          size="sm"
+          className="max-sm:size-10 max-sm:px-0"
+          onClick={onEdit}
+        >
+          <Pencil /> <span className="max-sm:sr-only">Rincian</span>
         </Button>
       </div>
     </li>
@@ -392,46 +400,29 @@ export function MemoryPage() {
   const searchQuery = useQuery(memorySearchQueryOptions(search));
   const query = search ? searchQuery : listQuery;
 
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-    setSearch(searchDraft.trim());
+  function clearSearch() {
+    setSearch("");
+    setSearchDraft("");
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-20 sm:space-y-8 lg:pb-0">
       <DomainPageHeader
         title="Memori"
-        description="Informasi pilihan yang dapat Sydia gunakan kembali—terpisah dari riwayat percakapan dan selalu dapat Anda kendalikan."
-        action={
-          <Button onClick={() => setEditor("new")}>
-            <Plus /> Simpan memori
-          </Button>
-        }
+        addAction={{ label: "Simpan memori", onClick: () => setEditor("new") }}
       />
       <section
         aria-label="Cari dan filter memori"
-        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_auto]"
+        className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 lg:grid-cols-[minmax(0,1fr)_11rem_auto]"
       >
-        <form className="flex gap-2" role="search" onSubmit={submitSearch}>
-          <label className="sr-only" htmlFor="memory-search">
-            Cari memori secara semantik
-          </label>
-          <Input
-            id="memory-search"
-            type="search"
-            placeholder="Cari berdasarkan arti atau kata kunci"
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-          />
-          <Button
-            type="submit"
-            variant="dark-outline"
-            size="icon"
-            aria-label="Cari memori"
-          >
-            <Search />
-          </Button>
-        </form>
+        <DomainPageSearch
+          label="Cari memori secara semantik"
+          placeholder="Cari berdasarkan arti atau kata kunci"
+          value={searchDraft}
+          onValueChange={setSearchDraft}
+          onSubmit={() => setSearch(searchDraft.trim())}
+          onClear={clearSearch}
+        />
         <label>
           <span className="sr-only">Status memori</span>
           <SelectField
@@ -459,17 +450,15 @@ export function MemoryPage() {
         </Button>
       </section>
       {search ? (
-        <div className="flex items-center justify-between border-y border-surface-1 py-3 text-sm">
-          <p>
+        <div className="flex items-center justify-between gap-3 border-y border-surface-1 py-3 text-sm">
+          <p className="min-w-0 truncate">
             Hasil pencarian untuk <strong>“{search}”</strong>
           </p>
           <Button
             variant="link"
             size="sm"
-            onClick={() => {
-              setSearch("");
-              setSearchDraft("");
-            }}
+            className="shrink-0 px-0"
+            onClick={clearSearch}
           >
             Hapus pencarian
           </Button>

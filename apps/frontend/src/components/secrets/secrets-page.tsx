@@ -8,7 +8,6 @@ import {
   Link2,
   LoaderCircle,
   MoreHorizontal,
-  Plus,
   Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -75,7 +74,10 @@ function SecretCreator({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
+    <DialogContent
+      variant="sheet"
+      className="sm:max-h-[90dvh] sm:max-w-2xl sm:overflow-y-auto"
+    >
       <DialogTitle>Rahasia baru</DialogTitle>
       <DialogDescription className="mt-2">
         Simpan nilai sensitif seperti kata sandi atau kunci API. Nilai disimpan
@@ -183,7 +185,7 @@ function RevealLinkDialog({
   }
 
   return (
-    <DialogContent className="max-w-xl">
+    <DialogContent variant="sheet" className="sm:max-w-xl">
       <DialogTitle>Tautan ungkap siap dibagikan</DialogTitle>
       <DialogDescription className="mt-2">
         Tautan untuk “{secretLabel}” hanya dapat dibuka satu kali dan berlaku
@@ -304,7 +306,7 @@ function DirectRevealDialog({
   const error = unlockMutation.error ?? revealMutation.error;
 
   return (
-    <DialogContent className="max-w-xl">
+    <DialogContent variant="sheet" className="sm:max-w-xl">
       <DialogTitle>
         {revealed
           ? secret.label
@@ -394,8 +396,8 @@ function SecretRow({
   deletePending: boolean;
 }) {
   return (
-    <li className="grid gap-3 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <div className="min-w-0">
+    <li className="flex items-start gap-2 py-5 sm:items-center sm:gap-3">
+      <div className="min-w-0 flex-1">
         <span className="flex items-center gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-1">
             <KeyRound className="size-4 text-brand-deep" />
@@ -418,6 +420,7 @@ function SecretRow({
             <Button
               variant="ghost"
               size="icon"
+              className="shrink-0 max-sm:-mr-2"
               aria-label={`Tindakan untuk ${secret.label}`}
             />
           }
@@ -470,15 +473,13 @@ export function SecretsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-20 sm:space-y-8 lg:pb-0">
       <DomainPageHeader
         title="Rahasia"
-        description="Cara termudah menyimpan rahasia adalah lewat chat — cukup kirim ke Sydia dan ia menyimpannya terenkripsi. Halaman ini mengelola label, membuat tautan ungkap satu kali, dan menghapus rahasia; nilai yang tersimpan tidak pernah ditampilkan di sini."
-        action={
-          <Button onClick={() => setCreating(true)}>
-            <Plus /> Tambah rahasia
-          </Button>
-        }
+        addAction={{
+          label: "Tambah rahasia",
+          onClick: () => setCreating(true),
+        }}
       />
       {query.isPending ? <DomainListSkeleton label="Memuat rahasia" /> : null}
       {query.isError ? (
@@ -491,7 +492,7 @@ export function SecretsPage() {
       {query.isSuccess && !query.data.length ? (
         <EmptyState
           title="Belum ada rahasia"
-          message="Kirim kata sandi atau catatan sensitif lewat chat, atau gunakan aksi Tambah rahasia di bagian atas. Anda membagikannya nanti lewat tautan ungkap satu kali."
+          message="Kirim kata sandi atau catatan sensitif lewat chat, atau gunakan tombol Tambah rahasia. Anda membagikannya nanti lewat tautan ungkap satu kali."
         />
       ) : null}
       {query.isSuccess && query.data.length ? (

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Save } from "lucide-react";
 import { z } from "zod";
+import { DomainPageHeader } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -64,16 +65,8 @@ function ProfileSettingsPage() {
     : [user.timezone, ...TIMEZONES];
 
   return (
-    <div className="max-w-3xl space-y-10">
-      <header className="space-y-4">
-        <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
-          Profil
-        </h1>
-        <p className="max-w-2xl text-[15px] leading-[1.6] text-ink-muted">
-          Kelola informasi yang digunakan Sydia untuk menyapa Anda dan memahami
-          waktu. Perubahan disimpan ke akun Anda.
-        </p>
-      </header>
+    <div className="max-w-3xl space-y-6 lg:space-y-10">
+      <DomainPageHeader title="Profil" divided={false} />
       <Card className="p-6 sm:p-8">
         <form
           className="space-y-7"

@@ -5,6 +5,7 @@ import {
   shiftMonthAnchor,
   type MonthAnchor,
 } from "@/components/calendar/month-grid";
+import { TopbarTitle } from "@/components/dashboard/topbar-slots";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 import {
@@ -112,11 +113,13 @@ export function DailyNotePage({
 
   return (
     <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start xl:gap-12">
+      {/* The date below stays the page heading; the app bar names the page. */}
+      <TopbarTitle heading={false}>Catatan harian</TopbarTitle>
       {/*
         The writing surface stretches to the bottom of the viewport: the
         offsets are the shell's app bar (below lg) plus main padding.
       */}
-      <div className="mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-3xl flex-col sm:min-h-[calc(100dvh-8rem)] lg:min-h-[calc(100dvh-6rem)] xl:mx-0 xl:max-w-none">
+      <div className="mx-auto flex min-h-[calc(100dvh-5.25rem)] w-full max-w-3xl flex-col sm:min-h-[calc(100dvh-8rem)] lg:min-h-[calc(100dvh-6rem)] xl:mx-0 xl:max-w-none">
         <div className="max-sm:px-5">
           <DailyNoteHeader
             selectedDate={selectedDate}

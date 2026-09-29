@@ -5,10 +5,9 @@ import {
   CalendarClock,
   Check,
   LoaderCircle,
+  MoreHorizontal,
   Pencil,
-  Plus,
   Repeat2,
-  Search,
   Trash2,
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -19,6 +18,7 @@ import {
   DomainListSkeleton,
   DomainPageHeader,
 } from "@/components/domain/domain-page";
+import { DomainPageSearch } from "@/components/domain/domain-page-search";
 import {
   FieldShell,
   FormError,
@@ -33,7 +33,12 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
 import type {
@@ -103,6 +108,9 @@ const SCHEDULE_LABELS: Record<ReminderScheduleFilter | "all", string> = {
   upcoming: "Mendatang",
   past: "Sudah lewat",
 };
+
+// Reminder dialogs are bottom sheets on phones and roomy centered dialogs from `sm`.
+const REMINDER_SHEET_CLASS = "sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto";
 
 function reminderValues(reminder?: Reminder) {
   return {
@@ -181,7 +189,7 @@ function ReminderEditor({
   }
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+    <DialogContent variant="sheet" className={REMINDER_SHEET_CLASS}>
       <DialogTitle>
         {reminder ? "Rincian pengingat" : "Pengingat baru"}
       </DialogTitle>
@@ -425,7 +433,7 @@ function ReminderEditorLoader({
 
   if (query.isPending) {
     return (
-      <DialogContent>
+      <DialogContent variant="sheet" className={REMINDER_SHEET_CLASS}>
         <DialogTitle>Rincian pengingat</DialogTitle>
         <DialogDescription className="mt-2">
           Memuat pengingat yang tersimpan…
@@ -437,7 +445,7 @@ function ReminderEditorLoader({
 
   if (query.isError) {
     return (
-      <DialogContent>
+      <DialogContent variant="sheet" className={REMINDER_SHEET_CLASS}>
         <DialogTitle>Pengingat tidak dapat dimuat</DialogTitle>
         <DialogDescription className="mt-2">
           {query.error.message}
@@ -485,7 +493,7 @@ function QuickTimeDialog({
   }
 
   return (
-    <DialogContent>
+    <DialogContent variant="sheet" className="sm:max-w-md">
       <DialogTitle>
         {mode === "snooze" ? "Tunda pengingat" : "Jadwalkan ulang"}
       </DialogTitle>
@@ -537,8 +545,8 @@ function ReminderRow({
   const recurrence = formatRecurrence(reminder.recurrence);
 
   return (
-    <li className="grid gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto]">
-      <div className="min-w-0">
+    <li className="flex items-start gap-2 py-5 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h2
             className={cn(
@@ -575,7 +583,59 @@ function ReminderRow({
           </p>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-start gap-2">
+      {/* Phones get the same actions from a menu instead of a button row. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="-mt-2 -mr-2 shrink-0 sm:hidden"
+              aria-label={`Tindakan untuk ${reminder.title}`}
+            />
+          }
+        >
+          <MoreHorizontal />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          {active ? (
+            <>
+              <DropdownMenuItem
+                disabled={statusMutation.isPending}
+                onClick={() =>
+                  statusMutation.mutate({
+                    reminderId: reminder.id,
+                    status: "completed",
+                  })
+                }
+              >
+                <Check /> Selesai
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onQuickTime("snooze")}>
+                <AlarmClock /> Tunda
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onQuickTime("reschedule")}>
+                <CalendarClock /> Ubah waktu
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={statusMutation.isPending}
+                onClick={() =>
+                  statusMutation.mutate({
+                    reminderId: reminder.id,
+                    status: "cancelled",
+                  })
+                }
+              >
+                <Ban /> Batalkan
+              </DropdownMenuItem>
+            </>
+          ) : null}
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil /> Rincian
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <div className="hidden flex-wrap items-start gap-2 sm:flex">
         {active ? (
           <>
             <Button
@@ -645,48 +705,31 @@ export function ReminderPage() {
   const filters: ReminderFilters = { status, schedule, search };
   const query = useQuery(remindersQueryOptions(filters));
 
+  const filtered = Boolean(search) || status !== "all" || schedule !== "all";
+
+  function clearSearch() {
+    setSearch("");
+    setSearchDraft("");
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-20 sm:space-y-8 lg:pb-0">
       <DomainPageHeader
         title="Pengingat"
-        description="Waktu yang perlu Sydia jaga, termasuk jadwal sekali jalan dan pengulangan."
-        action={
-          <Button onClick={() => setEditor("new")}>
-            <Plus /> Pengingat baru
-          </Button>
-        }
+        addAction={{ label: "Pengingat baru", onClick: () => setEditor("new") }}
       />
       <section
         aria-label="Filter pengingat"
-        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_11rem]"
+        className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1fr)_11rem_11rem]"
       >
-        <form
-          className="flex gap-2"
-          role="search"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setSearch(searchDraft.trim());
-          }}
-        >
-          <label className="sr-only" htmlFor="reminder-search">
-            Cari pengingat
-          </label>
-          <Input
-            id="reminder-search"
-            type="search"
-            placeholder="Cari judul atau catatan"
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-          />
-          <Button
-            type="submit"
-            variant="dark-outline"
-            size="icon"
-            aria-label="Cari pengingat"
-          >
-            <Search />
-          </Button>
-        </form>
+        <DomainPageSearch
+          label="Cari pengingat"
+          placeholder="Cari judul atau catatan"
+          value={searchDraft}
+          onValueChange={setSearchDraft}
+          onSubmit={() => setSearch(searchDraft.trim())}
+          onClear={clearSearch}
+        />
         <label>
           <span className="sr-only">Status pengingat</span>
           <SelectField
@@ -731,12 +774,10 @@ export function ReminderPage() {
       {query.isSuccess && query.data.length === 0 ? (
         <EmptyState
           title={
-            search || status !== "all" || schedule !== "all"
-              ? "Tidak ada pengingat yang cocok"
-              : "Belum ada pengingat"
+            filtered ? "Tidak ada pengingat yang cocok" : "Belum ada pengingat"
           }
           message={
-            search || status !== "all" || schedule !== "all"
+            filtered
               ? "Ubah pencarian atau filter untuk melihat jadwal lain."
               : "Jadwalkan dari dasbor, atau minta Sydia mengingatkan Anda melalui chat."
           }

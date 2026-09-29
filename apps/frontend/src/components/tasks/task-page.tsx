@@ -5,7 +5,6 @@ import {
   LoaderCircle,
   Pencil,
   Plus,
-  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -16,6 +15,7 @@ import {
   DomainListSkeleton,
   DomainPageHeader,
 } from "@/components/domain/domain-page";
+import { DomainPageSearch } from "@/components/domain/domain-page-search";
 import {
   FieldShell,
   FormError,
@@ -807,9 +807,9 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
   const filtered = Boolean(search || status !== "all" || sheetFilterCount);
   const rowError = statusMutation.error ?? deleteMutation.error;
 
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-    setSearch(searchDraft.trim());
+  function clearSearch() {
+    setSearch("");
+    setSearchDraft("");
   }
 
   function toggleCategory(categoryId: string) {
@@ -828,8 +828,7 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
   function resetFilters() {
     resetSheetFilters();
     setStatus("all");
-    setSearch("");
-    setSearchDraft("");
+    clearSearch();
   }
 
   function changeTaskStatus(task: Task, nextStatus: TaskStatus) {
@@ -867,15 +866,71 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
     onManageCategories: openCategoryManager,
   };
 
+  const sortMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="dark-outline"
+            size="icon"
+            className="relative sm:w-auto sm:px-4"
+          />
+        }
+      >
+        <ArrowDownUp />
+        <span className="max-sm:sr-only">Urutkan</span>
+        <span className="sr-only">: {SORT_LABELS[sort]}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-52">
+        <DropdownMenuRadioGroup
+          aria-label="Urutkan tugas"
+          value={sort}
+          onValueChange={(value: unknown) => {
+            if (isTaskSortKey(value)) setSort(value);
+          }}
+        >
+          {(Object.keys(SORT_LABELS) as TaskSortKey[]).map((value) => (
+            <DropdownMenuRadioItem key={value} value={value}>
+              {SORT_LABELS[value]}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const filterButton = (
+    <Button
+      type="button"
+      variant="dark-outline"
+      size="icon"
+      className="relative sm:w-auto sm:px-4 xl:hidden"
+      onClick={() => setFiltersOpen(true)}
+    >
+      <ListFilter />
+      <span className="max-sm:sr-only">Filter</span>
+      {sheetFilterCount ? (
+        <>
+          <span className="sr-only"> ({sheetFilterCount} aktif)</span>
+          <span
+            aria-hidden="true"
+            className="absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-pill bg-brand px-1 text-[11px] font-bold text-canvas"
+          >
+            {sheetFilterCount}
+          </span>
+        </>
+      ) : null}
+    </Button>
+  );
+
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6 pb-20 sm:space-y-8 lg:pb-0">
       <DomainPageHeader
         title="Tugas"
-        action={
-          <Button onClick={() => setNewEditorOpen(true)}>
-            <Plus /> Tugas baru
-          </Button>
-        }
+        addAction={{
+          label: "Tugas baru",
+          onClick: () => setNewEditorOpen(true),
+        }}
       />
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_16rem] xl:items-start xl:gap-8">
         <section
@@ -885,89 +940,20 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
           <h2 id="task-list-heading" className="sr-only">
             Daftar tugas
           </h2>
-          <div className="flex gap-2">
-            <form
-              className="relative min-w-0 flex-1"
-              role="search"
-              onSubmit={submitSearch}
-            >
-              <label className="sr-only" htmlFor="task-search">
-                Cari tugas
-              </label>
-              <Input
-                id="task-search"
-                type="search"
-                enterKeyHint="search"
-                placeholder="Cari judul atau catatan"
-                className="pr-12"
-                value={searchDraft}
-                onChange={(event) => {
-                  setSearchDraft(event.target.value);
-                  // Clearing the field (including the native ✕) resets results.
-                  if (!event.target.value) setSearch("");
-                }}
-              />
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon-sm"
-                className="absolute top-0.5 right-0.5 px-0"
-                aria-label="Cari tugas"
-              >
-                <Search />
-              </Button>
-            </form>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="dark-outline"
-                    size="icon"
-                    className="relative sm:w-auto sm:px-4"
-                  />
-                }
-              >
-                <ArrowDownUp />
-                <span className="max-sm:sr-only">Urutkan</span>
-                <span className="sr-only">: {SORT_LABELS[sort]}</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-52">
-                <DropdownMenuRadioGroup
-                  aria-label="Urutkan tugas"
-                  value={sort}
-                  onValueChange={(value: unknown) => {
-                    if (isTaskSortKey(value)) setSort(value);
-                  }}
-                >
-                  {(Object.keys(SORT_LABELS) as TaskSortKey[]).map((value) => (
-                    <DropdownMenuRadioItem key={value} value={value}>
-                      {SORT_LABELS[value]}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              type="button"
-              variant="dark-outline"
-              size="icon"
-              className="relative sm:w-auto sm:px-4 xl:hidden"
-              onClick={() => setFiltersOpen(true)}
-            >
-              <ListFilter />
-              <span className="max-sm:sr-only">Filter</span>
-              {sheetFilterCount ? (
-                <>
-                  <span className="sr-only"> ({sheetFilterCount} aktif)</span>
-                  <span
-                    aria-hidden="true"
-                    className="absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-pill bg-brand px-1 text-[11px] font-bold text-canvas"
-                  >
-                    {sheetFilterCount}
-                  </span>
-                </>
-              ) : null}
-            </Button>
+          {/* Below `lg` the search lives in the app bar and the sort and
+              filter controls join the result summary row. */}
+          <div className="flex gap-2 max-lg:hidden">
+            <DomainPageSearch
+              label="Cari tugas"
+              placeholder="Cari judul atau catatan"
+              className="flex-1"
+              value={searchDraft}
+              onValueChange={setSearchDraft}
+              onSubmit={() => setSearch(searchDraft.trim())}
+              onClear={clearSearch}
+            />
+            {sortMenu}
+            {filterButton}
           </div>
           <TaskStatusChips
             className="xl:hidden"
@@ -975,11 +961,8 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
             counts={counts}
             onStatusChange={setStatus}
           />
-          <div
-            className="flex min-h-9 items-center justify-between gap-3 text-sm text-ink-muted"
-            aria-live="polite"
-          >
-            <p>
+          <div className="flex min-h-9 items-center gap-3 text-sm text-ink-muted">
+            <p className="min-w-0 flex-1 truncate" aria-live="polite">
               {query.isSuccess ? (
                 <>
                   <span className="font-semibold text-ink tabular-nums">
@@ -998,12 +981,16 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
                 type="button"
                 variant="link"
                 size="sm"
-                className="min-h-9 px-0 py-0"
+                className="min-h-9 shrink-0 px-0 py-0"
                 onClick={resetFilters}
               >
                 <X /> Hapus filter
               </Button>
             ) : null}
+            <div className="flex shrink-0 gap-2 lg:hidden">
+              {sortMenu}
+              {filterButton}
+            </div>
           </div>
           {rowError ? (
             <p className="text-sm text-destructive" role="alert">

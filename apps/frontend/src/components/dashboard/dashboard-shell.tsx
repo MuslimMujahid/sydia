@@ -16,10 +16,14 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConversationList } from "@/components/chat/conversation-list";
+import {
+  TopbarSlotsContext,
+  type TopbarSlots,
+} from "@/components/dashboard/topbar-slots";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,6 +94,13 @@ export function DashboardShell({
   const [collapsed, setCollapsed] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ConversationSummary | null>(
     null
+  );
+
+  const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
+  const [searchSlot, setSearchSlot] = useState<HTMLDivElement | null>(null);
+  const topbarSlots = useMemo<TopbarSlots>(
+    () => ({ title: titleSlot, search: searchSlot }),
+    [titleSlot, searchSlot]
   );
 
   const location = useLocation();
@@ -326,117 +337,137 @@ export function DashboardShell({
   );
 
   return (
-    <div className="min-h-screen bg-background text-ink">
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 hidden border-r border-ink/8 bg-canvas transition-[width] duration-200 lg:block",
-          collapsed ? "w-18" : "w-68"
-        )}
-      >
-        {sidebar}
-      </aside>
-
-      <div
-        className={cn(
-          "min-w-0 transition-[padding] duration-200",
-          collapsed ? "lg:pl-18" : "lg:pl-68"
-        )}
-      >
-        <header className="sticky top-0 z-30 flex h-16 items-center border-b border-ink/8 bg-canvas px-4 lg:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={mobileOpen ? "Tutup navigasi" : "Buka navigasi"}
-            aria-controls="mobile-navigation"
-            aria-expanded={mobileOpen}
-            onClick={() => {
-              setCollapsed(false);
-              setMobileOpen((open) => !open);
-            }}
-          >
-            {mobileOpen ? <X /> : <Menu />}
-          </Button>
-          <Link
-            to="/"
-            search={{ conversation: undefined, attachment: undefined }}
-            className="ml-2 font-display text-sm font-bold"
-          >
-            Sydia
-          </Link>
-          <div className="ml-auto [&_button>span]:hidden">{accountMenu}</div>
-        </header>
-
-        {mobileOpen ? (
-          <aside
-            id="mobile-navigation"
-            className="fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] border-r border-ink/8 bg-canvas shadow-card lg:hidden"
-          >
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="absolute top-3 right-3 z-10"
-              aria-label="Tutup navigasi"
-              onClick={() => setMobileOpen(false)}
-            >
-              <X />
-            </Button>
-            {sidebar}
-          </aside>
-        ) : null}
-
-        <main
+    <TopbarSlotsContext value={topbarSlots}>
+      <div className="min-h-screen bg-background text-ink">
+        <aside
           className={cn(
-            "mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-12 lg:py-12",
-            // The daily note's writing sheet runs edge to edge on phones.
-            activePath === "/daily-notes" && "max-sm:px-0 max-sm:pb-0",
-            chatSurface &&
-              "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:h-dvh lg:p-0"
+            "fixed inset-y-0 left-0 z-40 hidden border-r border-ink/8 bg-canvas transition-[width] duration-200 lg:block",
+            collapsed ? "w-18" : "w-68"
           )}
         >
-          {children}
-        </main>
-      </div>
+          {sidebar}
+        </aside>
 
-      <Dialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-            deleteMutation.reset();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogTitle>Hapus percakapan ini?</DialogTitle>
-          <DialogDescription className="mt-3">
-            &ldquo;{deleteTarget?.title?.trim() || "Percakapan baru"}&rdquo;
-            beserta seluruh pesan dan riwayatnya akan dihapus permanen.
-          </DialogDescription>
-          {deleteMutation.error ? (
-            <p className="mt-4 text-sm text-destructive" role="alert">
-              {deleteMutation.error.message}
-            </p>
-          ) : null}
-          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div
+          className={cn(
+            "min-w-0 transition-[padding] duration-200",
+            collapsed ? "lg:pl-18" : "lg:pl-68"
+          )}
+        >
+          {/*
+            The chat surface keeps the brand name; every other page portals its
+            title and search into the slots. The header is the positioning
+            context for an expanded page search, which slides over everything
+            to the right of the menu button.
+          */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-1 border-b border-ink/8 bg-canvas px-4 lg:hidden">
             <Button
               variant="ghost"
-              size="sm"
-              disabled={deleteMutation.isPending}
-              onClick={() => setDeleteTarget(null)}
+              size="icon"
+              className="shrink-0"
+              aria-label={mobileOpen ? "Tutup navigasi" : "Buka navigasi"}
+              aria-controls="mobile-navigation"
+              aria-expanded={mobileOpen}
+              onClick={() => {
+                setCollapsed(false);
+                setMobileOpen((open) => !open);
+              }}
             >
-              Batal
+              {mobileOpen ? <X /> : <Menu />}
             </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={deleteMutation.isPending}
-              onClick={() => void handleDeleteConversation()}
+            {chatSurface ? (
+              <Link
+                to="/"
+                search={{ conversation: undefined, attachment: undefined }}
+                className="ml-1 font-display text-sm font-bold"
+              >
+                Sydia
+              </Link>
+            ) : (
+              <div ref={setTitleSlot} className="ml-1 min-w-0 flex-1" />
+            )}
+            <div
+              ref={setSearchSlot}
+              className="flex shrink-0 items-center empty:hidden"
+            />
+            <div className="ml-auto shrink-0 [&_button>span:not([data-slot=avatar])]:hidden">
+              {accountMenu}
+            </div>
+          </header>
+
+          {mobileOpen ? (
+            <aside
+              id="mobile-navigation"
+              className="fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] border-r border-ink/8 bg-canvas shadow-card lg:hidden"
             >
-              {deleteMutation.isPending ? "Menghapus…" : "Hapus permanen"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="absolute top-3 right-3 z-10"
+                aria-label="Tutup navigasi"
+                onClick={() => setMobileOpen(false)}
+              >
+                <X />
+              </Button>
+              {sidebar}
+            </aside>
+          ) : null}
+
+          <main
+            className={cn(
+              // Phones start content close to the app bar, which carries the title.
+              "mx-auto max-w-6xl px-5 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-12",
+              // The daily note's writing sheet runs edge to edge on phones.
+              activePath === "/daily-notes" && "max-sm:px-0 max-sm:pb-0",
+              chatSurface &&
+                "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:h-dvh lg:p-0"
+            )}
+          >
+            {children}
+          </main>
+        </div>
+
+        <Dialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+              deleteMutation.reset();
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogTitle>Hapus percakapan ini?</DialogTitle>
+            <DialogDescription className="mt-3">
+              &ldquo;{deleteTarget?.title?.trim() || "Percakapan baru"}&rdquo;
+              beserta seluruh pesan dan riwayatnya akan dihapus permanen.
+            </DialogDescription>
+            {deleteMutation.error ? (
+              <p className="mt-4 text-sm text-destructive" role="alert">
+                {deleteMutation.error.message}
+              </p>
+            ) : null}
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={deleteMutation.isPending}
+                onClick={() => setDeleteTarget(null)}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deleteMutation.isPending}
+                onClick={() => void handleDeleteConversation()}
+              >
+                {deleteMutation.isPending ? "Menghapus…" : "Hapus permanen"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TopbarSlotsContext>
   );
 }

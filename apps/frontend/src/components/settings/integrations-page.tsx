@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Unplug } from "lucide-react";
+import { DomainPageHeader } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -19,7 +20,6 @@ import {
 import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
 import { WhatsAppIntegrationCard } from "./whatsapp-page";
 import { TelegramIntegrationCard } from "./telegram-page";
-import { SettingsPageHeader } from "./settings-nav";
 
 function GoogleCalendarIntegrationCard() {
   const statusQuery = useQuery(calendarStatusQueryOptions());
@@ -152,11 +152,8 @@ function GoogleCalendarIntegrationCard() {
 
 export function IntegrationSettingsPage() {
   return (
-    <div className="max-w-3xl space-y-10">
-      <SettingsPageHeader
-        title="Integrasi"
-        description="Kanal pesan dan layanan yang terhubung ke akun Sydia. Mencabut tautan menghentikan pesan dan sinkronisasi tanpa menghapus data yang sudah tersimpan."
-      />
+    <div className="max-w-3xl space-y-6 lg:space-y-10">
+      <DomainPageHeader title="Integrasi" divided={false} />
       {WHATSAPP_INTEGRATION_ENABLED ? <WhatsAppIntegrationCard /> : null}
       <TelegramIntegrationCard />
       <GoogleCalendarIntegrationCard />

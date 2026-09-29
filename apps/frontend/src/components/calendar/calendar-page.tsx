@@ -152,7 +152,10 @@ function EventEditor({
   }
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
+    <DialogContent
+      variant="sheet"
+      className="sm:max-h-[90dvh] sm:max-w-2xl sm:overflow-y-auto"
+    >
       <DialogTitle>{event ? "Edit acara" : "Acara baru"}</DialogTitle>
       <DialogDescription className="mt-2">
         {event
@@ -345,19 +348,20 @@ function AgendaEventRow({
   onEdit: () => void;
 }) {
   return (
-    <li className="grid gap-3 py-5 sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:items-start">
-      <time
-        dateTime={event.startAt}
-        className="font-mono text-sm font-medium text-ink-soft"
-      >
-        {timeLabel(event)}
-      </time>
+    // Only rendered below `sm`, so the time, title, and menu share one row.
+    <li className="flex items-start gap-2 py-4">
       <button
         type="button"
-        className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
+        className="min-w-0 flex-1 rounded-sm py-1 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50"
         onClick={onEdit}
       >
-        <span className="block font-display text-base font-semibold">
+        <time
+          dateTime={event.startAt}
+          className="block font-mono text-sm font-medium text-ink-soft"
+        >
+          {timeLabel(event)}
+        </time>
+        <span className="mt-1 block font-display text-base font-semibold">
           {event.title}
         </span>
         <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted">
@@ -384,6 +388,7 @@ function AgendaEventRow({
             <Button
               variant="ghost"
               size="icon"
+              className="-mr-2 shrink-0"
               aria-label={`Tindakan untuk ${event.title}`}
             />
           }
@@ -602,26 +607,21 @@ export function CalendarPage({ timezone }: { timezone: string }) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-20 sm:space-y-8 lg:pb-0">
       <DomainPageHeader
         title="Kalender"
-        description="Telusuri kalender per bulan dan kelola waktu tanpa meninggalkan Sydia."
+        addAction={{ label: "Buat acara", onClick: () => openCreate() }}
         action={
-          <div className="flex flex-wrap items-center gap-3">
-            <CalendarConnection
-              isPending={statusQuery.isPending}
-              error={statusQuery.error?.message ?? null}
-              connected={statusQuery.data?.connected}
-              available={statusQuery.data?.available}
-              isConnecting={isConnecting}
-              isDisconnecting={disconnectMutation.isPending}
-              onConnect={() => void handleConnect()}
-              onDisconnect={() => void handleDisconnect()}
-            />
-            <Button onClick={() => openCreate()}>
-              <Plus /> Buat acara
-            </Button>
-          </div>
+          <CalendarConnection
+            isPending={statusQuery.isPending}
+            error={statusQuery.error?.message ?? null}
+            connected={statusQuery.data?.connected}
+            available={statusQuery.data?.available}
+            isConnecting={isConnecting}
+            isDisconnecting={disconnectMutation.isPending}
+            onConnect={() => void handleConnect()}
+            onDisconnect={() => void handleDisconnect()}
+          />
         }
       />
       {disconnectMutation.error || connectError ? (
@@ -641,15 +641,15 @@ export function CalendarPage({ timezone }: { timezone: string }) {
       ) : null}
       {eventsQuery.isSuccess ? (
         <section aria-labelledby="calendar-month-title" className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
             <h2
               id="calendar-month-title"
               aria-live="polite"
-              className="font-display text-xl font-semibold capitalize"
+              className="min-w-0 truncate font-display text-lg font-semibold capitalize sm:text-xl"
             >
               {formatMonthAnchor(monthAnchor)}
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="-mr-2 flex shrink-0 items-center gap-1 sm:mr-0 sm:gap-2">
               <Button
                 variant="ghost"
                 size="icon-sm"

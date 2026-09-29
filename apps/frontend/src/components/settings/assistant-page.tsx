@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { DomainPageHeader } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,9 +14,7 @@ import {
   userPreferencesQueryOptions,
   useUpdateUserPreferences,
 } from "@/lib/services/api/users/preferences.queries";
-import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils/cn";
-import { SettingsPageHeader } from "./settings-nav";
 
 const PERSONA_OPTIONS: {
   value: AssistantPersona;
@@ -91,15 +90,8 @@ export function AssistantSettingsPage() {
   };
 
   return (
-    <div className="max-w-3xl space-y-10">
-      <SettingsPageHeader
-        title="Pengaturan asisten"
-        description={
-          WHATSAPP_INTEGRATION_ENABLED
-            ? "Atur persona Sydia sesuai cara Anda ingin berinteraksi. Perubahan berlaku mulai pesan Anda berikutnya, di web maupun WhatsApp."
-            : "Atur persona Sydia sesuai cara Anda ingin berinteraksi. Perubahan berlaku mulai pesan Anda berikutnya."
-        }
-      />
+    <div className="max-w-3xl space-y-6 lg:space-y-10">
+      <DomainPageHeader title="Pengaturan asisten" divided={false} />
       {preferencesQuery.isError ? (
         <div className="border-y border-destructive/30 py-6" role="alert">
           <p className="text-sm text-destructive">

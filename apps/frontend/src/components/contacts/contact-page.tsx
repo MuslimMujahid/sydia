@@ -5,13 +5,11 @@ import {
   MoreHorizontal,
   Pencil,
   Phone,
-  Plus,
-  Search,
   Trash2,
   UserRound,
   X,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { EmptyState } from "@/components/app-states";
 import {
@@ -19,6 +17,7 @@ import {
   DomainListSkeleton,
   DomainPageHeader,
 } from "@/components/domain/domain-page";
+import { DomainPageSearch } from "@/components/domain/domain-page-search";
 import {
   FieldShell,
   FormError,
@@ -38,7 +37,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
@@ -119,7 +117,10 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
   }
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
+    <DialogContent
+      variant="sheet"
+      className="sm:max-h-[90dvh] sm:max-w-2xl sm:overflow-y-auto"
+    >
       <DialogTitle>{contact ? "Edit kontak" : "Kontak baru"}</DialogTitle>
       <DialogDescription className="mt-2">
         {contact
@@ -288,53 +289,57 @@ function ContactRow({
   onEdit: () => void;
 }) {
   return (
-    <li className="grid gap-3 py-5 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)_auto] sm:items-center">
-      <button
-        type="button"
-        className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
-        onClick={onEdit}
-      >
-        <span className="flex items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-1">
-            <UserRound className="size-4 text-brand-deep" />
+    // Phones keep the menu beside the name; from `sm` the wrapper dissolves
+    // into the three-column grid.
+    <li className="flex items-start gap-2 py-5 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)_auto] sm:items-center sm:gap-3">
+      <div className="min-w-0 flex-1 space-y-3 sm:contents sm:space-y-0">
+        <button
+          type="button"
+          className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
+          onClick={onEdit}
+        >
+          <span className="flex items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-1">
+              <UserRound className="size-4 text-brand-deep" />
+            </span>
+            <span className="truncate font-display font-bold">
+              {contact.name}
+            </span>
           </span>
-          <span className="truncate font-display font-bold">
-            {contact.name}
-          </span>
-        </span>
-        {contact.aliases.length || contact.groups.length ? (
-          <span className="mt-2 flex flex-wrap gap-1.5 pl-12">
-            {contact.groups.map((group) => (
-              <Badge key={group.id} dot="brand">
-                {group.name}
-              </Badge>
-            ))}
-            {contact.aliases.map((alias) => (
-              <Badge key={alias}>{alias}</Badge>
-            ))}
-          </span>
-        ) : null}
-      </button>
-      <div className="space-y-1 pl-12 text-sm text-ink-muted sm:pl-0">
-        {contact.email ? (
-          <a
-            className="flex items-center gap-2 break-all text-link underline-offset-4 hover:underline"
-            href={`mailto:${contact.email}`}
-          >
-            <Mail className="size-4 shrink-0" />
-            {contact.email}
-          </a>
-        ) : null}
-        {contact.phone ? (
-          <a
-            className="flex items-center gap-2 text-ink-soft underline-offset-4 hover:underline"
-            href={`tel:${contact.phone}`}
-          >
-            <Phone className="size-4 shrink-0" />
-            {contact.phone}
-          </a>
-        ) : null}
-        {!contact.email && !contact.phone ? "Belum ada detail kontak" : null}
+          {contact.aliases.length || contact.groups.length ? (
+            <span className="mt-2 flex flex-wrap gap-1.5 pl-12">
+              {contact.groups.map((group) => (
+                <Badge key={group.id} dot="brand">
+                  {group.name}
+                </Badge>
+              ))}
+              {contact.aliases.map((alias) => (
+                <Badge key={alias}>{alias}</Badge>
+              ))}
+            </span>
+          ) : null}
+        </button>
+        <div className="min-w-0 space-y-1 pl-12 text-sm text-ink-muted sm:pl-0">
+          {contact.email ? (
+            <a
+              className="flex items-center gap-2 break-all text-link underline-offset-4 hover:underline"
+              href={`mailto:${contact.email}`}
+            >
+              <Mail className="size-4 shrink-0" />
+              {contact.email}
+            </a>
+          ) : null}
+          {contact.phone ? (
+            <a
+              className="flex items-center gap-2 text-ink-soft underline-offset-4 hover:underline"
+              href={`tel:${contact.phone}`}
+            >
+              <Phone className="size-4 shrink-0" />
+              {contact.phone}
+            </a>
+          ) : null}
+          {!contact.email && !contact.phone ? "Belum ada detail kontak" : null}
+        </div>
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -342,6 +347,7 @@ function ContactRow({
             <Button
               variant="ghost"
               size="icon"
+              className="shrink-0 max-sm:-mr-2"
               aria-label={`Tindakan untuk ${contact.name}`}
             />
           }
@@ -373,33 +379,28 @@ export function ContactPage() {
 
   const query = useQuery(contactsQueryOptions(queryText, groupFilter?.id));
 
-  function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setQueryText(searchDraft.trim());
+  function clearSearch() {
+    setQueryText("");
+    setSearchDraft("");
   }
 
   function showGroupMembers(group: ContactGroup) {
     setGroupFilter(group);
-    setQueryText("");
-    setSearchDraft("");
+    clearSearch();
     setActiveTab("contacts");
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-20 sm:space-y-8 lg:pb-0">
       <DomainPageHeader
         title="Kontak"
-        description="Kelola orang dan nama lain yang perlu dikenali Sydia dalam percakapan."
-        action={
-          activeTab === "groups" ? (
-            <Button onClick={() => setEditingGroup("new")}>
-              <Plus /> Tambah grup
-            </Button>
-          ) : (
-            <Button onClick={() => setEditingContact("new")}>
-              <Plus /> Tambah kontak
-            </Button>
-          )
+        addAction={
+          activeTab === "groups"
+            ? { label: "Tambah grup", onClick: () => setEditingGroup("new") }
+            : {
+                label: "Tambah kontak",
+                onClick: () => setEditingContact("new"),
+              }
         }
       />
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value)}>
@@ -407,7 +408,7 @@ export function ContactPage() {
           <TabsTab value="contacts">Kontak</TabsTab>
           <TabsTab value="groups">Grup</TabsTab>
         </TabsList>
-        <TabsPanel value="contacts" className="space-y-8">
+        <TabsPanel value="contacts" className="space-y-6 sm:space-y-8">
           {groupFilter ? (
             <div className="flex flex-wrap items-center gap-3">
               <Badge dot="brand">{groupFilter.name}</Badge>
@@ -421,25 +422,16 @@ export function ContactPage() {
               </Button>
             </div>
           ) : null}
-          <form
-            className="flex max-w-xl gap-2"
-            role="search"
-            onSubmit={handleSearch}
-          >
-            <label htmlFor="contact-search" className="sr-only">
-              Cari kontak
-            </label>
-            <Input
-              id="contact-search"
-              type="search"
-              value={searchDraft}
-              placeholder="Cari nama, alias, email, atau telepon…"
-              onChange={(event) => setSearchDraft(event.target.value)}
-            />
-            <Button type="submit" variant="dark-outline">
-              <Search /> Cari
-            </Button>
-          </form>
+          {/* The contacts tab owns the search; the groups tab has none. */}
+          <DomainPageSearch
+            label="Cari kontak"
+            placeholder="Cari nama, alias, email, atau telepon…"
+            className="max-w-xl"
+            value={searchDraft}
+            onValueChange={setSearchDraft}
+            onSubmit={() => setQueryText(searchDraft.trim())}
+            onClear={clearSearch}
+          />
           {query.isPending ? (
             <DomainListSkeleton label="Memuat kontak" />
           ) : null}

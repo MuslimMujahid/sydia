@@ -68,7 +68,10 @@ function ContactGroupEditor({ group, onClose }: ContactGroupEditorProps) {
   });
 
   return (
-    <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+    <DialogContent
+      variant="sheet"
+      className="sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto"
+    >
       <DialogTitle>{group ? "Edit grup" : "Grup baru"}</DialogTitle>
       <DialogDescription className="mt-2">
         {group
@@ -194,6 +197,7 @@ export function ContactGroupPanel({
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="-mr-2 shrink-0 sm:mr-0"
                       aria-label={`Tindakan untuk ${group.name}`}
                     />
                   }
@@ -204,7 +208,10 @@ export function ContactGroupPanel({
                   <DropdownMenuItem onClick={() => onEditingGroupChange(group)}>
                     <Pencil /> Edit grup
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void handleDelete(group)}>
+                  <DropdownMenuItem
+                    destructive
+                    onClick={() => void handleDelete(group)}
+                  >
                     <Trash2 /> Hapus grup
                   </DropdownMenuItem>
                 </DropdownMenuContent>

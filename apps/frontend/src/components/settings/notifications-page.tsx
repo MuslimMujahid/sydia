@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
+import { DomainPageHeader } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +12,6 @@ import {
   useUpdateUserPreferences,
 } from "@/lib/services/api/users/preferences.queries";
 import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
-import { SettingsPageHeader } from "./settings-nav";
 
 function PreferenceSwitch({
   id,
@@ -68,11 +68,8 @@ export function NotificationSettingsPage() {
   const telegramLinked = telegramStatusQuery.data?.linked ?? false;
 
   return (
-    <div className="max-w-3xl space-y-10">
-      <SettingsPageHeader
-        title="Notifikasi & briefing"
-        description="Pilih kanal pengiriman pengingat dan briefing harian Sydia."
-      />
+    <div className="max-w-3xl space-y-6 lg:space-y-10">
+      <DomainPageHeader title="Notifikasi & briefing" divided={false} />
       {preferencesQuery.isPending ? (
         <div
           className="space-y-4"

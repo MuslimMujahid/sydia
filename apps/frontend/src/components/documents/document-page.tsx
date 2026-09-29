@@ -134,29 +134,26 @@ export function DocumentPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-20 sm:space-y-8 lg:pb-0">
       <DomainPageHeader
         title="File"
-        description="Unggah dokumen, gambar, atau audio. Sydia mengekstrak isi yang dapat Anda periksa dan gunakan dalam chat."
-        action={
-          <>
-            <input
-              ref={inputRef}
-              className="sr-only"
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.txt,.md,image/*,audio/*"
-              onChange={(event) => void handleFiles(event)}
-            />
-            <Button
-              onClick={() => inputRef.current?.click()}
-              disabled={uploadMutation.isPending}
-            >
-              <Upload />{" "}
-              {uploadMutation.isPending ? "Mengunggah…" : "Unggah file"}
-            </Button>
-          </>
-        }
+        addAction={{
+          label: uploadMutation.isPending ? "Mengunggah…" : "Unggah file",
+          icon: <Upload />,
+          disabled: uploadMutation.isPending,
+          pending: uploadMutation.isPending,
+          onClick: () => inputRef.current?.click(),
+        }}
+      />
+      <input
+        ref={inputRef}
+        className="sr-only"
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.txt,.md,image/*,audio/*"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => void handleFiles(event)}
       />
       {uploadMutation.isPending ? (
         <div
@@ -164,11 +161,11 @@ export function DocumentPage() {
           role="status"
         >
           <LoaderCircle className="size-5 animate-spin text-brand-deep motion-reduce:animate-none" />
-          <p>
-            <span className="font-display font-semibold">
+          <p className="min-w-0">
+            <span className="block truncate font-display font-semibold sm:inline">
               {uploadMutation.variables.file.name}
             </span>
-            <span className="ml-2 text-sm text-ink-muted">
+            <span className="text-sm text-ink-muted sm:ml-2">
               Sedang diunggah. Jangan tutup halaman ini.
             </span>
           </p>
@@ -196,7 +193,10 @@ export function DocumentPage() {
       {query.isSuccess && query.data.length ? (
         <ul className="divide-y divide-surface-1 border-y border-surface-1">
           {query.data.map((document) => (
-            <li key={document.id} className="flex items-center gap-4 py-5">
+            <li
+              key={document.id}
+              className="flex items-center gap-3 py-4 sm:gap-4 sm:py-5"
+            >
               <span className="relative grid size-10 shrink-0 place-items-center rounded-md bg-surface-1">
                 <FileKindIcon kind={document.file.kind} />
                 <DocumentStatus document={document} />
@@ -221,6 +221,7 @@ export function DocumentPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="shrink-0 max-sm:-mr-2"
                       aria-label={`Tindakan untuk ${document.title}`}
                     />
                   }
