@@ -14,14 +14,14 @@ import { useSignUp } from "@/lib/services/api/auth/auth.queries";
 const searchSchema = z.object({ redirect: z.string().optional() });
 const signUpSchema = z
   .object({
-    name: z.string().trim().min(2, "Masukkan minimal 2 karakter."),
+    name: z.string().trim().min(2, "Masukkan nama dengan minimal 2 karakter."),
     email: z.email("Masukkan alamat email yang valid."),
-    password: z.string().min(8, "Gunakan minimal 8 karakter."),
+    password: z.string().min(8, "Kata sandi minimal 8 karakter."),
     confirmPassword: z.string(),
   })
   .refine((value) => value.password === value.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Kata sandi harus sama.",
+    message: "Kata sandi belum cocok.",
   });
 
 export const Route = createFileRoute("/sign-up")({
@@ -55,15 +55,15 @@ function SignUpPage() {
 
   return (
     <AuthShell
-      title="Jadikan Sydia pusat aktivitas Anda."
-      description="Akun Anda menyimpan tindakan terstruktur dan preferensi untuk Anda, bukan hanya di satu peramban."
+      title="Buat akun Sydia"
+      description="Catat tugas dan buat pengingat lewat chat dengan Sydia."
       footer={
         <>
-          Sudah memiliki akun?{" "}
+          Sudah punya akun?{" "}
           <Link
             to="/sign-in"
             search={{ redirect: search.redirect, reason: undefined }}
-            className="font-semibold text-link underline underline-offset-4"
+            className="font-semibold text-ink underline decoration-brand underline-offset-4"
           >
             Masuk
           </Link>
@@ -128,7 +128,7 @@ function SignUpPage() {
             <FieldShell
               id="sign-up-password"
               label="Kata sandi"
-              description="Minimal 8 karakter."
+              description="Gunakan minimal 8 karakter."
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (

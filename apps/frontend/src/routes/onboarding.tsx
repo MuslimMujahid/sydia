@@ -25,6 +25,7 @@ import {
   useUpdateCurrentUser,
 } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
+import { SydiaLogo } from "@/components/ui/sydia-logo";
 
 const onboardingSchema = z.object({
   timezone: z.string().min(1, "Pilih zona waktu."),
@@ -84,9 +85,9 @@ const PERSONA_OPTIONS: {
 ];
 
 const STEP_HEADINGS = [
-  "Lokasi dan Bahasa",
-  "Kamu mau dipanggil apa?",
-  "Interaksi seperti apa yang kamu harapkan?",
+  "Atur bahasa dan zona waktu",
+  "Sydia boleh memanggil Anda apa?",
+  "Pilih gaya bicara Sydia",
 ] as const;
 
 export const Route = createFileRoute("/onboarding")({
@@ -176,8 +177,17 @@ function OnboardingPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background px-5 py-10 sm:px-8 lg:py-16">
+    <main className="min-h-screen bg-background px-5 py-8 sm:px-8 lg:py-12">
       <div className="mx-auto max-w-3xl">
+        <div className="mb-12 flex items-center justify-between gap-4 sm:mb-16">
+          <span className="flex items-center gap-2 font-display text-[22px] font-bold tracking-[-0.03em] text-ink">
+            <SydiaLogo className="h-9" />
+            Sydia
+          </span>
+          <span className="text-sm font-medium text-ink-muted">
+            Pengaturan awal · {step} dari 3
+          </span>
+        </div>
         <div
           aria-label={`Langkah ${step} dari 3`}
           className="mb-5 grid grid-cols-3 gap-2"
@@ -207,7 +217,7 @@ function OnboardingPage() {
               : "slide-in-from-left-3"
           )}
         >
-          <h1 className="mb-8 max-w-2xl font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] text-ink sm:text-[44px] sm:leading-[1.1] sm:font-bold sm:tracking-[-0.03em]">
+          <h1 className="mb-8 max-w-2xl font-display text-[32px] leading-[1.15] font-bold tracking-[-0.03em] text-ink sm:text-[44px] sm:leading-[1.1]">
             {heading}
           </h1>
           <StepShell
@@ -297,7 +307,7 @@ function OnboardingPage() {
                     <FieldShell
                       id="onboarding-preferred-address"
                       label="Panggilan"
-                      description={`Opsional. Nama atau sapaan yang Sydia gunakan saat menyapa Anda; kosongkan jika ingin Sydia memilih secara natural. ${field.state.value.length}/50 karakter.`}
+                      description={`Opsional. Contoh: Kak Dipa atau Bu Ratri. ${field.state.value.length}/50 karakter.`}
                       errors={field.state.meta.errors}
                     >
                       {({ describedBy, invalid }) => (

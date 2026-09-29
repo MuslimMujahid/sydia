@@ -18,11 +18,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         { name: "theme-color", content: "#fbf8f5" },
-        { title: "Sydia · Aktivitas pribadi tertata jelas" },
+        { title: "Sydia · Asisten pribadi yang selalu ingat" },
         {
           name: "description",
           content:
-            "Pusat kendali yang tenang untuk akun dan konteks pribadi Anda di Sydia.",
+            "Asisten pribadi untuk mencatat, mengingat, dan menindaklanjuti hal penting.",
         },
       ],
       links: [
@@ -78,7 +78,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootComponent() {
   return (
     <RootDocument>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {import.meta.env.VITE_DEBUG_ENABLED === "true" ? (
+        <ReactQueryDevtools initialIsOpen={false} />
+      ) : null}
       <Outlet />
     </RootDocument>
   );

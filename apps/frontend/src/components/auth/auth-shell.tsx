@@ -1,50 +1,80 @@
 import type { ReactNode } from "react";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
 
+interface AuthShellProps {
+  title: string;
+  description: string;
+  children: ReactNode;
+  footer: ReactNode;
+}
+
 export function AuthShell({
   title,
   description,
   children,
   footer,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-  footer: ReactNode;
-}) {
+}: AuthShellProps) {
   return (
-    <main className="grid min-h-screen bg-background lg:grid-cols-[minmax(20rem,0.8fr)_minmax(32rem,1.2fr)]">
-      <section
-        className="aurora-gradient relative hidden overflow-hidden p-12 text-canvas lg:flex lg:flex-col lg:justify-between"
+    <main className="grid min-h-svh bg-background lg:grid-cols-[minmax(22rem,0.82fr)_minmax(28rem,1.18fr)]">
+      <aside
+        className="relative isolate hidden overflow-hidden border-r border-ink/8 bg-canvas px-10 py-10 lg:flex lg:flex-col xl:px-16"
         aria-label="Tentang Sydia"
       >
-        <div className="flex items-center gap-3 font-mono text-sm tracking-widest uppercase">
-          <SydiaLogo className="h-6" />
-          Sydia
+        <SydiaLogo className="pointer-events-none absolute -right-28 -bottom-32 size-[390px] rotate-[-12deg] opacity-[0.14] xl:-right-32 xl:size-[440px] xl:opacity-[0.16]" />
+
+        <div className="relative z-10 flex items-center gap-2.5 font-display text-base font-bold text-ink">
+          <SydiaLogo className="h-8" />
+          <span>Sydia</span>
         </div>
-        <div className="max-w-lg space-y-6 flex-1 justify-center flex flex-col">
-          <p className="font-display text-[32px] leading-[1.1] font-bold tracking-[-0.03em]">
-            Asisten pintar di saku anda.
+
+        <div className="relative z-10 my-auto max-w-lg py-12">
+          <p className="font-display text-[42px] leading-[1.1] font-bold tracking-[-0.03em] text-ink xl:text-[48px]">
+            Ngobrol seperti biasa, tanpa instruksi rumit
           </p>
-          <p className="text-[17px] leading-[1.6] text-canvas">
-            Lupakan file dan catatan yang berantakan. Cari file, catat ide, dan
-            kelola tugas cukup dengan ngobrol. Biar Sydia yang urus semuanya.
+          <p className="mt-5 max-w-[39ch] text-[16px] leading-relaxed text-ink-muted">
+            Sampaikan melalui chat, Sydia yang urus sisanya
           </p>
+
+          <ol aria-label="Contoh percakapan" className="mt-10 space-y-4">
+            <li className="flex justify-end">
+              <article
+                aria-label="Pesan Anda"
+                className="max-w-[82%] rounded-md rounded-br-sm bg-surface-1 px-4 py-3 text-[15px] leading-6 text-ink-soft"
+              >
+                Ingatkan aku bayar listrik Jumat jam 9 pagi.
+              </article>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <SydiaLogo className="mt-1 h-7" />
+              <article
+                aria-label="Jawaban Sydia"
+                className="max-w-[82%] rounded-md rounded-tl-sm border border-ink/8 bg-background px-4 py-3 text-[15px] leading-6 text-ink"
+              >
+                Siap, pengingat bayar listrik untuk Jumat pukul 09.00 sudah
+                dibuat.
+              </article>
+            </li>
+          </ol>
         </div>
-      </section>
-      <section className="flex items-center justify-center px-6 py-12 sm:px-10">
+      </aside>
+
+      <section
+        className="flex items-start justify-center px-6 py-10 sm:px-10 lg:items-center lg:px-14"
+        aria-labelledby="auth-title"
+      >
         <div className="w-full max-w-md">
-          <div className="mb-10 lg:hidden">
-            <span className="flex items-center gap-3 font-mono text-sm tracking-widest text-ink uppercase">
-              <SydiaLogo className="h-6" />
-              Sydia
-            </span>
+          <div className="mb-16 flex items-center gap-2.5 font-display text-base font-bold text-ink lg:hidden">
+            <SydiaLogo className="h-8" />
+            <span>Sydia</span>
           </div>
           <header className="mb-8 space-y-3">
-            <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] text-ink sm:text-[44px] sm:leading-[1.1] sm:font-bold sm:tracking-[-0.03em]">
+            <h1
+              id="auth-title"
+              className="font-display text-[32px] leading-[1.12] font-bold tracking-[-0.03em] text-ink sm:text-[40px]"
+            >
               {title}
             </h1>
-            <p className="text-[15px] leading-[1.6] text-ink-muted">
+            <p className="max-w-[42ch] text-[15px] leading-relaxed text-ink-muted">
               {description}
             </p>
           </header>

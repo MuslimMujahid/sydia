@@ -28,7 +28,10 @@ export const Route = createFileRoute("/sign-in")({
   head: () => ({
     meta: [
       { title: "Masuk · Sydia" },
-      { name: "description", content: "Masuk ke pusat kendali Sydia Anda." },
+      {
+        name: "description",
+        content: "Masuk untuk melanjutkan percakapan Anda dengan Sydia.",
+      },
     ],
   }),
   component: SignInPage,
@@ -61,24 +64,24 @@ function SignInPage() {
 
   const notice =
     search.reason === "expired"
-      ? "Sesi Anda telah berakhir. Masuk kembali untuk melanjutkan."
+      ? "Sesi Anda berakhir. Silakan masuk lagi."
       : search.reason === "required"
-        ? "Masuk untuk membuka halaman tersebut."
+        ? "Masuk untuk membuka halaman ini."
         : search.reason === "signed-out"
-          ? "Anda telah keluar."
+          ? "Anda berhasil keluar."
           : null;
 
   return (
     <AuthShell
       title="Selamat datang kembali"
-      description="Masuk untuk melanjutkan aktivitas Anda."
+      description="Masuk untuk melanjutkan percakapan Anda dengan Sydia."
       footer={
         <>
-          Baru menggunakan Sydia?{" "}
+          Belum punya akun?{" "}
           <Link
             to="/sign-up"
             search={{ redirect: search.redirect }}
-            className="font-semibold text-link underline underline-offset-4"
+            className="font-semibold text-ink underline decoration-brand underline-offset-4"
           >
             Buat akun
           </Link>
@@ -86,7 +89,10 @@ function SignInPage() {
       }
     >
       {notice ? (
-        <p className="mb-5 border-l-2 border-brand bg-surface-2 px-4 py-3 text-sm text-ink">
+        <p
+          className="mb-5 rounded-md bg-surface-2 px-4 py-3 text-sm text-ink"
+          role="status"
+        >
           {notice}
         </p>
       ) : null}

@@ -1,4 +1,65 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1280" width="1280" height="1280">
-  <path fill="#073f40" d="M367 292C267 367 218 444 220 527C223 628 289 696 388 737L621 826C677 847 669 910 611 910H442C314 910 220 1000 220 1150H650C769 1150 850 1083 878 988C909 880 868 792 781 746L481 583C370 522 320 424 367 292Z"/>
-  <path fill="#32e6e2" d="M1049 149H650C527 149 430 211 398 300C359 410 418 486 504 535L831 720C928 778 949 895 899 1018C993 970 1050 889 1050 800C1050 702 1005 635 924 592L650 465C584 435 585 397 644 397H811C958 397 1050 301 1050 149Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Sydia hairpin logo</title>
+  <desc id="desc">Rounded triangular glossy gradient badge with a white upward chevron.</desc>
+  <defs>
+    <linearGradient id="rim" x1="18%" y1="10%" x2="86%" y2="92%">
+      <stop offset="0%" stop-color="#ff6a32"/>
+      <stop offset="22%" stop-color="#ff527e"/>
+      <stop offset="55%" stop-color="#ef32d6"/>
+      <stop offset="82%" stop-color="#8d39ff"/>
+      <stop offset="100%" stop-color="#5548ff"/>
+    </linearGradient>
+    <linearGradient id="face" x1="18%" y1="6%" x2="86%" y2="96%">
+      <stop offset="0%" stop-color="#ffdc83"/>
+      <stop offset="18%" stop-color="#ffb678"/>
+      <stop offset="40%" stop-color="#ff7b91"/>
+      <stop offset="62%" stop-color="#ef3ed0"/>
+      <stop offset="82%" stop-color="#a03cff"/>
+      <stop offset="100%" stop-color="#5b4cff"/>
+    </linearGradient>
+    <radialGradient id="warmGlow" cx="25%" cy="18%" r="70%">
+      <stop offset="0%" stop-color="#fff9cc" stop-opacity="0.85"/>
+      <stop offset="35%" stop-color="#ffd98d" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#ffd98d" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="chevronGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="clip">
+      <path d="M512 130 C559 130 600 156 628 198 L872 574 C929 663 938 754 895 822 C859 878 792 899 704 899 H320 C232 899 165 878 129 822 C86 754 95 663 152 574 L396 198 C424 156 465 130 512 130 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Outer gradient rim -->
+  <path d="M512 130 C559 130 600 156 628 198 L872 574 C929 663 938 754 895 822 C859 878 792 899 704 899 H320 C232 899 165 878 129 822 C86 754 95 663 152 574 L396 198 C424 156 465 130 512 130 Z" fill="url(#rim)"/>
+
+  <!-- White inset ring + face -->
+  <g transform="translate(512 514) scale(.965) translate(-512 -514)">
+    <path d="M512 130 C559 130 600 156 628 198 L872 574 C929 663 938 754 895 822 C859 878 792 899 704 899 H320 C232 899 165 878 129 822 C86 754 95 663 152 574 L396 198 C424 156 465 130 512 130 Z" fill="#ffffff"/>
+  </g>
+  <g transform="translate(512 514) scale(.942) translate(-512 -514)">
+    <path d="M512 130 C559 130 600 156 628 198 L872 574 C929 663 938 754 895 822 C859 878 792 899 704 899 H320 C232 899 165 878 129 822 C86 754 95 663 152 574 L396 198 C424 156 465 130 512 130 Z" fill="url(#face)"/>
+  </g>
+
+  <!-- Glass lighting clipped to the badge -->
+  <g clip-path="url(#clip)" transform="translate(512 514) scale(.942) translate(-512 -514)">
+    <rect x="110" y="105" width="815" height="800" fill="url(#warmGlow)"/>
+    <path d="M175 676 C206 559 281 368 404 202 C463 123 567 137 637 213 C536 215 441 251 365 318 C283 390 228 512 175 676 Z" fill="#ffffff" opacity="0.10"/>
+  </g>
+
+  <!-- Inner reflective keyline -->
+  <g transform="translate(512 514) scale(.918) translate(-512 -514)">
+    <path d="M512 130 C559 130 600 156 628 198 L872 574 C929 663 938 754 895 822 C859 878 792 899 704 899 H320 C232 899 165 878 129 822 C86 754 95 663 152 574 L396 198 C424 156 465 130 512 130 Z" fill="none" stroke="#ffffff" stroke-opacity="0.48" stroke-width="10"/>
+  </g>
+
+  <!-- Specular highlights -->
+  <ellipse cx="420" cy="226" rx="52" ry="32" transform="rotate(-22 420 226)" fill="#ffffff" opacity="0.54"/>
+  <circle cx="378" cy="285" r="10" fill="#ffffff" opacity="0.86"/>
+  <path d="M225 566 C267 491 302 433 339 382" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round" opacity="0.28"/>
+  <path d="M806 595 C840 655 850 711 825 756" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round" opacity="0.22"/>
+  <path d="M724 817 C768 814 803 800 827 777" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" opacity="0.31"/>
+
+  <!-- Center mark -->
+  <path d="M345 668 L512 421 L679 668" fill="none" stroke="#ffffff" stroke-width="86" stroke-linecap="round" stroke-linejoin="round" filter="url(#chevronGlow)"/>
 </svg>
