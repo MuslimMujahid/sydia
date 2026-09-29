@@ -1,10 +1,11 @@
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
-import { ChevronRight } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 const DropdownMenu = MenuPrimitive.Root;
 const DropdownMenuTrigger = MenuPrimitive.Trigger;
 const DropdownMenuSubmenu = MenuPrimitive.SubmenuRoot;
+const DropdownMenuRadioGroup = MenuPrimitive.RadioGroup;
 
 type DropdownMenuContentProps = MenuPrimitive.Popup.Props & {
   side?: MenuPrimitive.Positioner.Props["side"];
@@ -69,6 +70,31 @@ function DropdownMenuItem({
   );
 }
 
+type DropdownMenuRadioItemProps = MenuPrimitive.RadioItem.Props;
+
+function DropdownMenuRadioItem({
+  className,
+  children,
+  ...props
+}: DropdownMenuRadioItemProps) {
+  return (
+    <MenuPrimitive.RadioItem
+      data-slot="dropdown-menu-radio-item"
+      className={cn(
+        dropdownMenuItemClassName,
+        "data-[checked]:text-ink",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <MenuPrimitive.RadioItemIndicator className="ml-auto" aria-hidden="true">
+        <Check />
+      </MenuPrimitive.RadioItemIndicator>
+    </MenuPrimitive.RadioItem>
+  );
+}
+
 type DropdownMenuSubmenuTriggerProps = MenuPrimitive.SubmenuTrigger.Props;
 
 function DropdownMenuSubmenuTrigger({
@@ -97,11 +123,14 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSubmenu,
   DropdownMenuSubmenuTrigger,
 };
 export type {
   DropdownMenuContentProps,
   DropdownMenuItemProps,
+  DropdownMenuRadioItemProps,
   DropdownMenuSubmenuTriggerProps,
 };

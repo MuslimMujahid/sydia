@@ -39,12 +39,17 @@ function asTiptapDoc(content: JSONContent): TiptapDoc {
 
 type UseDailyNoteEditorOptions = {
   date: string;
+  /** Accessible name of the writing surface, e.g. "Catatan untuk Senin, 28 September". */
+  label: string;
+  placeholder: string;
   initialContent?: TiptapDoc;
   noteExists: boolean;
 };
 
 export function useDailyNoteEditor({
   date,
+  label,
+  placeholder,
   initialContent,
   noteExists,
 }: UseDailyNoteEditorOptions) {
@@ -141,7 +146,8 @@ export function useDailyNoteEditor({
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: {
-        "aria-label": `Catatan untuk ${date}`,
+        "aria-label": label,
+        "aria-placeholder": placeholder,
         role: "textbox",
         "aria-multiline": "true",
       },

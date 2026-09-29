@@ -56,7 +56,6 @@ function DailyNotesRoute() {
     <DailyNotePage
       selectedDate={selectedDate}
       today={today}
-      timezone={user.timezone}
       onDateChange={handleDateChange}
     />
   );

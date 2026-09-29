@@ -388,6 +388,8 @@ export function DashboardShell({
           className={cn(
             "mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-12 lg:py-12",
             activePath === "/tasks" && "max-w-none",
+            // The daily note's writing sheet runs edge to edge on phones.
+            activePath === "/daily-notes" && "max-sm:px-0 max-sm:pb-0",
             chatSurface &&
               "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:h-dvh lg:p-0"
           )}
