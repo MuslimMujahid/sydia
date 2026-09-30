@@ -163,7 +163,7 @@ export function YearView({
   const { year } = parseDayKey(anchor);
 
   return (
-    <div className="grid content-start gap-x-8 gap-y-8 rounded-lg border border-hairline bg-canvas p-5 shadow-card sm:grid-cols-2 sm:p-6 lg:h-full lg:grid-cols-3 lg:overflow-y-auto xl:grid-cols-4 2xl:grid-cols-6">
+    <div className="grid content-start gap-x-8 gap-y-8 rounded-lg bg-canvas p-5 sm:grid-cols-2 sm:p-6 lg:h-full lg:grid-cols-3 lg:overflow-y-auto xl:grid-cols-4 2xl:grid-cols-6">
       {MONTHS.map((month) => (
         <MiniMonth
           key={month}

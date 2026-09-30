@@ -151,7 +151,7 @@ export function ScheduleView({
     );
 
   return (
-    <ol className="divide-y divide-hairline overflow-hidden rounded-lg border border-hairline bg-canvas shadow-card lg:max-h-full lg:overflow-y-auto">
+    <ol className="divide-y divide-hairline overflow-hidden rounded-lg bg-canvas lg:max-h-full lg:overflow-y-auto">
       {busyDays.map((key) => {
         const isToday = key === todayKey;
         const headingId = `schedule-day-${key}`;

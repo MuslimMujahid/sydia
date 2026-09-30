@@ -123,7 +123,7 @@ function CalendarSkeleton() {
     <div
       aria-busy="true"
       aria-label="Memuat kalender"
-      className="overflow-hidden rounded-lg border border-hairline bg-canvas shadow-card lg:h-full"
+      className="overflow-hidden rounded-lg bg-canvas lg:h-full"
     >
       <div className="grid grid-cols-7 gap-px bg-hairline lg:h-full lg:auto-rows-fr">
         {Array.from({ length: 35 }, (_, index) => (

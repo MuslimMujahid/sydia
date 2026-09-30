@@ -73,15 +73,11 @@ function DayCell({
   onEditItem,
   onCreateForDay,
 }: DayCellProps) {
-  // All-day and multi-day events lead the cell, as bars.
+  // All-day and multi-day events lead the cell.
   const ordered = useMemo(() => {
     const allDay = items.filter((item) => isAllDayOn(item, day.key, timeZone));
-    const timed = items.filter((item) => !allDay.includes(item));
 
-    return [
-      ...allDay.map((item) => ({ item, allDay: true })),
-      ...timed.map((item) => ({ item, allDay: false })),
-    ];
+    return [...allDay, ...items.filter((item) => !allDay.includes(item))];
   }, [items, day.key, timeZone]);
 
   // Show everything that fits; otherwise keep the last row for "+N lainnya".
@@ -145,12 +141,11 @@ function DayCell({
         ) : null}
       </button>
       <ul className="mt-1 hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
-        {ordered.slice(0, visibleCount).map(({ item, allDay }) => (
+        {ordered.slice(0, visibleCount).map((item) => (
           <li key={item.key} className="min-w-0">
             <ItemChip
               item={item}
               timeZone={timeZone}
-              allDay={allDay}
               done={isDone(item)}
               onEdit={() => onEditItem(item)}
             />
@@ -228,7 +223,7 @@ export function MonthView({
     <div
       role="grid"
       aria-label={formatMonthYear(year, month)}
-      className="overflow-hidden rounded-lg border border-hairline bg-canvas shadow-card lg:flex lg:h-full lg:flex-col"
+      className="overflow-hidden rounded-lg bg-canvas lg:flex lg:h-full lg:flex-col"
     >
       <div role="row" className="grid grid-cols-7 border-b border-hairline">
         {WEEKDAY_SHORT_LABELS.map((label, index) => (
@@ -242,7 +237,7 @@ export function MonthView({
           </div>
         ))}
       </div>
-      {/* The last column's and row's outer borders come from the frame. */}
+      {/* Hide the last column's and row's cell borders so the outer edge stays open. */}
       <div
         ref={weeksRef}
         className="-mr-px -mb-px grid grid-cols-7 lg:min-h-0 lg:flex-1 lg:auto-rows-fr"

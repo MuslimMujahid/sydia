@@ -235,6 +235,31 @@ export function layoutTimedItems(
   return positioned;
 }
 
+/**
+ * How far a card may stretch over its right-hand neighbours, in column
+ * widths. Overlapping cards cascade instead of splitting the day evenly.
+ */
+const CASCADE_SPAN = 1.7;
+
+/**
+ * Horizontal box (in % of the day column) for a card in an overlap cluster.
+ * Each later card starts one column further right and is drawn on top; the
+ * last card runs to the right edge.
+ */
+export function cascadeBox(
+  column: number,
+  columns: number
+): { left: number; width: number } {
+  const step = 100 / columns;
+  const left = column * step;
+  const width =
+    column === columns - 1
+      ? 100 - left
+      : Math.min(100 - left, step * CASCADE_SPAN);
+
+  return { left, width };
+}
+
 /** The status a task shows, preferring an optimistic value being saved. */
 export type TaskStatusOverride = { taskId: string; status: TaskStatus };
 
@@ -254,6 +279,25 @@ export function itemTimeLabel(item: ScheduleItem, timeZone: string): string {
     item.event.endAt,
     timeZone
   )}`;
+}
+
+/** "09.00 – 10.30" for events, "10.00" for tasks, as printed on cards. */
+export function itemRangeLabel(item: ScheduleItem, timeZone: string): string {
+  if (item.kind === "task")
+    return formatTimeInZone(item.task.dueAt ?? "", timeZone);
+
+  return `${formatTimeInZone(item.event.startAt, timeZone)} – ${formatTimeInZone(
+    item.event.endAt,
+    timeZone
+  )}`;
+}
+
+/** "10.00": when an item starts (a task's due time). */
+export function itemStartTimeLabel(
+  item: ScheduleItem,
+  timeZone: string
+): string {
+  return formatTimeInZone(new Date(item.start).toISOString(), timeZone);
 }
 
 /**

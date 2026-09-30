@@ -12,6 +12,7 @@ import {
 } from "./calendar-date";
 import { ItemBlock, ItemChip } from "./calendar-item";
 import {
+  cascadeBox,
   isAllDayOn,
   layoutTimedItems,
   type ScheduleItem,
@@ -22,6 +23,8 @@ const HOUR_REM = 3;
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 /** New items created by clicking the grid snap to half hours. */
 const SNAP_MINUTES = 30;
+/** Blocks shorter than this fit only one line of text. */
+const TWO_LINE_MINUTES = 50;
 /** Scroll here when today is not in view: the start of a working day. */
 const DEFAULT_SCROLL_HOUR = 7;
 
@@ -97,24 +100,26 @@ function DayColumn({
       ))}
       <ul aria-label={`Jadwal ${formatDayKeyLabel(dayKey)}`}>
         {positioned.map((entry) => {
-          const width = 100 / entry.columns;
+          const box = cascadeBox(entry.column, entry.columns);
 
           return (
             <li
               key={entry.item.key}
-              className="absolute px-px pb-px"
+              className="absolute pr-1 pb-px"
               style={{
                 top: remFor(entry.startMinute),
                 height: remFor(entry.endMinute - entry.startMinute),
-                left: `${entry.column * width}%`,
-                width: `${width}%`,
+                left: `${box.left}%`,
+                width: `${box.width}%`,
+                // Later cards in a cluster sit on top of earlier ones.
+                zIndex: entry.column + 1,
               }}
             >
               <ItemBlock
                 item={entry.item}
                 timeZone={timeZone}
                 done={isDone(entry.item)}
-                compact={entry.endMinute - entry.startMinute < 45}
+                compact={entry.endMinute - entry.startMinute < TWO_LINE_MINUTES}
                 onEdit={() => onEditItem(entry.item)}
               />
             </li>
@@ -124,7 +129,7 @@ function DayColumn({
       {nowMinute !== null ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-brand"
+          className="pointer-events-none absolute inset-x-0 z-40 border-t-2 border-brand"
           style={{ top: remFor(nowMinute) }}
         >
           <span className="absolute -top-[5px] -left-[5px] size-2 rounded-pill bg-brand" />
@@ -185,7 +190,7 @@ export function TimeGridView({
 
   return (
     // From `lg` the grid fills its slot and only the hours scroll.
-    <div className="overflow-hidden rounded-lg border border-hairline bg-canvas shadow-card lg:flex lg:h-full lg:flex-col">
+    <div className="overflow-hidden rounded-lg bg-canvas lg:flex lg:h-full lg:flex-col">
       <div className="overflow-x-auto lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <div
           className={cn(
@@ -247,7 +252,6 @@ export function TimeGridView({
                       <ItemChip
                         item={item}
                         timeZone={timeZone}
-                        allDay
                         onEdit={() => onEditItem(item)}
                       />
                     </li>

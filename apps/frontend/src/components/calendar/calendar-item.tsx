@@ -28,6 +28,8 @@ import {
 import type { TaskStatus } from "@/lib/services/api/tasks/tasks.api";
 import { cn } from "@/lib/utils/cn";
 import {
+  itemRangeLabel,
+  itemStartTimeLabel,
   itemTimeLabel,
   itemWhenLabel,
   type ScheduleItem,
@@ -46,12 +48,8 @@ type KindStyle = {
   iconClass: string;
   /** Small solid marker, such as the dots on phone and year grids. */
   dotClass: string;
-  /** Light tinted card for timed items. */
+  /** Solid fill and text of every calendar card. */
   cardClass: string;
-  /** Solid bar for all-day and multi-day events. */
-  solidClass: string;
-  /** Left accent of blocks in the time grid. */
-  accentClass: string;
   /** Kind badge in the detail popover. */
   badgeClass: string;
 };
@@ -62,9 +60,8 @@ export const KIND_STYLES: Record<ScheduleItemKind, KindStyle> = {
     icon: CalendarDays,
     iconClass: "text-violet-600",
     dotClass: "bg-violet-500",
-    cardClass: "bg-violet-50 text-violet-950 hover:bg-violet-100",
-    solidClass: "bg-violet-500 text-white hover:bg-violet-600",
-    accentClass: "border-violet-500",
+    // White on violet-600 keeps small card text readable (AA).
+    cardClass: "bg-violet-600 text-white hover:bg-violet-700",
     badgeClass: "bg-violet-100 text-violet-700",
   },
   task: {
@@ -72,9 +69,8 @@ export const KIND_STYLES: Record<ScheduleItemKind, KindStyle> = {
     icon: SquareCheck,
     iconClass: "text-amber-600",
     dotClass: "bg-amber-500",
-    cardClass: "bg-amber-50 text-amber-950 hover:bg-amber-100",
-    solidClass: "bg-amber-500 text-white hover:bg-amber-600",
-    accentClass: "border-amber-500",
+    // White on amber is too faint, so amber cards use dark text.
+    cardClass: "bg-amber-400 text-amber-950 hover:bg-amber-500",
     badgeClass: "bg-amber-100 text-amber-800",
   },
 };
@@ -313,8 +309,6 @@ export function ItemPreview({
 type ItemChipProps = {
   item: ScheduleItem;
   timeZone: string;
-  /** Draw the event as a solid bar (all-day and multi-day events). */
-  allDay?: boolean;
   done?: boolean;
   onEdit: () => void;
 };
@@ -323,7 +317,6 @@ type ItemChipProps = {
 export function ItemChip({
   item,
   timeZone,
-  allDay = false,
   done = false,
   onEdit,
 }: ItemChipProps) {
@@ -336,15 +329,12 @@ export function ItemChip({
       done={done}
       onEdit={onEdit}
       className={cn(
-        "flex w-full min-w-0 items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-left text-xs font-medium outline-none focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:ring-2 data-[popup-open]:ring-current/25",
-        allDay ? style.solidClass : style.cardClass,
+        "flex w-full min-w-0 items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-left text-xs font-medium outline-none focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:ring-2 data-[popup-open]:ring-ink/30",
+        style.cardClass,
         done && "opacity-60"
       )}
     >
-      <ItemKindIcon
-        kind={item.kind}
-        className={cn("size-3", allDay && "text-current")}
-      />
+      <ItemKindIcon kind={item.kind} className="size-3 text-current" />
       <span className={cn("truncate", done && DONE_TITLE_CLASS)}>
         {item.title}
       </span>
@@ -356,7 +346,10 @@ type ItemBlockProps = {
   item: ScheduleItem;
   timeZone: string;
   done?: boolean;
-  /** Short blocks keep the title on a single line. */
+  /**
+   * Blocks too short for two lines show "Title, 17.45" on one line; taller
+   * blocks show the title with the start and end time below it.
+   */
   compact: boolean;
   onEdit: () => void;
 };
@@ -378,26 +371,38 @@ export function ItemBlock({
       done={done}
       onEdit={onEdit}
       className={cn(
-        "flex size-full min-w-0 gap-1.5 overflow-hidden rounded-sm border-l-[3px] px-1.5 text-left text-xs font-semibold outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:z-10 data-[popup-open]:shadow-card",
-        compact ? "items-center" : "items-start py-1",
+        // The canvas-colored ring keeps cascading, overlapping cards apart.
+        "flex size-full min-w-0 overflow-hidden rounded-sm px-1.5 text-left text-xs leading-4 ring-1 ring-canvas outline-none focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:shadow-card",
+        compact ? "items-center gap-1.5" : "flex-col py-1",
         style.cardClass,
-        style.accentClass,
         done && "opacity-60"
       )}
     >
-      <ItemKindIcon
-        kind={item.kind}
-        className={cn("size-3", !compact && "mt-px")}
-      />
-      <span
-        className={cn(
-          "min-w-0",
-          compact ? "truncate" : "line-clamp-3 break-words",
-          done && DONE_TITLE_CLASS
-        )}
-      >
-        {item.title}
-      </span>
+      {compact ? (
+        <>
+          <ItemKindIcon kind={item.kind} className="size-3 text-current" />
+          <span className="min-w-0 truncate">
+            <span className={cn("font-semibold", done && DONE_TITLE_CLASS)}>
+              {item.title}
+            </span>
+            , {itemStartTimeLabel(item, timeZone)}
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <ItemKindIcon kind={item.kind} className="size-3 text-current" />
+            <span
+              className={cn("truncate font-semibold", done && DONE_TITLE_CLASS)}
+            >
+              {item.title}
+            </span>
+          </span>
+          <time className="truncate tabular-nums">
+            {itemRangeLabel(item, timeZone)}
+          </time>
+        </>
+      )}
     </ItemPreview>
   );
 }
