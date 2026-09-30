@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   shiftMonthAnchor,
   type MonthAnchor,
-} from "@/components/calendar/month-grid";
+} from "@/components/calendar/month-anchor";
 import { TopbarTitle } from "@/components/dashboard/topbar-slots";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";

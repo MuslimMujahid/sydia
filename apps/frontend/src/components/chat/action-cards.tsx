@@ -269,7 +269,12 @@ function TaskActionCard({
                 size="sm"
                 variant="ghost"
                 nativeButton={false}
-                render={<Link to="/tasks" search={{ id: object.id }} />}
+                render={
+                  <Link
+                    to="/calendar"
+                    search={{ mode: "tasks", id: object.id }}
+                  />
+                }
               >
                 {locale === "en" ? "View task" : "Lihat tugas"}
               </Button>

@@ -4,7 +4,7 @@ import {
   DailyNotePage,
   type DailyNotePageProps,
 } from "@/components/daily-notes/daily-note-page";
-import { dayKeyInZone } from "@/components/calendar/month-grid";
+import { dayKeyInZone } from "@/components/calendar/month-anchor";
 
 const dayKeySchema = z
   .string()

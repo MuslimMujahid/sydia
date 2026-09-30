@@ -1,36 +1,21 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
-import { TaskPage, type TaskPageProps } from "@/components/tasks/task-page";
 
 const taskSearchSchema = z.object({
   id: z.string().trim().min(1).optional(),
 });
 
+/**
+ * Tasks now live in the merged calendar page. This route keeps old links and
+ * bookmarks working by sending them to its task view.
+ */
 export const Route = createFileRoute("/_app/tasks")({
   validateSearch: taskSearchSchema,
-  head: () => ({
-    meta: [
-      { title: "Tugas · Sydia" },
-      {
-        name: "description",
-        content:
-          "Kelola semua tugas dalam satu daftar dengan filter status, tenggat, dan kategori.",
-      },
-    ],
-  }),
-  component: TasksRoute,
-});
-
-function TasksRoute() {
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-
-  const handleTaskIdChange: TaskPageProps["onTaskIdChange"] = (id) => {
-    void navigate({
-      search: { id },
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: "/calendar",
+      search: { mode: "tasks", id: search.id },
       replace: true,
     });
-  };
-
-  return <TaskPage taskId={search.id} onTaskIdChange={handleTaskIdChange} />;
-}
+  },
+});

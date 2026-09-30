@@ -2,7 +2,6 @@ import {
   Bell,
   Brain,
   CalendarDays,
-  CheckSquare2,
   ContactRound,
   Ellipsis,
   Files,
@@ -56,8 +55,8 @@ import { cn } from "@/lib/utils/cn";
 
 const DEBUG_ENABLED = import.meta.env.VITE_DEBUG_ENABLED === "true";
 
+// Tasks live inside the calendar page, behind its Kalender/Tugas switch.
 const NAV_ITEMS = [
-  { to: "/tasks", label: "Tugas", icon: CheckSquare2 },
   { to: "/calendar", label: "Kalender", icon: CalendarDays },
   { to: "/daily-notes", label: "Catatan", icon: NotebookPen },
   { to: "/files", label: "File", icon: Files },
@@ -115,6 +114,13 @@ export function DashboardShell({
   );
 
   const chatSurface = activePath === "/";
+  // The calendar page (both its calendar and task modes) uses the full panel
+  // width. The calendar mode is also exactly one screen tall from `lg`.
+  const calendarSurface = activePath === "/calendar";
+  const calendarGridSurface =
+    calendarSurface &&
+    new URLSearchParams(location.searchStr).get("mode") !== "tasks";
+
   const moreActive = MORE_NAV_ITEMS.some((item) =>
     activePath.startsWith(item.to)
   );
@@ -419,6 +425,9 @@ export function DashboardShell({
               "mx-auto max-w-6xl px-5 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-12",
               // The daily note's writing sheet runs edge to edge on phones.
               activePath === "/daily-notes" && "max-sm:px-0 max-sm:pb-0",
+              calendarSurface && "max-w-none lg:px-8 lg:py-6",
+              // The calendar grid scrolls inside the panel instead of the page.
+              calendarGridSurface && "lg:flex lg:h-dvh lg:flex-col",
               chatSurface &&
                 "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:h-dvh lg:p-0"
             )}

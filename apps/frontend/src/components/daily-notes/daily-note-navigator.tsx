@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import type { MonthAnchor } from "@/components/calendar/month-grid";
+import type { MonthAnchor } from "@/components/calendar/month-anchor";
 import type { DailyNoteSummary } from "@/lib/services/api/daily-notes/daily-notes.api";
 import { cn } from "@/lib/utils/cn";
 import { DailyNoteCalendar } from "./daily-note-calendar";

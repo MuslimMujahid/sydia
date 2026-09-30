@@ -60,7 +60,11 @@ export function TodayAgenda() {
         </h2>
         <div className="flex gap-4 text-xs font-semibold">
           {tasks.length ? (
-            <Link to="/tasks" className="text-ink-muted hover:text-ink">
+            <Link
+              to="/calendar"
+              search={{ mode: "tasks" }}
+              className="text-ink-muted hover:text-ink"
+            >
               Semua tugas
             </Link>
           ) : null}
@@ -75,7 +79,8 @@ export function TodayAgenda() {
         {tasks.map((task) => (
           <li key={task.id}>
             <Link
-              to="/tasks"
+              to="/calendar"
+              search={{ mode: "tasks", id: task.id }}
               className="flex min-h-10 items-center gap-3 rounded-sm px-2 py-2 outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50"
             >
               <CheckSquare2

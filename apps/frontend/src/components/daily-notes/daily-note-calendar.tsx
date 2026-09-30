@@ -14,7 +14,7 @@ import {
   getMonthGridDays,
   type MonthAnchor,
   type MonthGridDay,
-} from "@/components/calendar/month-grid";
+} from "@/components/calendar/month-anchor";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 import { shiftDayKey } from "./daily-note-date";

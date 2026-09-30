@@ -1,7 +1,7 @@
 import {
   formatDayKeyLabel,
   type MonthAnchor,
-} from "@/components/calendar/month-grid";
+} from "@/components/calendar/month-anchor";
 
 export const ALL_DAILY_NOTES_RANGE = {
   from: "1900-01-01",
