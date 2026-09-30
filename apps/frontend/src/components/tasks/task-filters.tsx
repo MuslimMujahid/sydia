@@ -5,7 +5,6 @@ import {
   CalendarDays,
   CalendarX,
   Check,
-  ListTodo,
   Pencil,
   type LucideIcon,
 } from "lucide-react";
@@ -15,18 +14,7 @@ import type { Category } from "@/lib/services/api/categories/categories.api";
 import type { TaskDueFilter } from "@/lib/services/api/tasks/tasks.api";
 import { cn } from "@/lib/utils/cn";
 import { CategoryIcon } from "./category-icon";
-import {
-  DUE_LABELS,
-  STATUS_ICONS,
-  STATUS_FILTERS,
-  STATUS_FILTER_LABELS,
-  type TaskStatusFilter,
-} from "./task-view";
-
-const STATUS_FILTER_ICONS: Record<TaskStatusFilter, LucideIcon> = {
-  all: ListTodo,
-  ...STATUS_ICONS,
-};
+import { DUE_LABELS } from "./task-view";
 
 const DUE_FILTER_ICONS: Record<TaskDueFilter | "all", LucideIcon> = {
   all: CalendarDays,
@@ -112,55 +100,28 @@ function FilterGroup({ legend, action, children }: FilterGroupProps) {
 }
 
 export type TaskFilterPanelProps = {
-  status: TaskStatusFilter;
-  counts?: Record<TaskStatusFilter, number>;
   due: TaskDueFilter | "all";
   categories: Category[];
   categoriesLoading: boolean;
   selectedCategoryIds: string[];
-  /** The status group is hidden where the status chips already show it. */
-  showStatus?: boolean;
   className?: string;
-  onStatusChange: (status: TaskStatusFilter) => void;
   onDueChange: (due: TaskDueFilter | "all") => void;
   onCategoryToggle: (categoryId: string) => void;
   onManageCategories: () => void;
 };
 
 export function TaskFilterPanel({
-  status,
-  counts,
   due,
   categories,
   categoriesLoading,
   selectedCategoryIds,
-  showStatus = true,
   className,
-  onStatusChange,
   onDueChange,
   onCategoryToggle,
   onManageCategories,
 }: TaskFilterPanelProps) {
   return (
     <div className={cn("space-y-5", className)}>
-      {showStatus ? (
-        <FilterGroup legend="Status">
-          {STATUS_FILTERS.map((value) => {
-            const Icon = STATUS_FILTER_ICONS[value];
-
-            return (
-              <FilterOption
-                key={value}
-                icon={<Icon />}
-                label={STATUS_FILTER_LABELS[value]}
-                count={counts?.[value]}
-                active={status === value}
-                onClick={() => onStatusChange(value)}
-              />
-            );
-          })}
-        </FilterGroup>
-      ) : null}
       <FilterGroup legend="Tenggat">
         {(Object.keys(DUE_LABELS) as Array<TaskDueFilter | "all">).map(
           (value) => {
@@ -238,67 +199,5 @@ export function TaskFilterPanel({
         </div>
       </FilterGroup>
     </div>
-  );
-}
-
-export type TaskStatusChipsProps = {
-  status: TaskStatusFilter;
-  counts?: Record<TaskStatusFilter, number>;
-  className?: string;
-  onStatusChange: (status: TaskStatusFilter) => void;
-};
-
-/** A swipeable status switcher for screens without the filter sidebar. */
-export function TaskStatusChips({
-  status,
-  counts,
-  className,
-  onStatusChange,
-}: TaskStatusChipsProps) {
-  return (
-    <fieldset className={cn("min-w-0", className)}>
-      <legend className="sr-only">Filter status</legend>
-      {/*
-        `relative` makes this scroller the containing block for the chips'
-        sr-only text; without it those absolutely positioned spans escape the
-        overflow clip and widen the whole page on phones.
-      */}
-      <div className="relative -mx-5 flex snap-x gap-2 overflow-x-auto overscroll-x-contain scroll-px-5 px-5 pb-1 [scrollbar-width:none] sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:-mx-12 lg:scroll-px-12 lg:px-12 [&::-webkit-scrollbar]:hidden">
-        {STATUS_FILTERS.map((value) => {
-          const active = status === value;
-
-          return (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={active}
-              className={cn(
-                "inline-flex min-h-10 shrink-0 snap-start items-center gap-2 rounded-pill border border-ink/10 bg-canvas py-1 pr-1.5 pl-3.5 text-sm font-medium whitespace-nowrap text-ink-muted outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50",
-                // Matches the active option in the desktop filter panel.
-                active && "border-brand/40 bg-brand/10 font-semibold text-ink"
-              )}
-              onClick={() => onStatusChange(value)}
-            >
-              {STATUS_FILTER_LABELS[value]}
-              {counts ? (
-                <span
-                  className={cn(
-                    "min-w-7 rounded-pill px-1.5 py-0.5 text-center font-mono text-xs tabular-nums",
-                    active
-                      ? "bg-brand text-canvas"
-                      : "bg-surface-1 text-ink-soft"
-                  )}
-                >
-                  {counts[value]}
-                  <span className="sr-only"> tugas</span>
-                </span>
-              ) : (
-                <span aria-hidden="true" className="w-1.5" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </fieldset>
   );
 }

@@ -19,7 +19,6 @@ export const STATUS_ICONS: Record<TaskStatus, LucideIcon> = {
   cancelled: Ban,
 };
 
-export type TaskStatusFilter = TaskStatus | "all";
 export type TaskSortKey = "due" | "priority" | "newest" | "title";
 
 export const PRIORITY_LABELS: Record<TaskPriority, string> = {
@@ -45,13 +44,8 @@ export function isTaskSortKey(value: unknown): value is TaskSortKey {
   return typeof value === "string" && Object.keys(SORT_LABELS).includes(value);
 }
 
-export const STATUS_FILTER_LABELS: Record<TaskStatusFilter, string> = {
-  all: "Semua",
-  ...STATUS_LABELS,
-};
-
-export const STATUS_FILTERS: TaskStatusFilter[] = [
-  "all",
+/** The order of the status sections in the task list. */
+export const STATUS_SECTIONS: TaskStatus[] = [
   "inbox",
   "doing",
   "done",
@@ -89,29 +83,28 @@ const STATUS_RANK: Record<TaskStatus, number> = {
 
 const TITLE_COLLATOR = new Intl.Collator("id-ID", { sensitivity: "base" });
 
-export function countTasksByStatus(
-  tasks: Task[]
-): Record<TaskStatusFilter, number> {
-  const counts: Record<TaskStatusFilter, number> = {
-    all: tasks.length,
-    inbox: 0,
-    doing: 0,
-    done: 0,
-    cancelled: 0,
-  };
+export type TaskSection = { status: TaskStatus; tasks: Task[] };
 
-  for (const task of tasks) counts[task.status] += 1;
-
-  return counts;
-}
-
-export function filterTasksByStatus(
+/**
+ * Splits tasks into status sections in `STATUS_SECTIONS` order, keeping each
+ * section's input order and omitting empty sections. `statusOf` lets callers
+ * place a task by its optimistic status while a change is being saved.
+ */
+export function groupTasksByStatus(
   tasks: Task[],
-  status: TaskStatusFilter
-): Task[] {
-  return status === "all"
-    ? tasks
-    : tasks.filter((task) => task.status === status);
+  statusOf: (task: Task) => TaskStatus = (task) => task.status
+): TaskSection[] {
+  const groups = new Map<TaskStatus, Task[]>(
+    STATUS_SECTIONS.map((status) => [status, []])
+  );
+
+  for (const task of tasks) groups.get(statusOf(task))?.push(task);
+
+  return STATUS_SECTIONS.flatMap((status) => {
+    const sectionTasks = groups.get(status) ?? [];
+
+    return sectionTasks.length ? [{ status, tasks: sectionTasks }] : [];
+  });
 }
 
 function timeOf(value: string | null): number {

@@ -52,19 +52,17 @@ import type {
   CategoryIconKey,
 } from "@/lib/services/api/categories/categories.api";
 import { CategoryIcon } from "./category-icon";
-import { TaskFilterPanel, TaskStatusChips } from "./task-filters";
+import { TaskFilterPanel } from "./task-filters";
 import { TaskListSkeleton, TaskRow } from "./task-row";
 import {
   PRIORITY_LABELS,
   SORT_LABELS,
-  STATUS_FILTER_LABELS,
+  STATUS_ICONS,
   STATUS_LABELS,
-  countTasksByStatus,
-  filterTasksByStatus,
+  groupTasksByStatus,
   isTaskSortKey,
   sortTasks,
   type TaskSortKey,
-  type TaskStatusFilter,
 } from "./task-view";
 import {
   taskQueryOptions,
@@ -762,7 +760,6 @@ function TaskListEmpty({ filtered, onReset, onCreate }: TaskListEmptyProps) {
 }
 
 export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
-  const [status, setStatus] = useState<TaskStatusFilter>("all");
   const [due, setDue] = useState<TaskDueFilter | "all">("all");
   const [sort, setSort] = useState<TaskSortKey>("due");
   const [searchDraft, setSearchDraft] = useState("");
@@ -785,26 +782,36 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
 
   const query = useQuery(tasksQueryOptions(filters));
 
-  const counts = useMemo(
-    () => (query.data ? countTasksByStatus(query.data) : undefined),
-    [query.data]
-  );
-
   const deletingTaskId = deleteMutation.isPending
     ? deleteMutation.variables
     : undefined;
 
   const visibleTasks = useMemo(
     () =>
-      sortTasks(filterTasksByStatus(query.data ?? [], status), sort).filter(
+      sortTasks(query.data ?? [], sort).filter(
         (task) => task.id !== deletingTaskId
       ),
-    [query.data, status, sort, deletingTaskId]
+    [query.data, sort, deletingTaskId]
+  );
+
+  const pendingStatusChange = statusMutation.isPending
+    ? statusMutation.variables
+    : undefined;
+
+  // A task moves to its new section as soon as its status change is sent.
+  const sections = useMemo(
+    () =>
+      groupTasksByStatus(visibleTasks, (task) =>
+        pendingStatusChange?.taskId === task.id
+          ? pendingStatusChange.status
+          : task.status
+      ),
+    [visibleTasks, pendingStatusChange]
   );
 
   const sheetFilterCount = (due === "all" ? 0 : 1) + selectedCategoryIds.length;
 
-  const filtered = Boolean(search || status !== "all" || sheetFilterCount);
+  const filtered = Boolean(search || sheetFilterCount);
   const rowError = statusMutation.error ?? deleteMutation.error;
 
   function clearSearch() {
@@ -827,7 +834,6 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
 
   function resetFilters() {
     resetSheetFilters();
-    setStatus("all");
     clearSearch();
   }
 
@@ -854,13 +860,10 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
   }
 
   const filterPanelProps = {
-    status,
-    counts,
     due,
     categories: categoriesQuery.data ?? [],
     categoriesLoading: categoriesQuery.isPending,
     selectedCategoryIds,
-    onStatusChange: setStatus,
     onDueChange: setDue,
     onCategoryToggle: toggleCategory,
     onManageCategories: openCategoryManager,
@@ -955,12 +958,6 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
             {sortMenu}
             {filterButton}
           </div>
-          <TaskStatusChips
-            className="xl:hidden"
-            status={status}
-            counts={counts}
-            onStatusChange={setStatus}
-          />
           <div className="flex min-h-9 items-center gap-3 text-sm text-ink-muted">
             <p className="min-w-0 flex-1 truncate" aria-live="polite">
               {query.isSuccess ? (
@@ -969,9 +966,6 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
                     {visibleTasks.length}
                   </span>{" "}
                   tugas
-                  {status === "all"
-                    ? null
-                    : ` · ${STATUS_FILTER_LABELS[status]}`}
                   {search ? ` · “${search}”` : null}
                 </>
               ) : null}
@@ -1009,26 +1003,51 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
           ) : null}
           {query.isSuccess ? (
             visibleTasks.length ? (
-              <ul className="space-y-2">
-                {visibleTasks.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    now={now}
-                    pendingStatus={
-                      statusMutation.isPending &&
-                      statusMutation.variables.taskId === task.id
-                        ? statusMutation.variables.status
-                        : undefined
-                    }
-                    onOpen={() => onTaskIdChange(task.id)}
-                    onStatusChange={(nextStatus) =>
-                      changeTaskStatus(task, nextStatus)
-                    }
-                    onDelete={() => removeTask(task)}
-                  />
-                ))}
-              </ul>
+              <div className="space-y-6">
+                {sections.map((section) => {
+                  const Icon = STATUS_ICONS[section.status];
+                  const headingId = `task-section-${section.status}`;
+
+                  return (
+                    <section
+                      key={section.status}
+                      aria-labelledby={headingId}
+                      className="space-y-2"
+                    >
+                      <h3
+                        id={headingId}
+                        className="flex min-h-8 items-center gap-2 px-1 text-xs font-semibold tracking-wide text-ink-muted uppercase"
+                      >
+                        <Icon aria-hidden="true" className="size-4" />
+                        {STATUS_LABELS[section.status]}
+                        <span className="min-w-7 rounded-pill bg-surface-1 px-2 py-0.5 text-center font-mono text-xs font-normal text-ink-soft tabular-nums">
+                          {section.tasks.length}
+                          <span className="sr-only"> tugas</span>
+                        </span>
+                      </h3>
+                      <ul className="space-y-2">
+                        {section.tasks.map((task) => (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            now={now}
+                            pendingStatus={
+                              pendingStatusChange?.taskId === task.id
+                                ? pendingStatusChange.status
+                                : undefined
+                            }
+                            onOpen={() => onTaskIdChange(task.id)}
+                            onStatusChange={(nextStatus) =>
+                              changeTaskStatus(task, nextStatus)
+                            }
+                            onDelete={() => removeTask(task)}
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
             ) : (
               <TaskListEmpty
                 filtered={filtered}
@@ -1063,11 +1082,7 @@ export function TaskPage({ taskId, onTaskIdChange }: TaskPageProps) {
               <X />
             </DialogClose>
           </div>
-          <TaskFilterPanel
-            {...filterPanelProps}
-            showStatus={false}
-            className="-mx-3 mt-3"
-          />
+          <TaskFilterPanel {...filterPanelProps} className="-mx-3 mt-3" />
           <div className="mt-5 flex gap-3">
             <Button
               type="button"
