@@ -41,7 +41,6 @@ import { TaskFilterPanel } from "./task-filters";
 import { TaskListSkeleton, TaskRow } from "./task-row";
 import {
   SORT_LABELS,
-  STATUS_ICONS,
   STATUS_LABELS,
   groupTasksByStatus,
   isTaskSortKey,
@@ -527,11 +526,11 @@ export function TaskPage({
           <Button
             variant="dark-outline"
             size="icon"
-            className="relative sm:w-auto sm:px-4"
+            className="relative max-lg:h-9 max-sm:w-9 sm:w-auto sm:px-3 lg:px-4"
           />
         }
       >
-        <ArrowDownUp />
+        <ArrowDownUp className="size-3.5 lg:size-4" />
         <span className="max-sm:sr-only">Urutkan</span>
         <span className="sr-only">: {SORT_LABELS[sort]}</span>
       </DropdownMenuTrigger>
@@ -558,10 +557,10 @@ export function TaskPage({
       type="button"
       variant="dark-outline"
       size="icon"
-      className="relative sm:w-auto sm:px-4 xl:hidden"
+      className="relative max-lg:h-9 max-sm:w-9 sm:w-auto sm:px-3 lg:px-4 xl:hidden"
       onClick={() => setFiltersOpen(true)}
     >
-      <ListFilter />
+      <ListFilter className="size-3.5 lg:size-4" />
       <span className="max-sm:sr-only">Filter</span>
       {sheetFilterCount ? (
         <>
@@ -584,7 +583,7 @@ export function TaskPage({
       <DomainPageHeader
         title="Tugas"
         divided={false}
-        action={modeSwitch}
+        titleAction={modeSwitch}
         addAction={{
           label: "Tugas baru",
           onClick: () => setNewEditorOpen(true),
@@ -660,7 +659,6 @@ export function TaskPage({
             visibleTasks.length ? (
               <div className="space-y-6">
                 {sections.map((section) => {
-                  const Icon = STATUS_ICONS[section.status];
                   const headingId = `task-section-${section.status}`;
 
                   return (
@@ -673,7 +671,6 @@ export function TaskPage({
                         id={headingId}
                         className="flex min-h-8 items-center gap-2 px-1 text-xs font-semibold tracking-wide text-ink-muted uppercase"
                       >
-                        <Icon aria-hidden="true" className="size-4" />
                         {STATUS_LABELS[section.status]}
                         <span className="min-w-7 rounded-pill bg-surface-1 px-2 py-0.5 text-center font-mono text-xs font-normal text-ink-soft tabular-nums">
                           {section.tasks.length}

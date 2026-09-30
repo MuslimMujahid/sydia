@@ -77,12 +77,7 @@ export function CalendarConnection({
       </DropdownMenu>
     );
 
-  if (available === false)
-    return (
-      <span className="text-sm text-ink-muted">
-        Integrasi Google belum tersedia.
-      </span>
-    );
+  if (available === false) return null;
 
   return (
     <Button

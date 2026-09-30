@@ -13,7 +13,6 @@ import {
   isCalendarView,
   type CalendarView,
 } from "./calendar-date";
-import { CalendarLegend } from "./calendar-item";
 
 const STEP_LABELS: Record<CalendarView, { previous: string; next: string }> = {
   day: { previous: "Hari sebelumnya", next: "Hari berikutnya" },
@@ -29,7 +28,6 @@ export type CalendarToolbarProps = {
   titleId: string;
   onToday: () => void;
   onStep: (delta: number) => void;
-  onViewChange: (view: CalendarView) => void;
 };
 
 export function CalendarToolbar({
@@ -38,7 +36,6 @@ export function CalendarToolbar({
   titleId,
   onToday,
   onStep,
-  onViewChange,
 }: CalendarToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -71,33 +68,45 @@ export function CalendarToolbar({
           {title}
         </h2>
       </div>
-      <div className="flex shrink-0 items-center gap-4 max-sm:w-full max-sm:justify-between">
-        <CalendarLegend />
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="dark-outline" size="sm" />}
-          >
-            <span className="sr-only">Tampilan: </span>
-            {CALENDAR_VIEW_LABELS[view]}
-            <ChevronDown />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-40">
-            <DropdownMenuRadioGroup
-              aria-label="Tampilan kalender"
-              value={view}
-              onValueChange={(value: unknown) => {
-                if (isCalendarView(value)) onViewChange(value);
-              }}
-            >
-              {CALENDAR_VIEWS.map((value) => (
-                <DropdownMenuRadioItem key={value} value={value}>
-                  {CALENDAR_VIEW_LABELS[value]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
     </div>
+  );
+}
+
+type CalendarViewSelectProps = {
+  view: CalendarView;
+  onViewChange: (view: CalendarView) => void;
+};
+
+export function CalendarViewSelect({
+  view,
+  onViewChange,
+}: CalendarViewSelectProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="dark-outline" size="sm" className="h-11 px-3" />
+        }
+      >
+        <span className="sr-only">Tampilan: </span>
+        {CALENDAR_VIEW_LABELS[view]}
+        <ChevronDown />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-40">
+        <DropdownMenuRadioGroup
+          aria-label="Tampilan kalender"
+          value={view}
+          onValueChange={(value: unknown) => {
+            if (isCalendarView(value)) onViewChange(value);
+          }}
+        >
+          {CALENDAR_VIEWS.map((value) => (
+            <DropdownMenuRadioItem key={value} value={value}>
+              {CALENDAR_VIEW_LABELS[value]}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

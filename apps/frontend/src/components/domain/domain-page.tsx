@@ -1,6 +1,6 @@
 import { AlertTriangle, LoaderCircle, Plus, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
-import { TopbarTitle } from "@/components/dashboard/topbar-slots";
+import { TopbarPortal, TopbarTitle } from "@/components/dashboard/topbar-slots";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,6 +17,8 @@ export type DomainAddAction = {
 
 export type DomainPageHeaderProps = {
   title: string;
+  /** Controls shown in place of the title, including in the mobile app bar. */
+  titleAction?: ReactNode;
   /** Secondary header controls. */
   action?: ReactNode;
   /**
@@ -35,13 +37,18 @@ export type DomainPageHeaderProps = {
  */
 export function DomainPageHeader({
   title,
+  titleAction,
   action,
   addAction,
   divided = true,
 }: DomainPageHeaderProps) {
   return (
     <>
-      <TopbarTitle>{title}</TopbarTitle>
+      {titleAction ? (
+        <TopbarPortal slot="title">{titleAction}</TopbarPortal>
+      ) : (
+        <TopbarTitle>{title}</TopbarTitle>
+      )}
       <header
         className={cn(
           "flex items-center justify-between gap-4",
@@ -49,9 +56,13 @@ export function DomainPageHeader({
           !action && "max-lg:hidden"
         )}
       >
-        <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] max-lg:hidden">
-          {title}
-        </h1>
+        {titleAction ? (
+          <div className="max-lg:hidden">{titleAction}</div>
+        ) : (
+          <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] max-lg:hidden">
+            {title}
+          </h1>
+        )}
         {action || addAction ? (
           <div className="flex min-w-0 flex-wrap items-center gap-3 lg:shrink-0">
             {action}

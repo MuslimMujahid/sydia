@@ -406,21 +406,3 @@ export function ItemBlock({
     </ItemPreview>
   );
 }
-
-/** The key telling the two kinds apart. */
-export function CalendarLegend({ className }: { className?: string }) {
-  return (
-    <p
-      className={cn(
-        "flex items-center gap-3 text-xs font-medium text-ink-muted",
-        className
-      )}
-    >
-      {(["event", "task"] as const).map((kind) => (
-        <span key={kind} className="inline-flex items-center gap-1.5">
-          <ItemKindIcon kind={kind} /> {KIND_STYLES[kind].label}
-        </span>
-      ))}
-    </p>
-  );
-}

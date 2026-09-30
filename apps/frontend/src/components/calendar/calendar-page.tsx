@@ -34,7 +34,7 @@ import {
   type DayKey,
 } from "./calendar-date";
 import { CalendarConnection } from "./calendar-connection";
-import { CalendarToolbar } from "./calendar-toolbar";
+import { CalendarToolbar, CalendarViewSelect } from "./calendar-toolbar";
 import { EventEditor } from "./event-editor";
 import { MonthView } from "./month-view";
 import { ScheduleItemRow, ScheduleView } from "./schedule-view";
@@ -364,20 +364,26 @@ export function CalendarPage({
         title="Kalender"
         divided={false}
         addAction={{ label: "Buat", onClick: () => openCreate() }}
-        action={
-          <>
+        titleAction={
+          <div className="flex items-center gap-2 sm:gap-3">
             {modeSwitch}
-            <CalendarConnection
-              isPending={statusQuery.isPending}
-              error={statusQuery.error?.message ?? null}
-              connected={statusQuery.data?.connected}
-              available={statusQuery.data?.available}
-              isConnecting={isConnecting}
-              isDisconnecting={disconnectMutation.isPending}
-              onConnect={() => void handleConnect()}
-              onDisconnect={() => void handleDisconnect()}
+            <CalendarViewSelect
+              view={view}
+              onViewChange={(nextView) => navigateTo({ view: nextView, date })}
             />
-          </>
+          </div>
+        }
+        action={
+          <CalendarConnection
+            isPending={statusQuery.isPending}
+            error={statusQuery.error?.message ?? null}
+            connected={statusQuery.data?.connected}
+            available={statusQuery.data?.available}
+            isConnecting={isConnecting}
+            isDisconnecting={disconnectMutation.isPending}
+            onConnect={() => void handleConnect()}
+            onDisconnect={() => void handleDisconnect()}
+          />
         }
       />
       <section
@@ -392,7 +398,6 @@ export function CalendarPage({
           onStep={(delta) =>
             navigateTo({ date: shiftAnchor(view, anchor, delta) })
           }
-          onViewChange={(nextView) => navigateTo({ view: nextView, date })}
         />
         {actionError ? (
           <p className="text-sm text-destructive" role="alert">

@@ -19,7 +19,7 @@ export function CalendarModeSwitch({ mode }: CalendarModeSwitchProps) {
   return (
     <nav
       aria-label="Mode halaman"
-      className="flex rounded-md border border-ink/16 p-0.5"
+      className="flex h-11 w-fit shrink-0 rounded-md border border-ink/16 p-0.5"
     >
       {MODES.map((entry) => {
         const Icon = entry.icon;
@@ -35,14 +35,15 @@ export function CalendarModeSwitch({ mode }: CalendarModeSwitchProps) {
               mode: entry.mode === "tasks" ? "tasks" : undefined,
               id: undefined,
             })}
+            aria-label={entry.label}
+            title={entry.label}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex min-h-9 items-center gap-2 rounded-sm px-3 text-sm font-semibold text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
+              "flex h-full w-11 items-center justify-center rounded-sm text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
               active && "bg-surface-1 text-ink"
             )}
           >
-            <Icon aria-hidden="true" className="size-4" />
-            {entry.label}
+            <Icon aria-hidden="true" className="size-6" />
           </Link>
         );
       })}

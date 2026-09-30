@@ -61,9 +61,8 @@ export function TaskRow({
     <li
       aria-busy={pending || undefined}
       className={cn(
-        "relative flex items-start gap-3 rounded-md border border-hairline bg-canvas py-3 pr-1 pl-4 shadow-card transition-colors hover:border-ink/16 sm:items-center sm:gap-4 sm:py-2 sm:pl-5",
-        status === "doing" && "border-brand/35 hover:border-brand/60",
-        finished && "bg-surface-2/40 shadow-none"
+        "relative flex items-start gap-3 rounded-md bg-canvas py-3 pr-1 pl-4 transition-colors hover:bg-surface-1 sm:items-center sm:gap-4 sm:py-2 sm:pl-5",
+        finished && "bg-surface-2/40"
       )}
     >
       {status === "doing" ? (
@@ -221,7 +220,7 @@ export function TaskListSkeleton({ label }: { label: string }) {
       {SKELETON_WIDTHS.map((width) => (
         <li
           key={width}
-          className="flex items-center gap-3 rounded-md border border-hairline bg-canvas py-4 pr-4 pl-4 sm:gap-4 sm:pl-5"
+          className="flex items-center gap-3 rounded-md bg-canvas py-4 pr-4 pl-4 sm:gap-4 sm:pl-5"
         >
           <div className="size-5 shrink-0 animate-pulse rounded-md bg-surface-1 motion-reduce:animate-none" />
           <div className="min-w-0 flex-1 space-y-2">

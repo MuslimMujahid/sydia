@@ -8,8 +8,8 @@ import { CALENDAR_VIEWS, isDayKey } from "@/components/calendar/calendar-date";
 import { CalendarModeSwitch } from "@/components/calendar/calendar-mode-switch";
 import { TaskPage, type TaskPageProps } from "@/components/tasks/task-page";
 
-/** The calendar opens on the month; other views are kept in the URL. */
-const DEFAULT_VIEW = "month";
+/** The calendar opens on the day; other views are kept in the URL. */
+const DEFAULT_VIEW = "day";
 
 const calendarSearchSchema = z.object({
   /** `tasks` shows the task manager; the calendar is the default. */
