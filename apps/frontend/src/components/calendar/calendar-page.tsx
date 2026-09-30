@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, CheckSquare2, Clock3, Plus } from "lucide-react";
+import { Clock3, Plus } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   DomainInlineError,
@@ -20,7 +20,6 @@ import {
   tasksQueryOptions,
   useSetTaskStatus,
 } from "@/lib/services/api/tasks/tasks.queries";
-import { cn } from "@/lib/utils/cn";
 import {
   dayKeyInZone,
   formatDayKeyLabel,
@@ -33,6 +32,7 @@ import {
   type CalendarView,
   type DayKey,
 } from "./calendar-date";
+import { CalendarCreateMenu } from "./calendar-create-menu";
 import { CalendarConnection } from "./calendar-connection";
 import { CalendarToolbar, CalendarViewSelect } from "./calendar-toolbar";
 import { EventEditor } from "./event-editor";
@@ -75,48 +75,6 @@ type EditorState =
   | ({ mode: "new" } & NewItemDraft);
 
 const CLOCK_TICK_MS = 60_000;
-
-type NewItemKindSwitchProps = {
-  kind: ScheduleItemKind;
-  onChange: (kind: ScheduleItemKind) => void;
-};
-
-/** Picks what a new calendar item is, above the editor's title. */
-function NewItemKindSwitch({ kind, onChange }: NewItemKindSwitchProps) {
-  const options = [
-    { value: "event", label: "Acara", icon: CalendarDays },
-    { value: "task", label: "Tugas", icon: CheckSquare2 },
-  ] as const;
-
-  return (
-    <div
-      role="group"
-      aria-label="Jenis item"
-      className="mb-5 flex w-fit rounded-md border border-ink/16 p-0.5"
-    >
-      {options.map((option) => {
-        const Icon = option.icon;
-        const active = option.value === kind;
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={active}
-            className={cn(
-              "flex min-h-9 items-center gap-2 rounded-sm px-3 text-sm font-semibold text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
-              active && "bg-surface-1 text-ink"
-            )}
-            onClick={() => onChange(option.value)}
-          >
-            <Icon aria-hidden="true" className="size-4" />
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function CalendarSkeleton() {
   return (
@@ -239,7 +197,11 @@ export function CalendarPage({
    * Start a new item, prefilled on the given day (the anchor by default): at
    * the next full hour today, or 09.00 on other days.
    */
-  function openCreate(dayKey: DayKey = anchor, minute?: number) {
+  function openCreate(
+    dayKey: DayKey = anchor,
+    minute?: number,
+    kind: ScheduleItemKind = "event"
+  ) {
     const nextHour = Math.min(
       (Math.floor(minutesOfDayInZone(now, timezone) / 60) + 1) * 60,
       23 * 60
@@ -249,7 +211,7 @@ export function CalendarPage({
 
     setEditor({
       mode: "new",
-      kind: "event",
+      kind,
       startAt: toWallDateTime(dayKey, start),
       endAt: toWallDateTime(dayKey, Math.min(start + 60, 24 * 60 - 1)),
     });
@@ -363,7 +325,16 @@ export function CalendarPage({
       <DomainPageHeader
         title="Kalender"
         divided={false}
-        addAction={{ label: "Buat", onClick: () => openCreate() }}
+        addAction={{
+          label: "Buat",
+          renderButton: (button) => (
+            <CalendarCreateMenu
+              onCreate={(kind) => openCreate(anchor, undefined, kind)}
+            >
+              {button}
+            </CalendarCreateMenu>
+          ),
+        }}
         titleAction={
           <div className="flex items-center gap-2 sm:gap-3">
             {modeSwitch}
@@ -460,13 +431,13 @@ export function CalendarPage({
               <p className="text-sm text-ink-muted">
                 Tidak ada acara atau tugas pada hari ini.
               </p>
-              <Button
-                variant="dark-outline"
-                size="sm"
-                onClick={() => openCreate(anchor)}
+              <CalendarCreateMenu
+                onCreate={(kind) => openCreate(anchor, undefined, kind)}
               >
-                <Plus /> Buat
-              </Button>
+                <Button variant="dark-outline" size="sm">
+                  <Plus /> Buat
+                </Button>
+              </CalendarCreateMenu>
             </div>
           )}
         </section>
@@ -489,24 +460,12 @@ export function CalendarPage({
               initialStartAt={editor.startAt}
               initialEndAt={editor.endAt}
               timezone={timezone}
-              header={
-                <NewItemKindSwitch
-                  kind="event"
-                  onChange={(kind) => setEditor({ ...editor, kind })}
-                />
-              }
               onClose={() => setEditor(null)}
             />
           ) : (
             <TaskEditor
               key={`new-task-${editor.startAt ?? "blank"}`}
               initialDueAt={editor.startAt}
-              header={
-                <NewItemKindSwitch
-                  kind="task"
-                  onChange={(kind) => setEditor({ ...editor, kind })}
-                />
-              }
               onClose={() => setEditor(null)}
             />
           )

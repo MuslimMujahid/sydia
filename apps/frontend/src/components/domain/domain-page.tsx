@@ -1,5 +1,5 @@
 import { AlertTriangle, LoaderCircle, Plus, RotateCcw } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { TopbarPortal, TopbarTitle } from "@/components/dashboard/topbar-slots";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
@@ -12,7 +12,9 @@ export type DomainAddAction = {
   disabled?: boolean;
   /** Show a spinner while the create action runs. */
   pending?: boolean;
-  onClick: () => void;
+  onClick?: () => void;
+  /** Wrap the create button in a menu or other anchored control. */
+  renderButton?: (button: ReactElement) => ReactNode;
 };
 
 export type DomainPageHeaderProps = {
@@ -67,18 +69,20 @@ export function DomainPageHeader({
           <div className="flex min-w-0 flex-wrap items-center gap-3 lg:shrink-0">
             {action}
             {addAction ? (
-              <Button
-                className="max-lg:hidden"
-                disabled={addAction.disabled}
-                onClick={addAction.onClick}
-              >
-                {addAction.pending ? (
-                  <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-                ) : (
-                  (addAction.icon ?? <Plus />)
-                )}
-                {addAction.label}
-              </Button>
+              <AddActionButton action={addAction}>
+                <Button
+                  className="max-lg:hidden"
+                  disabled={addAction.disabled}
+                  onClick={addAction.onClick}
+                >
+                  {addAction.pending ? (
+                    <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    (addAction.icon ?? <Plus />)
+                  )}
+                  {addAction.label}
+                </Button>
+              </AddActionButton>
             ) : null}
           </div>
         ) : null}
@@ -89,30 +93,38 @@ export function DomainPageHeader({
 }
 
 /** The create action as an icon-only button in the bottom-right corner on phones. */
-function FloatingAddButton({
-  label,
-  disabled,
-  pending,
-  onClick,
-}: DomainAddAction) {
+function FloatingAddButton(action: DomainAddAction) {
+  const { label, disabled, pending, onClick } = action;
+
   return (
-    <Button
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      className="fixed right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-30 size-14 rounded-pill p-0 shadow-card sm:right-8 sm:bottom-8 lg:hidden"
-      onClick={onClick}
-    >
-      {pending ? (
-        <LoaderCircle
-          aria-hidden="true"
-          className="size-6 animate-spin motion-reduce:animate-none"
-        />
-      ) : (
-        <Plus aria-hidden="true" className="size-6" />
-      )}
-    </Button>
+    <AddActionButton action={action}>
+      <Button
+        aria-label={label}
+        title={label}
+        disabled={disabled}
+        className="fixed right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-30 size-14 rounded-pill p-0 shadow-card sm:right-8 sm:bottom-8 lg:hidden"
+        onClick={onClick}
+      >
+        {pending ? (
+          <LoaderCircle
+            aria-hidden="true"
+            className="size-6 animate-spin motion-reduce:animate-none"
+          />
+        ) : (
+          <Plus aria-hidden="true" className="size-6" />
+        )}
+      </Button>
+    </AddActionButton>
   );
+}
+
+type AddActionButtonProps = {
+  action: DomainAddAction;
+  children: ReactElement;
+};
+
+function AddActionButton({ action, children }: AddActionButtonProps) {
+  return action.renderButton ? action.renderButton(children) : children;
 }
 
 export function DomainListSkeleton({ label }: { label: string }) {
