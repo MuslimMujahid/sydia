@@ -10,6 +10,7 @@ import type {
   ConversationContextRecord,
   ConversationDetail,
   ConversationSummary,
+  RecentConversationContext,
   MemoryDreamRun,
   MemoryDreamSegment,
   Message,
@@ -245,6 +246,37 @@ export class PrismaConversationRepository implements IConversationRepository {
     const { messages, ...conversation } = record;
 
     return { conversation, messages };
+  }
+
+  async findRecentContexts(
+    userId: string,
+    excludeConversationId: string,
+  ): Promise<RecentConversationContext[]> {
+    const records = await this.prisma.conversation.findMany({
+      where: {
+        userId,
+        id: { not: excludeConversationId },
+        messages: { some: {} },
+      },
+      orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        lastMessageAt: true,
+        rollingSummary: true,
+        messages: {
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 4,
+          select: { role: true, content: true, createdAt: true },
+        },
+      },
+    });
+
+    return records.map((record) => ({
+      ...record,
+      messages: record.messages.reverse(),
+    }));
   }
 
   async resolveChannelConversation(

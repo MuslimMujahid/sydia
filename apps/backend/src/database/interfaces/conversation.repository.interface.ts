@@ -8,6 +8,7 @@ import type {
   ConversationContextRecord,
   ConversationDetail,
   ConversationSummary,
+  RecentConversationContext,
   MemoryDreamRun,
   MemoryDreamSegment,
   Message,
@@ -81,6 +82,11 @@ export interface IConversationRepository {
     userId: string,
     conversationId: string,
   ): Promise<ConversationContextRecord | null>;
+  /** The user's three latest other conversations, with summaries and recent turns. */
+  findRecentContexts(
+    userId: string,
+    excludeConversationId: string,
+  ): Promise<RecentConversationContext[]>;
   resolveChannelConversation(
     input: ChannelConversationInput,
   ): Promise<ChannelConversationResolution>;

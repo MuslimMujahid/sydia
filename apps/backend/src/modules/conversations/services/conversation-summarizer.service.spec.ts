@@ -21,6 +21,7 @@ const messages: Message[] = Array.from({ length: 10 }, (_, index) => ({
 describe('conversation context lifecycle', () => {
   it('bounds recent messages from the configured token budget', async () => {
     const repository = {
+      findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
           id: 'conversation-1',

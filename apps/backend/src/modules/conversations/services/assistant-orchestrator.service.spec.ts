@@ -94,6 +94,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
           id: conversation.id,
@@ -202,6 +203,7 @@ describe('AssistantOrchestratorService', () => {
       }),
       findLatestRunForMessage: resolved(queuedRun),
       claimRun: resolved(true),
+      findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
           id: conversation.id,
@@ -271,6 +273,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
           id: conversation.id,
@@ -351,6 +354,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
           id: conversation.id,
@@ -412,6 +416,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
           id: conversation.id,
@@ -569,6 +574,7 @@ describe('AssistantOrchestratorService', () => {
         findLatestRunForMessage: resolved(null),
         createRun: resolved(createRun()),
         claimRun: resolved(true),
+        findRecentContexts: resolved([]),
         findContext: resolved({
           conversation: {
             id: conversation.id,
@@ -667,6 +673,7 @@ describe('AssistantOrchestratorService', () => {
         knownDocuments: 0,
         memory: 0,
         summary: 0,
+        recentConversations: 0,
         history: 0,
         turnContext: 0,
         total: 10,

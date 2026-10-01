@@ -103,6 +103,13 @@ export type ConversationContextRecord = {
   messages: Message[];
 };
 
+export type RecentConversationContext = Pick<
+  PrismaConversation,
+  'id' | 'title' | 'lastMessageAt' | 'rollingSummary'
+> & {
+  messages: Array<Pick<PrismaMessage, 'role' | 'content' | 'createdAt'>>;
+};
+
 export type NewAssistantRun = {
   conversationId: string;
   inputMessageId: string;

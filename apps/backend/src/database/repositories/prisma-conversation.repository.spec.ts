@@ -21,6 +21,57 @@ function prismaWithTransaction(transaction: Record<string, unknown>) {
   } as unknown as PrismaService;
 }
 
+describe('PrismaConversationRepository recent context', () => {
+  it('scopes recent history to the owner, excludes the current chat, and restores turn order', async () => {
+    const older = { role: 'user', content: 'Bali', createdAt: new Date(0) };
+    const newer = {
+      role: 'assistant',
+      content: 'Three nights',
+      createdAt: new Date(1),
+    };
+
+    const findMany = jest.fn(() =>
+      Promise.resolve([
+        {
+          id: 'previous',
+          title: 'Trip',
+          lastMessageAt: new Date(1),
+          rollingSummary: null,
+          messages: [newer, older],
+        },
+      ]),
+    );
+
+    const repository = new PrismaConversationRepository({
+      conversation: { findMany },
+    } as unknown as PrismaService);
+
+    const result = await repository.findRecentContexts(
+      'user-1',
+      'current-chat',
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: 'user-1',
+          id: { not: 'current-chat' },
+          messages: { some: {} },
+        },
+        orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+        take: 3,
+        select: expect.objectContaining({
+          messages: expect.objectContaining({
+            take: 4,
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          }) as unknown,
+        }) as unknown,
+      }),
+    );
+    expect(result[0]?.messages).toEqual([older, newer]);
+  });
+});
+
 describe('PrismaConversationRepository channel conversations', () => {
   it('reuses an active mapped conversation', async () => {
     const conversation = {
