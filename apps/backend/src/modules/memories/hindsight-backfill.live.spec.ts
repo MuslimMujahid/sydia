@@ -70,7 +70,7 @@ live('Hindsight saved-fact backfill live contract', () => {
           return model.generate(request);
         },
       },
-      createFactReviewer(),
+      createFactReviewer(prisma),
     );
 
     const backfill = new HindsightBackfillService(

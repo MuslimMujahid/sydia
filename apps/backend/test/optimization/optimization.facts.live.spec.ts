@@ -1,3 +1,8 @@
+import type {
+  IUserRepository,
+  IConversationRepository,
+  IHindsightRepository,
+} from '../../src/database/interfaces';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -101,7 +106,22 @@ if (enabled && (!isAbsolute(reportPath) || !reportRelative.startsWith('..')))
             }),
           );
 
-          const factService = new MemoryFactDecisionService(gateway, settings);
+          const factService = new MemoryFactDecisionService(
+            gateway,
+            settings,
+            {
+              findById: () =>
+                Promise.resolve({
+                  name: 'Synthetic User',
+                  preferredAddress: null,
+                  locale: 'en',
+                  timezone: 'UTC',
+                }),
+            } as unknown as IUserRepository,
+            {} as IConversationRepository,
+            {} as IHindsightRepository,
+          );
+
           const realReview = factService.review.bind(factService);
           const verdicts: string[] = [];
           jest

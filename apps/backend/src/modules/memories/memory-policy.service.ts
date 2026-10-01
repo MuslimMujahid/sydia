@@ -190,6 +190,9 @@ export class MemoryPolicyService {
         [...evidence, ...preserved],
         permissions,
         beforeReview,
+        typeof source.userMessageId === 'string'
+          ? source.userMessageId
+          : undefined,
       );
 
       if (decision.status === 'unavailable')

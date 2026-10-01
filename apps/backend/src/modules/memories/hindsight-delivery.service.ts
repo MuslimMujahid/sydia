@@ -261,7 +261,8 @@ export class HindsightDeliveryService {
           operationId: delivery.operationId,
           content: this.extractionContent(delivery.content),
           timestamp: snapshot.source.eventAt.toISOString(),
-          context: 'Admitted user evidence. Extract only durable facts.',
+          context:
+            'Admitted user evidence. Extract only durable facts. Refer to the account owner as the user, never by a name, nickname, title or preferred form of address. Names in the source identify the speaker, not a stable memory subject.',
           metadata: {
             sourceId: snapshot.source.id,
             generation: String(delivery.generation),

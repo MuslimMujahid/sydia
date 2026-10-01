@@ -31,6 +31,7 @@ import { QueueService } from '../../infra/queue';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { MemoryService } from './memory.service';
 import { MemoryEngineService } from './memory-engine.service';
+import { canonicalMemorySubject } from './memory-subject';
 import { containsMemoryCredential, memoryChecksum } from './memory-admission';
 import type {
   MemorySearchHit,
@@ -154,7 +155,7 @@ export class MemoryAccessService {
     const { sourceMessageIds, ...approved } = await this.approvedEvidence(
       userId,
       userEvidence.content,
-      content,
+      userEvidence.requestedFact,
       userEvidence.messages,
       context.sourceMessageId,
     );
@@ -163,7 +164,7 @@ export class MemoryAccessService {
       sydiaSource: 1,
       ...approved,
       userTimezone: userEvidence.timezone,
-      requestedFact: content,
+      requestedFact: userEvidence.requestedFact,
       categoryHint: input.category ?? null,
     });
 
@@ -260,7 +261,7 @@ export class MemoryAccessService {
     const { sourceMessageIds, ...approved } = await this.approvedEvidence(
       userId,
       userEvidence.content,
-      content,
+      userEvidence.requestedFact,
       userEvidence.messages,
       context.sourceMessageId,
     );
@@ -298,7 +299,7 @@ export class MemoryAccessService {
           ]),
         ],
         userTimezone: userEvidence.timezone,
-        requestedFact: content,
+        requestedFact: userEvidence.requestedFact,
         preservedFacts,
       });
 
@@ -701,6 +702,7 @@ export class MemoryAccessService {
     approvedEvidence?: string[];
     permissionQuotes?: string[];
     sourceMessageIds: string[];
+    userMessageId?: string;
   }> {
     if (!this.policy)
       return { userEvidence, sourceMessageIds: messages.map(({ id }) => id) };
@@ -720,6 +722,7 @@ export class MemoryAccessService {
 
       const evidence = {
         userEvidence: approvedEvidence.join('\n'),
+        userMessageId: requestMessageId,
         approvedEvidence,
         permissionQuotes,
       };
@@ -796,6 +799,7 @@ export class MemoryAccessService {
     conversationId: string | null;
     eventAt: Date;
     timezone: string;
+    requestedFact: string;
     messages: Array<{ id: string; content: string }>;
   }> {
     const user = await this.users.findById(userId);
@@ -811,6 +815,7 @@ export class MemoryAccessService {
         conversationId: null,
         eventAt: new Date(),
         timezone: user.timezone,
+        requestedFact: canonicalMemorySubject(explicitContent, user),
       };
     const message = await this.conversations.findUserMemoryEvidence(
       userId,
@@ -874,6 +879,7 @@ export class MemoryAccessService {
       conversationId: message.conversationId,
       eventAt: message.createdAt,
       timezone: user.timezone,
+      requestedFact: canonicalMemorySubject(explicitContent, user),
     };
   }
 

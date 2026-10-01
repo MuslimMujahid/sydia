@@ -1,3 +1,14 @@
+import { PrismaService } from '../../src/infra/prisma';
+import {
+  PrismaUserRepository,
+  PrismaConversationRepository,
+  PrismaHindsightRepository,
+} from '../../src/database/repositories';
+import type {
+  IUserRepository,
+  IConversationRepository,
+  IHindsightRepository,
+} from '../../src/database/interfaces';
 import { ConfigService } from '@nestjs/config';
 import { DecisionSettings } from '../../src/infra/decision-gateway';
 import { DecisionCapacityService } from '../../src/infra/decision-gateway/decision-capacity.service';
@@ -6,7 +17,9 @@ import { ObservabilityService } from '../../src/infra/observability';
 import { MemoryFactDecisionService } from '../../src/modules/memories/memory-fact-decision.service';
 
 /** Live synthetic contracts use the production Jev adapter without shared Redis capacity. */
-export function createFactReviewer(): MemoryFactDecisionService {
+export function createFactReviewer(
+  prisma?: PrismaService,
+): MemoryFactDecisionService {
   const config = new ConfigService({
     BACKEND_DECISION_API_KEY:
       process.env.BACKEND_DECISION_API_KEY?.trim() ||
@@ -26,5 +39,25 @@ export function createFactReviewer(): MemoryFactDecisionService {
     ObservabilityService.disabled(),
   );
 
-  return new MemoryFactDecisionService(gateway, new DecisionSettings(config));
+  return new MemoryFactDecisionService(
+    gateway,
+    new DecisionSettings(config),
+    prisma
+      ? new PrismaUserRepository(prisma)
+      : ({
+          findById: () =>
+            Promise.resolve({
+              name: 'Synthetic User',
+              preferredAddress: null,
+              locale: 'en',
+              timezone: 'UTC',
+            }),
+        } as unknown as IUserRepository),
+    prisma
+      ? new PrismaConversationRepository(prisma)
+      : ({} as IConversationRepository),
+    prisma
+      ? new PrismaHindsightRepository(prisma)
+      : ({} as IHindsightRepository),
+  );
 }

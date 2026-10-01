@@ -301,3 +301,31 @@ describe('MemoryPolicyService', () => {
     expect(generate).not.toHaveBeenCalled();
   });
 });
+
+test('passes the persisted source message anchor to Jev for conversation context', async () => {
+  const { policy, review } = setup({
+    facts: [
+      {
+        id: fact.id,
+        grounded: true,
+        durable: true,
+        sensitive: false,
+        permissionQuote: null,
+        evidenceQuotes: [input],
+      },
+    ],
+  });
+
+  expect(
+    await policy.approveFacts(
+      'owner',
+      JSON.stringify({
+        sydiaSource: 1,
+        userEvidence: input,
+        userMessageId: 'request-message',
+      }),
+      [fact],
+    ),
+  ).toBe(true);
+  expect(review.mock.calls[0]?.[5]).toBe('request-message');
+});

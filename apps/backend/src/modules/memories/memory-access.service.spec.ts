@@ -258,9 +258,12 @@ function setup(
     .mockResolvedValue({} as never);
 
   const users = {
-    findById: jest
-      .fn<IUserRepository['findById']>()
-      .mockResolvedValue({ id: 'user', timezone: 'Asia/Makassar' } as User),
+    findById: jest.fn<IUserRepository['findById']>().mockResolvedValue({
+      id: 'user',
+      name: 'Demo User',
+      preferredAddress: 'Kak Muslim',
+      timezone: 'Asia/Makassar',
+    } as User),
   };
 
   const service = new MemoryAccessService(
@@ -317,6 +320,20 @@ describe('MemoryAccessService', () => {
       userTimezone: 'Asia/Makassar',
       requestedFact: 'Prefers English.',
     });
+  });
+
+  test('save requests use a stable user subject instead of the mutable preferred address', async () => {
+    const { service, ledger } = setup();
+    await service.create(
+      'user',
+      { content: 'Kak Muslim suka makan nasi goreng' },
+      context,
+    );
+    const payload = JSON.parse(ledger.enqueue.mock.calls[0]![0].content) as {
+      requestedFact: string;
+    };
+
+    expect(payload.requestedFact).toBe('The user suka makan nasi goreng');
   });
 
   test('queue publication failure leaves durable accepted work queued', async () => {

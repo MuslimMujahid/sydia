@@ -59,7 +59,7 @@ live('Direct Hindsight ingestion live contract', () => {
         }),
         ObservabilityService.disabled(),
       ),
-      createFactReviewer(),
+      createFactReviewer(prisma),
     );
 
     const delivery = new HindsightDeliveryService(

@@ -5,6 +5,11 @@ import {
   type DecisionGateway,
   type DecisionResult,
 } from '../../infra/decision-gateway';
+import type {
+  IUserRepository,
+  IConversationRepository,
+  IHindsightRepository,
+} from '../../database/interfaces';
 import { MemoryEligibilityService } from './memory-eligibility.service';
 import { MemoryFactDecisionService } from './memory-fact-decision.service';
 
@@ -38,10 +43,40 @@ function setup(extra: Record<string, unknown> = {}) {
       }),
     );
 
+  const users = {
+    findById: jest.fn<IUserRepository['findById']>().mockResolvedValue({
+      name: 'Demo User',
+      preferredAddress: 'Kak Muslim',
+      locale: 'id',
+      timezone: 'Asia/Makassar',
+    } as Awaited<ReturnType<IUserRepository['findById']>>),
+  };
+
+  const conversations = {
+    findUserMemoryEvidence:
+      jest.fn<IConversationRepository['findUserMemoryEvidence']>(),
+    findContext: jest.fn<IConversationRepository['findContext']>(),
+  };
+
+  const ledger = {
+    suppressedMessageIds: jest
+      .fn<IHindsightRepository['suppressedMessageIds']>()
+      .mockResolvedValue([]),
+  };
+
   return {
     decide,
+    users,
+    conversations,
+    ledger,
     eligibility: new MemoryEligibilityService({ decide }, settings),
-    facts: new MemoryFactDecisionService({ decide }, settings),
+    facts: new MemoryFactDecisionService(
+      { decide },
+      settings,
+      users as unknown as IUserRepository,
+      conversations as unknown as IConversationRepository,
+      ledger as unknown as IHindsightRepository,
+    ),
   };
 }
 
@@ -352,3 +387,146 @@ test.each(['review', 'coverage'])(
     ).toEqual({ status: 'unavailable', reason: 'timeout' });
   },
 );
+
+test('fact review supplies profile and bounded dialogue to both Jev stages without changing evidence', async () => {
+  const { facts, decide, users, conversations, ledger } = setup();
+  const createdAt = new Date('2026-10-01T10:00:00Z');
+  conversations.findUserMemoryEvidence.mockResolvedValue({
+    id: 'anchor',
+    conversationId: 'chat',
+    content: 'Ingat ya, aku software developer.',
+    createdAt,
+  });
+  const messages = [
+    { id: 'forgotten', role: 'user', content: 'A forgotten fact' },
+    { id: 'secret', role: 'user', content: 'My password is hunter2' },
+    { id: 'fact', role: 'user', content: 'Aku software developer' },
+    { id: 'reply', role: 'assistant', content: 'Baik, Kak Muslim.' },
+    {
+      id: 'anchor',
+      role: 'user',
+      content: 'Ingat ya, aku software developer.',
+    },
+    { id: 'future', role: 'user', content: 'Actually, I am a teacher now.' },
+  ];
+
+  conversations.findContext.mockResolvedValue({
+    conversation: {
+      id: 'chat',
+      rollingSummary: 'Future contaminated summary',
+      summaryThroughMessageId: 'future',
+    },
+    messages,
+  } as unknown as NonNullable<
+    Awaited<ReturnType<IConversationRepository['findContext']>>
+  >);
+  ledger.suppressedMessageIds.mockResolvedValue(['forgotten']);
+  const evidence = [
+    'Aku software developer',
+    'Ingat ya, aku software developer.',
+  ];
+
+  expect(
+    (
+      await facts.review(
+        'user',
+        [{ id: 'f1', text: 'The user bekerja sebagai software developer.' }],
+        evidence,
+        [],
+        undefined,
+        'anchor',
+      )
+    ).status,
+  ).toBe('allow');
+  expect(users.findById).toHaveBeenCalledWith('user');
+  expect(conversations.findUserMemoryEvidence).toHaveBeenCalledWith(
+    'user',
+    'anchor',
+  );
+  expect(conversations.findContext).toHaveBeenCalledWith('user', 'chat');
+
+  for (const [request] of decide.mock.calls) {
+    const state = JSON.parse(request.state) as Record<string, unknown>;
+    expect(state.userProfile).toEqual({
+      name: 'Demo User',
+      preferredAddress: 'Kak Muslim',
+      locale: 'id',
+      timezone: 'Asia/Makassar',
+    });
+    expect(state.conversationContext).toEqual(
+      messages.slice(2, 5).map(({ role, content }) => ({ role, content })),
+    );
+    expect(request.state).not.toMatch(
+      /hunter2|forgotten fact|teacher|contaminated/i,
+    );
+    const grounding =
+      request.questions.grounded_0 ?? request.questions.coverage_0;
+
+    expect(grounding?.instructions).toContain(
+      'Assistant statements are never evidence',
+    );
+  }
+
+  expect(
+    (
+      JSON.parse(decide.mock.calls[0]![0].state) as {
+        approvedEvidence: string[];
+      }
+    ).approvedEvidence,
+  ).toEqual(evidence);
+  expect(
+    (
+      JSON.parse(decide.mock.calls[1]![0].state) as {
+        candidates: Array<{ selectedEvidence: string[] }>;
+      }
+    ).candidates[0]?.selectedEvidence,
+  ).toEqual(evidence);
+});
+
+test('fact review refuses an unavailable or forgotten conversation anchor before contacting Jev', async () => {
+  const { facts, decide, conversations, ledger } = setup();
+  conversations.findUserMemoryEvidence.mockResolvedValue(null);
+  const review = () =>
+    facts.review(
+      'user',
+      [{ id: 'f1', text: 'The user likes tea.' }],
+      ['I like tea'],
+      [],
+      undefined,
+      'anchor',
+    );
+
+  await expect(review()).rejects.toThrow('source message is unavailable');
+  conversations.findUserMemoryEvidence.mockResolvedValue({
+    id: 'anchor',
+    conversationId: 'chat',
+    content: 'I like tea',
+    createdAt: new Date(),
+  });
+  conversations.findContext.mockResolvedValue({
+    conversation: {
+      id: 'chat',
+      rollingSummary: null,
+      summaryThroughMessageId: null,
+    },
+    messages: [{ id: 'anchor', role: 'user', content: 'I like tea' }],
+  } as unknown as NonNullable<
+    Awaited<ReturnType<IConversationRepository['findContext']>>
+  >);
+  ledger.suppressedMessageIds.mockResolvedValue(['anchor']);
+  await expect(review()).rejects.toThrow('source message was forgotten');
+  expect(decide).not.toHaveBeenCalled();
+});
+
+test('rejects extracted facts that still use a mutable profile name as their subject', async () => {
+  const { facts, decide } = setup();
+  expect(
+    await facts.review(
+      'user',
+      [{ id: 'f1', text: 'Kak Muslim suka makan nasi goreng' }],
+      ['Aku suka makan nasi goreng'],
+      [],
+    ),
+  ).toEqual({ status: 'reject' });
+  expect(decide).not.toHaveBeenCalled();
+});

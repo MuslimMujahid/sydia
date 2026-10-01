@@ -78,7 +78,7 @@ live('Chat memory adapter live contract', () => {
           return result;
         },
       },
-      createFactReviewer(),
+      createFactReviewer(prisma),
     );
 
     const bankId = engine.bankId(userId);
