@@ -1,3 +1,4 @@
+import { createFactReviewer } from '../../../test/hindsight/create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { describe, expect, test } from '@jest/globals';
@@ -59,15 +60,18 @@ live('Hindsight saved-fact backfill live contract', () => {
     );
 
     let modelCalls = 0;
-    const policy = new MemoryPolicyService({
-      provider: model.provider,
-      model: model.model,
-      generate: (request) => {
-        modelCalls += 1;
+    const policy = new MemoryPolicyService(
+      {
+        provider: model.provider,
+        model: model.model,
+        generate: (request) => {
+          modelCalls += 1;
 
-        return model.generate(request);
+          return model.generate(request);
+        },
       },
-    });
+      createFactReviewer(),
+    );
 
     const backfill = new HindsightBackfillService(
       memories,

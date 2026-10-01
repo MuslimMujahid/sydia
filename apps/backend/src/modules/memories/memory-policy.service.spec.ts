@@ -2,6 +2,10 @@ import { describe, expect, jest, test } from '@jest/globals';
 import type { LanguageModelGateway } from '../../infra/model-gateway';
 import type { HindsightFact } from '../../infra/hindsight';
 import { MemoryPolicyService } from './memory-policy.service';
+import {
+  MemoryFactDecisionService,
+  type FactDecisionVerdict,
+} from './memory-fact-decision.service';
 
 const input = 'I prefer Indonesian replies. Remember my asthma diagnosis.';
 const fact: HindsightFact = {
@@ -20,11 +24,22 @@ function setup(output: unknown) {
     .fn<LanguageModelGateway['generate']>()
     .mockResolvedValue({ text: JSON.stringify(output), usage: {} });
 
+  const review = jest
+    .fn<MemoryFactDecisionService['review']>()
+    .mockResolvedValue({
+      status: 'allow',
+      facts: (output as { facts?: FactDecisionVerdict[] }).facts ?? [],
+    });
+
   return {
     generate,
-    policy: new MemoryPolicyService({
-      generate,
-    } as unknown as LanguageModelGateway),
+    review,
+    policy: new MemoryPolicyService(
+      {
+        generate,
+      } as unknown as LanguageModelGateway,
+      { review } as unknown as MemoryFactDecisionService,
+    ),
   };
 }
 
@@ -161,32 +176,23 @@ describe('MemoryPolicyService', () => {
   });
 
   test('reviews all candidates in bounded batches and renews ownership before each call', async () => {
-    const { policy, generate } = setup({ facts: [] });
+    const { policy, review } = setup({ facts: [] });
     const beforeReview = jest.fn<() => Promise<void>>().mockResolvedValue();
     const batchIds: string[][] = [];
-    generate.mockImplementation((request) => {
-      const content = request.messages[1]!.content;
-      if (typeof content !== 'string')
-        throw new Error('Expected text evidence');
-      const body = JSON.parse(content) as {
-        candidates: Array<{ id: string; text: string }>;
-      };
-
-      batchIds.push(body.candidates.map(({ id }) => id));
+    review.mockImplementation((_userId, candidates) => {
+      batchIds.push(candidates.map(({ id }) => id));
       expect(beforeReview).toHaveBeenCalledTimes(batchIds.length);
 
       return Promise.resolve({
-        text: JSON.stringify({
-          facts: body.candidates.map(({ id }) => ({
-            id,
-            grounded: true,
-            durable: true,
-            sensitive: false,
-            permissionQuote: null,
-            evidenceQuotes: ['I prefer Indonesian replies.'],
-          })),
-        }),
-        usage: {},
+        status: 'allow',
+        facts: candidates.map(({ id }) => ({
+          id,
+          grounded: true,
+          durable: true,
+          sensitive: false,
+          permissionQuote: null,
+          evidenceQuotes: ['I prefer Indonesian replies.'],
+        })),
       });
     });
     const facts = Array.from({ length: 9 }, (_, index) => ({
@@ -204,35 +210,30 @@ describe('MemoryPolicyService', () => {
     ).toBe(true);
     expect(batchIds.map((ids) => ids.length)).toEqual([4, 4, 1]);
     expect(batchIds.flat()).toEqual(facts.map(({ id }) => id));
-    expect(generate).toHaveBeenCalledTimes(3);
+    expect(review).toHaveBeenCalledTimes(3);
   });
 
   test('rejects the whole source if a later batch is ungrounded', async () => {
-    const { policy, generate } = setup({ facts: [] });
+    const { policy, review } = setup({ facts: [] });
     let calls = 0;
-    generate.mockImplementation((request) => {
-      const content = request.messages[1]!.content;
-      if (typeof content !== 'string')
-        throw new Error('Expected text evidence');
-      const body = JSON.parse(content) as {
-        candidates: Array<{ id: string }>;
-      };
-
+    review.mockImplementation((_userId, candidates) => {
       calls += 1;
 
-      return Promise.resolve({
-        text: JSON.stringify({
-          facts: body.candidates.map(({ id }) => ({
-            id,
-            grounded: calls === 1,
-            durable: true,
-            sensitive: false,
-            permissionQuote: null,
-            evidenceQuotes: ['I prefer Indonesian replies.'],
-          })),
-        }),
-        usage: {},
-      });
+      return Promise.resolve(
+        calls === 1
+          ? {
+              status: 'allow',
+              facts: candidates.map(({ id }) => ({
+                id,
+                grounded: true,
+                durable: true,
+                sensitive: false,
+                permissionQuote: null,
+                evidenceQuotes: ['I prefer Indonesian replies.'],
+              })),
+            }
+          : { status: 'reject' },
+      );
     });
     expect(
       await policy.approveFacts(
@@ -244,11 +245,11 @@ describe('MemoryPolicyService', () => {
         })),
       ),
     ).toBe(false);
-    expect(generate).toHaveBeenCalledTimes(2);
+    expect(review).toHaveBeenCalledTimes(2);
   });
 
   test('rejects duplicate IDs, credentials in later batches, and oversized sources before model work', async () => {
-    const { policy, generate } = setup({ facts: [] });
+    const { policy, review } = setup({ facts: [] });
     const source = JSON.stringify({ sydiaSource: 1, userEvidence: input });
     expect(await policy.approveFacts('owner', source, [fact, fact])).toBe(
       false,
@@ -267,6 +268,34 @@ describe('MemoryPolicyService', () => {
           ...fact,
           id: `${index}`,
         })),
+      ),
+    ).toBe(false);
+    expect(review).not.toHaveBeenCalled();
+  });
+  test.each(['timeout', 'invalid-response', 'review-not-enabled'])(
+    'Jev failure %s never invokes the DeepSeek fact reviewer',
+    async (reason) => {
+      const { policy, generate, review } = setup({});
+      review.mockResolvedValue({ status: 'unavailable', reason });
+      await expect(
+        policy.approveFacts(
+          'owner',
+          JSON.stringify({ sydiaSource: 1, userEvidence: input }),
+          [fact],
+        ),
+      ).rejects.toThrow('Jev fact review is unavailable');
+      expect(generate).not.toHaveBeenCalled();
+    },
+  );
+
+  test('Jev rejection never invokes the DeepSeek fact reviewer', async () => {
+    const { policy, generate, review } = setup({});
+    review.mockResolvedValue({ status: 'reject' });
+    expect(
+      await policy.approveFacts(
+        'owner',
+        JSON.stringify({ sydiaSource: 1, userEvidence: input }),
+        [fact],
       ),
     ).toBe(false);
     expect(generate).not.toHaveBeenCalled();

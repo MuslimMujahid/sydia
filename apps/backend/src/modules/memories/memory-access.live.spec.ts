@@ -1,3 +1,4 @@
+import { createFactReviewer } from '../../../test/hindsight/create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { describe, expect, test } from '@jest/globals';
@@ -64,18 +65,21 @@ live('Chat memory adapter live contract', () => {
       ObservabilityService.disabled(),
     );
 
-    const policy = new MemoryPolicyService({
-      provider: model.provider,
-      model: model.model,
-      generate: async (request) => {
-        // Capture synthetic diagnostics here, outside the production tracer.
-        policyTraces.push(JSON.stringify(request.messages));
-        const result = await model.generate(request);
-        policyTraces.push(result.text);
+    const policy = new MemoryPolicyService(
+      {
+        provider: model.provider,
+        model: model.model,
+        generate: async (request) => {
+          // Capture synthetic diagnostics here, outside the production tracer.
+          policyTraces.push(JSON.stringify(request.messages));
+          const result = await model.generate(request);
+          policyTraces.push(result.text);
 
-        return result;
+          return result;
+        },
       },
-    });
+      createFactReviewer(),
+    );
 
     const bankId = engine.bankId(userId);
     const delivery = new HindsightDeliveryService(

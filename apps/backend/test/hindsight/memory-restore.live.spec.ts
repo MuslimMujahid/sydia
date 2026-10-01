@@ -1,3 +1,4 @@
+import { createFactReviewer } from './create-fact-reviewer';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -504,7 +505,7 @@ type Runtime = {
         ObservabilityService.disabled(),
       );
 
-      const policy = new MemoryPolicyService(model);
+      const policy = new MemoryPolicyService(model, createFactReviewer());
 
       return {
         prisma,

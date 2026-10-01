@@ -1,3 +1,4 @@
+import { createFactReviewer } from '../hindsight/create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -177,6 +178,7 @@ if (
           const reviewUsage = new ReviewUsage();
           const policy = new MemoryPolicyService(
             new OpenRouterLanguageModel(config, reviewUsage),
+            createFactReviewer(),
           );
 
           const arms = [

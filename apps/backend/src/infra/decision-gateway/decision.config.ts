@@ -15,9 +15,8 @@ export const DEFAULT_DECISION_THRESHOLDS = {
   eligibilitySkip: 0.01,
   recallInclude: 0.6,
   toolInclude: 0.6,
-  factReject: 0.01,
   factAllow: 0.85,
-  sensitiveNo: 0.01,
+  sensitiveNo: 0.25,
 } as const;
 export type DecisionThresholds = {
   -readonly [K in keyof typeof DEFAULT_DECISION_THRESHOLDS]: number;
@@ -166,10 +165,6 @@ export function validateDecisionEnvironment(
     parsed[key] = value;
   }
 
-  if (parsed.factReject >= parsed.factAllow)
-    throw new Error(
-      'Decision thresholds must preserve an uncertainty interval',
-    );
   settings.BACKEND_DECISION_THRESHOLDS_JSON = JSON.stringify(parsed);
 
   return settings;

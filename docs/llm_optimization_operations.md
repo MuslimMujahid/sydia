@@ -4,6 +4,8 @@ Updated 1 October 2026. See the [implementation plan](./llm_cost_latency_optimiz
 
 ## Current state
 
+Fact admission now uses Jev alone, with `factAllow=0.85` for grounding, retention, evidence support, coverage, and specific sensitive-data consent. Facts below that approval threshold are rejected. A sensitivity score above `sensitiveNo=0.25` requires a qualifying permission quote. Provider failures or invalid responses keep retained sources pending for retry. DeepSeek still selects source evidence, but no longer reviews extracted facts. Fact review must be enabled for the user's cohort; off, shadow, and reject-only modes cannot admit facts. `factReject` has been removed; `factAllow` is the single approval boundary. The shared retention criteria include months/years of relevance, future usefulness, non-triviality/novelty, appropriateness, and explicit requests to remember/save/note specific information.
+
 On 1 October 2026 the user accepted tool/recall inclusion at **0.6**, GPT-OSS-20B's lower extraction cost despite its slower median, and the remaining implementations, and authorized end-to-end testing and legacy cutover. The local API and worker now use all four Jev modes as `enabled`, an explicit `BACKEND_DECISION_COHORT=*`, and acceptance version `user-accepted-20261001-v1`. Empty cohorts and new-installation defaults still disable the decision features.
 
 Hindsight extraction uses **`openai/gpt-oss-20b` on CoreWeave**, low reasoning and a 32,000 completion limit, with provider fallback disabled. DeepSeek remains the global consolidation/reflect model; assistant generation, embeddings, source generations and the stable Hindsight worker ID are preserved. A subsequent owner decision on 1 October 2026 selected **RRF alone**, with model reranking disabled and no further benchmarking; see the [Hindsight runbook](./hindsight_operations.md#runtime-and-configuration). Earlier trials retained Cohere reranking as their fixed baseline. The interactive decision budget is **1,500 ms** because the earlier 600 ms trials produced empty tool selections on timeouts. Background decisions retain their 5,000 ms budget.
@@ -289,7 +291,7 @@ BACKEND_DECISION_COHORT=*
 BACKEND_DECISION_CALIBRATION_VERSION=user-accepted-20261001-v1
 BACKEND_DECISION_TIMEOUT_MS=1500
 BACKEND_DECISION_BACKGROUND_TIMEOUT_MS=5000
-BACKEND_DECISION_THRESHOLDS_JSON={"eligibilitySkip":0.01,"recallInclude":0.6,"toolInclude":0.6,"factReject":0.01,"factAllow":0.99,"sensitiveNo":0.01}
+BACKEND_DECISION_THRESHOLDS_JSON={"eligibilitySkip":0.01,"recallInclude":0.6,"toolInclude":0.6,"factAllow":0.85,"sensitiveNo":0.25}
 HINDSIGHT_API_RETAIN_LLM_MODEL=openai/gpt-oss-20b
 HINDSIGHT_API_RETAIN_LLM_REASONING_EFFORT=low
 HINDSIGHT_API_RETAIN_LLM_EXTRA_BODY={"provider":{"only":["coreweave"],"allow_fallbacks":false,"require_parameters":true}}

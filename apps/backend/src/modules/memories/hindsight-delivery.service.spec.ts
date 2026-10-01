@@ -283,6 +283,34 @@ describe('HindsightDeliveryService', () => {
     );
   });
 
+  test('unavailable Jev review leaves a retained source for retry without admission or erasure', async () => {
+    const approveFacts = jest
+      .fn<MemoryPolicyService['approveFacts']>()
+      .mockRejectedValue(new Error('Jev fact review is unavailable: timeout'));
+
+    const { service, ledger, gateway } = setup(source, {
+      approveFacts,
+    } as unknown as MemoryPolicyService);
+
+    gateway.operation.mockResolvedValue({
+      id: source.deliveries[0]!.operationId,
+      status: 'completed',
+    });
+    expect(await service.flushBank('bank')).toBe(false);
+    expect(ledger.admit).not.toHaveBeenCalled();
+    expect(ledger.rejectDelivery).not.toHaveBeenCalled();
+    expect(gateway.deleteDocument).not.toHaveBeenCalled();
+    expect(ledger.transitionDelivery.mock.calls.map((call) => call[3])).toEqual(
+      ['retained'],
+    );
+    expect(ledger.releaseBank).toHaveBeenCalledWith(
+      'bank',
+      expect.any(String),
+      expect.any(Date),
+      'memory_delivery_error',
+    );
+  });
+
   test('a late completion rejected by admission becomes remote erasure work', async () => {
     const { service, ledger, gateway } = setup();
     gateway.operation.mockResolvedValue({

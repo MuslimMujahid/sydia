@@ -15,6 +15,7 @@ describe('decision configuration', () => {
       recallInclude: 0.6,
       toolInclude: 0.6,
       factAllow: 0.85,
+      sensitiveNo: 0.25,
     });
     expect(
       new DecisionSettings(new ConfigService()).mode('tools', 'user'),
@@ -66,6 +67,7 @@ describe('decision configuration', () => {
     { BACKEND_DECISION_TIMEOUT_MS: '0' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"factAllow":-1}' },
+    { BACKEND_DECISION_THRESHOLDS_JSON: '{"factReject":0.01}' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"unknown":0.5}' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"recallSkip":0.01}' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"toolExclude":0.01}' },

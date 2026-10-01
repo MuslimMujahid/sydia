@@ -1,3 +1,4 @@
+import { createFactReviewer } from './create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -204,7 +205,11 @@ type Turn = {
         },
       };
 
-      const policy = new MemoryPolicyService(privateModel);
+      const policy = new MemoryPolicyService(
+        privateModel,
+        createFactReviewer(),
+      );
+
       const delivery = new HindsightDeliveryService(
         ledger,
         gateway,

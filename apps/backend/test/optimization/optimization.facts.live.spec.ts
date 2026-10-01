@@ -32,7 +32,7 @@ if (enabled && (!isAbsolute(reportPath) || !reportRelative.startsWith('..')))
   throw new Error('Fact report must be absolute and outside the repository');
 
 (enabled ? describe : describe.skip)('Synthetic fact-review comparison', () => {
-  test('measures actual decisions, fallback review and combined charges in each mode', async () => {
+  test('measures Jev-only decisions and charges in each mode', async () => {
     for (const key of ['BACKEND_MODEL_API_KEY', 'BACKEND_REDIS_URL'])
       if (!process.env[key]) throw new Error(`Fact comparison requires ${key}`);
     const config = new ConfigService({
@@ -186,12 +186,12 @@ if (enabled && (!isAbsolute(reportPath) || !reportRelative.startsWith('..')))
           // Contract checks only; proposed labels are intentionally not a release gate.
           if (mode === 'off') expect(results).toHaveLength(0);
           if (mode === 'shadow')
-            expect(verdicts.every((verdict) => verdict === 'fallback')).toBe(
+            expect(verdicts.every((verdict) => verdict === 'unavailable')).toBe(
               true,
             );
           if (mode === 'reject-only') expect(verdicts).not.toContain('allow');
           if (
-            fixture.category === 'sensitive' ||
+            (fixture.category === 'sensitive' && !fixture.permissions.length) ||
             fixture.category === 'permission-mismatch'
           )
             expect(verdicts).not.toContain('allow');

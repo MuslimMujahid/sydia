@@ -13,6 +13,7 @@ import type {
 } from '../../database/interfaces';
 import type { HindsightGateway, HindsightFact } from '../../infra/hindsight';
 import { MemoryPolicyService } from './memory-policy.service';
+import { MemoryFactDecisionService } from './memory-fact-decision.service';
 import type { LanguageModelGateway } from '../../infra/model-gateway';
 import type { QueueService } from '../../infra/queue';
 import { MemoryAccessService } from './memory-access.service';
@@ -402,7 +403,25 @@ describe('MemoryAccessService', () => {
 
     const { service, conversations, ledger } = setup(
       {},
-      new MemoryPolicyService({ generate } as unknown as LanguageModelGateway),
+      new MemoryPolicyService(
+        { generate } as unknown as LanguageModelGateway,
+        {
+          review: () =>
+            Promise.resolve({
+              status: 'allow',
+              facts: [
+                {
+                  id: 'requested',
+                  grounded: true,
+                  durable: true,
+                  sensitive: false,
+                  permissionQuote: null,
+                  evidenceQuotes: [quote],
+                },
+              ],
+            }),
+        } as unknown as MemoryFactDecisionService,
+      ),
     );
 
     const previous = {
@@ -464,9 +483,14 @@ describe('MemoryAccessService', () => {
 
       const { service, conversations, ledger } = setup(
         {},
-        new MemoryPolicyService({
-          generate,
-        } as unknown as LanguageModelGateway),
+        new MemoryPolicyService(
+          {
+            generate,
+          } as unknown as LanguageModelGateway,
+          {
+            review: () => Promise.resolve({ status: 'reject' }),
+          } as unknown as MemoryFactDecisionService,
+        ),
       );
 
       const current = {

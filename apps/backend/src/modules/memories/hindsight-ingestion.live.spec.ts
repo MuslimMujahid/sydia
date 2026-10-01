@@ -1,3 +1,4 @@
+import { createFactReviewer } from '../../../test/hindsight/create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { describe, expect, test } from '@jest/globals';
@@ -58,6 +59,7 @@ live('Direct Hindsight ingestion live contract', () => {
         }),
         ObservabilityService.disabled(),
       ),
+      createFactReviewer(),
     );
 
     const delivery = new HindsightDeliveryService(

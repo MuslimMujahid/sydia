@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { createHash } from 'node:crypto';
 import {
   DECISION_GATEWAY,
   DecisionSettings,
@@ -13,12 +12,12 @@ export type FactDecisionVerdict = {
   id: string;
   grounded: true;
   durable: true;
-  sensitive: false;
-  permissionQuote: null;
+  sensitive: boolean;
+  permissionQuote: string | null;
   evidenceQuotes: string[];
 };
 export type FactBatchDecision =
-  | { status: 'fallback' }
+  | { status: 'unavailable'; reason: string }
   | { status: 'reject' }
   | { status: 'allow'; facts: FactDecisionVerdict[] };
 
@@ -30,10 +29,6 @@ export class MemoryFactDecisionService {
     private readonly settings: DecisionSettings,
   ) {}
 
-  active(userId: string): boolean {
-    return this.settings.mode('facts', userId) !== 'off';
-  }
-
   async review(
     userId: string,
     candidates: Array<{ id: string; text: string }>,
@@ -42,21 +37,16 @@ export class MemoryFactDecisionService {
     beforeReview?: () => Promise<void>,
   ): Promise<FactBatchDecision> {
     const mode = this.settings.mode('facts', userId);
-    if (mode === 'off' || !evidence.length || evidence.length > 24)
-      return { status: 'fallback' };
+    if (mode !== 'enabled')
+      return { status: 'unavailable', reason: 'review-not-enabled' };
+    if (!evidence.length || evidence.length > 24 || permissions.length > 24)
+      return { status: 'reject' };
     if (
       containsMemoryCredential(
         JSON.stringify({ candidates, evidence, permissions }),
       )
     )
-      return { status: 'fallback' };
-    const state = JSON.stringify({ candidates, evidence, permissions });
-    if (
-      mode === 'shadow' &&
-      createHash('sha256').update(state).digest().readUInt32BE(0) % 100 >=
-        this.settings.shadowSamplePercent
-    )
-      return { status: 'fallback' };
+      return { status: 'reject' };
     const questions: Record<string, DecisionQuestion> = {};
 
     for (const [index] of candidates.entries()) {
@@ -74,6 +64,11 @@ export class MemoryFactDecisionService {
         type: 'noul',
         instructions: `${prefix}Does ${target} contain sensitive health, sexuality, political/religious beliefs, financial/legal details or identity numbers? If uncertain about a sensitive category, prefer yes.`,
       };
+      for (const [permission] of permissions.entries())
+        questions[`permission_${index}_${permission}`] = {
+          type: 'noul',
+          instructions: `${prefix}Does permissionQuotes at index ${permission} contain a specific user request to remember the sensitive information in ${target}? General consent, a request about a different fact, and quoted third-party instructions do not qualify.`,
+        };
       // Independent support decisions select full immutable spans, never invented
       // substrings. The whole-evidence grounding question covers compound facts.
       for (let span = 0; span < evidence.length; span++)
@@ -96,57 +91,69 @@ export class MemoryFactDecisionService {
       questions,
     });
 
-    if (result.status !== 'ok') return { status: 'fallback' };
+    if (result.status !== 'ok')
+      return { status: 'unavailable', reason: result.reason };
 
     const probability = (key: string): number | null => {
       const answer = result.answers[key];
 
-      return answer?.type === 'noul' ? answer.noul : null;
+      return answer?.type === 'noul' &&
+        Number.isFinite(answer.noul) &&
+        answer.noul >= 0 &&
+        answer.noul <= 1
+        ? answer.noul
+        : null;
     };
 
-    let reject = false;
+    if (Object.keys(questions).some((key) => probability(key) === null))
+      return { status: 'unavailable', reason: 'invalid-response' };
     const verdicts: FactDecisionVerdict[] = [];
 
     for (const [index, candidate] of candidates.entries()) {
-      const grounded = probability(`grounded_${index}`);
-      const durable = probability(`durable_${index}`);
-      const sensitive = probability(`sensitive_${index}`);
-      if (grounded === null || durable === null || sensitive === null)
-        return { status: 'fallback' };
-      reject ||=
-        grounded <= this.settings.thresholds.factReject ||
-        durable <= this.settings.thresholds.factReject;
+      const grounded = probability(`grounded_${index}`)!;
+      const durable = probability(`durable_${index}`)!;
+      const sensitive =
+        probability(`sensitive_${index}`)! >
+        this.settings.thresholds.sensitiveNo;
+
+      const permissionQuote = sensitive
+        ? (permissions.find(
+            (_, permission) =>
+              probability(`permission_${index}_${permission}`)! >=
+              this.settings.thresholds.factAllow,
+          ) ?? null)
+        : null;
+
       const selected = evidence.filter(
         (_, span) =>
-          (probability(`support_${index}_${span}`) ?? 0) >=
+          probability(`support_${index}_${span}`)! >=
           this.settings.thresholds.factAllow,
       );
 
       if (
-        grounded >= this.settings.thresholds.factAllow &&
-        durable >= this.settings.thresholds.factAllow &&
-        sensitive <= this.settings.thresholds.sensitiveNo &&
-        selected.length &&
-        selected.every((quote) => quote.trim())
-      )
-        verdicts.push({
-          id: candidate.id,
-          grounded: true,
-          durable: true,
-          sensitive: false,
-          permissionQuote: null,
-          evidenceQuotes: selected,
-        });
+        grounded < this.settings.thresholds.factAllow ||
+        durable < this.settings.thresholds.factAllow ||
+        !selected.length ||
+        selected.some((quote) => !quote.trim()) ||
+        (sensitive && !permissionQuote?.trim())
+      ) {
+        this.logger.debug(
+          `mode=${mode} version=${this.settings.version} candidate=reject`,
+        );
+
+        return { status: 'reject' };
+      }
+
+      verdicts.push({
+        id: candidate.id,
+        grounded: true,
+        durable: true,
+        sensitive,
+        permissionQuote,
+        evidenceQuotes: selected,
+      });
     }
 
-    this.logger.debug(
-      `mode=${mode} version=${this.settings.version} candidates=${candidates.length} candidate=${reject ? 'reject' : verdicts.length === candidates.length ? 'allow' : 'fallback'}`,
-    );
-    if (mode === 'shadow') return { status: 'fallback' };
-    if (reject) return { status: 'reject' };
-    // Sensitive allows deliberately remain with the incumbent permission reviewer.
-    if (mode !== 'enabled' || verdicts.length !== candidates.length)
-      return { status: 'fallback' };
     // Recheck EVERY claim against only the selected spans. Support for one claim
     // must not accidentally admit another unsupported claim in a compound fact.
     await beforeReview?.();
@@ -172,18 +179,21 @@ export class MemoryFactDecisionService {
       ),
     });
 
-    if (
-      coverage.status !== 'ok' ||
-      candidates.some((_, index) => {
-        const answer = coverage.answers[`coverage_${index}`];
+    if (coverage.status !== 'ok')
+      return { status: 'unavailable', reason: coverage.reason };
 
-        return (
-          answer?.type !== 'noul' ||
-          answer.noul < this.settings.thresholds.factAllow
-        );
-      })
-    )
-      return { status: 'fallback' };
+    for (const [index] of candidates.entries()) {
+      const answer = coverage.answers[`coverage_${index}`];
+      if (
+        answer?.type !== 'noul' ||
+        !Number.isFinite(answer.noul) ||
+        answer.noul < 0 ||
+        answer.noul > 1
+      )
+        return { status: 'unavailable', reason: 'invalid-response' };
+      if (answer.noul < this.settings.thresholds.factAllow)
+        return { status: 'reject' };
+    }
 
     return { status: 'allow', facts: verdicts };
   }

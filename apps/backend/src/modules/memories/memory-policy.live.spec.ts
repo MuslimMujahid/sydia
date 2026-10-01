@@ -1,3 +1,4 @@
+import { createFactReviewer } from '../../../test/hindsight/create-fact-reviewer';
 import { describe, expect, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { OpenRouterLanguageModel } from '../../infra/model-gateway';
@@ -17,6 +18,7 @@ live('Memory admission policy synthetic model contract', () => {
       }),
       ObservabilityService.disabled(),
     ),
+    createFactReviewer(),
   );
 
   test.each([
@@ -153,6 +155,6 @@ live('Memory admission policy synthetic model contract', () => {
         },
       ),
     ).toBe(true);
-    expect(reviewedBatches).toBe(3);
+    expect(reviewedBatches).toBe(6);
   }, 120_000);
 });

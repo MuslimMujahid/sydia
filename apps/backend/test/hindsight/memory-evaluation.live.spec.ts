@@ -1,3 +1,4 @@
+import { createFactReviewer } from './create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
@@ -182,22 +183,25 @@ type Row = {
         costUsd: number | null;
       }> = [];
 
-      const policy = new MemoryPolicyService({
-        provider: model.provider,
-        model: model.model,
-        generate: async (request) => {
-          const started = performance.now();
-          const result = await model.generate(request);
-          reviewCalls.push({
-            durationMs: performance.now() - started,
-            inputTokens: result.usage.inputTokens ?? null,
-            outputTokens: result.usage.outputTokens ?? null,
-            costUsd: result.usage.costUsd ?? null,
-          });
+      const policy = new MemoryPolicyService(
+        {
+          provider: model.provider,
+          model: model.model,
+          generate: async (request) => {
+            const started = performance.now();
+            const result = await model.generate(request);
+            reviewCalls.push({
+              durationMs: performance.now() - started,
+              inputTokens: result.usage.inputTokens ?? null,
+              outputTokens: result.usage.outputTokens ?? null,
+              costUsd: result.usage.costUsd ?? null,
+            });
 
-          return result;
+            return result;
+          },
         },
-      });
+        createFactReviewer(),
+      );
 
       const delivery = new HindsightDeliveryService(
         ledger,
