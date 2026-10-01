@@ -14,6 +14,7 @@ describe('decision configuration', () => {
     ).toMatchObject({
       recallInclude: 0.6,
       toolInclude: 0.6,
+      factAllow: 0.85,
     });
     expect(
       new DecisionSettings(new ConfigService()).mode('tools', 'user'),

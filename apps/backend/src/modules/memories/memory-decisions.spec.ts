@@ -150,6 +150,49 @@ test('compound facts with incomplete selected-evidence coverage fall back', asyn
     ),
   ).toEqual({ status: 'fallback' });
 });
+test.each([
+  ['all', 0.85, 'allow'],
+  ['grounded_0', 0.849, 'fallback'],
+  ['durable_0', 0.849, 'fallback'],
+  ['support_0_0', 0.849, 'fallback'],
+  ['coverage_0', 0.849, 'fallback'],
+] as const)(
+  'fact approval boundary: %s at %s yields %s',
+  async (question, probability, status) => {
+    const { facts, decide } = setup();
+    decide.mockImplementation((request): Promise<DecisionResult> =>
+      Promise.resolve({
+        status: 'ok',
+        model: 'typesafe/jev-1.13-20260917',
+        answers: Object.fromEntries(
+          Object.keys(request.questions).map((key) => [
+            key,
+            {
+              type: 'noul',
+              noul: key.startsWith('sensitive_')
+                ? 0
+                : question === 'all' || key === question
+                  ? probability
+                  : 0.85,
+            },
+          ]),
+        ),
+        inputTokens: 1,
+        outputTokens: 1,
+        latencyMs: 1,
+        costUsd: null,
+      }),
+    );
+    expect(
+      await facts.review(
+        'user',
+        [{ id: 'f1', text: 'The user is a software developer.' }],
+        ['I am a software developer.'],
+        [],
+      ),
+    ).toMatchObject({ status });
+  },
+);
 test('sensitive and uncertain facts remain on the existing permission reviewer', async () => {
   const { facts, decide } = setup();
   decide.mockImplementationOnce((request): Promise<DecisionResult> =>

@@ -7,6 +7,7 @@ import {
   type DecisionQuestion,
 } from '../../infra/decision-gateway';
 import { containsMemoryCredential } from './memory-admission';
+import { MEMORY_FACT_RETENTION_POLICY } from './memory-retention-policy';
 
 export type FactDecisionVerdict = {
   id: string;
@@ -67,7 +68,7 @@ export class MemoryFactDecisionService {
       };
       questions[`durable_${index}`] = {
         type: 'noul',
-        instructions: `${prefix}Is ${target} a durable first-person fact, preference, decision, recurring routine, goal or constraint? Reject transient tasks, hypothetical/quoted third-party claims, assistant/tool statements and source/category/timezone metadata.`,
+        instructions: `${prefix}Does ${target}, a first-person fact, preference, decision, recurring routine, goal or constraint, qualify under the ordinary retention criteria or the explicit user request rule? ${MEMORY_FACT_RETENTION_POLICY} Reject transient tasks, hypothetical/quoted third-party claims, assistant/tool statements and source/category/timezone metadata.`,
       };
       questions[`sensitive_${index}`] = {
         type: 'noul',

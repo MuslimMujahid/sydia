@@ -16,7 +16,7 @@ export const DEFAULT_DECISION_THRESHOLDS = {
   recallInclude: 0.6,
   toolInclude: 0.6,
   factReject: 0.01,
-  factAllow: 0.99,
+  factAllow: 0.85,
   sensitiveNo: 0.01,
 } as const;
 export type DecisionThresholds = {
