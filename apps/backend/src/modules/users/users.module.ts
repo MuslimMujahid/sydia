@@ -4,6 +4,7 @@ import { CalendarModule } from '../calendar/calendar.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { MemoriesModule } from '../memories/memories.module';
 import {
   EXTERNAL_IDENTITY_REPOSITORY,
   USER_PRIVACY_REPOSITORY,
@@ -29,6 +30,7 @@ import {
     NotificationsModule,
     TasksModule,
     RemindersModule,
+    MemoriesModule,
   ],
   controllers: [UsersController],
   providers: [

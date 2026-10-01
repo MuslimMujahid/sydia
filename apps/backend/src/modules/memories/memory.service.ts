@@ -67,9 +67,9 @@ export class MemoryService {
           content: input.content,
           category: input.category ?? current.category,
           pinned: input.pinned ?? current.pinned,
-          sourceType: current.source.type,
-          sourceMessageId: current.source.messageId,
-          sourceMessageIds: current.sourceMessageIds,
+          sourceType: input.sourceType ?? current.source.type,
+          sourceMessageId: input.sourceMessageId ?? current.source.messageId,
+          sourceMessageIds: input.sourceMessageIds ?? current.sourceMessageIds,
         });
 
         if (memory) await this.index(memory);

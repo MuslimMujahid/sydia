@@ -1,4 +1,4 @@
-import type { ModelMessage, ToolSet } from 'ai';
+import type { JSONSchema7, ModelMessage, ToolSet } from 'ai';
 
 export type { ModelMessage, ToolSet } from 'ai';
 
@@ -48,6 +48,11 @@ export type GenerateRequest = {
   temperature?: number;
   maxOutputTokens?: number;
   maxSteps?: number;
+  /** Optional provider-enforced JSON shape for non-streaming policy/classification. */
+  outputSchema?: JSONSchema7;
+  /** Keep model/token/cost tracing while withholding additional copies of sensitive content. */
+  traceContent?: boolean;
+  traceName?: string;
   abortSignal?: AbortSignal;
   onTextDelta?: (delta: string) => void;
   onToolCall?: (toolName: string) => void;

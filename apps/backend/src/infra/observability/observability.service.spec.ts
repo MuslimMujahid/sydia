@@ -83,7 +83,12 @@ describe('ObservabilityService', () => {
 
     const messages = [{ role: 'user' as const, content: 'Hello' }];
     const operation = jest.fn((trace: GenerationTrace) => {
-      trace.update({ output: 'Hello back' });
+      trace.update({
+        output: 'Hello back',
+        inputTokens: 15,
+        outputTokens: 5,
+        costUsd: 0.0001,
+      });
 
       return Promise.resolve('operation-result');
     });
@@ -111,7 +116,11 @@ describe('ObservabilityService', () => {
         }),
         { asType: 'generation' },
       );
-      expect(generation.update).toHaveBeenCalledWith({ output: 'Hello back' });
+      expect(generation.update).toHaveBeenCalledWith({
+        output: 'Hello back',
+        usageDetails: { input: 15, output: 5 },
+        costDetails: { total: 0.0001 },
+      });
     } finally {
       Reflect.set(ObservabilityService, 'started', false);
     }

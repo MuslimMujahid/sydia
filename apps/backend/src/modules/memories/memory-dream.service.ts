@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { MemoryEngineService } from './memory-engine.service';
 import type { Memory, MemoryDreamSegment } from '../../database/entities';
 import {
   CONVERSATION_REPOSITORY,
@@ -62,6 +63,7 @@ export class MemoryDreamService {
     @Inject(LANGUAGE_MODEL) private readonly model: LanguageModelGateway,
     private readonly memories: MemoryService,
     config: ConfigService,
+    @Optional() private readonly engine?: MemoryEngineService,
   ) {
     this.minUserMessages = config.get<number>(
       'BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES',
@@ -79,6 +81,8 @@ export class MemoryDreamService {
     throughMessageId: string,
     allowShortSegment = false,
   ): Promise<DreamResult> {
+    if (this.engine?.modeFor(userId) === 'hindsight')
+      return { status: 'skipped' };
     const user = await this.users.findById(userId);
     if (!user?.automaticMemoryEnabled) return { status: 'skipped' };
 

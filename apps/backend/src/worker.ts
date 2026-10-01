@@ -1,5 +1,6 @@
 import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UnrecoverableError, Worker } from 'bullmq';
 import { AppModule } from './app.module';
@@ -17,6 +18,8 @@ import {
   type DailyNoteIndexJob,
   type FollowUpJob,
   type MemoryDreamJob,
+  type MemoryDeliveryJob,
+  type MemoryIngestionJob,
 } from './infra/queue';
 import {
   DocumentService,
@@ -24,6 +27,9 @@ import {
 } from './modules/documents/document.service';
 import { MemoryDreamService } from './modules/memories/memory-dream.service';
 import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-scheduler.service';
+import { HindsightDeliveryService } from './modules/memories/hindsight-delivery.service';
+import { HindsightIngestionService } from './modules/memories/hindsight-ingestion.service';
+import { MemoryEngineService } from './modules/memories/memory-engine.service';
 import { DailyNoteService } from './modules/daily-notes/daily-note.service';
 import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
 import {
@@ -37,6 +43,9 @@ import {
 async function bootstrap(): Promise<void> {
   const context = await NestFactory.createApplicationContext(AppModule);
   const config = context.get(ConfigService);
+  const memoryDeliveries = context.get(HindsightDeliveryService);
+  const memoryIngestion = context.get(HindsightIngestionService);
+  const memoryEngine = context.get(MemoryEngineService);
   const reminders = context.get<IReminderRepository>(REMINDER_REPOSITORY);
   const queues = context.get(QueueService);
   const documents = context.get(DocumentService);
@@ -148,6 +157,35 @@ async function bootstrap(): Promise<void> {
         throw new Error('Memory dream job is missing its segment boundary.');
       }
 
+      const mode = memoryEngine.modeFor(job.data.userId);
+
+      if (mode === 'shadow') {
+        try {
+          await memoryIngestion.run(
+            job.data.userId,
+            job.data.conversationId,
+            job.data.throughMessageId,
+            job.data.allowShortSegment,
+          );
+        } catch {
+          Logger.warn(
+            'Shadow memory ingestion deferred; the legacy writer continues.',
+            'MemoryWorker',
+          );
+        }
+      }
+
+      if (mode === 'hindsight') {
+        await memoryIngestion.run(
+          job.data.userId,
+          job.data.conversationId,
+          job.data.throughMessageId,
+          job.data.allowShortSegment,
+        );
+
+        return;
+      }
+
       await memoryDream.run(
         job.data.userId,
         job.data.conversationId,
@@ -161,6 +199,38 @@ async function bootstrap(): Promise<void> {
   await queues.memoryDreams.upsertJobScheduler(
     'memory-dream-recovery',
     { every: 24 * 60 * 60 * 1000 },
+    { name: 'recover', data: { kind: 'recover' } },
+  );
+
+  const memoryDeliveryWorker = new Worker<MemoryDeliveryJob>(
+    'memory-deliveries',
+    async (job) => {
+      if (job.data.kind === 'bank')
+        return memoryDeliveries.flushBank(job.data.bankId);
+
+      return memoryDeliveries.recover();
+    },
+    {
+      connection,
+      concurrency: config.get<number>('BACKEND_HINDSIGHT_CONCURRENCY', 4),
+    },
+  );
+
+  await queues.memoryDeliveries.upsertJobScheduler(
+    'memory-delivery-recovery',
+    { every: 30_000 },
+    { name: 'recover', data: { kind: 'recover' } },
+  );
+
+  const memoryIngestionWorker = new Worker<MemoryIngestionJob>(
+    'memory-ingestions',
+    () => memoryIngestion.recover(),
+    { connection },
+  );
+
+  await queues.memoryIngestions.upsertJobScheduler(
+    'memory-ingestion-recovery',
+    { every: 60_000 },
     { name: 'recover', data: { kind: 'recover' } },
   );
 
@@ -217,6 +287,8 @@ async function bootstrap(): Promise<void> {
       reminderWorker.close(),
       documentWorker.close(),
       memoryDreamWorker.close(),
+      memoryDeliveryWorker.close(),
+      memoryIngestionWorker.close(),
       dailyNoteIndexWorker.close(),
       briefingWorker.close(),
       conversationSummaryWorker.close(),

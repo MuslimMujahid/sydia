@@ -305,6 +305,7 @@ const HEADINGS: Readonly<
 };
 
 type BlockOptions = {
+  heading?: string;
   /** Primary object of the block, verbatim; omitted when the tool has none. */
   subject?: string | null;
   details?: readonly string[];
@@ -328,13 +329,14 @@ function renderAcknowledgement(
   const { icon, en, id } = HEADINGS[name];
   const count = options.count;
   const heading =
-    count !== undefined && count > 1
+    options.heading ??
+    (count !== undefined && count > 1
       ? pick(
           context.locale,
           `${en} (${count})`,
           `${count} ${id.toLocaleLowerCase('id-ID')}`,
         )
-      : pick(context.locale, en, id);
+      : pick(context.locale, en, id));
 
   const rich = context.channel === undefined;
 
@@ -737,6 +739,33 @@ function memoryAck(
   const memory = record ? asRecord(record.memory) : null;
   if (!memory) return null;
 
+  if (memory.engine === 'hindsight') {
+    if (memory.status === 'queued')
+      return renderAcknowledgement(context, name, {
+        heading: pick(
+          context.locale,
+          name === 'save_memory'
+            ? 'Memory save queued'
+            : 'Memory correction queued',
+          name === 'save_memory'
+            ? 'Penyimpanan memori sedang diproses'
+            : 'Koreksi memori sedang diproses',
+        ),
+      });
+    if (memory.status === 'withdrawn')
+      return renderAcknowledgement(context, name, {
+        heading: pick(
+          context.locale,
+          'Memory request is no longer active',
+          'Permintaan memori tidak lagi aktif',
+        ),
+      });
+    if (memory.status === 'completed')
+      return renderAcknowledgement(context, name);
+
+    return null;
+  }
+
   const content = asText(memory.content, MAX_CONTENT_CHARS);
   if (!content) return null;
 
@@ -1019,6 +1048,24 @@ const FORMATTER_ENTRIES: Readonly<Record<string, Formatter>> = {
   forget_memory: (context, result) => {
     const record = asRecord(result);
     if (!record || record.deleted !== true) return null;
+    const receipt = asRecord(record.receipt);
+    if (receipt?.engine === 'hindsight' && receipt.status === 'queued')
+      return renderAcknowledgement(context, 'forget_memory', {
+        heading: pick(
+          context.locale,
+          'Memory no longer used',
+          'Memori tidak digunakan lagi',
+        ),
+        details: [
+          pick(
+            context.locale,
+            'Permanent deletion is still processing.',
+            'Penghapusan permanen masih diproses.',
+          ),
+        ],
+      });
+    if (receipt?.engine === 'hindsight' && receipt.status !== 'completed')
+      return null;
 
     return renderAcknowledgement(context, 'forget_memory');
   },

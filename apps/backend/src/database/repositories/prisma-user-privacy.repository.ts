@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
 import type { IUserPrivacyRepository, UserExportData } from '../interfaces';
 import { USER_EXPORT_SELECT } from '../interfaces';
@@ -39,8 +40,37 @@ export class PrismaUserPrivacyRepository implements IUserPrivacyRepository {
   }
 
   async deleteAccount(userId: string): Promise<boolean> {
-    const result = await this.prisma.user.deleteMany({ where: { id: userId } });
+    return this.prisma.$transaction(async (tx) => {
+      // Match the ledger's owner-first locking order. The erasure intent and
+      // local account deletion commit together; no cascade can lose the job.
+      const users = await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT id FROM "user" WHERE id = ${userId} FOR UPDATE`,
+      );
 
-    return result.count === 1;
+      if (!users.length) return false;
+      await tx.hindsightCheckpoint.deleteMany({ where: { userId } });
+      await tx.hindsightBank.updateMany({
+        where: { userId },
+        data: {
+          state: 'erasing',
+          nextAttemptAt: new Date(),
+          lastErrorCode: null,
+        },
+      });
+      await tx.hindsightSource.updateMany({
+        where: { bank: { userId } },
+        data: { state: 'deleted' },
+      });
+      await tx.hindsightDelivery.updateMany({
+        where: { source: { bank: { userId } }, state: { not: 'erased' } },
+        data: { state: 'erase_pending', content: null },
+      });
+      await tx.hindsightReference.deleteMany({
+        where: { delivery: { source: { bank: { userId } } } },
+      });
+      const result = await tx.user.deleteMany({ where: { id: userId } });
+
+      return result.count === 1;
+    });
   }
 }

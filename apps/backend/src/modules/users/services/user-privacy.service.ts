@@ -10,6 +10,7 @@ import {
 import { GoogleCalendarService } from '../../../infra/calendar';
 import { StorageService } from '../../../infra/storage';
 import { ApiException, ErrorCodes } from '../../../shared/errors';
+import { MemoryArchiveService } from '../../memories/memory-archive.service';
 
 @Injectable()
 export class UserPrivacyService {
@@ -22,13 +23,17 @@ export class UserPrivacyService {
     private readonly whatsapp: IWhatsAppRepository,
     private readonly google: GoogleCalendarService,
     private readonly storage: StorageService,
+    private readonly memoryArchive: MemoryArchiveService,
   ) {}
 
   async export(userId: string) {
     const data = await this.privacy.exportData(userId);
     if (!data) throw this.notFound();
 
-    return data;
+    return {
+      ...data,
+      hindsightMemory: await this.memoryArchive.export(userId),
+    };
   }
 
   async deleteAccount(userId: string): Promise<{ deleted: true }> {

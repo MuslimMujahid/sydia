@@ -790,6 +790,18 @@ export class PrismaConversationRepository implements IConversationRepository {
     return message?.content ?? null;
   }
 
+  findUserMemoryEvidence(userId: string, messageId: string) {
+    return this.prisma.message.findFirst({
+      where: { id: messageId, userId, role: 'user' },
+      select: {
+        id: true,
+        conversationId: true,
+        content: true,
+        createdAt: true,
+      },
+    });
+  }
+
   async maskUserMessage(
     userId: string,
     messageId: string,

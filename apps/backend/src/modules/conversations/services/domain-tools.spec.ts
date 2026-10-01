@@ -8,12 +8,11 @@ import {
 } from '@jest/globals';
 import type {
   ICategoryRepository,
-  IMemoryRepository,
   IReminderRepository,
   ITaskRepository,
   IUserRepository,
 } from '../../../database/interfaces';
-import type { MemoryService } from '../../memories/memory.service';
+import type { MemoryAccessService } from '../../memories/memory-access.service';
 import type { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
 import type { SecretsService } from '../../secrets/secrets.service';
 import { createDomainTools } from './domain-tools';
@@ -62,8 +61,7 @@ describe('domain assistant tools', () => {
         findByNames: resolved([]),
       } as unknown as ICategoryRepository,
       reminders: {} as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: {} as ReminderSchedulerService,
       users: {} as IUserRepository,
     });
@@ -100,8 +98,7 @@ describe('domain assistant tools', () => {
       tasks: { create: createTask } as unknown as ITaskRepository,
       categories: { findByNames } as unknown as ICategoryRepository,
       reminders: {} as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: {} as ReminderSchedulerService,
       users: {} as IUserRepository,
     });
@@ -131,8 +128,7 @@ describe('domain assistant tools', () => {
       tasks: {} as ITaskRepository,
       categories: {} as ICategoryRepository,
       reminders: {} as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: { search } as unknown as MemoryService,
+      memoryService: { search } as unknown as MemoryAccessService,
       scheduler: {} as ReminderSchedulerService,
       users: {} as IUserRepository,
     });
@@ -163,8 +159,7 @@ describe('domain assistant tools', () => {
         tasks: {} as ITaskRepository,
         categories: {} as ICategoryRepository,
         reminders: {} as IReminderRepository,
-        memories: {} as IMemoryRepository,
-        memoryService: {} as MemoryService,
+        memoryService: {} as MemoryAccessService,
         scheduler: {} as ReminderSchedulerService,
         users: {
           findById: resolved({ timezone: 'Asia/Jakarta' }),
@@ -206,8 +201,7 @@ describe('domain assistant tools', () => {
       tasks: {} as ITaskRepository,
       categories: {} as ICategoryRepository,
       reminders: { create } as unknown as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: { schedule } as unknown as ReminderSchedulerService,
       users: {
         findById: resolved({ timezone: 'Asia/Jakarta' }),
@@ -286,8 +280,7 @@ describe('domain assistant tools', () => {
       tasks: {} as ITaskRepository,
       categories: {} as ICategoryRepository,
       reminders: { create } as unknown as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: {
         schedule: resolved(undefined),
       } as unknown as ReminderSchedulerService,
@@ -340,8 +333,7 @@ describe('domain assistant tools', () => {
       tasks: {} as ITaskRepository,
       categories: {} as ICategoryRepository,
       reminders: { create } as unknown as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: {
         schedule: resolved(undefined),
       } as unknown as ReminderSchedulerService,
@@ -401,8 +393,7 @@ describe('domain assistant tools', () => {
         }),
         update,
       } as unknown as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: {
         schedule: resolved(undefined),
       } as unknown as ReminderSchedulerService,
@@ -455,8 +446,7 @@ describe('domain assistant tools', () => {
       tasks: {} as ITaskRepository,
       categories: {} as ICategoryRepository,
       reminders: {} as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: {} as ReminderSchedulerService,
       users: {} as IUserRepository,
       secrets: { createFromChat } as unknown as SecretsService,
@@ -502,8 +492,7 @@ describe('domain assistant tools', () => {
       tasks: {} as ITaskRepository,
       categories: {} as ICategoryRepository,
       reminders: {} as IReminderRepository,
-      memories: {} as IMemoryRepository,
-      memoryService: {} as MemoryService,
+      memoryService: {} as MemoryAccessService,
       scheduler: {} as ReminderSchedulerService,
       users: {} as IUserRepository,
     });

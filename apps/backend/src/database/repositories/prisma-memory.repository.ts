@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import {
+  rollbackSourceId,
+  withdrawConnectedMemorySources,
+} from './prisma-memory-coordination';
 import {
   Prisma,
   type Memory as PrismaMemory,
@@ -63,6 +68,64 @@ function vectorLiteral(values: number[]): string {
 @Injectable()
 export class PrismaMemoryRepository implements IMemoryRepository {
   constructor(private readonly prisma: PrismaService) {}
+  async backfillPage(
+    userId: string,
+    afterId?: string,
+    limit = 50,
+  ): Promise<Memory[]> {
+    const rows = await this.prisma.memory.findMany({
+      where: {
+        userId,
+        status: 'active',
+        id: afterId ? { gt: afterId } : undefined,
+      },
+      orderBy: { id: 'asc' },
+      take: Math.max(1, Math.min(100, limit)),
+      select: memorySelect,
+    });
+
+    return rows.map(present);
+  }
+
+  private async invalidateImport(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    id: string,
+    retired: boolean,
+  ): Promise<void> {
+    const sources = await tx.hindsightSource.findMany({
+      where: { legacyMemoryId: id, bank: { userId }, state: 'active' },
+      select: { id: true, bankId: true },
+    });
+
+    const ids = sources.map(({ id }) => id);
+    if (!ids.length) return;
+    if (retired)
+      await tx.hindsightSource.updateMany({
+        where: { id: { in: ids } },
+        data: { state: 'deleted' },
+      });
+    await tx.hindsightDelivery.updateMany({
+      where: { sourceId: { in: ids }, state: { not: 'erased' } },
+      data: { state: 'erase_pending', content: null },
+    });
+    await tx.hindsightBank.updateMany({
+      where: { id: { in: sources.map(({ bankId }) => bankId) } },
+      data: { nextAttemptAt: new Date() },
+    });
+  }
+
+  private async lockOwner(
+    tx: Prisma.TransactionClient,
+    userId: string,
+  ): Promise<boolean> {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT id FROM "user" WHERE id = ${userId} FOR UPDATE`,
+    );
+
+    return rows.length === 1;
+  }
+
   async list(userId: string, filters: MemoryFilters = {}): Promise<Memory[]> {
     const rows = await this.prisma.memory.findMany({
       where: {
@@ -127,20 +190,24 @@ export class PrismaMemoryRepository implements IMemoryRepository {
     id: string,
     input: Partial<MemoryWrite>,
   ): Promise<Memory | null> {
-    if (
-      !(await this.prisma.memory.findFirst({
-        where: { id, userId },
-        select: { id: true },
-      }))
-    )
-      return null;
-    const row = await this.prisma.memory.update({
-      where: { id },
-      data: input,
-      select: memorySelect,
-    });
+    return this.prisma.$transaction(async (tx) => {
+      if (
+        !(await this.lockOwner(tx, userId)) ||
+        !(await tx.memory.findFirst({
+          where: { id, userId },
+          select: { id: true },
+        }))
+      )
+        return null;
+      await this.invalidateImport(tx, userId, id, false);
+      const row = await tx.memory.update({
+        where: { id },
+        data: input,
+        select: memorySelect,
+      });
 
-    return present(row);
+      return present(row);
+    });
   }
 
   async supersede(
@@ -156,6 +223,15 @@ export class PrismaMemoryRepository implements IMemoryRepository {
     )
       return null;
     const row = await this.prisma.$transaction(async (tx) => {
+      if (!(await this.lockOwner(tx, userId))) return null;
+      const previous = await tx.memory.findFirst({
+        where: { id, userId, status: 'active' },
+        select: { sourceKey: true },
+      });
+
+      if (!previous) return null;
+      const rollbackId = rollbackSourceId(previous.sourceKey);
+      await this.invalidateImport(tx, userId, id, true);
       const created = await tx.memory.create({
         data: {
           userId,
@@ -171,7 +247,9 @@ export class PrismaMemoryRepository implements IMemoryRepository {
           extractorVersion: input.extractorVersion,
           supersedesId: id,
           dreamRunId: input.dreamRunId,
-          sourceKey: input.sourceKey,
+          sourceKey: rollbackId
+            ? `rollback:${rollbackId}:${randomUUID()}`
+            : input.sourceKey,
         },
         select: memorySelect,
       });
@@ -184,11 +262,16 @@ export class PrismaMemoryRepository implements IMemoryRepository {
       return created;
     });
 
-    return present(row);
+    return row ? present(row) : null;
   }
 
-  async delete(userId: string, id: string): Promise<boolean> {
+  async delete(
+    userId: string,
+    id: string,
+    forgettingMessageId?: string,
+  ): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
+      if (!(await this.lockOwner(tx, userId))) return false;
       const memory = await tx.memory.findFirst({
         where: { id, userId },
         select: {
@@ -197,10 +280,57 @@ export class PrismaMemoryRepository implements IMemoryRepository {
           sourceMessageIds: true,
           supersedesId: true,
           supersededById: true,
+          sourceKey: true,
         },
       });
 
       if (!memory) return false;
+
+      if (
+        forgettingMessageId &&
+        !(await tx.message.findFirst({
+          where: { id: forgettingMessageId, userId, role: 'user' },
+          select: { id: true },
+        }))
+      )
+        return false;
+      const rollbackId = rollbackSourceId(memory.sourceKey);
+      const messageIds = [
+        ...memory.sourceMessageIds,
+        ...(memory.sourceMessageId ? [memory.sourceMessageId] : []),
+      ];
+
+      const connected = await tx.hindsightSource.findMany({
+        where: {
+          bank: { userId },
+          OR: [
+            ...(rollbackId ? [{ id: rollbackId }] : []),
+            { legacyMemoryId: id },
+            { sourceKey: `legacy:${id}` },
+            { sourceMessageIds: { hasSome: messageIds } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (rollbackId || connected.length) {
+        await withdrawConnectedMemorySources(
+          tx,
+          userId,
+          [
+            ...new Set([
+              ...connected.map(({ id }) => id),
+              ...(rollbackId ? [rollbackId] : []),
+            ]),
+          ],
+          messageIds,
+          forgettingMessageId ? [forgettingMessageId] : [],
+        );
+
+        return true;
+      }
+
+      await this.invalidateImport(tx, userId, id, true);
 
       if (memory.supersedesId) {
         await tx.memory.updateMany({
@@ -219,6 +349,7 @@ export class PrismaMemoryRepository implements IMemoryRepository {
       const sourceMessageIds = [
         ...memory.sourceMessageIds,
         ...(memory.sourceMessageId ? [memory.sourceMessageId] : []),
+        ...(forgettingMessageId ? [forgettingMessageId] : []),
       ];
 
       for (const sourceMessageId of new Set(sourceMessageIds)) {

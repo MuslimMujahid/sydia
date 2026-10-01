@@ -130,6 +130,13 @@ export interface IConversationRepository {
     userId: string,
     messageId: string,
   ): Promise<string | null>;
+  findUserMemoryEvidence(
+    userId: string,
+    messageId: string,
+  ): Promise<Pick<
+    Message,
+    'id' | 'conversationId' | 'content' | 'createdAt'
+  > | null>;
   maskUserMessage(
     userId: string,
     messageId: string,

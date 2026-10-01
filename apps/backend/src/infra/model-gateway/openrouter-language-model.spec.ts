@@ -164,6 +164,131 @@ describe('OpenRouterLanguageModel', () => {
     });
   });
 
+  it('withholds memory review content from traces while recording usage and giving the provider its evidence', async () => {
+    const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'masked-policy',
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: 'Synthetic private verdict.',
+              },
+              finish_reason: 'stop',
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    const tracing = tracingSpy();
+    const gateway = model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    );
+
+    const result = await gateway.generate({
+      messages: [{ role: 'user', content: 'Synthetic private evidence.' }],
+      traceContent: false,
+      traceName: 'memory-policy.evidence.sydia-admission-v1',
+    });
+
+    expect(result.text).toBe('Synthetic private verdict.');
+    expect(tracing.calls[0]).toMatchObject({
+      name: 'memory-policy.evidence.sydia-admission-v1',
+      messages: [],
+    });
+    expect(tracing.updates).toContainEqual({
+      output: undefined,
+      inputTokens: 10,
+      outputTokens: 5,
+      costUsd: undefined,
+    });
+    const body = fetch.mock.calls[0]![1]?.body;
+    expect(body).toEqual(
+      expect.stringContaining('Synthetic private evidence.'),
+    );
+    expect(JSON.stringify(tracing)).not.toContain('Synthetic private');
+  });
+
+  it('sends a strict schema for policy review and rejects malformed structured output', async () => {
+    const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: 'policy-response',
+            choices: [
+              {
+                message: { role: 'assistant', content: '{"allowed":true}' },
+                finish_reason: 'stop',
+              },
+            ],
+            usage: {
+              prompt_tokens: 20,
+              completion_tokens: 5,
+              total_tokens: 25,
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+
+    const schema = {
+      type: 'object' as const,
+      properties: { allowed: { type: 'boolean' as const } },
+      required: ['allowed'],
+      additionalProperties: false,
+    };
+
+    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
+    expect(
+      (
+        await gateway.generate({
+          messages: [{ role: 'user', content: 'Review the synthetic fact.' }],
+          outputSchema: schema,
+        })
+      ).text,
+    ).toBe('{"allowed":true}');
+    const body = fetch.mock.calls[0]![1]?.body;
+    if (typeof body !== 'string')
+      throw new Error('Expected a JSON request body');
+    const requestBody = JSON.parse(body) as {
+      response_format: {
+        type: string;
+        json_schema: { strict: boolean; schema: unknown };
+      };
+    };
+
+    expect(requestBody.response_format).toMatchObject({
+      type: 'json_schema',
+      json_schema: { strict: true, schema },
+    });
+    fetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'invalid-policy',
+          choices: [
+            {
+              message: { role: 'assistant', content: 'not JSON' },
+              finish_reason: 'stop',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    await expect(
+      gateway.generate({
+        messages: [{ role: 'user', content: 'Review.' }],
+        outputSchema: schema,
+      }),
+    ).rejects.toThrow();
+  });
+
   it('dispatches each text delta before the stream completes', async () => {
     const languageModel = new MockLanguageModelV4({
       doStream: () =>

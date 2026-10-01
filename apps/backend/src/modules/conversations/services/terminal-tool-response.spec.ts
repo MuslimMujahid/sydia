@@ -21,6 +21,46 @@ const CARD_BACKED = [
 
 const MEMORY = { memory: { content: 'Suka kopi tanpa gula' } };
 
+describe('Hindsight memory acknowledgements', () => {
+  it('describes accepted writes as processing rather than completed', () => {
+    const pending = { memory: { engine: 'hindsight', status: 'queued' } };
+    expect(web('en', [execution('save_memory', pending)])).toBe(
+      '🧠 **Memory save queued**',
+    );
+    expect(chat('id', [execution('update_memory', pending)])).toBe(
+      '🧠 Koreksi memori sedang diproses',
+    );
+    expect(
+      web('en', [
+        execution('save_memory', {
+          memory: { engine: 'hindsight', status: 'completed' },
+        }),
+      ]),
+    ).toBe('🧠 **Memory saved**');
+  });
+
+  it('distinguishes immediate suppression from pending permanent erasure', () => {
+    expect(
+      chat('en', [
+        execution('forget_memory', {
+          deleted: true,
+          receipt: { engine: 'hindsight', status: 'queued' },
+        }),
+      ]),
+    ).toBe(
+      '🗑️ Memory no longer used\n\nPermanent deletion is still processing.',
+    );
+    expect(
+      web('id', [
+        execution('forget_memory', {
+          deleted: true,
+          receipt: { engine: 'hindsight', status: 'completed' },
+        }),
+      ]),
+    ).toBe('🗑️ **Memori dihapus**');
+  });
+});
+
 function execution(
   toolName: string,
   result: unknown,

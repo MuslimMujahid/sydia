@@ -4,20 +4,18 @@ import {
   CATEGORY_REPOSITORY,
   CONTACT_GROUP_REPOSITORY,
   CONTACT_REPOSITORY,
-  MEMORY_REPOSITORY,
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
   type ICategoryRepository,
   type IContactGroupRepository,
-  type IMemoryRepository,
   type IReminderRepository,
   type ITaskRepository,
   type IUserRepository,
   type ICalendarRepository,
   type IContactRepository,
 } from '../../../database/interfaces';
-import { MemoryService } from '../../memories/memory.service';
+import { MemoryAccessService } from '../../memories/memory-access.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import { SecretsService } from '../../secrets/secrets.service';
@@ -35,8 +33,7 @@ export class DomainToolsProvider {
     @Inject(TASK_REPOSITORY) tasks: ITaskRepository,
     @Inject(CATEGORY_REPOSITORY) categories: ICategoryRepository,
     @Inject(REMINDER_REPOSITORY) reminders: IReminderRepository,
-    @Inject(MEMORY_REPOSITORY) memories: IMemoryRepository,
-    memoryService: MemoryService,
+    memoryService: MemoryAccessService,
     scheduler: ReminderSchedulerService,
     @Inject(USER_REPOSITORY) users: IUserRepository,
     @Inject(CONTACT_REPOSITORY) contacts: IContactRepository,
@@ -53,7 +50,6 @@ export class DomainToolsProvider {
         tasks,
         categories,
         reminders,
-        memories,
         memoryService,
         scheduler,
         users,

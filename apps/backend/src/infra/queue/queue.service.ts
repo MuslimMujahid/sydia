@@ -19,6 +19,9 @@ export type ConversationSummaryJob = {
   userId: string;
   conversationId: string;
 };
+export type MemoryDeliveryJob =
+  { kind: 'recover' } | { kind: 'bank'; bankId: string };
+export type MemoryIngestionJob = { kind: 'recover' };
 export type NotificationChannel = 'telegram' | 'whatsapp';
 export type NotificationJob = {
   userId: string;
@@ -42,6 +45,8 @@ export class QueueService implements OnModuleDestroy {
   readonly reminders: Queue<ReminderJob>;
   readonly documents: Queue<DocumentJob>;
   readonly memoryDreams: Queue<MemoryDreamJob>;
+  readonly memoryDeliveries: Queue<MemoryDeliveryJob>;
+  readonly memoryIngestions: Queue<MemoryIngestionJob>;
   readonly conversationSummaries: Queue<ConversationSummaryJob>;
   readonly whatsappNotifications: Queue<NotificationJob>;
   readonly telegramNotifications: Queue<NotificationJob>;
@@ -69,6 +74,14 @@ export class QueueService implements OnModuleDestroy {
       defaultJobOptions,
     });
     this.memoryDreams = new Queue<MemoryDreamJob>('memory-dreams', {
+      connection,
+      defaultJobOptions,
+    });
+    this.memoryDeliveries = new Queue<MemoryDeliveryJob>('memory-deliveries', {
+      connection,
+      defaultJobOptions,
+    });
+    this.memoryIngestions = new Queue<MemoryIngestionJob>('memory-ingestions', {
       connection,
       defaultJobOptions,
     });
@@ -106,6 +119,8 @@ export class QueueService implements OnModuleDestroy {
       this.reminders.close(),
       this.documents.close(),
       this.memoryDreams.close(),
+      this.memoryDeliveries.close(),
+      this.memoryIngestions.close(),
       this.conversationSummaries.close(),
       this.whatsappNotifications.close(),
       this.telegramNotifications.close(),

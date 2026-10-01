@@ -17,6 +17,7 @@ import type { ModelMessage } from 'ai';
 const DEFAULT_BASE_URL = 'https://cloud.langfuse.com';
 
 export type GenerationTraceRequest = {
+  name?: string;
   provider: string;
   model: string;
   messages: ModelMessage[];
@@ -152,7 +153,7 @@ export class ObservabilityService
       },
       async () => {
         const generation = startObservation(
-          `${request.provider}.generation`,
+          request.name ?? `${request.provider}.generation`,
           {
             input: request.messages,
             model: request.model,
@@ -177,15 +178,15 @@ export class ObservabilityService
               attributes.usageDetails = {
                 ...(update.inputTokens === undefined
                   ? {}
-                  : { promptTokens: update.inputTokens }),
+                  : { input: update.inputTokens }),
                 ...(update.outputTokens === undefined
                   ? {}
-                  : { completionTokens: update.outputTokens }),
+                  : { output: update.outputTokens }),
               };
             }
 
             if (update.costUsd !== undefined) {
-              attributes.costDetails = { totalCost: update.costUsd };
+              attributes.costDetails = { total: update.costUsd };
             }
 
             if (update.error !== undefined) {

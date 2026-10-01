@@ -503,6 +503,137 @@ model MemoryDeletionMarker {
   @@map("memory_deletion_marker")
 }
 
+/// No User foreign key: bank erasure must remain deliverable after account deletion.
+model HindsightBank {
+  id            String           @id
+  userId        String
+  namespace     String
+  state         String           @default("active")
+  leaseToken    String?
+  leaseUntil    DateTime?
+  nextAttemptAt DateTime         @default(now())
+  attempts      Int              @default(0)
+  lastErrorCode String?
+  erasedAt      DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+  sources       HindsightSource[]
+
+  @@unique([userId, namespace])
+  @@index([state, nextAttemptAt, leaseUntil])
+  @@map("hindsight_bank")
+}
+
+/// Content-free audit of an atomic rollback; survives account deletion like bank erasure.
+model HindsightRollback {
+  bankId           String   @id
+  userId           String
+  namespace        String
+  boundaryChecksum String
+  sourceCount      Int
+  factCount        Int
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@map("hindsight_rollback")
+}
+
+/// Logical source identity; remote documents use immutable source generations.
+model HindsightSource {
+  id               String               @id @default(uuid())
+  bankId           String
+  sourceKey        String
+  kind             String
+  generation       Int                  @default(1)
+  state            String               @default("active")
+  checksum         String
+  sourceMessageIds String[]             @default([])
+  conversationId   String?
+  legacyMemoryId   String?
+  legacyUpdatedAt  DateTime?
+  eventAt          DateTime
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @default(now()) @updatedAt
+  bank             HindsightBank        @relation(fields: [bankId], references: [id], onDelete: Restrict)
+  deliveries       HindsightDelivery[]
+
+  @@unique([bankId, sourceKey])
+  @@index([bankId, state])
+  @@index([legacyMemoryId])
+  @@map("hindsight_source")
+}
+
+/// Durable outbox and source replay ledger, not a second extracted-fact corpus.
+model HindsightDelivery {
+  id                String          @id @default(uuid())
+  sourceId          String
+  generation        Int
+  documentId        String          @unique
+  operationId       String          @unique
+  requestKey        String?
+  requestFingerprint String?
+  checksum          String          @default("")
+  content           String?
+  state             String          @default("pending")
+  dispatchStartedAt DateTime?
+  retainedAt        DateTime?
+  admittedAt        DateTime?
+  erasedAt          DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  source            HindsightSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  references        HindsightReference[]
+
+  @@unique([sourceId, generation])
+  @@unique([sourceId, requestKey])
+  @@index([requestKey])
+  @@index([state, updatedAt])
+  @@map("hindsight_delivery")
+}
+
+/// No fact text: recall/mutation references resolve through verified provenance.
+model HindsightReference {
+  id           String            @id @default(uuid())
+  deliveryId   String
+  remoteFactId String
+  createdAt    DateTime          @default(now())
+  delivery     HindsightDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryId, remoteFactId])
+  @@index([remoteFactId])
+  @@map("hindsight_reference")
+}
+
+/// Suppression survives source retries/backfill and does not retain fact text.
+model HindsightSuppression {
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  @@id([userId, messageId])
+  @@map("hindsight_suppression")
+}
+
+/// Independent active/shadow cursor. Pending boundaries advance only after admission/erasure.
+model HindsightCheckpoint {
+  id                   String   @id @default(uuid())
+  userId               String
+  namespace            String
+  conversationId       String
+  policyVersion        String
+  throughMessageId     String?
+  throughCreatedAt     DateTime?
+  pendingMessageId     String?
+  pendingCreatedAt     DateTime?
+  pendingSourceIds     String[] @default([])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
+
+  @@unique([namespace, conversationId, policyVersion])
+  @@index([userId, namespace])
+  @@map("hindsight_checkpoint")
+}
+
 model FileAsset {
   id           String              @id @default(cuid())
   userId       String

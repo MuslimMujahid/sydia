@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Patch,
   Res,
+  StreamableFile,
 } from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
@@ -71,7 +72,7 @@ export class UsersController {
       'attachment; filename="sydia-export.json"',
     );
 
-    return Buffer.from(JSON.stringify(data));
+    return new StreamableFile(Buffer.from(JSON.stringify(data)));
   }
 
   @Delete('me')

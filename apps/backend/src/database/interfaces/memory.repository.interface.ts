@@ -9,6 +9,11 @@ export type MemoryVectorMatch = {
 
 export interface IMemoryRepository {
   list(userId: string, filters?: MemoryFilters): Promise<Memory[]>;
+  backfillPage(
+    userId: string,
+    afterId?: string,
+    limit?: number,
+  ): Promise<Memory[]>;
   findById(userId: string, id: string): Promise<Memory | null>;
   findBySourceKey(userId: string, sourceKey: string): Promise<Memory | null>;
   create(userId: string, input: MemoryWrite): Promise<Memory>;
@@ -22,7 +27,11 @@ export interface IMemoryRepository {
     id: string,
     input: MemoryWrite,
   ): Promise<Memory | null>;
-  delete(userId: string, id: string): Promise<boolean>;
+  delete(
+    userId: string,
+    id: string,
+    forgettingMessageId?: string,
+  ): Promise<boolean>;
   searchKeyword(
     userId: string,
     query: string,

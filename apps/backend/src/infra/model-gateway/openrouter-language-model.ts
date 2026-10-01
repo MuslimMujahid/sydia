@@ -4,7 +4,9 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import {
   APICallError,
   generateText,
+  jsonSchema,
   NoOutputGeneratedError,
+  Output,
   stepCountIs,
   streamText,
 } from 'ai';
@@ -538,6 +540,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       messages: request.messages,
       allowSystemInMessages: true as const,
       tools: request.tools,
+      ...(request.outputSchema
+        ? {
+            output: Output.object({ schema: jsonSchema(request.outputSchema) }),
+          }
+        : {}),
       headers,
       temperature: request.temperature ?? this.temperature,
       maxOutputTokens: request.maxOutputTokens ?? this.maxOutputTokens,
@@ -573,7 +580,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
           {
             provider: this.provider,
             model: this.model,
-            messages: request.messages,
+            ...(request.traceName ? { name: request.traceName } : {}),
+            messages: request.traceContent === false ? [] : request.messages,
             userId: request.userId,
             conversationId: request.conversationId,
             runId: request.runId,
@@ -670,7 +678,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 this.logCacheUsage(request, cache);
 
                 trace.update({
-                  output: finalText,
+                  output:
+                    request.traceContent === false ? undefined : finalText,
                   inputTokens: normalizedUsage.inputTokens,
                   outputTokens: normalizedUsage.outputTokens,
                   costUsd: normalizedUsage.costUsd,
@@ -691,7 +700,13 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               }
 
               const result = await generateText(options(terminalText));
-              const finalText = (terminalText.text ?? result.text).trim();
+              const finalText = (
+                terminalText.text ??
+                (request.outputSchema
+                  ? JSON.stringify(result.output)
+                  : result.text)
+              ).trim();
+
               const normalizedUsage = {
                 inputTokens: tokenCount(result.usage.inputTokens),
                 outputTokens: tokenCount(result.usage.outputTokens),
@@ -701,7 +716,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               this.logCacheUsage(request, cacheUsage(result.usage));
 
               trace.update({
-                output: finalText,
+                output: request.traceContent === false ? undefined : finalText,
                 inputTokens: normalizedUsage.inputTokens,
                 outputTokens: normalizedUsage.outputTokens,
                 costUsd: normalizedUsage.costUsd,

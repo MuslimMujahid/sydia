@@ -1,0 +1,76 @@
+# Include through the Compose files. No production keys are stored here.
+x-hindsight-environment: &hindsight-environment
+  HINDSIGHT_API_DATABASE_URL: postgresql://hindsight:${HINDSIGHT_DB_PASSWORD:-hindsight-development-only}@hindsight-postgres:5432/hindsight
+  HINDSIGHT_API_HOST: 0.0.0.0
+  HINDSIGHT_API_PORT: "8888"
+  HINDSIGHT_API_TENANT_EXTENSION: hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension
+  HINDSIGHT_API_TENANT_API_KEY: ${BACKEND_HINDSIGHT_API_KEY:-}
+  HINDSIGHT_API_LLM_PROVIDER: ${HINDSIGHT_API_LLM_PROVIDER:-openai}
+  HINDSIGHT_API_LLM_BASE_URL: ${HINDSIGHT_API_LLM_BASE_URL:-https://openrouter.ai/api/v1}
+  HINDSIGHT_API_LLM_API_KEY: ${HINDSIGHT_API_LLM_API_KEY:-}
+  HINDSIGHT_API_LLM_MODEL: ${HINDSIGHT_API_LLM_MODEL:-qwen/qwen3.8-flash}
+  HINDSIGHT_API_LLM_MAX_CONCURRENT: "2"
+  HINDSIGHT_API_LLM_REASONING_EFFORT: none
+  # Raw debug logs outlive bank deletion in this release. Keep content capture off.
+  HINDSIGHT_API_LLM_TRACE_ENABLED: "false"
+  HINDSIGHT_API_AUDIT_LOG_ENABLED: "false"
+  HINDSIGHT_API_OTEL_TRACES_ENABLED: "false"
+  HINDSIGHT_API_EMBEDDINGS_PROVIDER: ${HINDSIGHT_API_EMBEDDINGS_PROVIDER:-openai}
+  HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL: ${HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
+  HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY: ${HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY:-}
+  HINDSIGHT_API_EMBEDDINGS_OPENAI_MODEL: ${HINDSIGHT_API_EMBEDDINGS_OPENAI_MODEL:-openai/text-embedding-3-small}
+  HINDSIGHT_API_EMBEDDINGS_OPENAI_DIMENSIONS: "1536"
+  HINDSIGHT_API_RERANKER_PROVIDER: ${HINDSIGHT_API_RERANKER_PROVIDER:-openrouter}
+  HINDSIGHT_API_RERANKER_OPENROUTER_API_KEY: ${HINDSIGHT_API_RERANKER_OPENROUTER_API_KEY:-}
+  HINDSIGHT_API_RERANKER_OPENROUTER_MODEL: ${HINDSIGHT_API_RERANKER_OPENROUTER_MODEL:-cohere/rerank-v3.5}
+  HINDSIGHT_API_DB_POOL_MIN_SIZE: "2"
+  HINDSIGHT_API_DB_POOL_MAX_SIZE: "10"
+  HINDSIGHT_API_ENABLE_OBSERVATIONS: "true"
+  HINDSIGHT_API_MCP_ENABLED: "false"
+  HINDSIGHT_API_WORKER_ENABLED: "true"
+  HINDSIGHT_API_WORKER_ID: sydia-hindsight
+  HINDSIGHT_API_WORKER_MAX_SLOTS: "4"
+
+services:
+  hindsight-postgres:
+    profiles: [hindsight]
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hindsight
+      POSTGRES_PASSWORD: ${HINDSIGHT_DB_PASSWORD:-hindsight-development-only}
+      POSTGRES_DB: hindsight
+    volumes:
+      - hindsight-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U hindsight -d hindsight"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  hindsight:
+    profiles: [hindsight]
+    image: ghcr.io/vectorize-io/hindsight-api:0.10.2-slim@sha256:3c7b54a7e7dc92c3ad6a6b874aa9b3e96603b2c6fc4b215d9890a93578d2de99
+    restart: unless-stopped
+    depends_on:
+      hindsight-postgres:
+        condition: service_healthy
+    # Loopback only for the host's dev backend; production uses the Docker network.
+    ports:
+      - "127.0.0.1:${HINDSIGHT_API_HOST_PORT:-8888}:8888"
+    environment: *hindsight-environment
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8888/health/ready', timeout=4)",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 12
+
+volumes:
+  hindsight-postgres-data:

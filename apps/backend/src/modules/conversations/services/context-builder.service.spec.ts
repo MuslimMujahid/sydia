@@ -11,6 +11,9 @@ import {
   ContextBuilderService,
   estimateTokens,
 } from './context-builder.service';
+import { MemoryEngineService } from '../../memories/memory-engine.service';
+import type { MemoryAccessService } from '../../memories/memory-access.service';
+import type { MemorySearchHit } from '../../memories/memory-access.types';
 
 const user = {
   id: 'user-1',
@@ -69,6 +72,8 @@ type RepositoryOptions = {
   memories?: Memory[];
   rollingSummary?: string | null;
   summaryThroughMessageId?: string | null;
+  memoryEngine?: MemoryEngineService;
+  memoryAccess?: MemoryAccessService;
 };
 
 function createBuilder(
@@ -100,6 +105,8 @@ function createBuilder(
     new ConfigService({ BACKEND_ASSISTANT_CONTEXT_TOKENS: tokenBudget }),
     documents,
     memories,
+    options.memoryAccess,
+    options.memoryEngine,
   );
 }
 
@@ -192,6 +199,107 @@ describe('ContextBuilderService system policy', () => {
     expect(profile?.content).toContain('language English');
   });
 });
+
+describe('ContextBuilderService Hindsight recall', () => {
+  const engine = (enabled = true) =>
+    new MemoryEngineService(
+      new ConfigService({
+        BACKEND_MEMORY_ENGINE: 'hindsight',
+        BACKEND_MEMORY_AUTO_RECALL_ENABLED: enabled,
+        BACKEND_HINDSIGHT_RECALL_TOKENS: 250,
+      }),
+    );
+
+  it('puts recalled references after history and before the current request within budget', async () => {
+    const search = jest
+      .fn<MemoryAccessService['search']>()
+      .mockResolvedValue([
+        { id: 'hm:verified', content: 'A relevant preference '.repeat(500) },
+      ]);
+
+    const { messages, tokenUsage } = await createBuilder(3000, {
+      memoryEngine: engine(),
+      memoryAccess: { search } as unknown as MemoryAccessService,
+      messages: [
+        message('earlier', 'assistant', 'Earlier conversation context.'),
+        message('current', 'user', 'What is my preference?'),
+      ],
+      documents: [document('body')],
+    }).build(user, 'conversation-1', 'current');
+
+    expect(search).toHaveBeenCalledWith(user.id, 'What is my preference?', 5);
+    const index = messages.findIndex(
+      ({ content }) =>
+        typeof content === 'string' && content.startsWith('Relevant memories'),
+    );
+
+    expect(index).toBeGreaterThan(
+      messages.findIndex(
+        ({ content }) => content === 'Earlier conversation context.',
+      ),
+    );
+    expect(index).toBeLessThan(messages.length - 1);
+    expect(messages.at(-1)).toEqual({
+      role: 'user',
+      content: 'What is my preference?',
+    });
+    expect(
+      messages.filter(({ content }) => content === 'What is my preference?'),
+    ).toHaveLength(1);
+    expect(messages[index]?.content).toContain(
+      'current user statements take precedence',
+    );
+    expect(
+      messages.some(
+        ({ content }) =>
+          typeof content === 'string' && content.startsWith('Pinned memories'),
+      ),
+    ).toBe(false);
+    expect(tokenUsage.memory).toBeLessThanOrEqual(250);
+    expect(tokenUsage.attachmentManifest).toBeGreaterThan(0);
+    expect(tokenUsage.total).toBeLessThanOrEqual(3000);
+    expect(tokenUsage.total).toBe(
+      messages.reduce(
+        (sum, { content }) =>
+          sum + (typeof content === 'string' ? estimateTokens(content) : 0),
+        0,
+      ),
+    );
+  });
+
+  it('continues normal chat during recall outages', async () => {
+    const search = jest
+      .fn<MemoryAccessService['search']>()
+      .mockRejectedValue(new Error('unavailable'));
+
+    const result = await createBuilder(3000, {
+      memoryEngine: engine(),
+      memoryAccess: { search } as unknown as MemoryAccessService,
+      messages: [message('current', 'user', 'Hello')],
+    }).build(user, 'conversation-1', 'current');
+
+    expect(result.tokenUsage.memory).toBe(0);
+    expect(result.messages.some(({ content }) => content === 'Hello')).toBe(
+      true,
+    );
+  });
+
+  it('does not recall when disabled or when the requested input is not a user message', async () => {
+    const search = jest
+      .fn<MemoryAccessService['search']>()
+      .mockResolvedValue([] as MemorySearchHit[]);
+
+    for (const enabled of [true, false]) {
+      await createBuilder(3000, {
+        memoryEngine: engine(enabled),
+        memoryAccess: { search } as unknown as MemoryAccessService,
+        messages: [message('current', enabled ? 'assistant' : 'user', 'Hello')],
+      }).build(user, 'conversation-1', 'current');
+    }
+
+    expect(search).not.toHaveBeenCalled();
+  });
+});
 describe('ContextBuilderService prompt prefix stability', () => {
   it('keeps the stable prefix byte-identical across turns', async () => {
     const options = {
@@ -249,7 +357,7 @@ describe('ContextBuilderService prompt prefix stability', () => {
     };
 
     expect(stablePrefix(first.messages)).toEqual(stablePrefix(second.messages));
-    expect(first.messages.at(-1)?.content).toContain('current instant');
+    expect(first.messages.at(-1)?.content).toBe('Pertanyaan pertama');
     expect(stablePrefix(first.messages)).not.toContain('current instant');
     expect(stablePrefix(first.messages)).not.toContain('Suka jadwal pagi');
     expect(stablePrefix(first.messages)).not.toContain('Ringkasan lama');
@@ -550,8 +658,8 @@ describe('ContextBuilderService prioritization and trust', () => {
     );
     expect(tokenUsage.history).toBeGreaterThan(0);
     expect(tokenUsage.total).toBeLessThanOrEqual(tokenBudget);
-    // The turn context always trails the retained history.
-    expect(messages.at(-1)?.content).toContain('current instant');
+    // Reference metadata must not displace the user's current request.
+    expect(messages.at(-1)).toEqual(currentContext);
   });
 
   it('labels summaries and pinned memories as reference context, not instructions', async () => {

@@ -4,15 +4,18 @@
 
 name: sydia
 
+include:
+  - hindsight.environment.yml
+
 services:
   migration:
     image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-migration:${IMAGE_TAG:-main}
-    env_file: .env
+    env_file: ../.env
     command: ["node", "../../node_modules/.bin/prisma", "migrate", "deploy"]
     restart: "no"
   backend:
     image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-backend:${IMAGE_TAG:-main}
-    env_file: .env
+    env_file: ../.env
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     restart: unless-stopped
@@ -22,7 +25,7 @@ services:
 
   worker:
     image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-backend:${IMAGE_TAG:-main}
-    env_file: .env
+    env_file: ../.env
     command: ["node", "dist/src/worker.js"]
     depends_on:
       migration:
@@ -31,7 +34,7 @@ services:
 
   frontend:
     image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-frontend:${IMAGE_TAG:-main}
-    env_file: .env
+    env_file: ../.env
     environment:
       HOSTNAME: 0.0.0.0
     ports:

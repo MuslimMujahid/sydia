@@ -18,7 +18,7 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
       connectionString: config.getOrThrow<string>('BACKEND_DB_URL'),
     });
 
-    super({ adapter: new PrismaPg(pool) });
+    super({ adapter: new PrismaPg(pool, { disposeExternalPool: true }) });
   }
 
   async onModuleDestroy(): Promise<void> {

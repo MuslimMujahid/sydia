@@ -1,419 +1,228 @@
-# Sydia — Memory Systems Review
+# Sydia — Memory Systems
 
-| Product | Sydia                                          |
-| ------- | ---------------------------------------------- |
-| Scope   | `apps/backend`, `apps/frontend`, `prisma`      |
-| Date    | 30 September 2026                              |
-| Status  | Engineering reference — current implementation |
+| Field  | Value                                                                         |
+| ------ | ----------------------------------------------------------------------------- |
+| Date   | 1 October 2026                                                                |
+| Scope  | Backend memory, conversation context, notes/documents, and debug UI           |
+| Status | Local Hindsight cutover complete; legacy implementation retained for rollback |
 
-> Companion documents: `Sydia_System_Architecture.md` (§9 Memory and RAG Architecture), `Sydia_PRD.md` (§9.3 Memories and Notes).
+Hindsight owns long-term fact extraction, consolidation, embeddings, observations, and recall. Sydia owns authenticated user-bank selection, evidence admission, delivery coordination, corrections, forgetting, and assistant integration. Conversation history, rolling summaries, daily notes, and document retrieval remain separate systems.
 
-This document reviews **every "memory" mechanism currently implemented in the repository**. Sydia has no single memory store: it has a family of related, deliberately-separated stores that share one embedding service and one retrieval pattern. Each is described below with its purpose, data model, write path, retrieval path, API surface, and wiring.
+The [migration plan](./memory_systems_migration_hindsight.md) records implementation phases. The [operations runbook](./hindsight_operations.md) covers deployment, delivery recovery, backfill, export, rollback, and backup/restore.
 
-# Table of Contents
+## 1. Deployment and engine selection
 
-> **1. Overview and Taxonomy**
->
-> **2. Shared Building Blocks**
->
-> **3. Durable Memories (core memory domain)**
->
-> **4. Automatic Memory Extraction ("Dreaming")**
->
-> **5. Conversation Summary (context compaction)**
->
-> **6. Daily Notes (dated retrieval index)**
->
-> **7. Document Knowledge Base (file RAG)**
->
-> **8. Context Assembly (how memories reach the model)**
->
-> **9. Cross-Cutting Invariants**
->
-> **10. Configuration Reference**
->
-> **11. Database Migrations and Indexes**
->
-> **12. File Index**
+The local API and worker use `BACKEND_MEMORY_ENGINE=hindsight`, with automatic recall and ingestion enabled for all users. The private Hindsight API runs on loopback port 8889 with its own persistent PostgreSQL database. The application database remains on port 55432. Remote production settings were not changed by this cutover.
 
-# 1. Overview and Taxonomy
+`MemoryEngineService` resolves the engine server-side:
 
-Six distinct stores back the assistant's recall. Only one of them is called "memory" to the user, but all six are memory systems in the architectural sense.
+| Mode        | Reads and explicit chat mutations | Automatic writer                                       |
+| ----------- | --------------------------------- | ------------------------------------------------------ |
+| `legacy`    | Existing local memory service     | Legacy dreaming                                        |
+| `shadow`    | Existing local memory service     | Legacy dreaming plus isolated Hindsight ingestion      |
+| `hindsight` | Hindsight adapter                 | Hindsight ingestion; legacy dreaming skips these users |
 
-| #   | System                             | Source of truth        | Storage                                               | Primary use                                  |
-| --- | ---------------------------------- | ---------------------- | ----------------------------------------------------- | -------------------------------------------- |
-| 1   | **Durable Memories**               | User or extractor      | `memory` table + pgvector                             | Long-term facts, preferences, decisions      |
-| 2   | **Memory Extraction ("Dreaming")** | Derived (LLM pipeline) | `memory_dream_run`, `memory_deletion_marker`          | Automatically curating #1 from conversations |
-| 3   | **Conversation Summary**           | Derived (LLM)          | `conversation.rollingSummary`, `conversation_summary` | Continuity within a conversation             |
-| 4   | **Daily Notes**                    | User                   | `daily_note` + `daily_note_chunk`                     | Dated diary with dated semantic search       |
-| 5   | **Document Knowledge Base**        | User uploads           | `document` + `document_chunk`                         | File RAG over uploaded content               |
-| 6   | **Shared Embeddings**              | Infra                  | —                                                     | One embedding service for #1, #4, #5         |
+`BACKEND_HINDSIGHT_COHORT` limits the configured mode to listed internal user IDs; users outside that set stay on legacy. An empty cohort means all users receive the configured mode. New installations default to legacy with ingestion and automatic recall disabled until Hindsight is configured.
 
-The taxonomy follows the architecture document:
+Banks are derived from an environment namespace and a hash of the authenticated user ID. Shadow banks use a separate namespace and checkpoint. A shared private API key authenticates Sydia to Hindsight; it does not replace owner authorization in Sydia.
 
-- **Durable semantic memory** (#1) — curated, provenance-tracked, user-inspectable.
-- **Document knowledge** (#5) — chunked file content addressed by document filters.
-- **Conversation summary** (#3) — derived continuity state, explicitly _not_ durable memory (ADR-005).
-- **Daily notes** (#4) — a dated journal that doubles as its own retrieval index.
-- **Recent messages** — a recency window assembled at request time (not a store).
+The frontend `/memory` page and navigation entry require `VITE_DEBUG_ENABLED === "true"`. Editing, pinning, revision badges, and provenance displays there are debugging controls. In Hindsight mode, the old `/memories` REST endpoints return HTTP 409 instead of exposing stale legacy state. Chat memory tools provide the active integration; no public memory-management page was added.
+
+## 2. Stores and boundaries
+
+| System                         | Storage / authority                                    | Purpose                                                                                  |
+| ------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Durable facts and observations | Hindsight PostgreSQL                                   | Long-term preferences, facts, decisions, routines, and evidence-backed derived recall    |
+| Memory coordination            | Application `hindsight_*` tables                       | Ownership, source generations, retries, admission, suppression, checkpoints, and erasure |
+| Conversation archive           | Application conversations/messages                     | Original history and user evidence                                                       |
+| Rolling summaries              | `conversation.rollingSummary`, `conversation_summary`  | Continuity within the context budget                                                     |
+| Daily notes                    | `daily_note`, `daily_note_chunk`                       | Owner-local dated journal and independent retrieval index                                |
+| Documents                      | `file_asset`, `document`, `document_chunk`             | Uploaded content and file RAG                                                            |
+| Legacy memory                  | `memory`, `memory_dream_run`, `memory_deletion_marker` | Other configured cohorts and rollback support                                            |
 
 ```mermaid
-flowchart TB
-    MSG[Conversation Messages<br/>archival history]
-    MSG -->|context budget exceeded| SUM[Rolling Summary<br/>conversation.rollingSummary]
-    MSG -->|after each run, idle-debounced| DREAM[Memory Dream<br/>LLM extraction + consolidation]
-    DREAM --> MEM[(Durable Memory<br/>memory table + pgvector)]
-    USER[User / tool] --> MEM
-
-    NOTE[Daily Notes<br/>daily_note] --> NCHUNK[(daily_note_chunk<br/>pgvector)]
-    DOC[Documents<br/>document] --> DCHUNK[(document_chunk<br/>pgvector)]
-
-    MEM --> CB[Context Builder]
-    SUM --> CB
-    NCHUNK --> TOOLS[Assistant tools]
-    DCHUNK --> TOOLS
-    CB --> LLM[Assistant LLM]
+flowchart TD
+    CHAT[Chat memory tools] --> ACCESS[MemoryAccessService]
+    HISTORY[(Conversation archive)] --> INGEST[HindsightIngestionService]
+    ACCESS --> LEDGER[(Application coordination ledger)]
+    INGEST --> LEDGER
+    LEDGER --> DELIVERY[HindsightDeliveryService]
+    DELIVERY --> HS[Private Hindsight API and worker]
+    HS --> FACTS[(Facts, observations, indexes)]
+    ACCESS --> HS
+    ACCESS --> VALIDATE[Owner, generation, admission and evidence checks]
+    VALIDATE --> CONTEXT[Bounded assistant context]
+    HISTORY --> SUMMARY[Rolling summary]
+    SUMMARY --> CONTEXT
+    NOTES[(Daily notes and chunks)] --> TOOLS[Notes and document tools]
+    DOCS[(Documents and chunks)] --> TOOLS
+    TOOLS --> ASSISTANT[Assistant]
+    CONTEXT --> ASSISTANT
 ```
 
-# 2. Shared Building Blocks
+The local ledger is not a duplicate extracted-fact cache:
 
-## 2.1 Embeddings
+| Table                   | Responsibility                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `hindsight_bank`        | Owner/namespace, active or erasing/erased state, leases, retry metadata, durable account-erasure intent                             |
+| `hindsight_source`      | Logical source identity, kind, generation, original event time, user-message evidence, and legacy import mapping                    |
+| `hindsight_delivery`    | Generation-specific document/operation IDs, reviewed replay input, request identity, checksum, and delivery/admission/erasure state |
+| `hindsight_reference`   | Mapping from admitted remote fact IDs to a delivery; no duplicate fact text                                                         |
+| `hindsight_suppression` | Forgotten message evidence excluded from re-extraction and retrieval                                                                |
+| `hindsight_checkpoint`  | Independent namespace/policy/conversation progress and pending source completion                                                    |
+| `hindsight_rollback`    | Reconciliation boundary, counts, and audit without fact content                                                                     |
 
-`EmbeddingsService` (`apps/backend/src/infra/embeddings/embeddings.service.ts:42`) is the single embedding provider for systems #1, #4, and #5.
+Bank records deliberately survive local account deletion until remote erasure completes. Delivery replay content is cleared when its source is withdrawn. Original explicit input may be retained while active because retries and corrections need it.
 
-- `embed(text)` → one vector, or `null` when unconfigured/failed.
-- `embedMany(texts)` → order-preserving, bounded-concurrency (`BACKEND_EMBEDDING_CONCURRENCY`, default 8) with per-request retry (3 attempts, exponential backoff with jitter).
-- Requests `POST {BACKEND_MODEL_BASE_URL}/embeddings` with `dimensions: 1536` and `model` from `BACKEND_EMBEDDING_MODEL` (default `openai/text-embedding-3-small`).
-- `version = 'v1'` and `modelName()` are stamped onto every vector row.
+## 3. Remember, correct, and forget
 
-Failure is always _soft_: when the embedding service is unavailable, every caller falls back to keyword-only retrieval instead of failing the operation.
+`DomainToolsProvider` routes `save_memory`, `update_memory`, `forget_memory`, and `search_memories` through `MemoryAccessService`.
 
-## 2.2 Hybrid retrieval with Reciprocal Rank Fusion (RRF)
+A save validates owned user evidence, excludes credentials, reviews durable/sensitive claims through `MemoryPolicyService`, and commits a source/delivery intent before publishing a BullMQ job. A successful tool call can mean **queued**, not remotely retained or admitted. The assistant acknowledges those states explicitly.
 
-All three retrievable stores (#1, #4, #5) use the same shape: a **keyword leg** and a **vector leg** fused by Reciprocal Rank Fusion (`1 / (60 + rank + 1)`), with a user-scoped SQL predicate applied _before_ ranking. The RRF implementation is duplicated per domain (each tailors tie-breaking):
+Delivery follows these stages:
 
-| Domain      | Fusion site                 | Tie-break                                                             |
-| ----------- | --------------------------- | --------------------------------------------------------------------- |
-| Memories    | `memory.service.ts:84`      | pinned, then `updatedAt` desc                                         |
-| Daily notes | `daily-note.service.ts:254` | literal keyword score, then `date` desc; collapses to one hit per day |
-| Documents   | `document.service.ts:466`   | diversify to ≤2 chunks per document                                   |
+1. `pending`: source intent committed locally.
+2. `submitted`: retention accepted with a durable operation ID.
+3. `retained`: operation completion verified and extracted facts available.
+4. `admitted`: fact evidence reviewed and owner, generation, suppression, opt-out, and lease checks revalidated.
 
-## 2.3 Background queues (BullMQ)
+Only admitted current generations are retrievable. Invalid extraction is withdrawn and erased; transient failures preserve durable work for retry. Fact review is bounded to 200 facts per source and four facts per model call, with lease renewal between batches and before final admission. Partial batches never become independently readable.
 
-Declared in `apps/backend/src/infra/queue/queue.service.ts:41` and consumed in `apps/backend/src/worker.ts`:
+Chat receives opaque `hm:` fact/evidence references or `hs:` source-generation references. Observations resolve to supporting admitted facts; they are not separately editable facts. A targeted correction preserves unrelated admitted facts, withdraws the old generation, and sends a replacement. Stale references cannot silently overwrite a newer generation.
 
-| Queue                    | Job type                 | Purpose                                |
-| ------------------------ | ------------------------ | -------------------------------------- |
-| `memory-dreams`          | `MemoryDreamJob`         | Run extraction; 24h recovery sweep     |
-| `conversation-summaries` | `ConversationSummaryJob` | Rolling summary refresh                |
-| `daily-note-indexes`     | `DailyNoteIndexJob`      | Chunk + embed notes; 6h recovery sweep |
+Forgetting immediately suppresses connected source-message evidence across generations, shadow/active banks, and associated legacy copies. It clears replay input and queues document erasure. The worker waits for known retention to finish, deletes the document, verifies absence of raw facts, and periodically rechecks erased generations for uncertain late writes. Unrelated sources remain available.
 
-Default job options: 5 attempts, exponential backoff (1s), keep last 1000 completed/failed (`queue.service.ts:56`).
+Account deletion transactionally retires banks and schedules durable erasure alongside local user deletion. Recovery continues after the user row disappears; stale jobs cannot recreate an erased bank. Completed bank erasure is rechecked hourly.
 
-# 3. Durable Memories (core memory domain)
+## 4. Automatic ingestion and recovery
 
-The primary memory system: curated, user-inspectable long-term facts with provenance, pinning, and a supersession history.
+The existing idle scheduler remains the conversation trigger. After a completed assistant run, it debounces a `memory-dreams` job per conversation. The worker selects the appropriate writer for the user's engine mode.
 
-> Module: `apps/backend/src/modules/memories/`
+`HindsightIngestionService` uses bounded immutable user-message sources, up to 24 messages per segment, with original message IDs and event times. Assistant messages and tool output never become user evidence. Credentials, suppressed messages, and evidence already owned by explicit sources are excluded before dispatch. The versioned admission policy selects exact user quotations; sensitive facts need a specific request to remember them.
 
-## 3.1 Data model — `prisma/schema.prisma:394`
+Default eligibility remains four user messages or 800 estimated tokens after 15 minutes of idle time. Short-segment recovery permits at least two user messages after the configured six-hour age. Hindsight checkpoints are independent of legacy watermarks and advance only after every required source is admitted or fully withdrawn/erased.
 
-`Memory` fields of note:
+`User.automaticMemoryEnabled` is checked at scheduling, ingestion, dispatch, and admission of late automatic results. Opt-out leaves existing facts readable and permits explicit remember requests. Disabling deployment ingestion fences pending automatic work without removing explicit memory operations.
 
-| Field                                    | Meaning                                                                 |
-| ---------------------------------------- | ----------------------------------------------------------------------- |
-| `content`                                | The canonical standalone fact (source of truth; also the embedded text) |
-| `category`                               | Optional free-text category                                             |
-| `status`                                 | `active` \| `superseded`                                                |
-| `pinned`                                 | Pinned memories are injected into every context window                  |
-| `confidence`                             | Extractor confidence (dashboard/tool writes leave it null)              |
-| `sourceType`                             | `dashboard` \| `chat` \| `whatsapp` \| `document` \| `automatic`        |
-| `sourceMessageId` / `sourceMessageIds[]` | Provenance back to conversation messages                                |
-| `sourceDocumentId`                       | Provenance for document-derived facts                                   |
-| `extractorVersion`                       | Which dreamer produced it (e.g. `incremental-dream-v1`)                 |
-| `supersedesId` / `supersededById`        | Revision chain (old ↔ new)                                              |
-| `dreamRunId`                             | Owning dream run                                                        |
-| `sourceKey` (unique)                     | Idempotency hash for automatic writes                                   |
-| `embedding`                              | `vector(1536)` (nullable)                                               |
-| `embeddingModel` / `embeddingVersion`    | Embedding provenance                                                    |
-| `lastRetrievedAt` / `retrievalCount`     | Usage signals                                                           |
+| Queue                    | Role                                                                    | Recovery schedule                      |
+| ------------------------ | ----------------------------------------------------------------------- | -------------------------------------- |
+| `memory-dreams`          | Debounced conversation segment; mode selects Hindsight or legacy writer | Existing dream recovery every 24 hours |
+| `memory-deliveries`      | Retention, operation polling, fact admission, and source/bank erasure   | Every 30 seconds                       |
+| `memory-ingestions`      | Pending checkpoints and eligible conversations                          | Every minute                           |
+| `conversation-summaries` | Rolling summary refresh                                                 | Enqueued after assistant runs          |
+| `daily-note-indexes`     | Chunk/embed notes and recover pending indexing                          | Every six hours                        |
+| `documents`              | Uploaded-file processing and indexing                                   | Normal queue retry                     |
 
-Indexes: `[userId, status, pinned]`, `[userId, updatedAt]`, plus hand-written HNSW (`memory_embedding_hnsw_idx`, cosine ops) and a GIN full-text index (`memory_content_search_idx`) added in migrations.
+Redis publishes work; PostgreSQL holds the durable memory authority. Lost publication is recovered from the ledger. Stable operation IDs, request fingerprints, source-generation checks, owner locks, and leased delivery claims fence retries and concurrent changes. Default queue options allow five attempts with exponential backoff and retain the last 1,000 completed/failed jobs.
 
-Two companions exist purely to make extraction correct (see §4): `MemoryDreamRun` (`:470`) and `MemoryDeletionMarker` (`:492`).
+## 5. Recall and context assembly
 
-## 3.2 Domain entity and repository contract
+`MemoryAccessService.search` calls Hindsight with the current request timestamp and bounded query/token limits. It validates returned world facts against admitted remote references, matching source metadata, current owner/generation, and suppression. An observation is returned only when all required supporting facts resolve to valid evidence. Mutation lookup uses world facts rather than treating observations as editable records.
 
-- Entity `Memory` / `MemoryWrite` / `MemoryStatus` (`database/entities/memory.entity.ts`). `Memory.source` is a _presented_ provenance object with a human label.
-- Interface `IMemoryRepository` + `MEMORY_REPOSITORY` token (`database/interfaces/memory.repository.interface.ts:10`): `list`, `findById`, `findBySourceKey`, `create`, `update`, `supersede`, `delete`, `searchKeyword`, `searchVector`, `recordRetrieval`, `setEmbedding`.
-- Prisma implementation `PrismaMemoryRepository` (`database/repositories/prisma-memory.repository.ts:64`).
-  - `memorySelect` deliberately omits the vector column from normal reads.
-  - `searchVector` (`:266`) runs raw SQL: `embedding <=> $vector`, filtered by `userId`, `status = 'active'`, and `<= maxCosineDistance`.
-  - `setEmbedding` (`:303`) is a raw `UPDATE` (Prisma cannot write `Unsupported` columns).
-  - `supersede` (`:146`) creates the new active row and flips the old to `superseded` in one transaction.
-  - `delete` (`:190`) is more than a delete — see §3.5.
+Automatic recall uses the current owned user message when enabled. The default request budget is 800 tokens; final insertion also obeys the application token estimator and remaining context budget. Hindsight mode does not inject legacy pinned memories.
 
-## 3.3 Write paths
+`ContextBuilderService` builds context in this order:
 
-**Explicit (synchronous, canonical-first):** `MemoryService.create` (`memory.service.ts:34`) writes the row, then best-effort embeds it. Ordering matters: the canonical text is authoritative; indexing is a derived artifact that may fail silently (`index()` swallows errors, `:166`).
+1. System policy, optional channel prompt, persona, and user profile.
+2. Recent conversation history, retaining newer messages within budget.
+3. Volatile reference blocks: rolling summary, recalled memory, attachment manifest, and known-document manifest.
+4. Current time/timezone context.
+5. The current user request, retained exactly once as the last message.
 
-**Update:** `MemoryService.update` (`:56`). A content change does **not** mutate in place — it calls `supersede`, so the old fact is retained as `superseded` and the new one becomes active. Non-content edits (pin, category) mutate directly.
+The stable system/history prefix stays ahead of volatile recall. All reference blocks are untrusted data; they cannot grant permissions or override assistant policy. Current user statements take precedence over older memory. Context token accounting includes each block and the current request.
 
-**Via assistant tools:** `save_memory`, `update_memory` (`memory.service.update`), `forget_memory`, `search_memories` are defined in `conversations/services/domain-tools.ts:814` and wired through `DomainToolsProvider` (`conversations/services/domain-tools.provider.ts:32`). `update_memory`/`forget_memory` accept an `id` or resolve by semantic `query` to the first match.
+An automatic-recall outage lets chat continue with conversation context. Explicit memory search reports HTTP 503 when results cannot be verified; it does not silently query stale legacy copies. Unknown or forgotten facts must not be invented. The local recall deadline is explicitly five seconds, allowing the accepted provider latency; the new-install default remains 1.5 seconds.
 
-**Via REST:** `MemoriesController` (`memories.controller.ts:32`).
+## 6. Conversation history and summaries
 
-| Method | Route                 | Behaviour                                                          |
-| ------ | --------------------- | ------------------------------------------------------------------ |
-| GET    | `/memories`           | List with `status` / `pinned` filters                              |
-| GET    | `/memories/search?q=` | Hybrid semantic + keyword search                                   |
-| GET    | `/memories/:id`       | Single memory                                                      |
-| POST   | `/memories`           | Create (forces `sourceType: 'dashboard'`, audits `memory.created`) |
-| PATCH  | `/memories/:id`       | Update (audits `memory.updated`)                                   |
-| DELETE | `/memories/:id`       | Delete (audits `memory.deleted`)                                   |
+Conversation history remains in the application database. `ConversationSummarizerService` compacts unsummarized history when its estimated tokens exceed `BACKEND_SUMMARY_TRIGGER_TOKENS` (4,500), retaining the newest `BACKEND_SUMMARY_RETAIN_MESSAGES` (eight).
 
-All routes are `@Roles(['user'])` and user-scoped via the session.
+The structured rolling summary carries objectives, established facts, decisions, constraints, actions, unresolved questions, and entities. `replaceSummary` updates the conversation and appends a `ConversationSummary` revision atomically, with a compare-and-swap on the previous summary boundary. Summaries provide continuity; they do not become independently admitted Hindsight facts.
 
-## 3.4 Retrieval
+## 7. Daily notes
 
-`MemoryService.search(userId, query, limit = 10)` (`memory.service.ts:84`):
+Daily notes remain an owner-local journal, with one `DailyNote` per `[userId, date]`. Rich-text content is authoritative; derived plain text and `DailyNoteChunk` vectors support search. Dates use the owner's timezone.
 
-1. Keyword leg: `content ILIKE %query%` over active rows, pinned/recency ordered (`prisma-memory.repository.ts:247`).
-2. Vector leg: embed the query, then cosine-distance search capped at `BACKEND_MEMORY_MAX_COSINE_DISTANCE` (default `0.3`).
-3. Fuse by RRF; sort by score, then pinned, then recency.
-4. `recordRetrieval` bumps `lastRetrievedAt` / `retrievalCount` (best-effort).
-5. On embedding failure, return keyword results only.
+Saving changed retrievable text queues indexing. Empty content clears the note. Text fingerprints coalesce work and skip unchanged chunks; failed embeddings leave `indexPending` set for recovery. Search fuses owner-scoped keyword and vector results through reciprocal rank fusion, supports date windows, and collapses hits to one per day. Embedding outages degrade search to keywords.
 
-## 3.5 Deletion and tombstoning
+The REST API remains under `/daily-notes`. Assistant tools remain `write_daily_note`, `read_daily_note`, and `search_daily_notes`. Hindsight does not index this domain as part of the migration.
 
-`PrismaMemoryRepository.delete` (`:190`), inside one transaction:
+## 8. Document knowledge and shared embeddings
 
-1. Repairs the supersession chain (relinks the deleted node's neighbours).
-2. Upserts a `MemoryDeletionMarker` for every source message it cited.
-3. Deletes the memory row.
+Uploaded files retain their independent parsing/chunking pipeline. `FileAsset` owns stored bytes; `Document` holds extracted text/transcripts/descriptions; `DocumentChunk` holds page-aware content and vectors. `MessageAttachment` ties files to conversation messages.
 
-The deletion marker (`schema.prisma:492`, unique `[userId, sourceMessageId]`) is a tombstone: it prevents the dreaming pipeline from re-extracting a fact from a message whose memory the user explicitly forgot.
+`DocumentService` handles text/JSON, PDF, image description, and audio transcription. Retries reuse persisted transcripts and unchanged chunks, embedding only missing vectors. Unsupported or empty files fail without repeated retry. Search fuses keyword/vector hits and limits each document to two chunks; attachment-scoped retrieval remains owned by the current message's documents.
 
-## 3.6 Frontend
+The application's `EmbeddingsService` still supplies notes, documents, and legacy/rollback indexing with 1,536-dimensional vectors and embedding model/version metadata. Hindsight configures its own embedding and reranking providers. Durable memory therefore no longer shares the application's local RRF/vector pipeline in Hindsight mode.
 
-- Route `/memory`, gated behind `VITE_DEBUG_ENABLED` (`apps/frontend/src/routes/_app.memory.tsx`).
-- Page `MemoryPage` (`components/memories/memory-page.tsx:390`): list + status filter + pinned filter, semantic search ("Cari memori secara semantik"), create/edit/delete dialogs, pin toggle, provenance display, and superseded badges.
-- API client `memories.api.ts` (typed `Memory`, `MemoryProvenance`, `MemoryStatus`, `MemorySourceType`; server-fn variants for SSR).
-- Query hooks `memories.queries.ts` (`useCreateMemory`, `useUpdateMemory`, `useDeleteMemory`, `useSetMemoryPinned`).
+## 9. Export, backfill, and rollback
 
-Note: the `automaticMemoryEnabled` user preference is exposed to the frontend preferences type (`users/preferences.api.ts`), but a dedicated Memory & Privacy settings surface (roadmap FE-0804) is not yet built.
+`GET /users/me/export` downloads valid JSON through `StreamableFile`. `MemoryArchiveService` includes current admitted world facts and active reviewed replay intents in `hindsightMemory`, with source identity, evidence IDs, and event time. Forgotten sources expose metadata with null input and no facts. Failed pagination, remote availability, evidence verification, or raced corrections/deletions cause export to fail rather than silently omit facts.
 
-# 4. Automatic Memory Extraction ("Dreaming")
-
-An asynchronous LLM pipeline that periodically mines recent conversation segments for durable facts and consolidates them into §3. Version-tagged `incremental-dream-v1`. Users can opt out via `User.automaticMemoryEnabled`.
-
-> Files: `apps/backend/src/modules/memories/memory-dream.service.ts`, `memory-dream-scheduler.service.ts`
-
-## 4.1 Trigger and scheduling
-
-- After each completed assistant run, `AssistantOrchestratorService.persistSuccess` calls `MemoryDreamSchedulerService.schedule` (`assistant-orchestrator.service.ts:711`).
-- `schedule` (`memory-dream-scheduler.service.ts:33`) **debounces per conversation**: it removes any pending `dream` jobs for that conversation and enqueues one delayed job with `jobId: memory-dream-<conversationId>-<throughMessageId>` and a delay of `BACKEND_MEMORY_DREAM_IDLE_MS` (default 15 min). A conversation is only dreamed once it has gone idle.
-- `recover` (`:63`) re-enqueues pending dreams older than `BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS` (default 6h) with `allowShortSegment: true`. It runs on a 24h scheduler in `worker.ts:161`.
-
-## 4.2 The run pipeline
-
-`MemoryDreamService.run` (`memory-dream.service.ts:76`):
-
-1. **Opt-out check** — returns `skipped` if `automaticMemoryEnabled` is false (`:83`).
-2. **Load segment** — `findMemoryDreamSegment(userId, conversationId, throughMessageId)` returns messages after the watermark, minus tombstoned sources (`prisma-conversation.repository.ts:1106`).
-3. **Eligibility gate** (`:101`) — at least `BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES` (4) user messages, or `BACKEND_MEMORY_DREAM_MIN_TOKENS` (800) estimated tokens, or (short-segment recovery) ≥2 user messages. Otherwise `deferred`.
-4. **Begin run** — `beginMemoryDream` (`:1161`) is idempotent: an existing `completed` run returns null; a `running` run younger than 15 min returns null (stale-run guard); otherwise it (re)claims the run.
-5. **Extract candidates** (`extractCandidates`, `:163`) — one LLM call with a conservative system prompt: durable user facts/preferences/decisions/goals/routines/constraints only; assistant messages are context, not evidence; ignore transient tasks, secrets, and credentials. Returns `{candidates:[{content,category,confidence,sourceMessageIds}]}`.
-   - `parseCandidates` (`:193`) filters hard: `confidence >= 0.85`, non-empty content, and at least one **user** message id (assistant-only citations are dropped). Max 20 candidates.
-6. **Prepare** (`prepareCandidates`, `:253`) — dedupe _before_ paying for embeddings:
-   - `findBySourceKey` cheap lookup (source key = `sha256(version + sorted source ids + lowercased content)`, `:41`),
-   - then a semantic search for an exact-content duplicate.
-7. **Consolidate batch** (`consolidateBatch`, `:284`) — candidates with no existing matches are created directly; the rest go to **one** LLM call that returns per-index decisions: `ignore | create | merge | supersede | conflict`. Decisions are validated (`validateConsolidation`, `:386`): `targetId` must be one of the supplied memory ids; `merge`/`supersede` must carry target + content; anything invalid degrades to `conflict` (no-op).
-8. **Apply** (`applyDecision`, `:421`) — `merge`/`supersede` call `MemoryService.consolidate` (supersede the target), `create` calls `MemoryService.create`. Sources and the previous target's sources are unioned; `sourceType: 'automatic'`, `extractorVersion`, and `sourceKey` are stamped.
-9. **Complete** — `completeMemoryDream` (`:1205`) advances `Conversation.memoryDreamThroughMessageId` and marks the run completed **in one transaction with a compare-and-swap** on the previous watermark; a lost race aborts the run rather than double-writing.
-10. On any error, `failMemoryDream` (`:1236`) records the failure and the error rethrows for BullMQ retry.
-
-Idempotency is layered: a per-candidate `sourceKey`, a unique `MemoryDreamRun(conversationId, throughMessageId, dreamerVersion)`, and the transactional watermark advance.
-
-## 4.3 Persistence plumbing
-
-Conversation-side methods on `IConversationRepository`: `findMemoryDreamSegment`, `beginMemoryDream`, `completeMemoryDream`, `failMemoryDream`, `findPendingMemoryDreams` (`prisma-conversation.repository.ts:1106–1269`). `findPendingMemoryDreams` only selects conversations whose owner has `automaticMemoryEnabled: true`.
-
-Tests: `memory-dream.service.spec.ts`, `memory-dream-scheduler.service.spec.ts`.
-
-# 5. Conversation Summary (context compaction)
-
-Conversation history is **not** durable memory (ADR-005). It is compacted so a long conversation stays within the model's context budget.
-
-- **Store:** `Conversation.rollingSummary` + `Conversation.summaryThroughMessageId` (`schema.prisma:155`), with an append-only revision log in `ConversationSummary` (`:240`).
-- **Trigger:** `ConversationSummarizerService.summarizeIfNeeded` (`conversation-summarizer.service.ts:92`), enqueued on `conversation-summaries` after every run (`assistant-orchestrator.service.ts:693`).
-- **Policy:** when unsummarized tokens exceed `BACKEND_SUMMARY_TRIGGER_TOKENS` (4500), summarize everything except the newest `BACKEND_SUMMARY_RETAIN_MESSAGES` (8).
-- **Output:** a structured JSON `SummaryState` — objective, established facts, decisions, constraints, completed/pending actions, unresolved questions, entities (`:13`). The previous summary and new messages are semantically merged in one LLM call.
-- **Write:** `replaceSummary` (`prisma-conversation.repository.ts:1074`) updates the conversation and appends a `ConversationSummary` row in a transaction, with a compare-and-swap on `summaryThroughMessageId` so concurrent summarizers cannot clobber each other.
-
-# 6. Daily Notes (dated retrieval index)
-
-A dated journal ("diary") with its own chunked pgvector index, separate from `Memory`.
-
-> Module: `apps/backend/src/modules/daily-notes/`
-
-## 6.1 Data model
-
-- `DailyNote` (`schema.prisma:427`) — one entry per owner-local calendar day. `date` is the owner's local `YYYY-MM-DD` in `timezone`; `content` is Tiptap rich text; `text` is the derived plain text that is actually embedded; `indexPending` doubles as crash-recovery backlog; `indexSignature` is a text fingerprint. Unique `[userId, date]`.
-- `DailyNoteChunk` (`:452`) — `date` **denormalised** so a date-windowed search filters and ranks in one query; `embedding vector(1536)`; `[dailyNoteId, chunkIndex]` unique.
-
-## 6.2 Write and index lifecycle
-
-- `DailyNoteService.save` (`daily-note.service.ts:123`): an empty document deletes the row (so PUT/GET agree that a day has no note); otherwise upsert, and enqueue re-index **only if the retrievable text changed**.
-- Indexing is queued (`enqueueIndex`, `:383`) and coalesced by a text fingerprint. The job id is intentionally unique per enqueue because BullMQ drops an `add` whose id already exists (`:386`).
-- `index` (`:302`): chunk the text, compare signature + chunk/embedding counts, and skip when nothing changed; embed with `embedMany`; if any embedding is missing, keep the pending flag rather than drop the note from retrieval.
-- `recoverPending` (`:364`) re-indexes up to 25 pending notes; driven by the 6h `daily-note-index-recovery` scheduler (`worker.ts:178`).
-
-## 6.3 Retrieval
-
-`search` (`:204`): owner-scoped, optionally windowed by date range, keyword + vector legs fused by RRF, then **collapsed to one hit per day** (`rank`, `:254`) so a day that matched repeatedly reads as a single entry. Falls back to keyword-only when embeddings are unavailable.
-
-## 6.4 API, tools, frontend
-
-- REST (`daily-notes.controller.ts`): `GET /daily-notes`, `GET /daily-notes/:date`, `PUT /daily-notes/:date`, `DELETE /daily-notes/:date` (audits `daily_note.saved` / `daily_note.cleared` / `daily_note.deleted`).
-- Assistant tools: `write_daily_note`, `read_daily_note`, `search_daily_notes` (`conversations/services/daily-note-tools.ts:77`).
-- Frontend: `lib/services/api/daily-notes/*`, `components/daily-notes/*`.
-
-The architecture doc frames daily notes as reusing the document chunker and embedding service but differing in what is indexed and how it is addressed (`Sydia_System_Architecture.md` §9.4).
-
-# 7. Document Knowledge Base (file RAG)
-
-Uploaded files are parsed, chunked, embedded, and retrievable semantically with document metadata filters.
-
-> Module: `apps/backend/src/modules/documents/`
-
-## 7.1 Data model
-
-- `FileAsset` (`schema.prisma:506`) — stored bytes (checksum, `storageKey`, kind).
-- `Document` (`:534`) — derived content: `status`, `title`, `textContent`, `transcript` (audio), `imageDescription` (image), `structuredData`.
-- `DocumentChunk` (`:557`) — `chunkIndex`, `pageNumber`, `content`, `embedding vector(1536)`, embedding provenance. Unique `[documentId, chunkIndex]`.
-- `MessageAttachment` (`:524`) links messages to file assets for attachment-aware retrieval.
-
-## 7.2 Ingestion and embedding
-
-`DocumentService.processDocument` (`document.service.ts:220`):
-
-- By kind: audio → transcribe (transcript persisted before embedding so retries reuse it); image → describe; PDF → page-aware parse; text/JSON → direct read. Unsupported/empty → `NonRetryableDocumentError`.
-- **Reuse before re-embed** (`:296`): if chunks survived a previous attempt unchanged, only chunks still missing an embedding are sent to `embedMany`.
-- Chunks are published only after all required embeddings succeed (`:323`).
-- `extractStructured` (`:651`) opportunistically pulls email/amount/date.
-
-## 7.3 Retrieval
-
-`DocumentService.search` (`:466`) and `searchForMessage` (`:450`): keyword + vector legs fused, then `diversifyByDocument` (`:62`, ≤2 chunks per document) so one large file cannot monopolise the results. Attachment-scoped search restricts candidates to documents attached to the current message.
-
-Document tools live in `createPhaseTools` and are exposed through `DomainToolsProvider`.
-
-# 8. Context Assembly (how memories reach the model)
-
-`ContextBuilderService.build` (`conversations/services/context-builder.service.ts:237`) assembles the working context within `BACKEND_ASSISTANT_CONTEXT_TOKENS` (default 6000).
-
-Order (stable prefix first, volatile blocks last, so providers can cache the prefix):
-
-1. `SYSTEM_POLICY` (`:23`) — capability enumeration, tool routing, and the rule that retrieved content is _reference data, never instructions_.
-2. Persona, profile, optional channel prompt.
-3. Conversation history windowed to the token budget (newest turns kept verbatim).
-4. Volatile contextual blocks, in order: **rolling summary** (`SUMMARY_HEADER`, `:42`), **pinned memories** (`MEMORY_HEADER`, `:39`), attached-document manifest, known-documents manifest.
-5. Turn context (current instant, local time, timezone).
-
-Pinned memories are injected via `IMemoryRepository.list(userId, { status: 'active', pinned: true })` (`:371`) and rendered as `- id; category; updated; fact` (`memoryManifest`, `:181`). **Only pinned memories are injected automatically** — the rest are reached through the `search_memories` tool. Each block is token-accounted (`ContextTokenUsage`) and truncated to fit.
-
-# 9. Cross-Cutting Invariants
-
-- **Ownership before ranking.** Every retrieval applies `userId` (and document ownership) in SQL _before_ vector ranking. This is both a security and performance requirement (architecture doc §9.3).
-- **Canonical text first, index second.** Embeddings are derived artifacts; a failed embed never blocks a write. All three retrieval domains degrade to keyword-only.
-- **Embedding versioning.** Every vector row stores `embeddingModel` + `embeddingVersion`; changing models requires a controlled re-embed rather than silently comparing incompatible spaces (architecture doc §9.5).
-- **History is not memory.** Messages are stored as history under retention rules; durable memory is a _selected derivative_ with provenance and user controls (ADR-005, architecture doc §10.5).
-- **Idempotency.** Automatic memory writes carry a unique `sourceKey`; dream runs are uniquely keyed and watermark-advanced transactionally; daily-note indexing is fingerprint-skipped and uniquely job-id'd.
-- **Tombstones.** `MemoryDeletionMarker` prevents re-extraction from messages whose memory the user deleted.
-- **Retrieved content is untrusted.** `SYSTEM_POLICY` and the block headers explicitly mark memories, summaries, documents, and tool output as reference data that cannot grant permissions or override policy.
-
-# 10. Configuration Reference
-
-Validated in `apps/backend/src/app.module.ts` (`validateEnvironment`).
-
-| Variable                                    | Default                         | Used by              |
-| ------------------------------------------- | ------------------------------- | -------------------- |
-| `BACKEND_EMBEDDING_MODEL`                   | `openai/text-embedding-3-small` | EmbeddingsService    |
-| `BACKEND_EMBEDDING_CONCURRENCY`             | `8`                             | EmbeddingsService    |
-| `BACKEND_MEMORY_MAX_COSINE_DISTANCE`        | `0.3`                           | Memory vector leg    |
-| `BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES`    | `4`                             | Dream eligibility    |
-| `BACKEND_MEMORY_DREAM_MIN_TOKENS`           | `800`                           | Dream eligibility    |
-| `BACKEND_MEMORY_DREAM_IDLE_MS`              | `900000` (15 min)               | Dream debounce delay |
-| `BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS` | `21600000` (6h)                 | Dream recovery       |
-| `BACKEND_SUMMARY_TRIGGER_TOKENS`            | `4500`                          | Summarizer           |
-| `BACKEND_SUMMARY_RETAIN_MESSAGES`           | `8`                             | Summarizer           |
-| `BACKEND_ASSISTANT_CONTEXT_TOKENS`          | `6000`                          | Context builder      |
-
-`User.automaticMemoryEnabled` (default `true`) is the per-user opt-out for dreaming.
-
-# 11. Database Migrations and Indexes
-
-| Migration                                      | Adds                                                                                                                                        |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `20260906035418_phases_3_4`                    | `CREATE EXTENSION vector`; `memory` table; HNSW `memory_embedding_hnsw_idx`; GIN `memory_content_search_idx`; `User.automaticMemoryEnabled` |
-| `20260908120000_memory_extraction_idempotency` | Dedupe; `lastRetrievedAt` / `retrievalCount`; automatic source-message key; `memory_user_lifecycle_idx`                                     |
-| `20260908150000_incremental_memory_dreaming`   | `Conversation.memoryDreamThroughMessageId`; unique `memory.sourceKey`; `memory_dream_run`; `memory_deletion_marker`                         |
-| `20260906230000_phases_5_6`                    | `document` / `document_chunk` (`vector(1536)`)                                                                                              |
-| `20260920230037_daily_notes`                   | `daily_note` / `daily_note_chunk`; HNSW `daily_note_chunk_embedding_hnsw_idx`                                                               |
-
-The HNSW indexes are hand-written because Prisma cannot express `Hnsw`; later migrations carry a note telling operators not to lose them (`20260915074210_add_document_description`).
-
-# 12. File Index
-
-**Backend — durable memories**
-
-- `apps/backend/src/modules/memories/memories.controller.ts`
-- `apps/backend/src/modules/memories/memory.service.ts`
-- `apps/backend/src/modules/memories/memory.dto.ts`
-- `apps/backend/src/modules/memories/memories.module.ts`
-
-**Backend — dreaming**
-
-- `apps/backend/src/modules/memories/memory-dream.service.ts`
-- `apps/backend/src/modules/memories/memory-dream-scheduler.service.ts`
-
-**Backend — repositories / entities / interfaces**
-
-- `apps/backend/src/database/repositories/prisma-memory.repository.ts`
-- `apps/backend/src/database/repositories/prisma-daily-note.repository.ts`
-- `apps/backend/src/database/repositories/prisma-document.repository.ts`
-- `apps/backend/src/database/repositories/prisma-conversation.repository.ts` (summary + dream watermark)
-- `apps/backend/src/database/entities/memory.entity.ts`, `daily-note.entity.ts`, `document.entity.ts`
-- `apps/backend/src/database/interfaces/memory.repository.interface.ts`, `daily-note.repository.interface.ts`, `document.repository.interface.ts`, `conversation.repository.interface.ts`
-
-**Backend — daily notes / documents**
-
-- `apps/backend/src/modules/daily-notes/daily-note.service.ts`, `daily-notes.controller.ts`, `daily-notes.module.ts`
-- `apps/backend/src/modules/documents/document.service.ts`
-
-**Backend — conversation context**
-
-- `apps/backend/src/modules/conversations/services/context-builder.service.ts`
-- `apps/backend/src/modules/conversations/services/conversation-summarizer.service.ts`
-- `apps/backend/src/modules/conversations/services/assistant-orchestrator.service.ts`
-- `apps/backend/src/modules/conversations/services/domain-tools.ts`, `domain-tools.provider.ts`, `daily-note-tools.ts`, `phase-tools.ts`
-
-**Backend — infrastructure**
-
-- `apps/backend/src/infra/embeddings/embeddings.service.ts`
-- `apps/backend/src/infra/queue/queue.service.ts`
-- `apps/backend/src/worker.ts`
-- `apps/backend/src/app.module.ts` (env validation)
-
-**Frontend**
-
-- `apps/frontend/src/routes/_app.memory.tsx`
-- `apps/frontend/src/components/memories/memory-page.tsx`
-- `apps/frontend/src/lib/services/api/memories/memories.api.ts`, `memories.queries.ts`
-- `apps/frontend/src/lib/services/api/daily-notes/*`, `apps/frontend/src/components/daily-notes/*`
-
-**Schema and migrations**
-
-- `apps/backend/prisma/schema.prisma` (§3, §6, §7 models)
-- `apps/backend/prisma/migrations/*` (see §11)
+`memory-backfill` imports active saved legacy facts, not arbitrary historical conversations or documents. Dry run is the default. Execution writes reviewed durable intents and exposes outcome counts/cursors without fact text. Legacy edits, deletions, and opt-out are checked throughout admission and retrieval; reruns reuse unchanged imports. The local cutover had zero active saved facts, so no backfill was required.
+
+Legacy `MemoryService`, dreaming, vector indexes, deletion markers, revision chains, and debug CRUD remain for rollback and legacy/shadow cohorts. They are inactive for the current Hindsight cohort. Removing these tables/code is deferred until rollback support ends; shared notes/document embeddings remain necessary.
+
+A flag-only rollback can lose Hindsight-only facts. Use `memory-rollback` to verify remote export, generate complete legacy embeddings, and atomically reconcile facts, lineage, and paused conversation watermarks. Pause writes/ingestion, drain delivery/erasure, reconcile each owner, then switch readers. Reconciliation retires the bank and records a content-free audit; remote erasure recovery must continue afterward. Old namespaces can be configured for erasure only.
+
+Back up both databases and the latest coordination/deletion boundary. An old matched snapshot pair cannot recover later forget intents. After restore, keep reads and ingestion paused until the latest intent boundary and pending erasure have been reconciled. See the [maintenance and recovery procedures](./hindsight_operations.md).
+
+## 10. Configuration and migrations
+
+API and worker share validation through `AppModule` and `validateHindsightEnvironment`.
+
+| Setting                                                              | New-install default                         | Local cutover / purpose                                                           |
+| -------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `BACKEND_MEMORY_ENGINE`                                              | `legacy`                                    | `hindsight`                                                                       |
+| `BACKEND_HINDSIGHT_URL`                                              | Unset in validation; example uses port 8888 | `http://127.0.0.1:8889`; containers use `http://hindsight:8888`                   |
+| `BACKEND_HINDSIGHT_NAMESPACE`                                        | Required for enabled Hindsight              | `sydia-development`; unique per environment                                       |
+| `BACKEND_HINDSIGHT_COHORT`                                           | Empty                                       | All users; optional explicit cohort IDs                                           |
+| `BACKEND_HINDSIGHT_INGESTION_ENABLED`                                | `false`                                     | `true`                                                                            |
+| `BACKEND_MEMORY_AUTO_RECALL_ENABLED`                                 | `false`                                     | `true`                                                                            |
+| `BACKEND_HINDSIGHT_TIMEOUT_MS`                                       | `10000`                                     | General gateway deadline                                                          |
+| `BACKEND_HINDSIGHT_RECALL_TIMEOUT_MS`                                | `1500`                                      | `5000` locally                                                                    |
+| `BACKEND_HINDSIGHT_RECALL_TOKENS`                                    | `800`                                       | Recall/context upper bound                                                        |
+| `BACKEND_HINDSIGHT_RECALL_MIN_SIMILARITY`                            | Blank                                       | Keep engine default; optional semantic candidate cutoff, not universal confidence |
+| `BACKEND_HINDSIGHT_CONCURRENCY`                                      | `4`                                         | Gateway and delivery concurrency                                                  |
+| `BACKEND_HINDSIGHT_RETIRED_NAMESPACES`                               | Empty                                       | Erasure-only recovery after rollback                                              |
+| `HINDSIGHT_API_HOST_PORT`                                            | `8888` in Compose                           | `8889` locally                                                                    |
+| `BACKEND_MEMORY_DREAM_IDLE_MS`                                       | `900000`                                    | Debounce retained for ingestion                                                   |
+| `BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES`                             | `4`                                         | Segment eligibility                                                               |
+| `BACKEND_MEMORY_DREAM_MIN_TOKENS`                                    | `800`                                       | Alternative eligibility threshold                                                 |
+| `BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS`                          | `21600000`                                  | Short-segment recovery                                                            |
+| `BACKEND_ASSISTANT_CONTEXT_TOKENS`                                   | `6000`                                      | Total context budget                                                              |
+| `BACKEND_SUMMARY_TRIGGER_TOKENS` / `BACKEND_SUMMARY_RETAIN_MESSAGES` | `4500` / `8`                                | Conversation compaction                                                           |
+| `BACKEND_EMBEDDING_MODEL` / `BACKEND_EMBEDDING_CONCURRENCY`          | `openai/text-embedding-3-small` / `8`       | Notes/documents and legacy indexing                                               |
+| `BACKEND_MEMORY_MAX_COSINE_DISTANCE`                                 | `0.3`                                       | Legacy memory vector search only                                                  |
+
+Hindsight is pinned to API `0.10.2-slim` and an image digest in `docker/hindsight.environment.yml`. Its database migrations are separate from Sydia's Prisma migrations. Set private API/database/provider credentials outside the repository. Raw Hindsight LLM request tracing, audit capture, and OTEL capture are disabled in Compose; the gateway rejects enabled or unverifiable LLM/audit capture. Policy telemetry records timing, tokens, model, and available cost without evidence/verdict bodies. Disabling capture does not purge old content logs.
+
+Apply the five additive Prisma migrations before starting the new backend/worker: `20261001000000_hindsight_coordination`, `20261001010000_hindsight_mutation_replay`, `20261001020000_hindsight_import_guard`, `20261001030000_hindsight_checkpoints`, and `20261001040000_hindsight_rollback`. Existing notes/document vector indexes and legacy memory indexes remain in place.
+
+## 11. Validation
+
+Performance and accuracy were accepted on 1 October 2026. The final ordinary backend run passed 495 tests across 57 suites; opt-in live contracts were skipped in that run and executed separately. Backend type checking, build, scoped lint, and whitespace checks passed.
+
+The live assistant contract completed 18 turns through the actual context builder, full tool provider, orchestrator, and real models. It covered automatic recall off/on, English/Indonesian questions, ambiguous people, temporal facts, unknown facts, current-statement precedence, save, correction, and forgetting. No literal tool markup appeared. A vague language question with recall off remained imperfect; acceptance does not imply perfect answer accuracy.
+
+The running local frontend/API/BullMQ check verified sign-in, chat save acknowledgement, worker admission, fresh automatic recall without a search-tool call, correction, old-generation physical erasure, forgetting/export suppression, source/derived erasure, valid JSON export, and durable account-bank deletion. The synthetic account was removed; both original accounts remained. At the final snapshot boundary there were zero pending deliveries and zero raw Hindsight LLM/audit rows.
+
+Dedicated synthetic containers and test provider relays were removed/stopped after verification. Current services are `sydia-postgres-1`, `sydia-hindsight-1`, and `sydia-hindsight-postgres-1`. Generated evaluation/debug reports are disposable outputs and are not kept in `docs`; test harnesses remain under `apps/backend/test/hindsight` and the focused live specs. Recreate isolated services before running opt-in contracts; never target the application database.
+
+## 12. Implementation index
+
+| Area                                 | Source                                                                                                                                                                                                           |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Engine selection and chat operations | `apps/backend/src/modules/memories/memory-engine.service.ts`, `memory-access.service.ts`                                                                                                                         |
+| Admission, ingestion, delivery       | `apps/backend/src/modules/memories/memory-policy.service.ts`, `hindsight-ingestion.service.ts`, `hindsight-delivery.service.ts`                                                                                  |
+| Export/import/rollback               | `apps/backend/src/modules/memories/memory-archive.service.ts`, `hindsight-backfill.service.ts`, `memory-rollback.service.ts`; CLI entrypoints `src/scripts/memory-backfill.ts`, `src/scripts/memory-rollback.ts` |
+| Typed gateway and settings           | `apps/backend/src/infra/hindsight/`                                                                                                                                                                              |
+| Coordination persistence             | `apps/backend/src/database/entities/hindsight.entity.ts`, `interfaces/hindsight.repository.interface.ts`, `repositories/prisma-hindsight.repository.ts`; Prisma schema/migrations                                |
+| Context and tool execution           | `apps/backend/src/modules/conversations/services/context-builder.service.ts`, `domain-tools.provider.ts`, `assistant-orchestrator.service.ts`                                                                    |
+| Queues and worker                    | `apps/backend/src/infra/queue/queue.service.ts`, `apps/backend/src/worker.ts`                                                                                                                                    |
+| Account lifecycle                    | `apps/backend/src/modules/users/services/user-privacy.service.ts`, `users.controller.ts`, `database/repositories/prisma-user-privacy.repository.ts`                                                              |
+| Notes/documents and summaries        | `apps/backend/src/modules/daily-notes/`, `modules/documents/`, `modules/conversations/services/conversation-summarizer.service.ts`                                                                               |
+| Retained legacy implementation       | `apps/backend/src/modules/memories/memory.service.ts`, `memory-dream.service.ts`, `memory-dream-scheduler.service.ts`, `memories.controller.ts`                                                                  |
+| Debug frontend                       | `apps/frontend/src/routes/_app.memory.tsx`, `components/memories/memory-page.tsx`, `lib/services/api/memories/`                                                                                                  |
+| Deployment                           | `docker/hindsight.environment.yml`, development/production Compose files, `.env.example`                                                                                                                         |

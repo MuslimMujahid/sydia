@@ -1,8 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CONVERSATION_REPOSITORY,
   type IConversationRepository,
+  USER_REPOSITORY,
+  type IUserRepository,
 } from '../../database/interfaces';
 import { QueueService } from '../../infra/queue';
 
@@ -19,6 +21,9 @@ export class MemoryDreamSchedulerService {
     private readonly conversations: IConversationRepository,
     private readonly queues: QueueService,
     config: ConfigService,
+    @Optional()
+    @Inject(USER_REPOSITORY)
+    private readonly users?: IUserRepository,
   ) {
     this.idleDelayMs = config.get<number>(
       'BACKEND_MEMORY_DREAM_IDLE_MS',
@@ -35,6 +40,11 @@ export class MemoryDreamSchedulerService {
     conversationId: string,
     throughMessageId: string,
   ): Promise<void> {
+    if (
+      this.users &&
+      !(await this.users.findById(userId))?.automaticMemoryEnabled
+    )
+      return;
     const pending = await this.queues.memoryDreams.getJobs([
       'delayed',
       'waiting',

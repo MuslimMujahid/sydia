@@ -20,6 +20,7 @@ import {
 } from '../../database/interfaces';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { MemoryService } from './memory.service';
+import { MemoryEngineService } from './memory-engine.service';
 import {
   CreateMemoryDto,
   MemoryFiltersDto,
@@ -35,9 +36,12 @@ export class MemoriesController {
     private readonly service: MemoryService,
     @Inject(AUDIT_EVENT_REPOSITORY)
     private readonly audit: IAuditEventRepository,
+    private readonly engine: MemoryEngineService,
   ) {}
 
   @Get() list(@Session() s: UserSession, @Query() q: MemoryFiltersDto) {
+    this.requireLegacyDebug(s.user.id);
+
     return this.memories.list(s.user.id, q);
   }
 
@@ -45,10 +49,14 @@ export class MemoriesController {
     @Session() s: UserSession,
     @Query() q: MemorySearchDto,
   ) {
+    this.requireLegacyDebug(s.user.id);
+
     return this.service.search(s.user.id, q.q);
   }
 
   @Get(':id') async get(@Session() s: UserSession, @Param('id') id: string) {
+    this.requireLegacyDebug(s.user.id);
+
     return this.required(await this.memories.findById(s.user.id, id));
   }
 
@@ -56,6 +64,7 @@ export class MemoriesController {
     @Session() s: UserSession,
     @Body() input: CreateMemoryDto,
   ) {
+    this.requireLegacyDebug(s.user.id);
     const memory = await this.service.create(s.user.id, {
       ...input,
       sourceType: 'dashboard',
@@ -71,6 +80,7 @@ export class MemoriesController {
     @Param('id') id: string,
     @Body() input: UpdateMemoryDto,
   ) {
+    this.requireLegacyDebug(s.user.id);
     const memory = await this.service.update(s.user.id, id, input);
     await this.record(s.user.id, 'memory.updated', id);
 
@@ -81,8 +91,19 @@ export class MemoriesController {
     @Session() s: UserSession,
     @Param('id') id: string,
   ) {
+    this.requireLegacyDebug(s.user.id);
     if (!(await this.memories.delete(s.user.id, id))) throw this.notFound();
     await this.record(s.user.id, 'memory.deleted', id);
+  }
+
+  private requireLegacyDebug(userId: string): void {
+    if (this.engine.modeFor(userId) !== 'hindsight') return;
+    throw new ApiException({
+      code: ErrorCodes.CONFLICT,
+      status: HttpStatus.CONFLICT,
+      message:
+        'The legacy memory debug API is disabled for this Hindsight cohort. Use chat memory tools or the private Hindsight control plane.',
+    });
   }
 
   private required<T>(value: T | null): T {

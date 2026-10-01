@@ -4,6 +4,9 @@
 
 name: sydia
 
+include:
+  - hindsight.environment.yml
+
 x-langfuse-environment: &langfuse-environment
   NEXTAUTH_URL: http://localhost:3100
   DATABASE_URL: postgresql://langfuse:langfuse-dev@langfuse-postgres:5432/langfuse
