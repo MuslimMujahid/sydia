@@ -54,6 +54,26 @@ describe('MemoryPolicyService', () => {
     ]);
   });
 
+  test('rejects fabricated quotes spanning separate conversation messages', async () => {
+    const messages = ['I like coffee.', 'Remember that habit.'];
+    const { policy } = setup({
+      spans: [
+        {
+          quote: messages.join('\n\n'),
+          sensitive: false,
+          permissionQuote: null,
+        },
+      ],
+    });
+
+    await expect(
+      policy.approveEvidence('owner', messages.join('\n\n'), {
+        messages,
+        requestedFact: 'I like coffee.',
+      }),
+    ).resolves.toEqual({ spans: [] });
+  });
+
   test('never sends credential-bearing input to the review model', async () => {
     const { policy, generate } = setup({ spans: [] });
     expect(

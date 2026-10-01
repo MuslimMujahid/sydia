@@ -815,7 +815,7 @@ Each reminder reports its id, title, its local date and time with the weekday, a
       label: 'Save memory',
       description: `Use this tool to save a long-term memory for the user.
 
-Use it when the user explicitly asks you to remember a durable fact, preference, or note, or signals one with "remember", "usually", "previously", or "decision".
+Use it when the user explicitly asks you to remember a durable fact, preference, or note. Ordinary personal statements and preferences should receive a conversational reply; automatic memory extraction handles them in the background.
 
 Do not use it for a transient task, scheduled reminder, or information that should not be retained.
 

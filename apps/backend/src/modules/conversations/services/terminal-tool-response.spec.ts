@@ -1,4 +1,8 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
+import { ConfigService } from '@nestjs/config';
+import { jsonSchema, simulateReadableStream, tool } from 'ai';
+import { MockLanguageModelV4 } from 'ai/test';
+import { OpenRouterLanguageModel } from '../../../infra/model-gateway';
 import type { MessageProvider } from '../../../shared/messaging';
 import type { AssistantToolDefinition } from './tool-executor.service';
 import {
@@ -19,45 +23,157 @@ const CARD_BACKED = [
   'update_reminder',
 ];
 
-const MEMORY = { memory: { content: 'Suka kopi tanpa gula' } };
+describe('memory tools continue the conversation', () => {
+  it.each(['save_memory', 'update_memory', 'forget_memory'])(
+    'lets the model answer after %s in every receipt state and channel',
+    (toolName) => {
+      for (const status of ['queued', 'completed', 'withdrawn']) {
+        const receipt = { engine: 'hindsight', status };
+        const result = { memory: receipt, deleted: true, receipt };
+        expect(web('en', [execution(toolName, result)])).toBeNull();
+        expect(web('id', [execution(toolName, result)])).toBeNull();
+        expect(chat('en', [execution(toolName, result)])).toBeNull();
+        expect(
+          chat('id', [execution(toolName, result)], 'telegram'),
+        ).toBeNull();
+      }
 
-describe('Hindsight memory acknowledgements', () => {
-  it('describes accepted writes as processing rather than completed', () => {
-    const pending = { memory: { engine: 'hindsight', status: 'queued' } };
-    expect(web('en', [execution('save_memory', pending)])).toBe(
-      '🧠 **Memory save queued**',
-    );
-    expect(chat('id', [execution('update_memory', pending)])).toBe(
-      '🧠 Koreksi memori sedang diproses',
-    );
-    expect(
-      web('en', [
-        execution('save_memory', {
-          memory: { engine: 'hindsight', status: 'completed' },
-        }),
-      ]),
-    ).toBe('🧠 **Memory saved**');
-  });
+      expect(
+        web('en', [
+          execution(toolName, {
+            memory: { content: 'A preference' },
+            deleted: true,
+          }),
+        ]),
+      ).toBeNull();
+      expect(TERMINAL_TOOL_NAMES.has(toolName)).toBe(false);
+      const definition: AssistantToolDefinition = {
+        name: toolName,
+        label: toolName,
+        description: 'Change a memory.',
+        parameters: { type: 'object', properties: {} },
+      };
 
-  it('distinguishes immediate suppression from pending permanent erasure', () => {
+      expect(terminalToolInputSchema(definition)).toBe(definition.parameters);
+    },
+  );
+
+  it.each(['save_memory', 'update_memory', 'forget_memory'])(
+    'streams the model reply after %s instead of a storage receipt',
+    async (toolName) => {
+      const reply = 'Baik, aku pahami preferensimu.';
+      const receipt = { engine: 'hindsight', status: 'queued' };
+      const execute = jest.fn(() =>
+        Promise.resolve(
+          JSON.stringify({ memory: receipt, deleted: true, receipt }),
+        ),
+      );
+
+      const usage = {
+        inputTokens: {
+          total: 3,
+          noCache: 3,
+          cacheRead: undefined,
+          cacheWrite: undefined,
+        },
+        outputTokens: { total: 4, text: 4, reasoning: undefined },
+      };
+
+      let steps = 0;
+      const languageModel = new MockLanguageModelV4({
+        doStream: () => {
+          steps += 1;
+          const finishReason = steps === 1 ? 'tool-calls' : 'stop';
+
+          return Promise.resolve({
+            stream: simulateReadableStream({
+              chunks:
+                steps === 1
+                  ? [
+                      { type: 'text-start' as const, id: 'plan' },
+                      {
+                        type: 'text-delta' as const,
+                        id: 'plan',
+                        delta: 'Memory save queued',
+                      },
+                      { type: 'text-end' as const, id: 'plan' },
+                      {
+                        type: 'tool-call' as const,
+                        toolCallId: 'memory-1',
+                        toolName,
+                        input: '{}',
+                      },
+                      {
+                        type: 'finish' as const,
+                        finishReason: {
+                          unified: finishReason,
+                          raw: undefined,
+                        },
+                        usage,
+                      },
+                    ]
+                  : [
+                      { type: 'text-start' as const, id: 'reply' },
+                      {
+                        type: 'text-delta' as const,
+                        id: 'reply',
+                        delta: reply,
+                      },
+                      { type: 'text-end' as const, id: 'reply' },
+                      {
+                        type: 'finish' as const,
+                        finishReason: {
+                          unified: finishReason,
+                          raw: undefined,
+                        },
+                        usage,
+                      },
+                    ],
+            }),
+          });
+        },
+      });
+
+      const gateway = new OpenRouterLanguageModel(
+        new ConfigService({ BACKEND_MODEL_API_KEY: 'test-key' }),
+      );
+
+      Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+      const onTextDelta = jest.fn<(delta: string) => void>();
+      const result = await gateway.generate({
+        messages: [{ role: 'user', content: 'A personal preference.' }],
+        tools: {
+          [toolName]: tool({
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+            execute,
+          }),
+        },
+        onTextDelta,
+        acknowledgeTerminalStep: (executions, decidedBy) =>
+          buildTerminalToolResponse({ locale: 'id' }, executions, decidedBy),
+      });
+
+      expect(result.text).toBe(reply);
+      expect(languageModel.doStreamCalls).toHaveLength(2);
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(onTextDelta.mock.calls).toEqual([[reply]]);
+    },
+  );
+
+  it('continues when a memory mutation accompanies a terminal action', () => {
+    const save = execution('save_memory', {
+      memory: { engine: 'hindsight', status: 'queued' },
+    });
+
+    const task = execution('create_task', {
+      objectType: 'task',
+      object: { title: 'Plan dinner', dueAt: null },
+    });
+
+    expect(web('en', [task, save])).toBeNull();
     expect(
-      chat('en', [
-        execution('forget_memory', {
-          deleted: true,
-          receipt: { engine: 'hindsight', status: 'queued' },
-        }),
-      ]),
-    ).toBe(
-      '🗑️ Memory no longer used\n\nPermanent deletion is still processing.',
-    );
-    expect(
-      web('id', [
-        execution('forget_memory', {
-          deleted: true,
-          receipt: { engine: 'hindsight', status: 'completed' },
-        }),
-      ]),
-    ).toBe('🗑️ **Memori dihapus**');
+      buildTerminalToolResponse({ locale: 'en' }, [save, task], [task]),
+    ).toBeNull();
   });
 });
 
@@ -144,24 +260,6 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
     },
     '⏰ Reminder updated\n\nMinum obat\n🗓️ 2026-09-22 17:00 (weekly on Tuesday, Thursday)',
     '⏰ Pengingat diperbarui\n\nMinum obat\n🗓️ 2026-09-22 17:00 (mingguan pada Selasa, Kamis)',
-  ],
-  [
-    'save_memory',
-    { memory: { content: 'Suka kopi tanpa gula' } },
-    '🧠 Memory saved\n\nSuka kopi tanpa gula',
-    '🧠 Memori disimpan\n\nSuka kopi tanpa gula',
-  ],
-  [
-    'update_memory',
-    { memory: { content: 'Suka kopi hitam', category: 'Preferensi' } },
-    '🧠 Memory updated\n\nSuka kopi hitam\n🏷️ Preferensi',
-    '🧠 Memori diperbarui\n\nSuka kopi hitam\n🏷️ Preferensi',
-  ],
-  [
-    'forget_memory',
-    { deleted: true, memoryId: 'memory-1' },
-    '🗑️ Memory forgotten',
-    '🗑️ Memori dihapus',
   ],
   [
     'store_secret',
@@ -340,110 +438,92 @@ const RICH_BLOCKS: Array<[string, unknown, string, string]> = [
     '⏰ Pengingat diperbarui',
   ],
   [
-    'save_memory',
-    PLAIN_BLOCKS[6]![1],
-    '🧠 **Memory saved**\n\n**Suka kopi tanpa gula**',
-    '🧠 **Memori disimpan**\n\n**Suka kopi tanpa gula**',
-  ],
-  [
-    'update_memory',
-    PLAIN_BLOCKS[7]![1],
-    '🧠 **Memory updated**\n\n**Suka kopi hitam**\n🏷️ Preferensi',
-    '🧠 **Memori diperbarui**\n\n**Suka kopi hitam**\n🏷️ Preferensi',
-  ],
-  [
-    'forget_memory',
-    PLAIN_BLOCKS[8]![1],
-    '🗑️ **Memory forgotten**',
-    '🗑️ **Memori dihapus**',
-  ],
-  [
     'store_secret',
-    PLAIN_BLOCKS[9]![1],
+    PLAIN_BLOCKS[6]![1],
     '🔐 **Secret stored**\n\n**ATM**',
     '🔐 **Rahasia disimpan**\n\n**ATM**',
   ],
   [
     'create_secret_reveal_link',
-    PLAIN_BLOCKS[10]![1],
+    PLAIN_BLOCKS[7]![1],
     '🔗 **Reveal link created**\n\n**ATM**\n🔗 https://sydia.test/secret-reveal#token\n🗓️ 2026-09-22 10:00 UTC',
     '🔗 **Tautan dibuat**\n\n**ATM**\n🔗 https://sydia.test/secret-reveal#token\n🗓️ 2026-09-22 10:00 UTC',
   ],
   [
     'save_contact',
-    PLAIN_BLOCKS[11]![1],
+    PLAIN_BLOCKS[8]![1],
     '👤 **Contact saved**\n\n**Bu Rina**\n📧 rina@example.test\n📞 +62 811 000\n👥 Teman Kerja',
     '👤 **Kontak disimpan**\n\n**Bu Rina**\n📧 rina@example.test\n📞 +62 811 000\n👥 Teman Kerja',
   ],
   [
     'update_contact_group',
-    PLAIN_BLOCKS[12]![1],
+    PLAIN_BLOCKS[9]![1],
     '🏷️ **Contact group updated**\n\n**Teman Kerja**',
     '🏷️ **Grup kontak diperbarui**\n\n**Teman Kerja**',
   ],
   [
     'delete_contact_group',
-    PLAIN_BLOCKS[13]![1],
+    PLAIN_BLOCKS[10]![1],
     '🗑️ **Contact group deleted**\n\n**Teman Kerja**',
     '🗑️ **Grup kontak dihapus**\n\n**Teman Kerja**',
   ],
   [
     'assign_contact_groups',
-    PLAIN_BLOCKS[14]![1],
+    PLAIN_BLOCKS[11]![1],
     '🏷️ **Contact groups updated**\n\n**Bu Rina**\n👥 Teman Kerja',
     '🏷️ **Grup kontak diperbarui**\n\n**Bu Rina**\n👥 Teman Kerja',
   ],
   [
     'save_attached_files',
-    PLAIN_BLOCKS[15]![1],
+    PLAIN_BLOCKS[12]![1],
     '📎 **Files saved (2)**\n\n📄 notulen.pdf\n📄 anggaran.pdf',
     '📎 **2 file disimpan**\n\n📄 notulen.pdf\n📄 anggaran.pdf',
   ],
   [
     'send_file',
-    PLAIN_BLOCKS[16]![1],
+    PLAIN_BLOCKS[13]![1],
     '📤 **File sent**\n\n**notulen.pdf**\n🔗 [notulen.pdf](https://sydia.test/documents/document-1/content)',
     '📤 **File dikirim**\n\n**notulen.pdf**\n🔗 [notulen.pdf](https://sydia.test/documents/document-1/content)',
   ],
   [
     'send_file',
-    PLAIN_BLOCKS[17]![1],
+    PLAIN_BLOCKS[14]![1],
     '📤 **File sent**\n\n**notulen.pdf**\n📌 Sent as an attachment',
     '📤 **File dikirim**\n\n**notulen.pdf**\n📌 Terkirim sebagai lampiran',
   ],
   [
     'create_calendar_event',
-    PLAIN_BLOCKS[18]![1],
+    PLAIN_BLOCKS[15]![1],
     '📅 **Event created**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–10:30\n📍 Ruang rapat 2',
     '📅 **Acara dibuat**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–10:30\n📍 Ruang rapat 2',
   ],
   [
     'update_calendar_event',
-    PLAIN_BLOCKS[19]![1],
+    PLAIN_BLOCKS[16]![1],
     '📅 **Event updated**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–2026-09-23 10:00',
     '📅 **Acara diperbarui**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–2026-09-23 10:00',
   ],
   [
     'cancel_calendar_event',
-    PLAIN_BLOCKS[20]![1],
+    PLAIN_BLOCKS[17]![1],
     '📅 **Event cancelled**\n\n**Rapat**\n📌 Cancelled',
     '📅 **Acara dibatalkan**\n\n**Rapat**\n📌 Dibatalkan',
   ],
   [
     'write_daily_note',
-    PLAIN_BLOCKS[21]![1],
+    PLAIN_BLOCKS[18]![1],
     '📝 **Daily note written**\n\n**2026-09-22**',
     '📝 **Catatan harian ditulis**\n\n**2026-09-22**',
   ],
 ];
 
 describe('terminal tool response', () => {
-  it('covers exactly the 21 eligible tools in both tables', () => {
+  it('covers exactly the 18 eligible tools in both tables', () => {
     const names = [...TERMINAL_TOOL_NAMES].sort();
     const plain = [...new Set(PLAIN_BLOCKS.map(([name]) => name))].sort();
     const rich = [...new Set(RICH_BLOCKS.map(([name]) => name))].sort();
 
-    expect(names).toHaveLength(21);
+    expect(names).toHaveLength(18);
     expect(plain).toEqual(names);
     expect(rich).toEqual(names);
   });
@@ -470,16 +550,20 @@ describe('terminal tool response', () => {
       expect(chat('id', [execution(toolName, result)])).not.toContain('**');
     }
 
-    // The web block bolds the heading and the subject; the heading keeps its
-    // icon outside the bold so the marker opens on the words.
-    expect(web('en', [execution('save_memory', MEMORY)])).toBe(
-      '🧠 **Memory saved**\n\n**Suka kopi tanpa gula**',
+    // Non-card tools bold the heading and subject on the web only.
+    const contact = {
+      objectType: 'contact',
+      object: { name: 'Bu Rina', groups: [] },
+    };
+
+    expect(web('en', [execution('save_contact', contact)])).toBe(
+      '👤 **Contact saved**\n\n**Bu Rina**',
     );
-    expect(chat('en', [execution('save_memory', MEMORY)])).toBe(
-      '🧠 Memory saved\n\nSuka kopi tanpa gula',
+    expect(chat('en', [execution('save_contact', contact)])).toBe(
+      '👤 Contact saved\n\nBu Rina',
     );
-    expect(chat('id', [execution('save_memory', MEMORY)], 'telegram')).toBe(
-      '🧠 Memori disimpan\n\nSuka kopi tanpa gula',
+    expect(chat('id', [execution('save_contact', contact)], 'telegram')).toBe(
+      '👤 Kontak disimpan\n\nBu Rina',
     );
 
     const plainHeadings: Record<string, string> = Object.fromEntries(
@@ -522,14 +606,14 @@ describe('terminal tool response', () => {
 
   it('keeps a non-card-backed tool in full on the web', () => {
     const [toolName, result] = PLAIN_BLOCKS.find(
-      ([name]) => name === 'save_memory',
+      ([name]) => name === 'store_secret',
     )!;
 
     expect(web('en', [execution(toolName, result)])).toBe(
-      '🧠 **Memory saved**\n\n**Suka kopi tanpa gula**',
+      '🔐 **Secret stored**\n\n**ATM**',
     );
     expect(chat('en', [execution(toolName, result)])).toBe(
-      '🧠 Memory saved\n\nSuka kopi tanpa gula',
+      '🔐 Secret stored\n\nATM',
     );
   });
 
@@ -973,11 +1057,6 @@ describe('terminal tool response', () => {
         '🔐 Secret stored\n\nATM.',
       ],
       [
-        'save_memory',
-        { memory: { content: 'Suka kopi tanpa gula.' } },
-        '🧠 Memory saved\n\nSuka kopi tanpa gula.',
-      ],
-      [
         'save_attached_files',
         { objectType: 'documents', objects: [{ filename: 'notulen.pdf.' }] },
         '📎 Files saved\n\nnotulen.pdf.',
@@ -996,13 +1075,6 @@ describe('terminal tool response', () => {
         }),
       ]),
     ).toBe('✅ Task created');
-    expect(
-      web('en', [
-        execution('save_memory', {
-          memory: { content: 'Suka kopi tanpa gula.' },
-        }),
-      ]),
-    ).toBe('🧠 **Memory saved**\n\n**Suka kopi tanpa gula.**');
   });
 
   it('says a contact has no groups when the group list is empty', () => {
@@ -1064,7 +1136,7 @@ describe('terminal tool response', () => {
 
     expect(terminalToolInputSchema(other)).toBe(other.parameters);
     expect(TERMINAL_TOOL_NAMES.has('list_tasks')).toBe(false);
-    expect(TERMINAL_TOOL_NAMES.has('save_memory')).toBe(true);
+    expect(TERMINAL_TOOL_NAMES.has('save_memory')).toBe(false);
   });
 
   it('renders the four headline examples in both locales', () => {

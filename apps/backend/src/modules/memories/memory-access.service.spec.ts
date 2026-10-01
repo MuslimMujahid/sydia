@@ -12,6 +12,8 @@ import type {
   IUserRepository,
 } from '../../database/interfaces';
 import type { HindsightGateway, HindsightFact } from '../../infra/hindsight';
+import { MemoryPolicyService } from './memory-policy.service';
+import type { LanguageModelGateway } from '../../infra/model-gateway';
 import type { QueueService } from '../../infra/queue';
 import { MemoryAccessService } from './memory-access.service';
 import { MemoryEngineService } from './memory-engine.service';
@@ -107,7 +109,10 @@ const context = {
   sourceMessageId: 'current-message',
 };
 
-function setup(settings: Record<string, unknown> = {}) {
+function setup(
+  settings: Record<string, unknown> = {},
+  policy?: MemoryPolicyService,
+) {
   const engine = new MemoryEngineService(
     new ConfigService({
       BACKEND_MEMORY_ENGINE: 'hindsight',
@@ -187,6 +192,9 @@ function setup(settings: Record<string, unknown> = {}) {
     forgetSources: jest
       .fn<IHindsightRepository['forgetSources']>()
       .mockResolvedValue('deleted'),
+    suppressedMessageIds: jest
+      .fn<IHindsightRepository['suppressedMessageIds']>()
+      .mockResolvedValue([]),
     pendingErasureCount: jest
       .fn<IHindsightRepository['pendingErasureCount']>()
       .mockResolvedValue(1),
@@ -228,6 +236,22 @@ function setup(settings: Record<string, unknown> = {}) {
       }),
   };
 
+  const evidenceContext = jest
+    .fn<IConversationRepository['findUserMemoryEvidenceContext']>()
+    .mockImplementation(async () => {
+      const current = await conversations.findUserMemoryEvidence(
+        'user',
+        'current-message',
+      );
+
+      return current ? [current] : [];
+    });
+
+  const conversationEvidence = {
+    ...conversations,
+    findUserMemoryEvidenceContext: evidenceContext,
+  };
+
   const add = jest
     .fn<QueueService['memoryDeliveries']['add']>()
     .mockResolvedValue({} as never);
@@ -244,9 +268,10 @@ function setup(settings: Record<string, unknown> = {}) {
     memories as unknown as IMemoryRepository,
     ledger as unknown as IHindsightRepository,
     gateway as unknown as HindsightGateway,
-    conversations as unknown as IConversationRepository,
+    conversationEvidence as unknown as IConversationRepository,
     { memoryDeliveries: { add } } as unknown as QueueService,
     users as unknown as IUserRepository,
+    policy,
   );
 
   return {
@@ -256,7 +281,7 @@ function setup(settings: Record<string, unknown> = {}) {
     legacy,
     memories,
     gateway,
-    conversations,
+    conversations: conversationEvidence,
     add,
   };
 }
@@ -347,6 +372,136 @@ describe('MemoryAccessService', () => {
       service.create('user', { content: 'I am a doctor.' }, context),
     ).rejects.toThrow(/user message/);
     expect(ledger.enqueue).not.toHaveBeenCalled();
+  });
+
+  test('a follow-up remember request uses the preceding user fact and attributes both messages', async () => {
+    const quote = 'Kalo pagi saya suka minum kopi + sereal';
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          spans: [{ quote, sensitive: false, permissionQuote: null }],
+        }),
+        usage: {},
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          facts: [
+            {
+              id: 'requested',
+              grounded: true,
+              durable: true,
+              sensitive: false,
+              permissionQuote: null,
+              evidenceQuotes: [quote],
+            },
+          ],
+        }),
+        usage: {},
+      });
+
+    const { service, conversations, ledger } = setup(
+      {},
+      new MemoryPolicyService({ generate } as unknown as LanguageModelGateway),
+    );
+
+    const previous = {
+      id: 'previous-message',
+      conversationId: 'conversation',
+      content: quote,
+      createdAt: new Date('2026-09-30T23:59:00Z'),
+    };
+
+    const current = {
+      ...previous,
+      id: 'current-message',
+      content: 'Ingat ya sebagai kebiasaan',
+      createdAt: new Date('2026-10-01T00:00:00Z'),
+    };
+
+    conversations.findUserMemoryEvidence.mockResolvedValue(current);
+    conversations.findUserMemoryEvidenceContext.mockResolvedValue([
+      {
+        ...previous,
+        id: 'unrelated-message',
+        content: 'Saya suka bermain tenis',
+      },
+      previous,
+      current,
+    ]);
+
+    await expect(
+      service.create(
+        'user',
+        { content: 'The user likes coffee and cereal in the morning.' },
+        context,
+      ),
+    ).resolves.toMatchObject({ status: 'queued' });
+    expect(ledger.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceMessageIds: ['previous-message', 'current-message'],
+      }),
+    );
+    const payload = JSON.parse(ledger.enqueue.mock.calls[0]![0].content) as {
+      approvedEvidence: string[];
+    };
+
+    expect(payload.approvedEvidence).toEqual([quote]);
+  });
+
+  test('a follow-up cannot reuse forgotten evidence or credential-bearing messages', async () => {
+    const quote = 'I like coffee and cereal in the morning.';
+
+    for (const blocked of ['forgotten', 'credential']) {
+      const generate = jest
+        .fn<LanguageModelGateway['generate']>()
+        .mockResolvedValue({
+          text: JSON.stringify({
+            spans: [{ quote, sensitive: false, permissionQuote: null }],
+          }),
+          usage: {},
+        });
+
+      const { service, conversations, ledger } = setup(
+        {},
+        new MemoryPolicyService({
+          generate,
+        } as unknown as LanguageModelGateway),
+      );
+
+      const current = {
+        id: 'current-message',
+        conversationId: 'conversation',
+        content: 'Remember that habit.',
+        createdAt: new Date(),
+      };
+
+      conversations.findUserMemoryEvidence.mockResolvedValue(current);
+      conversations.findUserMemoryEvidenceContext.mockResolvedValue([
+        {
+          ...current,
+          id: 'previous-message',
+          content:
+            blocked === 'credential'
+              ? quote + ' My password is abcdef123!'
+              : quote,
+        },
+        current,
+      ]);
+      if (blocked === 'forgotten')
+        ledger.suppressedMessageIds.mockResolvedValue(['previous-message']);
+      await expect(
+        service.create('user', { content: quote }, context),
+      ).rejects.toThrow(/eligible user evidence/);
+      expect(ledger.enqueue).not.toHaveBeenCalled();
+      const prompt = generate.mock.calls[0]![0].messages[1]!.content;
+      const reviewInput = JSON.parse(prompt as string) as {
+        userEvidence: string;
+      };
+
+      expect(reviewInput.userEvidence).not.toContain(quote);
+      expect(reviewInput.userEvidence).not.toContain('password');
+    }
   });
 
   test('raw recall is restricted to admitted current references with exact metadata', async () => {

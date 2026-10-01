@@ -151,10 +151,12 @@ export class MemoryAccessService {
       content,
     );
 
-    const approved = await this.approvedEvidence(
+    const { sourceMessageIds, ...approved } = await this.approvedEvidence(
       userId,
       userEvidence.content,
       content,
+      userEvidence.messages,
+      context.sourceMessageId,
     );
 
     const sourceInput = JSON.stringify({
@@ -174,9 +176,7 @@ export class MemoryAccessService {
       checksum: memoryChecksum(sourceInput),
       requestKey,
       requestFingerprint,
-      sourceMessageIds: context.sourceMessageId
-        ? [context.sourceMessageId]
-        : [],
+      sourceMessageIds,
       conversationId: userEvidence.conversationId,
       eventAt: userEvidence.eventAt,
     });
@@ -257,10 +257,12 @@ export class MemoryAccessService {
 
     const targets = await this.targets(userId, id);
     const inputs: EnqueueMemorySource[] = [];
-    const approved = await this.approvedEvidence(
+    const { sourceMessageIds, ...approved } = await this.approvedEvidence(
       userId,
       userEvidence.content,
       content,
+      userEvidence.messages,
+      context.sourceMessageId,
     );
 
     for (const { snapshot, factIds } of targets) {
@@ -317,7 +319,7 @@ export class MemoryAccessService {
         requestFingerprint,
         sourceMessageIds: [
           ...snapshot.source.sourceMessageIds,
-          ...(context.sourceMessageId ? [context.sourceMessageId] : []),
+          ...sourceMessageIds,
         ],
         conversationId:
           userEvidence.conversationId ?? snapshot.source.conversationId,
@@ -692,15 +694,25 @@ export class MemoryAccessService {
     userId: string,
     userEvidence: string,
     requestedFact: string,
+    messages: Array<{ id: string; content: string }>,
+    requestMessageId?: string,
   ): Promise<{
     userEvidence: string;
     approvedEvidence?: string[];
     permissionQuotes?: string[];
+    sourceMessageIds: string[];
   }> {
-    if (!this.policy) return { userEvidence };
+    if (!this.policy)
+      return { userEvidence, sourceMessageIds: messages.map(({ id }) => id) };
 
     try {
-      const review = await this.policy.approveEvidence(userId, userEvidence);
+      const review = await this.policy.approveEvidence(userId, userEvidence, {
+        messages: messages.length
+          ? messages.map(({ content }) => content)
+          : [userEvidence],
+        requestedFact,
+      });
+
       const approvedEvidence = review.spans.map(({ quote }) => quote);
       const permissionQuotes = review.spans.flatMap(({ permissionQuote }) =>
         permissionQuote ? [permissionQuote] : [],
@@ -737,7 +749,18 @@ export class MemoryAccessService {
           HttpStatus.BAD_REQUEST,
         );
 
-      return evidence;
+      return {
+        ...evidence,
+        sourceMessageIds: messages
+          .filter(
+            ({ id, content }) =>
+              id === requestMessageId ||
+              [...approvedEvidence, ...permissionQuotes].some((quote) =>
+                content.includes(quote),
+              ),
+          )
+          .map(({ id }) => id),
+      };
     } catch (error: unknown) {
       if (error instanceof ApiException) throw error;
       throw fail(
@@ -773,6 +796,7 @@ export class MemoryAccessService {
     conversationId: string | null;
     eventAt: Date;
     timezone: string;
+    messages: Array<{ id: string; content: string }>;
   }> {
     const user = await this.users.findById(userId);
     if (!user)
@@ -783,6 +807,7 @@ export class MemoryAccessService {
     if (!messageId)
       return {
         content: explicitContent,
+        messages: [],
         conversationId: null,
         eventAt: new Date(),
         timezone: user.timezone,
@@ -794,7 +819,7 @@ export class MemoryAccessService {
 
     const content = message?.content;
 
-    if (!content || content.length > 32_000)
+    if (!content || content.length > 8000)
       throw fail(
         'A bounded user message is required as memory evidence.',
         HttpStatus.BAD_REQUEST,
@@ -805,8 +830,47 @@ export class MemoryAccessService {
         HttpStatus.BAD_REQUEST,
       );
 
+    const recent = await this.conversations.findUserMemoryEvidenceContext(
+      userId,
+      messageId,
+    );
+
+    if (!recent.some(({ id }) => id === messageId))
+      throw fail(
+        'A bounded user message is required as memory evidence.',
+        HttpStatus.BAD_REQUEST,
+      );
+    const suppressed = new Set(
+      await this.ledger.suppressedMessageIds(
+        userId,
+        recent.map(({ id }) => id),
+      ),
+    );
+
+    if (suppressed.has(messageId))
+      throw fail(
+        'This message was forgotten and cannot be reused as memory evidence.',
+        HttpStatus.BAD_REQUEST,
+      );
+    const messages: Array<{ id: string; content: string }> = [];
+    let length = 0;
+
+    for (const item of [...recent].reverse()) {
+      if (
+        suppressed.has(item.id) ||
+        containsMemoryCredential(item.content) ||
+        !item.content.trim()
+      )
+        continue;
+      const cost = item.content.length + (messages.length ? 2 : 0);
+      if (length + cost > 8000) continue;
+      messages.unshift({ id: item.id, content: item.content });
+      length += cost;
+    }
+
     return {
-      content,
+      content: messages.map(({ content }) => content).join('\n\n'),
+      messages,
       conversationId: message.conversationId,
       eventAt: message.createdAt,
       timezone: user.timezone,

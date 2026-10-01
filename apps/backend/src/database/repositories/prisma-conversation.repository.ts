@@ -802,6 +802,38 @@ export class PrismaConversationRepository implements IConversationRepository {
     });
   }
 
+  async findUserMemoryEvidenceContext(
+    userId: string,
+    messageId: string,
+  ): Promise<
+    Array<Pick<Message, 'id' | 'conversationId' | 'content' | 'createdAt'>>
+  > {
+    const anchor = await this.findUserMemoryEvidence(userId, messageId);
+    if (!anchor) return [];
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        userId,
+        role: 'user',
+        conversationId: anchor.conversationId,
+        OR: [
+          { createdAt: { lt: anchor.createdAt } },
+          { createdAt: anchor.createdAt, id: { lte: anchor.id } },
+        ],
+      },
+      select: {
+        id: true,
+        conversationId: true,
+        content: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 8,
+    });
+
+    return messages.reverse();
+  }
+
   async maskUserMessage(
     userId: string,
     messageId: string,

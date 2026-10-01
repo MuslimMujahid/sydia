@@ -7,6 +7,9 @@ import type { AssistantToolDefinition } from './tool-executor.service';
  * Tools whose successful result fully answers the user's request, so the turn
  * can end with a deterministic acknowledgement instead of a second model call.
  *
+ * Memory mutations continue through the model so the assistant can respond to
+ * the user conversationally while retention or erasure runs in the background.
+ *
  * Every name here has a formatter in `FORMATTER_ENTRIES`; the exhaustiveness
  * check on that record keeps the set and the copy from drifting apart.
  */
@@ -17,9 +20,6 @@ const TERMINAL_TOOL_NAME_LIST = [
   'delete_category',
   'create_reminder',
   'update_reminder',
-  'save_memory',
-  'update_memory',
-  'forget_memory',
   'store_secret',
   'create_secret_reveal_link',
   'save_contact',
@@ -185,7 +185,6 @@ function safeMessage(
 
 /** Names must stay short enough to read inside a block line. */
 const MAX_NAME_CHARS = 160;
-const MAX_CONTENT_CHARS = 120;
 
 function pick(locale: SupportedLocale, en: string, id: string): string {
   return locale === 'id' ? id : en;
@@ -255,9 +254,6 @@ const HEADINGS: Readonly<
     en: 'Reminder updated',
     id: 'Pengingat diperbarui',
   },
-  save_memory: { icon: '🧠', en: 'Memory saved', id: 'Memori disimpan' },
-  update_memory: { icon: '🧠', en: 'Memory updated', id: 'Memori diperbarui' },
-  forget_memory: { icon: '🗑️', en: 'Memory forgotten', id: 'Memori dihapus' },
   store_secret: { icon: '🔐', en: 'Secret stored', id: 'Rahasia disimpan' },
   create_secret_reveal_link: {
     icon: '🔗',
@@ -730,58 +726,6 @@ function updateReminderAck(
   });
 }
 
-function memoryAck(
-  context: TerminalResponseContext,
-  name: 'save_memory' | 'update_memory',
-  result: unknown,
-): string | null {
-  const record = asRecord(result);
-  const memory = record ? asRecord(record.memory) : null;
-  if (!memory) return null;
-
-  if (memory.engine === 'hindsight') {
-    if (memory.status === 'queued')
-      return renderAcknowledgement(context, name, {
-        heading: pick(
-          context.locale,
-          name === 'save_memory'
-            ? 'Memory save queued'
-            : 'Memory correction queued',
-          name === 'save_memory'
-            ? 'Penyimpanan memori sedang diproses'
-            : 'Koreksi memori sedang diproses',
-        ),
-      });
-    if (memory.status === 'withdrawn')
-      return renderAcknowledgement(context, name, {
-        heading: pick(
-          context.locale,
-          'Memory request is no longer active',
-          'Permintaan memori tidak lagi aktif',
-        ),
-      });
-    if (memory.status === 'completed')
-      return renderAcknowledgement(context, name);
-
-    return null;
-  }
-
-  const content = asText(memory.content, MAX_CONTENT_CHARS);
-  if (!content) return null;
-
-  const category =
-    memory.category === null || memory.category === undefined
-      ? null
-      : asText(memory.category);
-
-  if (memory.category != null && !category) return null;
-
-  return renderAcknowledgement(context, name, {
-    subject: content,
-    details: category ? [`🏷️ ${category}`] : [],
-  });
-}
-
 function revealLinkAck(
   context: TerminalResponseContext,
   result: unknown,
@@ -1042,33 +986,6 @@ const FORMATTER_ENTRIES: Readonly<Record<string, Formatter>> = {
     categoryAck(context, 'delete_category', result),
   create_reminder: createReminderAck,
   update_reminder: updateReminderAck,
-  save_memory: (context, result) => memoryAck(context, 'save_memory', result),
-  update_memory: (context, result) =>
-    memoryAck(context, 'update_memory', result),
-  forget_memory: (context, result) => {
-    const record = asRecord(result);
-    if (!record || record.deleted !== true) return null;
-    const receipt = asRecord(record.receipt);
-    if (receipt?.engine === 'hindsight' && receipt.status === 'queued')
-      return renderAcknowledgement(context, 'forget_memory', {
-        heading: pick(
-          context.locale,
-          'Memory no longer used',
-          'Memori tidak digunakan lagi',
-        ),
-        details: [
-          pick(
-            context.locale,
-            'Permanent deletion is still processing.',
-            'Penghapusan permanen masih diproses.',
-          ),
-        ],
-      });
-    if (receipt?.engine === 'hindsight' && receipt.status !== 'completed')
-      return null;
-
-    return renderAcknowledgement(context, 'forget_memory');
-  },
   store_secret: (context, result) => {
     const object = wrappedObject(result, 'secret');
     const label = object ? asText(object.label) : null;

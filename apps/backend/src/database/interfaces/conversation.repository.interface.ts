@@ -137,6 +137,13 @@ export interface IConversationRepository {
     Message,
     'id' | 'conversationId' | 'content' | 'createdAt'
   > | null>;
+  /** Recent owned user messages in the same conversation, through the supplied turn. */
+  findUserMemoryEvidenceContext(
+    userId: string,
+    messageId: string,
+  ): Promise<
+    Array<Pick<Message, 'id' | 'conversationId' | 'content' | 'createdAt'>>
+  >;
   maskUserMessage(
     userId: string,
     messageId: string,

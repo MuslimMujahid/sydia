@@ -44,6 +44,51 @@ live('Memory admission policy synthetic model contract', () => {
     },
     45_000,
   );
+  test('admits a habit referenced by a later Indonesian remember request', async () => {
+    const messages = [
+      'Kalo pagi saya suka minum kopi + sereal',
+      'Ingat ya sebagai kebiasaan',
+    ];
+
+    const requestedFact = 'The user likes coffee and cereal in the morning.';
+
+    const review = await policy.approveEvidence(
+      'synthetic-policy-fixture',
+      messages.join('\n\n'),
+      { messages, requestedFact },
+    );
+
+    expect(review.spans.length).toBeGreaterThan(0);
+    expect(review.spans.some(({ quote }) => messages[0]!.includes(quote))).toBe(
+      true,
+    );
+    expect(
+      await policy.approveFacts(
+        'synthetic-policy-fixture',
+        JSON.stringify({
+          sydiaSource: 1,
+          userEvidence: review.spans.map(({ quote }) => quote).join('\n'),
+          approvedEvidence: review.spans.map(({ quote }) => quote),
+          permissionQuotes: review.spans.flatMap(({ permissionQuote }) =>
+            permissionQuote ? [permissionQuote] : [],
+          ),
+        }),
+        [
+          {
+            id: 'requested',
+            text: requestedFact,
+            type: 'world',
+            documentId: null,
+            sourceFactIds: [],
+            metadata: {},
+            mentionedAt: null,
+            occurredStart: null,
+          },
+        ],
+      ),
+    ).toBe(true);
+  }, 90_000);
+
   test('rejects an invented fact despite plausible extraction output', async () => {
     const source = JSON.stringify({
       sydiaSource: 1,

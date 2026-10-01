@@ -243,3 +243,60 @@ describe('PrismaConversationRepository channel conversations', () => {
     ]);
   });
 });
+
+describe('PrismaConversationRepository memory evidence', () => {
+  it('bounds evidence to owned user messages in the same conversation before the request', async () => {
+    const anchor = {
+      id: 'message-2',
+      conversationId: 'conversation-1',
+      content: 'Remember that.',
+      createdAt: new Date(),
+    };
+
+    const previous = { ...anchor, id: 'message-1', content: 'I like coffee.' };
+    const findFirst = jest.fn(() => Promise.resolve(anchor));
+    const findMany = jest.fn(() => Promise.resolve([anchor, previous]));
+    const repository = new PrismaConversationRepository({
+      message: { findFirst, findMany },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findUserMemoryEvidenceContext('user-1', anchor.id),
+    ).resolves.toEqual([previous, anchor]);
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: anchor.id, userId: 'user-1', role: 'user' },
+      }),
+    );
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: 'user-1',
+          role: 'user',
+          conversationId: 'conversation-1',
+          OR: [
+            { createdAt: { lt: anchor.createdAt } },
+            { createdAt: anchor.createdAt, id: { lte: anchor.id } },
+          ],
+        },
+        take: 8,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+    );
+  });
+
+  it('does not read history for a missing or foreign request message', async () => {
+    const findMany = jest.fn();
+    const repository = new PrismaConversationRepository({
+      message: {
+        findFirst: jest.fn(() => Promise.resolve(null)),
+        findMany,
+      },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findUserMemoryEvidenceContext('other-user', 'message'),
+    ).resolves.toEqual([]);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+});

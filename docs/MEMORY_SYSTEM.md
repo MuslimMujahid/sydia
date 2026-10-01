@@ -78,7 +78,7 @@ Bank records deliberately survive local account deletion until remote erasure co
 
 `DomainToolsProvider` routes `save_memory`, `update_memory`, `forget_memory`, and `search_memories` through `MemoryAccessService`.
 
-A save validates owned user evidence, excludes credentials, reviews durable/sensitive claims through `MemoryPolicyService`, and commits a source/delivery intent before publishing a BullMQ job. A successful tool call can mean **queued**, not remotely retained or admitted. The assistant acknowledges those states explicitly.
+A save validates owned user evidence from up to eight user messages in the same conversation through the requesting turn (8,000 characters total), so follow-up requests can refer to an earlier fact. Assistant text, credentials, later turns, and forgotten evidence are excluded; only quoted fact/permission messages and the requesting turn become source attribution. A save excludes credentials, reviews durable/sensitive claims through `MemoryPolicyService`, and commits a source/delivery intent before publishing a BullMQ job. A successful tool call can mean **queued**, not remotely retained or admitted. Memory mutations continue through the model for a conversational reply; queue and storage progress stay internal. Ordinary personal statements rely on automatic extraction rather than an explicit save tool. Explicit remember/correct/forget requests are acknowledged naturally, without claiming pending retention or permanent erasure is complete.
 
 Delivery follows these stages:
 

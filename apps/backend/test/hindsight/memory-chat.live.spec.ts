@@ -432,9 +432,8 @@ type Turn = {
           name: 'save_memory',
           status: 'completed',
         });
-        expect(saved.text).toMatch(
-          /processing|queued|process|diproses|antrean/i,
-        );
+        expect(saved.text?.trim() ?? '').not.toBe('');
+        expect(saved.text).not.toMatch(/processing|queued|diproses|antrean/i);
         await settle();
         expect(
           (await access.search(owner, 'favorite board game chess', 5)).some(
@@ -459,8 +458,9 @@ type Turn = {
           name: 'update_memory',
           status: 'completed',
         });
-        expect(corrected.text).toMatch(
-          /processing|queued|process|diproses|antrean/i,
+        expect(corrected.text?.trim() ?? '').not.toBe('');
+        expect(corrected.text).not.toMatch(
+          /processing|queued|diproses|antrean/i,
         );
         await settle();
         const current = await access.search(
@@ -517,8 +517,9 @@ type Turn = {
           name: 'forget_memory',
           status: 'completed',
         });
-        expect(forgotten.text).toMatch(
-          /processing|queued|process|diproses|antrean/i,
+        expect(forgotten.text?.trim() ?? '').not.toBe('');
+        expect(forgotten.text).not.toMatch(
+          /processing|queued|diproses|antrean/i,
         );
         expect(
           (await access.search(owner, 'weekend bicycle', 5)).some(
