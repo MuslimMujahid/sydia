@@ -1,0 +1,453 @@
+{
+  "date": "2026-10-01",
+  "kind": "synthetic_smoke_only",
+  "candidates": 20,
+  "rows": [
+    {
+      "case": "en-preference",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 2616,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860121-uD4ZnKEPt41Zo3YwRso6",
+      "top3": ["colleague", "coffee", "tea"],
+      "hit1": false,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "en-preference",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 662,
+      "usage": {
+        "input_tokens": 1093,
+        "output_tokens": 188,
+        "cost": 4.5906e-5
+      },
+      "generation_id": "gen-dec-1790860123-spHn8sMTshfUcYuLWTBX",
+      "top3": ["coffee", "temporary", "tool"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-preference",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 734,
+      "usage": {
+        "input_tokens": 1093,
+        "output_tokens": 189,
+        "cost": 4.5906e-5
+      },
+      "generation_id": "gen-dec-1790860124-TKNRH5EiL6oRQBIiL6bu",
+      "top3": ["coffee", "colleague", "music"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-preference",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 1386,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860125-JibZrzYhWVzeOkXBWttW",
+      "top3": ["coffee", "colleague", "tea"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-diet",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 895,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860126-z7Xq6O64mRHGcPPJIzcM",
+      "top3": ["otherfood", "diet", "coffee"],
+      "hit1": false,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-diet",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 15640,
+      "usage": {
+        "input_tokens": 1105,
+        "output_tokens": 188,
+        "cost": 4.641e-5
+      },
+      "generation_id": "gen-dec-1790860143-fKcipAm4yhF90DkZaLYU",
+      "top3": ["diet", "task", "style"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "mixed-project",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 676,
+      "usage": {
+        "input_tokens": 1095,
+        "output_tokens": 189,
+        "cost": 4.599e-5
+      },
+      "generation_id": "gen-dec-1790860144-p6aGcnSzsAhsX48UW6Sj",
+      "top3": ["framework", "tool", "budget"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "mixed-project",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 1043,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860145-c2dzN7tPq2mMttv53H7h",
+      "top3": ["framework", "database", "oldbudget"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-routine",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 628,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860146-UuyfoJecwKtydAR0bPvP",
+      "top3": ["temporary", "workout", "meeting"],
+      "hit1": false,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-routine",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 647,
+      "usage": {
+        "input_tokens": 1093,
+        "output_tokens": 189,
+        "cost": 4.5906e-5
+      },
+      "generation_id": "gen-dec-1790860146-oW7hhMi0E2aMBz2WRm1W",
+      "top3": ["workout", "travel", "pet"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "en-update",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 806,
+      "usage": {
+        "input_tokens": 1095,
+        "output_tokens": 189,
+        "cost": 4.599e-5
+      },
+      "generation_id": "gen-dec-1790860147-OslX7ORAF0oVAnZeWdMF",
+      "top3": ["budget", "oldbudget", "temporary"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "en-update",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 1124,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860148-Z9SV1dP84JnJnm6yfEEU",
+      "top3": ["budget", "oldbudget", "tool"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "en-cross-language",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 693,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860149-6jNkuQG5cIwtqeKlS1PT",
+      "top3": ["timezone", "meeting", "workout"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "en-cross-language",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 1496,
+      "usage": {
+        "input_tokens": 1093,
+        "output_tokens": 188,
+        "cost": 4.5906e-5
+      },
+      "generation_id": "gen-dec-1790860151-Q6wCyKEg1c7GwCyDNK5g",
+      "top3": ["timezone", "meeting", "task"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-style",
+      "provider": "jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "latency_ms": 616,
+      "usage": {
+        "input_tokens": 1101,
+        "output_tokens": 188,
+        "cost": 4.6242e-5
+      },
+      "generation_id": "gen-dec-1790860152-TnfFDl3d7DAlwBrrgwpn",
+      "top3": ["style", "framework", "colleague"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    },
+    {
+      "case": "id-style",
+      "provider": "cohere",
+      "model": "rerank-v3.5",
+      "latency_ms": 976,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "generation_id": "gen-rerank-1790860153-M13Of0oSRd5HNcYWASPg",
+      "top3": ["style", "tool", "language"],
+      "hit1": true,
+      "hit3": true,
+      "error": null
+    }
+  ],
+  "billing_boundary_probes": [
+    {
+      "documents": 100,
+      "latency_ms": 834,
+      "usage": {
+        "search_units": 1,
+        "cost": 0.001
+      },
+      "id": "gen-rerank-1790860153-OqiI4XIzB1fUaNaCwfIt",
+      "error": null
+    },
+    {
+      "documents": 101,
+      "latency_ms": 713,
+      "usage": {
+        "search_units": 2,
+        "cost": 0.002
+      },
+      "id": "gen-rerank-1790860154-pJmqTQudWR0Lw7Ml7HP7",
+      "error": null
+    }
+  ],
+  "summary": {
+    "cohere": {
+      "calls": 8,
+      "success": 8,
+      "hit1": 5,
+      "hit3": 8,
+      "latency_median_ms": 1009.5,
+      "reported_cost_sum": 0.008,
+      "unknown_cost_count": 0
+    },
+    "jev": {
+      "calls": 8,
+      "success": 8,
+      "hit1": 8,
+      "hit3": 8,
+      "latency_median_ms": 705.0,
+      "reported_cost_sum": 0.00036825599999999997,
+      "unknown_cost_count": 0
+    }
+  },
+  "contract_probes": [
+    {
+      "requested_model": "typesafe/jev-1.13",
+      "candidates": 1,
+      "status": 200,
+      "resolved_model": "typesafe/jev-1.13-20260917",
+      "usage": {
+        "input_tokens": 315,
+        "output_tokens": 26,
+        "cost": 1.323e-5
+      }
+    },
+    {
+      "requested_model": "typesafe/jev-1.13-20260917",
+      "candidates": 2,
+      "status": 200,
+      "resolved_model": "typesafe/jev-1.13-20260917",
+      "usage": {
+        "input_tokens": 333,
+        "output_tokens": 34,
+        "cost": 1.3986e-5
+      }
+    }
+  ],
+  "facts": [
+    {
+      "id": "coffee",
+      "text": "[Date: September 20, 2026] User prefers black coffee without sugar."
+    },
+    {
+      "id": "tea",
+      "text": "[Date: September 20, 2026] User buys jasmine tea for their mother, who prefers sweet tea."
+    },
+    {
+      "id": "diet",
+      "text": "[Date: September 20, 2026] Pengguna alergi kacang tanah dan meminta makanan tanpa kacang."
+    },
+    {
+      "id": "framework",
+      "text": "[Date: September 20, 2026] Proyek Sydia pengguna memakai Bun, TanStack Start, dan NestJS."
+    },
+    {
+      "id": "database",
+      "text": "[Date: September 20, 2026] User uses PostgreSQL and Prisma for the Sydia database."
+    },
+    {
+      "id": "timezone",
+      "text": "[Date: September 20, 2026] Pengguna tinggal di Makassar dan memakai zona waktu Asia/Makassar."
+    },
+    {
+      "id": "workout",
+      "text": "[Date: September 20, 2026] Pengguna biasanya berlari pada Selasa dan Kamis pukul 06.00."
+    },
+    {
+      "id": "temporary",
+      "text": "[Date: September 20, 2026] Pengguna melewatkan lari satu kali karena hujan, tetapi jadwal rutinnya tetap sama."
+    },
+    {
+      "id": "budget",
+      "text": "[Date: September 20, 2026] User set a monthly AI API spending limit of $20."
+    },
+    {
+      "id": "oldbudget",
+      "text": "[Date: September 1, 2026] User previously used a $50 monthly API limit; this was replaced by $20 on September 20."
+    },
+    {
+      "id": "style",
+      "text": "[Date: September 20, 2026] User prefers concise explanations in Indonesian with examples."
+    },
+    {
+      "id": "meeting",
+      "text": "[Date: September 20, 2026] User schedules team meetings at 10:00 local Makassar time."
+    },
+    {
+      "id": "colleague",
+      "text": "[Date: September 20, 2026] User's colleague prefers decaf coffee with milk; this is not the user's preference."
+    },
+    {
+      "id": "language",
+      "text": "[Date: September 20, 2026] User practices English every Sunday."
+    },
+    {
+      "id": "task",
+      "text": "[Date: September 20, 2026] User plans to finish authentication tests before Friday."
+    },
+    {
+      "id": "tool",
+      "text": "[Date: September 20, 2026] User reads documentation through a web browser."
+    },
+    {
+      "id": "otherfood",
+      "text": "[Date: September 20, 2026] User's brother avoids dairy products."
+    },
+    {
+      "id": "travel",
+      "text": "[Date: September 20, 2026] User plans a holiday in Bali in December."
+    },
+    {
+      "id": "pet",
+      "text": "[Date: September 20, 2026] User has a cat named Miko."
+    },
+    {
+      "id": "music",
+      "text": "[Date: September 20, 2026] Pengguna mendengarkan musik instrumental saat bekerja."
+    }
+  ],
+  "cases": [
+    {
+      "id": "en-preference",
+      "query": "How should I prepare coffee for the user?",
+      "expected_ids": ["coffee"]
+    },
+    {
+      "id": "id-preference",
+      "query": "Kopi seperti apa yang saya suka?",
+      "expected_ids": ["coffee"]
+    },
+    {
+      "id": "id-diet",
+      "query": "Apa yang harus dihindari ketika menyiapkan makanan untuk saya?",
+      "expected_ids": ["diet"]
+    },
+    {
+      "id": "mixed-project",
+      "query": "Which framework dipakai frontend proyek Sydia saya?",
+      "expected_ids": ["framework"]
+    },
+    {
+      "id": "id-routine",
+      "query": "Kapan jadwal lari rutin saya?",
+      "expected_ids": ["workout"]
+    },
+    {
+      "id": "en-update",
+      "query": "What is my current monthly AI API spending cap?",
+      "expected_ids": ["budget"]
+    },
+    {
+      "id": "en-cross-language",
+      "query": "Which timezone should you use for my reminders?",
+      "expected_ids": ["timezone"]
+    },
+    {
+      "id": "id-style",
+      "query": "Bagaimana gaya penjelasan yang saya inginkan?",
+      "expected_ids": ["style"]
+    }
+  ],
+  "method": {
+    "route": "OpenRouter",
+    "ranking_template": "Hindsight TypeSafeCrossEncoder._rank_once",
+    "pruning": false,
+    "ordering": "Seeded candidate shuffle per query; alternating model call order; sequential calls; urllib HTTPS connections without connection reuse",
+    "labels": "Author-written synthetic expectations; no held-out human-reviewed labels",
+    "scope": "Endpoint smoke comparison, not end-to-end Hindsight recall"
+  }
+}

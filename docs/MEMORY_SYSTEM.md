@@ -156,7 +156,7 @@ Uploaded files retain their independent parsing/chunking pipeline. `FileAsset` o
 
 `DocumentService` handles text/JSON, PDF, image description, and audio transcription. Retries reuse persisted transcripts and unchanged chunks, embedding only missing vectors. Unsupported or empty files fail without repeated retry. Search fuses keyword/vector hits and limits each document to two chunks; attachment-scoped retrieval remains owned by the current message's documents.
 
-The application's `EmbeddingsService` still supplies notes, documents, and legacy/rollback indexing with 1,536-dimensional vectors and embedding model/version metadata. Hindsight configures its own embedding and reranking providers. Durable memory therefore no longer shares the application's local RRF/vector pipeline in Hindsight mode.
+The application's `EmbeddingsService` still supplies notes, documents, and legacy/rollback indexing with 1,536-dimensional vectors and embedding model/version metadata. Hindsight configures its own embeddings and retrieval fusion. Following the owner's 1 October 2026 decision, local durable-memory recall uses Hindsight's RRF fusion with model reranking disabled (`HINDSIGHT_API_ENABLE_RERANKING=false`, `HINDSIGHT_API_RERANKER_PROVIDER=rrf`), eliminating reranking API charges. This remains a separate pipeline from the application's document/legacy RRF retrieval.
 
 ## 9. Export, backfill, and rollback
 
