@@ -241,75 +241,82 @@ export class ToolExecutorService {
     toolsReady?: Promise<void>,
     abortSignal?: AbortSignal,
     context?: AssistantToolExecutionContext,
+    selectedToolNames?: readonly string[],
   ): ToolSet {
     const documentSearches = new Map<string, Promise<ToolExecutionResult>>();
 
     return Object.fromEntries(
-      Object.values(this.toolsByName).map((assistantTool) => {
-        const { definition } = assistantTool;
-        const wrapped = tool({
-          description: definition.description,
-          inputSchema: jsonSchema(terminalToolInputSchema(definition)),
-          execute: async (
-            input: unknown,
-            options: ToolExecutionOptions<Record<string, unknown>>,
-          ) => {
-            if (toolsReady) await toolsReady;
-            if (abortSignal?.aborted) throw abortSignal.reason;
+      Object.values(this.toolsByName)
+        .filter(
+          ({ definition }) =>
+            selectedToolNames === undefined ||
+            selectedToolNames.includes(definition.name),
+        )
+        .map((assistantTool) => {
+          const { definition } = assistantTool;
+          const wrapped = tool({
+            description: definition.description,
+            inputSchema: jsonSchema(terminalToolInputSchema(definition)),
+            execute: async (
+              input: unknown,
+              options: ToolExecutionOptions<Record<string, unknown>>,
+            ) => {
+              if (toolsReady) await toolsReady;
+              if (abortSignal?.aborted) throw abortSignal.reason;
 
-            if (assistantTool.internal) {
-              const result = await assistantTool.execute({
-                userId,
-                sourceMessageId: inputMessageId,
-                arguments: assistantTool.parseArguments(
-                  stripCompleteTurn(input),
-                ),
-                idempotencyKey: `${inputMessageId}:${options.toolCallId}`,
-                context,
-              });
+              if (assistantTool.internal) {
+                const result = await assistantTool.execute({
+                  userId,
+                  sourceMessageId: inputMessageId,
+                  arguments: assistantTool.parseArguments(
+                    stripCompleteTurn(input),
+                  ),
+                  idempotencyKey: `${inputMessageId}:${options.toolCallId}`,
+                  context,
+                });
 
-              return JSON.stringify(result);
-            }
+                return JSON.stringify(result);
+              }
 
-            const call = {
-              id: options.toolCallId,
-              name: definition.name,
-              arguments: input,
-            };
+              const call = {
+                id: options.toolCallId,
+                name: definition.name,
+                arguments: input,
+              };
 
-            const searchKey =
-              definition.name === 'search_documents'
-                ? JSON.stringify(assistantTool.parseArguments(input))
-                : null;
+              const searchKey =
+                definition.name === 'search_documents'
+                  ? JSON.stringify(assistantTool.parseArguments(input))
+                  : null;
 
-            const existingSearch = searchKey
-              ? documentSearches.get(searchKey)
-              : undefined;
+              const existingSearch = searchKey
+                ? documentSearches.get(searchKey)
+                : undefined;
 
-            const result = existingSearch
-              ? await existingSearch
-              : await (() => {
-                  const execution = this.execute(
-                    userId,
-                    runId,
-                    inputMessageId,
-                    call,
-                    context,
-                  );
+              const result = existingSearch
+                ? await existingSearch
+                : await (() => {
+                    const execution = this.execute(
+                      userId,
+                      runId,
+                      inputMessageId,
+                      call,
+                      context,
+                    );
 
-                  if (searchKey) documentSearches.set(searchKey, execution);
+                    if (searchKey) documentSearches.set(searchKey, execution);
 
-                  return execution;
-                })();
+                    return execution;
+                  })();
 
-            if (!existingSearch) onExecution?.(result);
+              if (!existingSearch) onExecution?.(result);
 
-            return result.content;
-          },
-        });
+              return result.content;
+            },
+          });
 
-        return [definition.name, wrapped];
-      }),
+          return [definition.name, wrapped];
+        }),
     );
   }
 

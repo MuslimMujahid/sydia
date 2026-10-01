@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   LANGUAGE_MODEL,
   type LanguageModelGateway,
@@ -6,6 +6,7 @@ import {
 import type { HindsightFact } from '../../infra/hindsight';
 import type { JSONSchema7 } from 'ai';
 import { containsMemoryCredential } from './memory-admission';
+import { MemoryFactDecisionService } from './memory-fact-decision.service';
 
 export const MEMORY_POLICY_VERSION = 'sydia-admission-v1';
 
@@ -111,6 +112,7 @@ export class MemoryPolicyService {
   private readonly logger = new Logger(MemoryPolicyService.name);
   constructor(
     @Inject(LANGUAGE_MODEL) private readonly model: LanguageModelGateway,
+    @Optional() private readonly factDecisions?: MemoryFactDecisionService,
   ) {}
 
   async approveEvidence(
@@ -223,17 +225,32 @@ export class MemoryPolicyService {
     ) {
       const batch = facts.slice(offset, offset + FACT_REVIEW_BATCH_SIZE);
       await beforeReview?.();
-      const result = await this.review(
-        userId,
-        FACT_POLICY,
-        JSON.stringify({
-          approvedEvidence: [...evidence, ...preserved],
-          preservedFacts: preserved,
-          permissionQuotes: permissions,
-          candidates: batch.map(({ id, text }) => ({ id, text })),
-        }),
-        factSchema(batch.map(({ id }) => id)),
-      );
+      const candidateDecision = this.factDecisions?.active(userId)
+        ? await this.factDecisions.review(
+            userId,
+            batch.map(({ id, text }) => ({ id, text })),
+            [...evidence, ...preserved],
+            permissions,
+            beforeReview,
+          )
+        : undefined;
+
+      if (candidateDecision?.status === 'reject') return false;
+      if (candidateDecision?.status === 'fallback') await beforeReview?.();
+      const result =
+        candidateDecision?.status === 'allow'
+          ? { facts: candidateDecision.facts }
+          : await this.review(
+              userId,
+              FACT_POLICY,
+              JSON.stringify({
+                approvedEvidence: [...evidence, ...preserved],
+                preservedFacts: preserved,
+                permissionQuotes: permissions,
+                candidates: batch.map(({ id, text }) => ({ id, text })),
+              }),
+              factSchema(batch.map(({ id }) => id)),
+            );
 
       if (!Array.isArray(result.facts) || result.facts.length !== batch.length)
         throw new Error('Invalid memory fact verdict');

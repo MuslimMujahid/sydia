@@ -695,5 +695,36 @@ describe('ToolExecutorService', () => {
     expect(
       advertisedProperties(tools.list_tasks?.inputSchema),
     ).not.toHaveProperty('completeTurn');
+    const selected = executor.aiTools(
+      'user-1',
+      'run-1',
+      'message-1',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ['create_task'],
+    );
+
+    expect(Object.keys(selected)).toEqual(['create_task']);
+    expect(
+      advertisedProperties(selected.create_task?.inputSchema),
+    ).toHaveProperty('completeTurn');
+    expect(
+      executor.aiTools(
+        'user-1',
+        'run-1',
+        'message-1',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        [],
+      ),
+    ).toEqual({});
+    // A subsequent baseline turn still advertises the full registry.
+    expect(
+      Object.keys(executor.aiTools('user-1', 'run-1', 'message-1')),
+    ).toEqual(['create_task', 'list_tasks']);
   });
 });

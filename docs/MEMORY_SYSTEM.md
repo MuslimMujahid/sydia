@@ -10,6 +10,8 @@ Hindsight owns long-term fact extraction, consolidation, embeddings, observation
 
 The [migration plan](./memory_systems_migration_hindsight.md) records implementation phases. The [operations runbook](./hindsight_operations.md) covers deployment, delivery recovery, backfill, export, rollback, and backup/restore.
 
+The user accepted the [LLM cost and latency optimizations](./llm_cost_latency_optimization_plan.md) on 1 October 2026. The local deployment enables automatic memory eligibility, grounding/durability/sensitivity checks, recall decisions and independent tool-group selection at a **0.6** inclusion threshold for all users. Extraction uses **GPT-OSS-20B on CoreWeave**; global consolidation and reflection remain DeepSeek. The [optimization runbook](./llm_optimization_operations.md) records accepted tradeoffs, the 1.5-second interactive decision budget, activation settings, end-to-end verification and rollback. New-installation decision defaults remain off.
+
 ## 1. Deployment and engine selection
 
 The local API and worker use `BACKEND_MEMORY_ENGINE=hindsight`, with automatic recall and ingestion enabled for all users. The private Hindsight API runs on loopback port 8889 with its own persistent PostgreSQL database. The application database remains on port 55432. Remote production settings were not changed by this cutover.

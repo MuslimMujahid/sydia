@@ -25,6 +25,7 @@ import { createDomainTools } from './domain-tools';
 import { createPhaseTools } from './phase-tools';
 import { createDailyNoteTools } from './daily-note-tools';
 import type { AssistantTool } from './tool-executor.service';
+import { validateToolGroups } from './tool-groups';
 
 @Injectable()
 export class DomainToolsProvider {
@@ -65,5 +66,6 @@ export class DomainToolsProvider {
       }),
       ...createDailyNoteTools({ dailyNotes }),
     ];
+    validateToolGroups(this.tools.map(({ definition }) => definition.name));
   }
 }

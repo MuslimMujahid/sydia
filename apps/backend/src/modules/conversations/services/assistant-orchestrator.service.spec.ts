@@ -728,6 +728,7 @@ describe('AssistantOrchestratorService', () => {
       conversation.id,
       userMessage.id,
       'telegram',
+      undefined,
     );
     expect(generate).toHaveBeenCalledWith(
       expect.objectContaining({ messages: context }),

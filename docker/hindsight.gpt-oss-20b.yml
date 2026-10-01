@@ -1,0 +1,12 @@
+# Merge with hindsight.environment.yml for an isolated experiment first.
+# This changes extraction only; global/consolidation, embeddings and reranker
+# settings continue to come from the baseline environment.
+services:
+  hindsight:
+    environment:
+      HINDSIGHT_API_RETAIN_LLM_MODEL: openai/gpt-oss-20b
+      HINDSIGHT_API_RETAIN_LLM_REASONING_EFFORT: low
+      HINDSIGHT_API_RETAIN_MAX_COMPLETION_TOKENS: "32000"
+      # CoreWeave is the accepted lower-cost extraction route. An explicit
+      # provider override is available for isolated comparisons.
+      HINDSIGHT_API_RETAIN_LLM_EXTRA_BODY: '{"provider":{"only":["${OPTIMIZATION_GPT_OSS_PROVIDER:-coreweave}"],"allow_fallbacks":false,"require_parameters":true}}'

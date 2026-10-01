@@ -18,6 +18,8 @@ const DEFAULT_BASE_URL = 'https://cloud.langfuse.com';
 
 export type GenerationTraceRequest = {
   name?: string;
+  environment?: string;
+  version?: string;
   provider: string;
   model: string;
   messages: ModelMessage[];
@@ -25,6 +27,7 @@ export type GenerationTraceRequest = {
   conversationId?: string;
   runId?: string;
   attempt: number;
+  metadata?: Record<string, string>;
 };
 
 export type GenerationTraceError = {
@@ -36,6 +39,8 @@ export type GenerationTraceError = {
 };
 
 export type GenerationTraceUpdate = {
+  model?: string;
+  metadata?: Record<string, string>;
   output?: string;
   inputTokens?: number;
   outputTokens?: number;
@@ -55,7 +60,16 @@ export type GenerationTrace = {
 };
 
 function errorName(value: unknown): string {
-  return value instanceof Error ? value.name : 'UnknownError';
+  if (Array.isArray(value))
+    return value.slice(0, 3).map(errorName).join(', ') || 'UnknownError';
+  if (!(value instanceof Error)) return 'UnknownError';
+  // OTLP may reject flush with an array of transport errors. Report only the
+  // class and numeric status, never request headers, source text or URLs.
+  const code = 'code' in value ? value.code : undefined;
+
+  return typeof code === 'number' && Number.isFinite(code)
+    ? `${value.name}(${code})`
+    : value.name;
 }
 
 @Injectable()
@@ -139,6 +153,7 @@ export class ObservabilityService
     }
 
     const metadata: Record<string, string> = {
+      ...request.metadata,
       provider: request.provider,
       attempt: String(request.attempt),
     };
@@ -157,6 +172,8 @@ export class ObservabilityService
           {
             input: request.messages,
             model: request.model,
+            environment: request.environment,
+            version: request.version,
             metadata,
           },
           { asType: 'generation' },
@@ -166,6 +183,9 @@ export class ObservabilityService
         const trace: GenerationTrace = {
           update: (update) => {
             const attributes: Parameters<LangfuseGeneration['update']>[0] = {};
+            if (update.model !== undefined) attributes.model = update.model;
+            if (update.metadata !== undefined)
+              attributes.metadata = { ...metadata, ...update.metadata };
 
             if (update.output !== undefined) {
               attributes.output = update.output;

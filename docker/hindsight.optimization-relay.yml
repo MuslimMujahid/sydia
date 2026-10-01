@@ -1,0 +1,10 @@
+# Synthetic comparison only. Start sydia-opt-usage before these instances.
+services:
+  hindsight:
+    networks: [default, optimization-relay]
+    environment:
+      HINDSIGHT_API_RETAIN_LLM_BASE_URL: http://optimization-relay:8900/${OPTIMIZATION_RELAY_ARM:?Select baseline or gpt-oss-20b}/v1
+networks:
+  optimization-relay:
+    external: true
+    name: sydia-opt-usage-network

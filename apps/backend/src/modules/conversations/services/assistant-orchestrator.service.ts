@@ -89,6 +89,7 @@ type ExecutionObserver = {
 };
 
 const AssistantTurnState = Annotation.Root({
+  selectedToolNames: Annotation<readonly string[] | undefined>(),
   user: Annotation<TurnUser>(),
   conversation: Annotation<Conversation>(),
   inputMessage: Annotation<Message>(),
@@ -567,11 +568,13 @@ export class AssistantOrchestratorService {
             state.conversation.id,
             state.inputMessage.id,
             state.channel,
+            abortSignal,
           );
 
           return {
             context: built.messages,
             contextTokenUsage: built.tokenUsage,
+            selectedToolNames: built.decision?.toolNames,
           };
         } catch (error) {
           this.logger.error(
@@ -598,6 +601,7 @@ export class AssistantOrchestratorService {
             toolsReady,
             abortSignal,
             { channel, sendFile },
+            state.selectedToolNames,
           );
 
           const generation = await this.languageModel.generate({

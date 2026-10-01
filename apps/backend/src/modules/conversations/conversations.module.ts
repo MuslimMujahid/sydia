@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ModelGatewayModule } from '../../infra/model-gateway';
+import { DecisionGatewayModule } from '../../infra/decision-gateway';
+import { TurnDecisionService } from './services/turn-decision.service';
 import { MemoriesModule } from '../memories/memories.module';
 import { DailyNotesModule } from '../daily-notes/daily-notes.module';
 import { RemindersModule } from '../reminders/reminders.module';
@@ -29,6 +31,7 @@ import {
 @Module({
   imports: [
     ModelGatewayModule,
+    DecisionGatewayModule,
     TasksModule,
     RemindersModule,
     MemoriesModule,
@@ -53,6 +56,7 @@ import {
     },
     AssistantOrchestratorService,
     ContextBuilderService,
+    TurnDecisionService,
     ConversationSummarizerService,
     ToolExecutorService,
   ],

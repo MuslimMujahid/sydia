@@ -19,6 +19,7 @@ import {
 import { MemoryEngineService } from '../../memories/memory-engine.service';
 import type { MemoryAccessService } from '../../memories/memory-access.service';
 import type { MemorySearchHit } from '../../memories/memory-access.types';
+import type { TurnDecisionService } from './turn-decision.service';
 
 const user = {
   id: 'user-1',
@@ -81,6 +82,7 @@ type RepositoryOptions = {
   summaryThroughMessageId?: string | null;
   memoryEngine?: MemoryEngineService;
   memoryAccess?: MemoryAccessService;
+  turnDecisions?: TurnDecisionService;
 };
 
 function createBuilder(
@@ -119,6 +121,7 @@ function createBuilder(
     memories,
     options.memoryAccess,
     options.memoryEngine,
+    options.turnDecisions,
   );
 }
 
@@ -138,6 +141,38 @@ function attachmentMessageContent(context: ModelMessage[]): string {
 }
 
 describe('ContextBuilderService recent conversations', () => {
+  it('uses one turn decision for recall gating and tool selection', async () => {
+    const search = jest
+      .fn<MemoryAccessService['search']>()
+      .mockResolvedValue([]);
+
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false, toolNames: ['list_tasks'] });
+
+    const builder = createBuilder(6000, {
+      messages: [message('message-1', 'user', 'List tasks')],
+      memoryEngine: new MemoryEngineService(
+        new ConfigService({
+          BACKEND_MEMORY_ENGINE: 'hindsight',
+          BACKEND_MEMORY_AUTO_RECALL_ENABLED: true,
+        }),
+      ),
+      memoryAccess: { search } as unknown as MemoryAccessService,
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+    });
+
+    const built = await builder.build(user, 'conversation-1', 'message-1');
+    expect(decide).toHaveBeenCalledTimes(1);
+    expect(decide).toHaveBeenCalledWith(
+      user.id,
+      expect.objectContaining({ latest: 'List tasks', recallEligible: true }),
+      undefined,
+    );
+    expect(search).not.toHaveBeenCalled();
+    expect(built.decision?.toolNames).toEqual(['list_tasks']);
+  });
+
   const previous: RecentConversationContext = {
     id: 'previous-chat',
     title: 'Travel plans',

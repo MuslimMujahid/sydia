@@ -13,6 +13,7 @@ import type { QueueService } from '../../infra/queue';
 import { HindsightIngestionService } from './hindsight-ingestion.service';
 import { MemoryEngineService } from './memory-engine.service';
 import type { MemoryPolicyService } from './memory-policy.service';
+import type { MemoryEligibilityService } from './memory-eligibility.service';
 
 const segment: MemoryIngestionSegment = {
   checkpoint: {
@@ -40,7 +41,10 @@ const segment: MemoryIngestionSegment = {
   ],
 };
 
-function setup(settings: Record<string, unknown> = {}) {
+function setup(
+  settings: Record<string, unknown> = {},
+  eligibility?: MemoryEligibilityService,
+) {
   const config = new ConfigService({
     BACKEND_MEMORY_ENGINE: 'hindsight',
     BACKEND_HINDSIGHT_NAMESPACE: 'test',
@@ -115,12 +119,33 @@ function setup(settings: Record<string, unknown> = {}) {
     new MemoryEngineService(config),
     { memoryDeliveries: { add } } as unknown as QueueService,
     config,
+    eligibility,
   );
 
   return { service, ledger, policy, users, add };
 }
 
 describe('HindsightIngestionService', () => {
+  test('a negative eligibility decision skips review but stages the original checkpoint', async () => {
+    const shouldReview = jest
+      .fn<MemoryEligibilityService['shouldReview']>()
+      .mockResolvedValue(false);
+
+    const { service, ledger, policy } = setup({}, {
+      shouldReview,
+    } as unknown as MemoryEligibilityService);
+
+    await service.run('user', 'conversation', 'boundary');
+    expect(shouldReview).toHaveBeenCalledTimes(1);
+    expect(shouldReview).toHaveBeenCalledWith(
+      'user',
+      segment.messages[0]!.content,
+    );
+    expect(policy.approveEvidence).not.toHaveBeenCalled();
+    expect(ledger.enqueue).not.toHaveBeenCalled();
+    expect(ledger.stageCheckpoint).toHaveBeenCalledWith(segment, []);
+  });
+
   test('submits only approved user evidence, skipping explicit, forgotten, and credential-bearing messages', async () => {
     const { service, ledger, policy } = setup();
     expect(await service.run('user', 'conversation', 'boundary')).toEqual({

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   HINDSIGHT_REPOSITORY,
@@ -13,6 +13,7 @@ import {
   MEMORY_POLICY_VERSION,
 } from './memory-policy.service';
 import { containsMemoryCredential, memoryChecksum } from './memory-admission';
+import { MemoryEligibilityService } from './memory-eligibility.service';
 
 export type MemoryIngestionResult = {
   status: 'skipped' | 'deferred' | 'queued' | 'completed';
@@ -34,6 +35,7 @@ export class HindsightIngestionService {
     private readonly engine: MemoryEngineService,
     private readonly queues: QueueService,
     config: ConfigService,
+    @Optional() private readonly eligibility?: MemoryEligibilityService,
   ) {
     this.minUserMessages = config.get<number>(
       'BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES',
@@ -130,6 +132,11 @@ export class HindsightIngestionService {
         continue;
       }
 
+      if (
+        this.eligibility &&
+        !(await this.eligibility.shouldReview(userId, message.content))
+      )
+        continue;
       const review = await this.policy.approveEvidence(userId, message.content);
       if (!review.spans.length) continue;
       const content = JSON.stringify({

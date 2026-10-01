@@ -23,6 +23,10 @@ import type { ModelMessage } from '../../../infra/model-gateway';
 import { MemoryAccessService } from '../../memories/memory-access.service';
 import { MemoryEngineService } from '../../memories/memory-engine.service';
 import type { MemorySearchHit } from '../../memories/memory-access.types';
+import {
+  TurnDecisionService,
+  type TurnDecision,
+} from './turn-decision.service';
 
 const SYSTEM_POLICY = `Respond in the user's language. Do not claim success unless tool results confirm it. Ask for clarification only when required information is genuinely ambiguous. Never invent facts or repeat obvious facts. Honor the user's timezone, profile, and preferred address.
 
@@ -255,6 +259,7 @@ export type ContextTokenUsage = {
 export type BuiltContext = {
   messages: ModelMessage[];
   tokenUsage: ContextTokenUsage;
+  decision?: TurnDecision;
 };
 
 @Injectable()
@@ -276,6 +281,7 @@ export class ContextBuilderService {
     private readonly memories?: IMemoryRepository,
     @Optional() private readonly memoryAccess?: MemoryAccessService,
     @Optional() private readonly memoryEngine?: MemoryEngineService,
+    @Optional() private readonly turnDecisions?: TurnDecisionService,
   ) {
     this.tokenBudget = config.get<number>(
       'BACKEND_ASSISTANT_CONTEXT_TOKENS',
@@ -296,6 +302,7 @@ export class ContextBuilderService {
     conversationId: string,
     inputMessageId?: string,
     channel?: MessageProvider,
+    abortSignal?: AbortSignal,
   ): Promise<BuiltContext> {
     const record = await this.conversations.findContext(
       user.id,
@@ -431,6 +438,45 @@ export class ContextBuilderService {
       ({ id, role }) => id === inputMessageId && role === 'user',
     );
 
+    const recallEligible = Boolean(
+      hindsight &&
+      this.memoryEngine?.autoRecallEnabled &&
+      currentInput?.content.trim() &&
+      optionalBudget > 0,
+    );
+
+    const decisionPromise =
+      this.turnDecisions && currentInput
+        ? this.turnDecisions.decide(
+            user.id,
+            {
+              latest: currentInput.content,
+              recent: record.messages
+                .filter(({ id }) => id !== inputMessageId)
+                .slice(-8)
+                .map(({ role, content }) => ({
+                  role,
+                  content: truncateToTokens(content, 350),
+                })),
+              summary: truncateToTokens(
+                record.conversation.rollingSummary ?? '',
+                500,
+              ),
+              locale: user.locale,
+              timezone: user.timezone,
+              channel,
+              attachments: (currentInput.attachments ?? []).map(
+                ({ fileAsset }) => ({
+                  name: fileAsset.originalName,
+                  mimeType: fileAsset.mimeType,
+                }),
+              ),
+              recallEligible,
+            },
+            abortSignal,
+          )
+        : Promise.resolve<TurnDecision>({ recall: recallEligible });
+
     const [pinned, attached, saved, recalled, recentConversations] =
       await Promise.all([
         !hindsight && this.memories && optionalBudget > 0
@@ -442,16 +488,17 @@ export class ContextBuilderService {
         this.documents && optionalBudget > 0
           ? this.documents.listMetadata(user.id)
           : Promise.resolve([]),
-        hindsight &&
-        this.memoryEngine?.autoRecallEnabled &&
-        currentInput &&
-        optionalBudget > 0
-          ? this.recall(user.id, currentInput.content)
+        recallEligible && currentInput
+          ? decisionPromise.then((decision) =>
+              decision.recall ? this.recall(user.id, currentInput.content) : [],
+            )
           : Promise.resolve([]),
         optionalBudget > 0
           ? this.recentConversations(user.id, conversationId)
           : Promise.resolve([]),
       ]);
+
+    const decision = await decisionPromise;
 
     const contextualMessages: ModelMessage[] = [];
     let remainingBudget = optionalBudget;
@@ -580,6 +627,7 @@ export class ContextBuilderService {
         ...(currentRequest ? [currentRequest] : []),
       ],
       tokenUsage,
+      decision,
     };
   }
 

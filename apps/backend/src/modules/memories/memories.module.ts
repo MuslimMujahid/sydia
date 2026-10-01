@@ -26,9 +26,18 @@ import { MemoryPolicyService } from './memory-policy.service';
 import { HindsightIngestionService } from './hindsight-ingestion.service';
 import { MemoryArchiveService } from './memory-archive.service';
 import { MemoryRollbackService } from './memory-rollback.service';
+import { DecisionGatewayModule } from '../../infra/decision-gateway';
+import { MemoryEligibilityService } from './memory-eligibility.service';
+import { MemoryFactDecisionService } from './memory-fact-decision.service';
+import { MemoryEligibilityReplayService } from './memory-eligibility-replay.service';
 
 @Module({
-  imports: [EmbeddingsModule, ModelGatewayModule, HindsightModule],
+  imports: [
+    EmbeddingsModule,
+    ModelGatewayModule,
+    HindsightModule,
+    DecisionGatewayModule,
+  ],
   controllers: [MemoriesController],
   providers: [
     { provide: MEMORY_REPOSITORY, useClass: PrismaMemoryRepository },
@@ -46,12 +55,16 @@ import { MemoryRollbackService } from './memory-rollback.service';
     MemoryAccessService,
     HindsightBackfillService,
     MemoryPolicyService,
+    MemoryEligibilityService,
+    MemoryEligibilityReplayService,
+    MemoryFactDecisionService,
     HindsightIngestionService,
     MemoryArchiveService,
     MemoryRollbackService,
   ],
   exports: [
     HindsightIngestionService,
+    MemoryEligibilityReplayService,
     MEMORY_REPOSITORY,
     MemoryService,
     MemoryDreamService,
