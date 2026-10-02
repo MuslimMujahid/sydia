@@ -142,3 +142,38 @@ export function fromDateTimeLocal(value: string): string | null {
 
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
+
+const SHORT_DAY_KEY_FORMAT = new Intl.DateTimeFormat("id-ID", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/** "2 Okt 2026" for a "yyyy-MM-dd" day key; an empty string stays empty. */
+export function formatShortDayKey(dayKey: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) return "";
+
+  return SHORT_DAY_KEY_FORMAT.format(new Date(`${dayKey}T12:00:00Z`));
+}
+
+/**
+ * Wall time a task is saved with when it has a due date but no time. Tasks
+ * due at this minute are treated as "no time" and shown at the end of the day.
+ */
+export const END_OF_DAY_TIME = "23:59";
+
+/** Splits a wall-time "yyyy-MM-ddTHH:mm" value into its date and time parts. */
+export function splitDateTimeLocal(value: string): {
+  date: string;
+  time: string;
+} {
+  const [date = "", time = ""] = value.split("T");
+
+  return { date, time: time.slice(0, 5) };
+}
+
+/** Today's "yyyy-MM-dd" key in the browser's time zone. */
+export function todayDayKey(now: Date = new Date()): string {
+  return toDateTimeLocal(now.toISOString()).slice(0, 10);
+}

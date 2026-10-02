@@ -1,6 +1,7 @@
 import { LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { z } from "zod";
+import { DateTimeField } from "@/components/forms/date-time-field";
 import {
   FieldShell,
   FormError,
@@ -23,7 +24,11 @@ import {
   useDeleteCalendarEvent,
   useUpdateCalendarEvent,
 } from "@/lib/services/api/calendar/calendar.queries";
-import { fromDateTimeLocal, toDateTimeLocal } from "@/lib/utils/date-time";
+import {
+  fromDateTimeLocal,
+  splitDateTimeLocal,
+  toDateTimeLocal,
+} from "@/lib/utils/date-time";
 
 const eventSchema = z
   .object({
@@ -41,6 +46,17 @@ const eventSchema = z
       new Date(value.endAt).getTime() > new Date(value.startAt).getTime(),
     { path: ["endAt"], message: "Waktu selesai harus setelah waktu mulai." }
   );
+
+// Events always have a time; picking a date first fills in a sensible one.
+const EVENT_TIME_FIELDS = [
+  { name: "startAt", id: "event-start", label: "Mulai", defaultTime: "09:00" },
+  { name: "endAt", id: "event-end", label: "Selesai", defaultTime: "10:00" },
+] as const;
+
+/** "yyyy-MM-ddTHH:mm" from its parts; empty while the date is missing. */
+function joinDateTimeLocal(date: string, time: string): string {
+  return date ? `${date}T${time}` : "";
+}
 
 export type EventEditorProps = {
   event?: CalendarEvent;
@@ -153,54 +169,32 @@ export function EventEditor({
             </FieldShell>
           )}
         </form.Field>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <form.Field name="startAt">
-            {(field) => (
-              <FieldShell
-                id="event-start"
-                label="Mulai"
-                errors={field.state.meta.errors}
-              >
-                {({ describedBy, invalid }) => (
-                  <TextField
-                    id="event-start"
-                    type="datetime-local"
-                    value={field.state.value}
-                    aria-describedby={describedBy}
-                    aria-invalid={invalid}
-                    onBlur={field.handleBlur}
-                    onChange={(inputEvent) =>
-                      field.handleChange(inputEvent.target.value)
-                    }
-                  />
-                )}
-              </FieldShell>
-            )}
+        {EVENT_TIME_FIELDS.map(({ name, id, label, defaultTime }) => (
+          <form.Field key={name} name={name}>
+            {(field) => {
+              const { date, time } = splitDateTimeLocal(field.state.value);
+
+              return (
+                <DateTimeField
+                  id={id}
+                  label={label}
+                  date={date}
+                  time={time}
+                  errors={field.state.meta.errors}
+                  onDateChange={(nextDate) =>
+                    field.handleChange(
+                      joinDateTimeLocal(nextDate, time || defaultTime)
+                    )
+                  }
+                  onTimeChange={(nextTime) =>
+                    field.handleChange(joinDateTimeLocal(date, nextTime))
+                  }
+                  onBlur={field.handleBlur}
+                />
+              );
+            }}
           </form.Field>
-          <form.Field name="endAt">
-            {(field) => (
-              <FieldShell
-                id="event-end"
-                label="Selesai"
-                errors={field.state.meta.errors}
-              >
-                {({ describedBy, invalid }) => (
-                  <TextField
-                    id="event-end"
-                    type="datetime-local"
-                    value={field.state.value}
-                    aria-describedby={describedBy}
-                    aria-invalid={invalid}
-                    onBlur={field.handleBlur}
-                    onChange={(inputEvent) =>
-                      field.handleChange(inputEvent.target.value)
-                    }
-                  />
-                )}
-              </FieldShell>
-            )}
-          </form.Field>
-        </div>
+        ))}
         <form.Field name="location">
           {(field) => (
             <FieldShell id="event-location" label="Lokasi">

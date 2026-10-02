@@ -42,6 +42,29 @@ export const TASK_DISPLAY_MINUTES = 30;
 
 const DAY_MS = 86_400_000;
 
+/** Label for a task saved without a time (due at the last minute of its day). */
+export const NO_TIME_LABEL = "Tanpa jam";
+
+/**
+ * Whether a task has a due date but no time. The task editor saves those at
+ * 23:59, so the last minute of the day stands for "no time".
+ */
+export function isTaskWithoutTime(
+  item: ScheduleItem,
+  timeZone: string
+): boolean {
+  return (
+    item.kind === "task" &&
+    minutesOfDayInZone(new Date(item.start), timeZone) === MINUTES_PER_DAY - 1
+  );
+}
+
+function taskTimeLabel(item: ScheduleItem, timeZone: string): string {
+  return isTaskWithoutTime(item, timeZone)
+    ? NO_TIME_LABEL
+    : formatTimeInZone(new Date(item.start).toISOString(), timeZone);
+}
+
 function toTime(value: string): number {
   return new Date(value).getTime();
 }
@@ -178,9 +201,17 @@ export function layoutTimedItems(
 ): PositionedItem[] {
   const positioned = items.map((item) => {
     const startsToday = dayKeyInZone(new Date(item.start), timeZone) === dayKey;
-    const startMinute = startsToday
+    const dueMinute = startsToday
       ? minutesOfDayInZone(new Date(item.start), timeZone)
       : 0;
+
+    // A task block is drawn from its due minute; late tasks (including ones
+    // without a time, due at 23:59) are lifted so the block ends at midnight
+    // and stays readable at the bottom of the day.
+    const startMinute =
+      item.kind === "task"
+        ? Math.min(dueMinute, MINUTES_PER_DAY - TASK_DISPLAY_MINUTES)
+        : dueMinute;
 
     let endMinute: number;
 
@@ -272,8 +303,7 @@ export function taskStatusOf(
 
 /** "09.00–10.30" for events, "09.00" for tasks, in the page time zone. */
 export function itemTimeLabel(item: ScheduleItem, timeZone: string): string {
-  if (item.kind === "task")
-    return formatTimeInZone(item.task.dueAt ?? "", timeZone);
+  if (item.kind === "task") return taskTimeLabel(item, timeZone);
 
   return `${formatTimeInZone(item.event.startAt, timeZone)}–${formatTimeInZone(
     item.event.endAt,
@@ -283,8 +313,7 @@ export function itemTimeLabel(item: ScheduleItem, timeZone: string): string {
 
 /** "09.00 – 10.30" for events, "10.00" for tasks, as printed on cards. */
 export function itemRangeLabel(item: ScheduleItem, timeZone: string): string {
-  if (item.kind === "task")
-    return formatTimeInZone(item.task.dueAt ?? "", timeZone);
+  if (item.kind === "task") return taskTimeLabel(item, timeZone);
 
   return `${formatTimeInZone(item.event.startAt, timeZone)} – ${formatTimeInZone(
     item.event.endAt,
@@ -297,6 +326,8 @@ export function itemStartTimeLabel(
   item: ScheduleItem,
   timeZone: string
 ): string {
+  if (item.kind === "task") return taskTimeLabel(item, timeZone);
+
   return formatTimeInZone(new Date(item.start).toISOString(), timeZone);
 }
 

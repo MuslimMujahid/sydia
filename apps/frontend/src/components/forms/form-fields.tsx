@@ -13,14 +13,9 @@ type FieldShellProps = {
   }) => React.ReactNode;
 };
 
-export function FieldShell({
-  id,
-  label,
-  description,
-  errors = [],
-  children,
-}: FieldShellProps) {
-  const messages = errors.map((error) => {
+/** Readable messages from TanStack Form field errors (strings or zod issues). */
+export function fieldErrorMessages(errors: unknown[]): string[] {
+  return errors.map((error) => {
     if (typeof error === "string") return error;
     if (error instanceof Error) return error.message;
 
@@ -37,7 +32,16 @@ export function FieldShell({
 
     return "Periksa nilai ini.";
   });
+}
 
+export function FieldShell({
+  id,
+  label,
+  description,
+  errors = [],
+  children,
+}: FieldShellProps) {
+  const messages = fieldErrorMessages(errors);
   const invalid = messages.length > 0;
   const descriptionId = description ? `${id}-description` : undefined;
   const errorId = invalid ? `${id}-error` : undefined;

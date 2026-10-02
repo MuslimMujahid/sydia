@@ -17,7 +17,6 @@ import {
 import {
   useRef,
   useState,
-  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
@@ -163,9 +162,7 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
     editor.commands.focus();
   }
 
-  function applyLink(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  function applyLink() {
     const href = linkHref.trim();
     const chain = editor.chain().focus().extendMarkRange("link");
 
@@ -190,10 +187,22 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
     setLinkOpen(false);
   }
 
-  function handleLinkKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+  // The link controls are a group rather than a <form>: the toolbar can sit
+  // inside another form (the task editor), where nested forms are invalid and
+  // Enter would submit the outer form.
+  function handleLinkKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
+      event.preventDefault();
+      applyLink();
+
+      return;
+    }
+
     if (event.key !== "Escape") return;
 
+    // Close only the link controls, not a surrounding dialog.
     event.preventDefault();
+    event.stopPropagation();
     closeLinkForm();
   }
 
@@ -307,9 +316,10 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
         {status ? <div className="shrink-0 pl-1">{status}</div> : null}
       </div>
       {linkOpen ? (
-        <form
+        <div
+          role="group"
+          aria-label="Tautan"
           className="flex flex-col gap-2 border-t border-ink/8 px-3 py-2 sm:flex-row sm:items-center sm:px-4"
-          onSubmit={applyLink}
           onKeyDown={handleLinkKeyDown}
         >
           <Input
@@ -323,7 +333,12 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
             onChange={(event) => setLinkHref(event.target.value)}
           />
           <div className="flex gap-2">
-            <Button type="submit" variant="dark-outline" size="sm">
+            <Button
+              type="button"
+              variant="dark-outline"
+              size="sm"
+              onClick={applyLink}
+            >
               Terapkan
             </Button>
             {toolbarState.link ? (
@@ -347,7 +362,7 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
               </Button>
             )}
           </div>
-        </form>
+        </div>
       ) : null}
     </div>
   );
