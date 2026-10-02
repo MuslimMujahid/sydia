@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
 import { DomainPageHeader } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,6 +56,112 @@ const PERSONA_OPTIONS: {
     imageAlt: "Sosok ceria melontarkan lelucon ringan.",
   },
 ];
+
+/**
+ * Horizontally swipeable row of persona cards, with prev/next buttons from
+ * `sm` once there's room beside the cards for them to not feel cramped.
+ */
+function PersonaSlider({
+  selectedPersona,
+  disabled,
+  onSelect,
+}: {
+  selectedPersona: AssistantPersona;
+  disabled: boolean;
+  onSelect: (persona: AssistantPersona) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const updateScrollState = () => {
+    const track = trackRef.current;
+    if (!track) return;
+    setCanScrollPrev(track.scrollLeft > 4);
+    setCanScrollNext(
+      track.scrollLeft + track.clientWidth < track.scrollWidth - 4
+    );
+  };
+
+  const scrollByCard = (direction: 1 | -1) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const card = track.querySelector<HTMLElement>("[data-persona-card]");
+    const amount = (card?.offsetWidth ?? track.clientWidth) + 16;
+    track.scrollBy({ left: amount * direction, behavior: "smooth" });
+  };
+
+  return (
+    <div className="relative mt-6">
+      <RadioGroup
+        aria-label="Persona asisten"
+        aria-describedby="persona-description"
+        ref={trackRef}
+        onScroll={updateScrollState}
+        className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-6 px-6 [scrollbar-width:none] sm:-mx-8 sm:scroll-px-8 sm:px-8 [&::-webkit-scrollbar]:hidden"
+        value={selectedPersona}
+        disabled={disabled}
+        onValueChange={(value) => onSelect(value as AssistantPersona)}
+      >
+        {PERSONA_OPTIONS.map((option) => {
+          const selected = selectedPersona === option.value;
+
+          return (
+            <label
+              key={option.value}
+              data-persona-card
+              className={cn(
+                "group relative flex w-64 shrink-0 snap-start flex-col overflow-hidden rounded-md border border-ink/8 bg-canvas transition-[border-color,background-color,box-shadow,transform] duration-160 hover:-translate-y-0.5 hover:border-ink/16 hover:shadow-sm has-[[data-focused]]:outline-2 has-[[data-focused]]:outline-offset-2 has-[[data-focused]]:outline-brand/50 sm:w-72",
+                selected && "border-brand bg-brand/4 shadow-sm"
+              )}
+            >
+              <span className="relative block aspect-[4/3] overflow-hidden bg-canvas-subtle">
+                <img
+                  src={option.image}
+                  alt={option.imageAlt}
+                  className="size-full object-cover transition-transform duration-160 motion-safe:group-hover:scale-[1.02]"
+                />
+                <span className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
+                  <Radio value={option.value} />
+                </span>
+              </span>
+              <span className="flex flex-1 flex-col p-4">
+                <span className="block font-display text-[16px] leading-6 font-semibold text-ink">
+                  {option.label}
+                </span>
+                <span className="mt-1 block text-sm leading-5 text-ink-muted">
+                  {option.description}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </RadioGroup>
+      <div className="mt-4 hidden items-center justify-end gap-2 sm:flex">
+        <Button
+          type="button"
+          variant="dark-outline"
+          size="icon-sm"
+          aria-label="Persona sebelumnya"
+          disabled={!canScrollPrev}
+          onClick={() => scrollByCard(-1)}
+        >
+          <ChevronLeft />
+        </Button>
+        <Button
+          type="button"
+          variant="dark-outline"
+          size="icon-sm"
+          aria-label="Persona berikutnya"
+          disabled={!canScrollNext}
+          onClick={() => scrollByCard(1)}
+        >
+          <ChevronRight />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function AssistantSettingsPage() {
   const preferencesQuery = useQuery(userPreferencesQueryOptions());
@@ -126,15 +232,11 @@ export function AssistantSettingsPage() {
           </div>
         ) : (
           <form className="mt-6 max-w-sm" onSubmit={handleAddressSubmit}>
-            <label
-              htmlFor="preferred-address"
-              className="block font-sans text-sm font-semibold text-ink"
-            >
+            <label htmlFor="preferred-address" className="sr-only">
               Panggilan
             </label>
             <Input
               id="preferred-address"
-              className="mt-2"
               aria-describedby="preferred-address-description preferred-address-count"
               value={addressValue}
               maxLength={50}
@@ -173,60 +275,22 @@ export function AssistantSettingsPage() {
         </div>
         {preferencesQuery.isPending ? (
           <div
-            className="mt-6 grid gap-4 sm:grid-cols-2"
+            className="mt-6 flex gap-4 overflow-hidden"
             aria-label="Memuat preferensi persona"
           >
-            {[0, 1, 2, 3].map((item) => (
+            {[0, 1, 2].map((item) => (
               <span
                 key={item}
-                className="block aspect-[4/3] animate-pulse rounded-md bg-hairline motion-reduce:animate-none"
+                className="block aspect-[4/3] w-64 shrink-0 animate-pulse rounded-md bg-hairline motion-reduce:animate-none sm:w-72"
               />
             ))}
           </div>
         ) : (
-          <RadioGroup
-            aria-label="Persona asisten"
-            aria-describedby="persona-description"
-            className="mt-6 grid gap-4 sm:grid-cols-2"
-            value={selectedPersona}
+          <PersonaSlider
+            selectedPersona={selectedPersona}
             disabled={controlsDisabled}
-            onValueChange={(value) =>
-              updateMutation.mutate({ persona: value as AssistantPersona })
-            }
-          >
-            {PERSONA_OPTIONS.map((option) => {
-              const selected = selectedPersona === option.value;
-
-              return (
-                <label
-                  key={option.value}
-                  className={cn(
-                    "group relative flex cursor-pointer flex-col overflow-hidden rounded-md border border-ink/8 bg-canvas transition-[border-color,background-color,box-shadow,transform] duration-160 hover:-translate-y-0.5 hover:border-ink/16 hover:shadow-sm has-[[data-focused]]:outline-2 has-[[data-focused]]:outline-offset-2 has-[[data-focused]]:outline-brand/50",
-                    selected && "border-brand bg-brand/4 shadow-sm"
-                  )}
-                >
-                  <span className="relative block aspect-[4/3] overflow-hidden bg-canvas-subtle">
-                    <img
-                      src={option.image}
-                      alt={option.imageAlt}
-                      className="size-full object-cover transition-transform duration-160 motion-safe:group-hover:scale-[1.02]"
-                    />
-                    <span className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
-                      <Radio value={option.value} />
-                    </span>
-                  </span>
-                  <span className="flex flex-1 flex-col p-4">
-                    <span className="block font-display text-[16px] leading-6 font-semibold text-ink">
-                      {option.label}
-                    </span>
-                    <span className="mt-1 block text-sm leading-5 text-ink-muted">
-                      {option.description}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </RadioGroup>
+            onSelect={(persona) => updateMutation.mutate({ persona })}
+          />
         )}
       </Card>
       {updateMutation.error ? (

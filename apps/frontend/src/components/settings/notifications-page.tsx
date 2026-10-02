@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { DomainPageHeader } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +20,7 @@ function PreferenceSwitch({
   description,
   checked,
   disabled,
+  footer,
   onChange,
 }: {
   id: string;
@@ -26,28 +28,34 @@ function PreferenceSwitch({
   description: string;
   checked: boolean;
   disabled: boolean;
+  /** Extra helper content rendered below the description, inside the same row. */
+  footer?: ReactNode;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-6 py-4 first:pt-0 last:pb-0">
-      <div className="max-w-xl">
-        <label
-          htmlFor={id}
-          className="block font-sans text-[15px] font-semibold text-ink"
-        >
-          {label}
-        </label>
-        <p id={`${id}-description`} className="mt-1 text-sm text-ink-muted">
-          {description}
-        </p>
+    <div className="py-5 first:pt-0 last:pb-0">
+      <div className="flex items-start justify-between gap-6">
+        <div className="max-w-xl">
+          <label
+            htmlFor={id}
+            className="block font-sans text-[15px] font-semibold text-ink"
+          >
+            {label}
+          </label>
+          <p id={`${id}-description`} className="mt-1.5 text-sm text-ink-muted">
+            {description}
+          </p>
+        </div>
+        <Switch
+          id={id}
+          aria-describedby={`${id}-description`}
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={onChange}
+          className="mt-0.5"
+        />
       </div>
-      <Switch
-        id={id}
-        aria-describedby={`${id}-description`}
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onChange}
-      />
+      {footer ? <div className="mt-3 max-w-xl">{footer}</div> : null}
     </div>
   );
 }
@@ -105,7 +113,7 @@ export function NotificationSettingsPage() {
             <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
               Kanal notifikasi
             </h2>
-            <div className="mt-2 divide-y divide-surface-1">
+            <div className="mt-4 divide-y divide-surface-1">
               <PreferenceSwitch
                 id="channel-web"
                 label="Notifikasi web"
@@ -116,53 +124,23 @@ export function NotificationSettingsPage() {
                   updateMutation.mutate({ webNotificationsEnabled: checked })
                 }
               />
-              <div>
-                <PreferenceSwitch
-                  id="channel-telegram"
-                  label="Notifikasi Telegram"
-                  description="Pengingat dan briefing dikirim ke akun Telegram tertaut."
-                  checked={
-                    preferences.telegramNotificationsEnabled && telegramLinked
-                  }
-                  disabled={controlsDisabled || !telegramLinked}
-                  onChange={(checked) =>
-                    updateMutation.mutate({
-                      telegramNotificationsEnabled: checked,
-                    })
-                  }
-                />
-                {!telegramLinked ? (
-                  <p className="pb-4 text-sm text-ink-muted">
-                    Tautkan akun Anda di{" "}
-                    <Link
-                      to="/settings/integrations"
-                      className="font-semibold text-link underline underline-offset-2"
-                    >
-                      pengaturan integrasi
-                    </Link>{" "}
-                    untuk mengaktifkan kanal ini.
-                  </p>
-                ) : null}
-              </div>
-              {WHATSAPP_INTEGRATION_ENABLED ? (
-                <div>
-                  <PreferenceSwitch
-                    id="channel-whatsapp"
-                    label="Notifikasi WhatsApp"
-                    description="Pengingat dan briefing dikirim ke nomor WhatsApp tertaut."
-                    checked={
-                      preferences.whatsappNotificationsEnabled && whatsappLinked
-                    }
-                    disabled={controlsDisabled || !whatsappLinked}
-                    onChange={(checked) =>
-                      updateMutation.mutate({
-                        whatsappNotificationsEnabled: checked,
-                      })
-                    }
-                  />
-                  {!whatsappLinked ? (
-                    <p className="pb-4 text-sm text-ink-muted">
-                      Tautkan nomor Anda di{" "}
+              <PreferenceSwitch
+                id="channel-telegram"
+                label="Notifikasi Telegram"
+                description="Pengingat dan briefing dikirim ke akun Telegram tertaut."
+                checked={
+                  preferences.telegramNotificationsEnabled && telegramLinked
+                }
+                disabled={controlsDisabled || !telegramLinked}
+                onChange={(checked) =>
+                  updateMutation.mutate({
+                    telegramNotificationsEnabled: checked,
+                  })
+                }
+                footer={
+                  !telegramLinked ? (
+                    <p className="text-sm text-ink-muted">
+                      Tautkan akun Anda di{" "}
                       <Link
                         to="/settings/integrations"
                         className="font-semibold text-link underline underline-offset-2"
@@ -171,8 +149,38 @@ export function NotificationSettingsPage() {
                       </Link>{" "}
                       untuk mengaktifkan kanal ini.
                     </p>
-                  ) : null}
-                </div>
+                  ) : undefined
+                }
+              />
+              {WHATSAPP_INTEGRATION_ENABLED ? (
+                <PreferenceSwitch
+                  id="channel-whatsapp"
+                  label="Notifikasi WhatsApp"
+                  description="Pengingat dan briefing dikirim ke nomor WhatsApp tertaut."
+                  checked={
+                    preferences.whatsappNotificationsEnabled && whatsappLinked
+                  }
+                  disabled={controlsDisabled || !whatsappLinked}
+                  onChange={(checked) =>
+                    updateMutation.mutate({
+                      whatsappNotificationsEnabled: checked,
+                    })
+                  }
+                  footer={
+                    !whatsappLinked ? (
+                      <p className="text-sm text-ink-muted">
+                        Tautkan nomor Anda di{" "}
+                        <Link
+                          to="/settings/integrations"
+                          className="font-semibold text-link underline underline-offset-2"
+                        >
+                          pengaturan integrasi
+                        </Link>{" "}
+                        untuk mengaktifkan kanal ini.
+                      </p>
+                    ) : undefined
+                  }
+                />
               ) : null}
             </div>
           </Card>
@@ -180,7 +188,7 @@ export function NotificationSettingsPage() {
             <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
               Briefing harian
             </h2>
-            <div className="mt-2 divide-y divide-surface-1">
+            <div className="mt-4 divide-y divide-surface-1">
               <PreferenceSwitch
                 id="briefing-enabled"
                 label="Aktifkan briefing harian"
@@ -191,7 +199,7 @@ export function NotificationSettingsPage() {
                   updateMutation.mutate({ briefingEnabled: checked })
                 }
               />
-              <div className="py-4">
+              <div className="py-5 last:pb-0">
                 <label
                   htmlFor="briefing-time"
                   className="block font-sans text-[15px] font-semibold text-ink"
@@ -200,7 +208,7 @@ export function NotificationSettingsPage() {
                 </label>
                 <p
                   id="briefing-time-description"
-                  className="mt-1 text-sm text-ink-muted"
+                  className="mt-1.5 max-w-xl text-sm text-ink-muted"
                 >
                   Dikirim pada zona waktu profil Anda. Tidak ada pengiriman
                   antara pukul 22.00–08.00.
