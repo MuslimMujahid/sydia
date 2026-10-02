@@ -14,10 +14,12 @@ import { getGoogleCalendarAuthorizationUrl } from "@/lib/services/api/calendar/c
 import {
   calendarEventsQueryOptions,
   calendarStatusQueryOptions,
+  useDeleteCalendarEvent,
   useDisconnectCalendar,
 } from "@/lib/services/api/calendar/calendar.queries";
 import {
   tasksQueryOptions,
+  useDeleteTask,
   useSetTaskStatus,
 } from "@/lib/services/api/tasks/tasks.queries";
 import {
@@ -140,6 +142,8 @@ export function CalendarPage({
   const tasksQuery = useQuery(tasksQueryOptions());
   const disconnectMutation = useDisconnectCalendar();
   const statusMutation = useSetTaskStatus();
+  const deleteEventMutation = useDeleteCalendarEvent();
+  const deleteTaskMutation = useDeleteTask();
 
   const pendingStatus = statusMutation.isPending
     ? statusMutation.variables
@@ -164,7 +168,34 @@ export function CalendarPage({
   }
 
   function isPending(item: ScheduleItem): boolean {
-    return item.kind === "task" && pendingStatus?.taskId === item.task.id;
+    if (item.kind !== "task") return false;
+
+    return (
+      pendingStatus?.taskId === item.task.id ||
+      (deleteTaskMutation.isPending &&
+        deleteTaskMutation.variables === item.task.id)
+    );
+  }
+
+  /** Confirms, then cancels an event or deletes a task (as the editors do). */
+  function deleteItem(item: ScheduleItem) {
+    deleteEventMutation.reset();
+    deleteTaskMutation.reset();
+
+    if (item.kind === "event") {
+      if (!window.confirm(`Batalkan acara “${item.title}”?`)) return;
+      deleteEventMutation.mutate(item.event.id);
+
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Hapus tugas “${item.title}”? Tindakan ini tidak dapat dibatalkan.`
+      )
+    )
+      return;
+    deleteTaskMutation.mutate(item.task.id);
   }
 
   function toggleDone(item: ScheduleItem, done: boolean) {
@@ -248,7 +279,9 @@ export function CalendarPage({
   const actionError =
     disconnectMutation.error?.message ??
     connectError ??
-    statusMutation.error?.message;
+    statusMutation.error?.message ??
+    deleteEventMutation.error?.message ??
+    deleteTaskMutation.error?.message;
 
   let body: ReactNode = null;
 
@@ -267,6 +300,7 @@ export function CalendarPage({
             isDone={isDone}
             onOpenDay={openDay}
             onEditItem={editItem}
+            onDeleteItem={deleteItem}
             onCreateAt={openCreate}
           />
         );
@@ -284,6 +318,7 @@ export function CalendarPage({
             }
             onOpenDay={openDay}
             onEditItem={editItem}
+            onDeleteItem={deleteItem}
             onCreateForDay={(dayKey) => openCreate(dayKey)}
           />
         );
@@ -312,6 +347,7 @@ export function CalendarPage({
             isPending={isPending}
             onOpenDay={openDay}
             onEditItem={editItem}
+            onDeleteItem={deleteItem}
             onToggleDone={toggleDone}
           />
         );
@@ -422,6 +458,7 @@ export function CalendarPage({
                   done={isDone(item)}
                   pending={isPending(item)}
                   onEdit={() => editItem(item)}
+                  onDelete={() => deleteItem(item)}
                   onToggleDone={(done) => toggleDone(item, done)}
                 />
               ))}

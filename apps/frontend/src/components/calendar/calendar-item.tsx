@@ -6,6 +6,7 @@ import {
   MapPin,
   Pencil,
   SquareCheck,
+  Trash2,
   UsersRound,
   X,
   type LucideIcon,
@@ -213,12 +214,14 @@ type ItemPreviewProps = {
   className: string;
   /** Opens the item's edit dialog. */
   onEdit: () => void;
+  /** Asks to remove the item (the owner confirms and deletes it). */
+  onDelete: () => void;
   children: ReactNode;
 };
 
 /**
  * A card (or list row) that opens a read-only popover anchored to itself.
- * Editing happens only from the popover's edit button.
+ * Editing and removal happen only from the popover's action buttons.
  */
 export function ItemPreview({
   item,
@@ -226,6 +229,7 @@ export function ItemPreview({
   done,
   className,
   onEdit,
+  onDelete,
   children,
 }: ItemPreviewProps) {
   const style = KIND_STYLES[item.kind];
@@ -233,6 +237,8 @@ export function ItemPreview({
   // would fight the dialog's own focus handling.
   const editingRef = useRef(false);
   const editLabel = item.kind === "event" ? "Edit acara" : "Edit tugas";
+  // Same wording as the editors: events are cancelled, tasks are deleted.
+  const deleteLabel = item.kind === "event" ? "Batalkan acara" : "Hapus tugas";
 
   return (
     // Modal so a click outside only dismisses the popover and cannot also
@@ -286,6 +292,20 @@ export function ItemPreview({
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="size-9 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                aria-label={deleteLabel}
+                title={deleteLabel}
+              />
+            }
+            onClick={onDelete}
+          >
+            <Trash2 />
+          </PopoverClose>
+          <PopoverClose
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 className="-mr-2 size-9"
                 aria-label="Tutup"
                 title="Tutup"
@@ -311,6 +331,7 @@ type ItemChipProps = {
   timeZone: string;
   done?: boolean;
   onEdit: () => void;
+  onDelete: () => void;
 };
 
 /** A one-line card in a month cell or the all-day strip. */
@@ -319,6 +340,7 @@ export function ItemChip({
   timeZone,
   done = false,
   onEdit,
+  onDelete,
 }: ItemChipProps) {
   const style = KIND_STYLES[item.kind];
 
@@ -328,6 +350,7 @@ export function ItemChip({
       timeZone={timeZone}
       done={done}
       onEdit={onEdit}
+      onDelete={onDelete}
       className={cn(
         "flex w-full min-w-0 items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-left text-xs font-medium outline-none focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:ring-2 data-[popup-open]:ring-ink/30",
         style.cardClass,
@@ -352,6 +375,7 @@ type ItemBlockProps = {
    */
   compact: boolean;
   onEdit: () => void;
+  onDelete: () => void;
 };
 
 /** A positioned card in the day and week time grid. */
@@ -361,6 +385,7 @@ export function ItemBlock({
   done = false,
   compact,
   onEdit,
+  onDelete,
 }: ItemBlockProps) {
   const style = KIND_STYLES[item.kind];
 
@@ -370,6 +395,7 @@ export function ItemBlock({
       timeZone={timeZone}
       done={done}
       onEdit={onEdit}
+      onDelete={onDelete}
       className={cn(
         // The canvas-colored ring keeps cascading, overlapping cards apart.
         "flex size-full min-w-0 overflow-hidden rounded-sm px-1.5 text-left text-xs leading-4 ring-1 ring-canvas outline-none focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:shadow-card",

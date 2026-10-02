@@ -41,6 +41,7 @@ export type TimeGridViewProps = {
   isDone: (item: ScheduleItem) => boolean;
   onOpenDay: (dayKey: DayKey) => void;
   onEditItem: (item: ScheduleItem) => void;
+  onDeleteItem: (item: ScheduleItem) => void;
   onCreateAt: (dayKey: DayKey, minute: number) => void;
 };
 
@@ -51,6 +52,7 @@ type DayColumnProps = {
   nowMinute: number | null;
   isDone: (item: ScheduleItem) => boolean;
   onEditItem: (item: ScheduleItem) => void;
+  onDeleteItem: (item: ScheduleItem) => void;
   onCreateAt: (dayKey: DayKey, minute: number) => void;
 };
 
@@ -61,6 +63,7 @@ function DayColumn({
   nowMinute,
   isDone,
   onEditItem,
+  onDeleteItem,
   onCreateAt,
 }: DayColumnProps) {
   const positioned = useMemo(
@@ -121,6 +124,7 @@ function DayColumn({
                 done={isDone(entry.item)}
                 compact={entry.endMinute - entry.startMinute < TWO_LINE_MINUTES}
                 onEdit={() => onEditItem(entry.item)}
+                onDelete={() => onDeleteItem(entry.item)}
               />
             </li>
           );
@@ -149,6 +153,7 @@ export function TimeGridView({
   isDone,
   onOpenDay,
   onEditItem,
+  onDeleteItem,
   onCreateAt,
 }: TimeGridViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -253,6 +258,7 @@ export function TimeGridView({
                         item={item}
                         timeZone={timeZone}
                         onEdit={() => onEditItem(item)}
+                        onDelete={() => onDeleteItem(item)}
                       />
                     </li>
                   ))}
@@ -289,6 +295,7 @@ export function TimeGridView({
                   nowMinute={key === todayKey ? nowMinute : null}
                   isDone={isDone}
                   onEditItem={onEditItem}
+                  onDeleteItem={onDeleteItem}
                   onCreateAt={onCreateAt}
                 />
               ))}

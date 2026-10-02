@@ -31,6 +31,7 @@ export type MonthViewProps = {
   onSelectDay: (dayKey: DayKey) => void;
   onOpenDay: (dayKey: DayKey) => void;
   onEditItem: (item: ScheduleItem) => void;
+  onDeleteItem: (item: ScheduleItem) => void;
   onCreateForDay: (dayKey: DayKey) => void;
 };
 
@@ -46,6 +47,7 @@ type DayCellProps = {
   onSelectDay: (dayKey: DayKey) => void;
   onOpenDay: (dayKey: DayKey) => void;
   onEditItem: (item: ScheduleItem) => void;
+  onDeleteItem: (item: ScheduleItem) => void;
   onCreateForDay: (dayKey: DayKey) => void;
 };
 
@@ -71,6 +73,7 @@ function DayCell({
   onSelectDay,
   onOpenDay,
   onEditItem,
+  onDeleteItem,
   onCreateForDay,
 }: DayCellProps) {
   // All-day and multi-day events lead the cell.
@@ -148,6 +151,7 @@ function DayCell({
               timeZone={timeZone}
               done={isDone(item)}
               onEdit={() => onEditItem(item)}
+              onDelete={() => onDeleteItem(item)}
             />
           </li>
         ))}
@@ -185,6 +189,7 @@ export function MonthView({
   onSelectDay,
   onOpenDay,
   onEditItem,
+  onDeleteItem,
   onCreateForDay,
 }: MonthViewProps) {
   const { year, month } = parseDayKey(anchor);
@@ -261,6 +266,7 @@ export function MonthView({
                 onSelectDay={onSelectDay}
                 onOpenDay={onOpenDay}
                 onEditItem={onEditItem}
+                onDeleteItem={onDeleteItem}
                 onCreateForDay={onCreateForDay}
               />
             ))}
