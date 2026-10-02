@@ -6,9 +6,10 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AppNotFound } from "@/components/app-states";
+import { registerServiceWorker } from "@/lib/pwa/register-service-worker";
 import "@/styles/globals.css";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
@@ -18,6 +19,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         { name: "theme-color", content: "#fbf8f5" },
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-title", content: "Sydia" },
         { title: "Sydia · Asisten pribadi yang selalu ingat" },
         {
           name: "description",
@@ -76,6 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 );
 
 function RootComponent() {
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   return (
     <RootDocument>
       {import.meta.env.VITE_DEBUG_ENABLED === "true" ? (

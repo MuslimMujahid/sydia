@@ -1,6 +1,10 @@
 {
   "name": "Sydia",
   "short_name": "Sydia",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "id",
   "description": "Asisten pribadi yang membantu Anda mengingat dan menindaklanjuti hal penting.",
   "icons": [
     {

@@ -45,9 +45,14 @@ const server = Bun.serve({
       if (await asset.exists()) {
         return new Response(asset, {
           headers: {
-            "Cache-Control": url.pathname.startsWith("/assets/")
-              ? "public, max-age=31536000, immutable"
-              : "public, max-age=3600",
+            "Cache-Control":
+              url.pathname === "/sw.js" ||
+              url.pathname === "/site.webmanifest" ||
+              url.pathname === "/offline.html"
+                ? "no-cache"
+                : url.pathname.startsWith("/assets/")
+                  ? "public, max-age=31536000, immutable"
+                  : "public, max-age=3600",
           },
         });
       }

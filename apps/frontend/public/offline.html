@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#fbf8f5" />
+    <title>Tidak ada koneksi · Sydia</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, system-ui, sans-serif;
+        color: #171419;
+        background: #fbf8f5;
+      }
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        max-width: 28rem;
+        padding: 2rem;
+      }
+      h1 {
+        margin: 0 0 1rem;
+        font-size: 2rem;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+      }
+      p {
+        margin: 0 0 2rem;
+        color: #6b6470;
+        line-height: 1.6;
+      }
+      button {
+        min-height: 44px;
+        padding: 0.75rem 1.375rem;
+        border: 0;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: 600;
+        color: #fbf8f5;
+        background: #171419;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #6b6470;
+      }
+      button:focus-visible {
+        outline: 2px solid #171419;
+        outline-offset: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tidak ada koneksi internet</h1>
+      <p>Hubungkan kembali ke internet untuk membuka Sydia.</p>
+      <button type="button" onclick="window.location.reload()">
+        Coba lagi
+      </button>
+    </main>
+  </body>
+</html>
