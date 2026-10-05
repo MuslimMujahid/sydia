@@ -11,6 +11,7 @@ This repository is a Bun/Turborepo monorepo containing a TanStack Start frontend
 
 ## Global rules
 
+- **Codebase exploration:** Use the CodeGraph MCP tool (`codegraph_explore`) first for code questions, architecture or flow tracing, and before changing code. Query the relevant symbols or file names; use its source and call-path results to understand impact. Use file search or direct reads only for details CodeGraph does not cover, such as documentation, configuration, or unindexed files. If CodeGraph reports the project is not indexed, stop querying it for that project and use normal repository tools; do not initialize an index yourself.
 - **TypeScript:** Keep strict typing enabled. Avoid `any`; use `unknown` and narrow it when a value is not known. Prefer `type` for data and utility definitions and `interface` for object contracts such as component props when an interface is useful.
 - **Exports:** Prefer named exports throughout product source. TanStack Start and other framework/config entrypoints may use a default export when the framework requires it (for example, route/config definitions); do not add default exports merely for convenience.
 - **Imports:** Follow each app's configured import style and directory barrels. The frontend may use its configured `@/*` alias; the backend uses relative imports. Do not introduce aliases that are not configured in the target app.
