@@ -320,6 +320,7 @@ export class TelegramService implements OnModuleInit {
   ): Promise<void> {
     const isMedia =
       message.kind !== 'unknown' &&
+      message.kind !== 'voice' &&
       typeof message.mediaMessage?.fileId === 'string';
 
     if (isMedia) {

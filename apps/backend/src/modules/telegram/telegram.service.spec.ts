@@ -195,7 +195,7 @@ describe('TelegramService notification delivery', () => {
 describe('TelegramService processing feedback', () => {
   afterEach(() => jest.useRealTimers());
 
-  it('acknowledges media immediately and keeps typing while processing', async () => {
+  it('acknowledges documents immediately and keeps typing while processing', async () => {
     jest.useFakeTimers();
     const { adapter, gateway, outbound, service } = setup();
     await service.onModuleInit();
@@ -225,6 +225,19 @@ describe('TelegramService processing feedback', () => {
     stop?.();
     await jest.advanceTimersByTimeAsync(8_000);
     expect(gateway.sendTyping).toHaveBeenCalledTimes(3);
+  });
+
+  it('starts typing immediately without acknowledging voice messages', async () => {
+    const { adapter, gateway, outbound, service } = setup();
+    await service.onModuleInit();
+
+    await adapter().queued?.({ ...message, kind: 'voice' });
+
+    expect(outbound.send).not.toHaveBeenCalled();
+    expect(gateway.sendTyping).toHaveBeenCalledWith('123', {
+      businessConnectionId: 'business-1',
+      messageThreadId: 8,
+    });
   });
 
   it('starts typing immediately without acknowledging ordinary text', async () => {
