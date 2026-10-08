@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import {
   NOTIFICATION_REPOSITORY,
   type INotificationRepository,
@@ -105,7 +106,11 @@ export class NotificationService {
         : this.queue.whatsappNotifications;
 
     return queue.add('deliver', input, {
-      jobId: input.idempotencyKey.replaceAll(':', '-'),
+      // Queue IDs are global to a channel; delivery keys are scoped to a user.
+      // Hash the tuple to preserve that scope without BullMQ's forbidden ':'.
+      jobId: createHash('sha256')
+        .update(JSON.stringify([input.userId, input.idempotencyKey]))
+        .digest('hex'),
     });
   }
 

@@ -59,8 +59,13 @@ function setup(storedPreferences: UserPreference | null) {
     createDelivery,
   } as unknown as INotificationRepository;
 
-  const whatsappAdd = jest.fn(() => Promise.resolve());
-  const telegramAdd = jest.fn(() => Promise.resolve());
+  type AddNotificationJob = (
+    name: string,
+    data: unknown,
+    options: { jobId: string },
+  ) => Promise<void>;
+  const whatsappAdd = jest.fn<AddNotificationJob>().mockResolvedValue();
+  const telegramAdd = jest.fn<AddNotificationJob>().mockResolvedValue();
   const queues = {
     whatsappNotifications: { add: whatsappAdd },
     telegramNotifications: { add: telegramAdd },
@@ -86,6 +91,41 @@ const intent = {
 };
 
 describe('NotificationService channel routing', () => {
+  test('queues separate daily briefings for different users on the same channel', async () => {
+    const { service, telegramAdd } = setup(preferences());
+
+    await service.enqueue({
+      ...intent,
+      userId: 'user-1',
+      kind: 'daily_briefing',
+      idempotencyKey: 'briefing:2026-10-08',
+    });
+    await service.enqueue({
+      ...intent,
+      userId: 'user-2',
+      kind: 'daily_briefing',
+      idempotencyKey: 'briefing:2026-10-08',
+    });
+
+    const firstJobId = telegramAdd.mock.calls[0]?.[2]?.jobId;
+    const secondJobId = telegramAdd.mock.calls[1]?.[2]?.jobId;
+    expect(firstJobId).toBeDefined();
+    expect(secondJobId).toBeDefined();
+    expect(firstJobId).not.toBe(secondJobId);
+  });
+
+  test('repeated enqueue for the same user and intent keeps the same delivery job ID', async () => {
+    const { service, telegramAdd } = setup(preferences());
+
+    await service.enqueue(intent);
+    await service.enqueue(intent);
+
+    expect(telegramAdd.mock.calls[0]?.[2]?.jobId).toBeDefined();
+    expect(telegramAdd.mock.calls[0]?.[2]?.jobId).toBe(
+      telegramAdd.mock.calls[1]?.[2]?.jobId,
+    );
+  });
+
   test('creates and queues one delivery per enabled external channel', async () => {
     const { service, createDelivery, whatsappAdd, telegramAdd } =
       setup(preferences());
