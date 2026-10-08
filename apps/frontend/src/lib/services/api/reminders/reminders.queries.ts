@@ -12,7 +12,6 @@ import {
   updateReminder,
   type Reminder,
   type ReminderFilters,
-  type ReminderStatus,
 } from "./reminders.api";
 import { todayQueryKeys } from "../today/today.queries";
 import { conversationQueryKeys } from "../conversations/conversations.queries";
@@ -77,33 +76,14 @@ export function useDeleteReminder() {
 
   return useMutation({
     mutationFn: deleteReminder,
+    onError: (error) => {
+      console.warn("Reminder deletion failed", { name: error.name });
+    },
     onSuccess: (_, reminderId) => {
       queryClient.removeQueries({
         queryKey: reminderQueryKeys.detail(reminderId),
       });
     },
-    meta: {
-      invalidateQueries: [
-        reminderQueryKeys.all,
-        todayQueryKeys.all,
-        conversationQueryKeys.all,
-      ],
-    },
-  });
-}
-
-export function useSetReminderStatus() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      reminderId,
-      status,
-    }: {
-      reminderId: string;
-      status: ReminderStatus;
-    }) => updateReminder({ reminderId, values: { status } }),
-    onSuccess: (reminder) => cacheReminder(queryClient, reminder),
     meta: {
       invalidateQueries: [
         reminderQueryKeys.all,
@@ -149,7 +129,7 @@ export function useRescheduleReminder() {
     }) =>
       updateReminder({
         reminderId,
-        values: { scheduledAt, status: "scheduled" },
+        values: { scheduledAt },
       }),
     onSuccess: (reminder) => cacheReminder(queryClient, reminder),
     meta: {

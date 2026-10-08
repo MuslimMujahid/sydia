@@ -513,7 +513,7 @@ describe('domain assistant tools', () => {
       if (schema.items) visit(schema.items);
     };
 
-    expect(available).toHaveLength(17);
+    expect(available).toHaveLength(18);
 
     for (const assistantTool of available) {
       expect(assistantTool.definition.description).toMatch(

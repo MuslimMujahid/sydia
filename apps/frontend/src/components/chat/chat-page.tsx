@@ -1,7 +1,7 @@
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
   conversationQueryOptions,
@@ -86,6 +86,7 @@ export function ChatPage({
   locale,
 }: ChatPageProps) {
   const navigate = useNavigate();
+  const { timezone } = useRouteContext({ from: "/_app" });
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const conversationQuery = useQuery(
     conversationQueryOptions(conversationId ?? "")
@@ -269,6 +270,7 @@ export function ChatPage({
             streamedText={streamedTextForCurrentConversation}
             onRetry={handleRetry}
             locale={locale}
+            timezone={timezone}
           />
         ) : null}
         {conversationId && conversationQuery.isPending ? (
@@ -295,6 +297,7 @@ export function ChatPage({
             retryErrorMessage={retryMutation.error?.message}
             onRetry={handleRetry}
             locale={locale}
+            timezone={timezone}
           />
         ) : null}
       </div>

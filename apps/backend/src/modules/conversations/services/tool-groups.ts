@@ -1,6 +1,11 @@
 export const TOOL_GROUPS = {
   tasks: ['create_task', 'update_task', 'list_tasks'],
-  reminders: ['create_reminder', 'update_reminder', 'list_reminders'],
+  reminders: [
+    'create_reminder',
+    'update_reminder',
+    'delete_reminder',
+    'list_reminders',
+  ],
   memory: ['save_memory', 'update_memory', 'forget_memory', 'search_memories'],
   documents: [
     'list_documents',

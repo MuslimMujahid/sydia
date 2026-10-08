@@ -1,13 +1,55 @@
 import ReactMarkdown, {
   defaultUrlTransform,
   type Components,
+  type ExtraProps,
 } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { createContext, useContext, useMemo, type ComponentProps } from "react";
+import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
+import { entityKey, type ChatEntity } from "./chat-entities";
+import { rehypeEntityMentions } from "./entity-mentions";
+import { EntityPill } from "./entity-pill";
 
 const REMARK_PLUGINS = [remarkGfm];
 
+interface EntityMentionContextValue {
+  entitiesByKey: Map<string, ChatEntity>;
+  locale: SupportedLocale;
+  timezone: string;
+}
+
+const EntityMentionContext = createContext<EntityMentionContextValue | null>(
+  null
+);
+
+function EntitySpan({
+  children,
+  node,
+  ...props
+}: ComponentProps<"span"> & ExtraProps) {
+  const context = useContext(EntityMentionContext);
+  const key = node?.properties["data-entity-key"];
+  if (typeof key !== "string") return <span {...props}>{children}</span>;
+  const entity = context?.entitiesByKey.get(key);
+  if (!context || !entity)
+    throw new Error(`Entity mention ${key} has no matching entity`);
+
+  const label =
+    node?.children[0]?.type === "text" ? node.children[0].value : entity.title;
+
+  return (
+    <EntityPill
+      entity={entity}
+      label={label}
+      locale={context.locale}
+      timezone={context.timezone}
+    />
+  );
+}
+
 const COMPONENTS = {
+  span: EntitySpan,
   p: ({ children }) => <p className="my-3 whitespace-pre-wrap">{children}</p>,
   strong: ({ children }) => (
     <strong className="font-semibold text-ink">{children}</strong>
@@ -112,17 +154,51 @@ const COMPONENTS = {
   ),
 } satisfies Components;
 
-function AssistantMarkdown({ content }: { content: string }) {
+const NO_ENTITIES: ChatEntity[] = [];
+
+interface AssistantMarkdownProps {
+  content: string;
+  entities?: ChatEntity[];
+  locale: SupportedLocale;
+  timezone: string;
+  appendUnmentioned?: boolean;
+}
+
+function AssistantMarkdown({
+  content,
+  entities = NO_ENTITIES,
+  locale,
+  timezone,
+  appendUnmentioned = true,
+}: AssistantMarkdownProps) {
+  const entitiesByKey = useMemo(
+    () => new Map(entities.map((entity) => [entityKey(entity), entity])),
+    [entities]
+  );
+
+  const plugins = useMemo(
+    () => [rehypeEntityMentions(entities, appendUnmentioned)],
+    [entities, appendUnmentioned]
+  );
+
+  const context = useMemo(
+    () => ({ entitiesByKey, locale, timezone }),
+    [entitiesByKey, locale, timezone]
+  );
+
   return (
     <div className="min-w-0 break-words text-base leading-6 text-ink-soft [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-      <ReactMarkdown
-        remarkPlugins={REMARK_PLUGINS}
-        components={COMPONENTS}
-        urlTransform={defaultUrlTransform}
-        skipHtml
-      >
-        {content}
-      </ReactMarkdown>
+      <EntityMentionContext.Provider value={context}>
+        <ReactMarkdown
+          remarkPlugins={REMARK_PLUGINS}
+          rehypePlugins={plugins}
+          components={COMPONENTS}
+          urlTransform={defaultUrlTransform}
+          skipHtml
+        >
+          {content}
+        </ReactMarkdown>
+      </EntityMentionContext.Provider>
     </div>
   );
 }

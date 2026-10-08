@@ -13,14 +13,11 @@ const reminderSelect = {
   userId: true,
   title: true,
   notes: true,
-  status: true,
   scheduledAt: true,
   timezone: true,
   recurrence: true,
   sourceType: true,
   sourceMessageId: true,
-  completedAt: true,
-  cancelledAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -32,12 +29,9 @@ function present(row: ReminderRow): Reminder {
     id: row.id,
     title: row.title,
     notes: row.notes,
-    status: row.status as Reminder['status'],
     scheduledAt: row.scheduledAt,
     timezone: row.timezone,
     recurrence: row.recurrence as ReminderRecurrence | null,
-    completedAt: row.completedAt,
-    cancelledAt: row.cancelledAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     source: {
@@ -56,7 +50,6 @@ function updateData(input: Partial<ReminderWrite>): Prisma.ReminderUpdateInput {
   return {
     title: input.title,
     notes: input.notes,
-    status: input.status,
     scheduledAt: input.scheduledAt,
     timezone: input.timezone,
     recurrence:
@@ -91,7 +84,6 @@ export class PrismaReminderRepository implements IReminderRepository {
     const rows = await this.prisma.reminder.findMany({
       where: {
         userId,
-        status: filters.status,
         scheduledAt,
         OR: filters.search
           ? [
@@ -150,7 +142,6 @@ export class PrismaReminderRepository implements IReminderRepository {
         userId,
         ...(id ? { id } : {}),
         ...(query ? { title: { contains: query, mode: 'insensitive' } } : {}),
-        status: 'scheduled',
       },
       orderBy: { updatedAt: 'desc' },
       select: reminderSelect,
@@ -167,7 +158,6 @@ export class PrismaReminderRepository implements IReminderRepository {
         scheduledAt: input.scheduledAt,
         timezone: input.timezone,
         notes: input.notes,
-        status: input.status,
         recurrence:
           input.recurrence === null ? Prisma.JsonNull : input.recurrence,
         sourceType: input.sourceType,
@@ -193,21 +183,7 @@ export class PrismaReminderRepository implements IReminderRepository {
       return null;
     const row = await this.prisma.reminder.update({
       where: { id },
-      data: {
-        ...updateData(input),
-        completedAt:
-          input.status === 'completed'
-            ? new Date()
-            : input.status === 'scheduled'
-              ? null
-              : undefined,
-        cancelledAt:
-          input.status === 'cancelled'
-            ? new Date()
-            : input.status === 'scheduled'
-              ? null
-              : undefined,
-      },
+      data: updateData(input),
       select: reminderSelect,
     });
 
@@ -224,14 +200,14 @@ export class PrismaReminderRepository implements IReminderRepository {
   async createOccurrence(
     reminderId: string,
     occurrenceAt: Date,
-  ): Promise<{ id: string; idempotencyKey: string }> {
+  ): Promise<{ id: string; idempotencyKey: string; status: string }> {
     const idempotencyKey = `${reminderId}:${occurrenceAt.toISOString()}`;
 
     return this.prisma.reminderOccurrence.upsert({
       where: { idempotencyKey },
       create: { reminderId, occurrenceAt, idempotencyKey },
       update: {},
-      select: { id: true, idempotencyKey: true },
+      select: { id: true, idempotencyKey: true, status: true },
     });
   }
 

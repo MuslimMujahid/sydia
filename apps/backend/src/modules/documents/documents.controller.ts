@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -59,6 +60,7 @@ export class DocumentsController {
     @Session() session: UserSession,
     @Param('id') id: string,
     @Res() response: Response,
+    @Query('download') download?: string,
   ) {
     const document = this.required(
       await this.documents.findById(session.user.id, id),
@@ -73,7 +75,7 @@ export class DocumentsController {
       .type(document.file.mimeType)
       .setHeader(
         'Content-Disposition',
-        `inline; filename*=UTF-8''${encodeURIComponent(document.title)}`,
+        `${download === '1' ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(document.title)}`,
       )
       .send(file);
   }

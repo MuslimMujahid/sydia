@@ -31,7 +31,7 @@ export type ConversationAttachment = {
   mimeType: string;
   size: number;
   kind: string;
-  document: { title: string } | null;
+  document: { id?: string; title: string } | null;
 };
 
 export type ConversationMessage = {
@@ -227,7 +227,9 @@ const attachmentSchema = z.object({
     mimeType: z.string(),
     size: z.number(),
     kind: z.string(),
-    document: z.object({ title: z.string() }).nullable(),
+    document: z
+      .object({ id: z.string().optional(), title: z.string() })
+      .nullable(),
   }),
 });
 

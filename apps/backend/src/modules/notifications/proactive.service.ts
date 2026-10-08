@@ -76,7 +76,6 @@ export class DailyBriefingService {
           timezone: user.timezone,
         }),
         this.reminders.list(userId, {
-          status: 'scheduled',
           schedule: 'today',
           now,
           timezone: user.timezone,
@@ -103,10 +102,12 @@ export class DailyBriefingService {
         priority: task.priority,
         dueAt: task.dueAt?.toISOString() ?? null,
       })),
-      remindersToday: todayReminders.map((reminder) => ({
-        title: reminder.title,
-        scheduledAt: reminder.scheduledAt.toISOString(),
-      })),
+      remindersToday: todayReminders
+        .filter((reminder) => reminder.scheduledAt >= now)
+        .map((reminder) => ({
+          title: reminder.title,
+          scheduledAt: reminder.scheduledAt.toISOString(),
+        })),
     };
 
     const content = await this.compose(user, snapshot);

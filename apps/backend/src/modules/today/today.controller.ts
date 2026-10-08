@@ -35,7 +35,6 @@ export class TodayController {
         timezone,
       }),
       this.reminders.list(s.user.id, {
-        status: 'scheduled',
         schedule: 'today',
         now,
         timezone,

@@ -53,7 +53,7 @@ const messageSelect = {
           mimeType: true,
           size: true,
           kind: true,
-          document: { select: { title: true } },
+          document: { select: { id: true, title: true } },
         },
       },
     },

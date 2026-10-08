@@ -1,11 +1,5 @@
 import type { Reminder as PrismaReminder } from '../../generated/prisma/client';
 
-export const REMINDER_STATUSES = [
-  'scheduled',
-  'completed',
-  'cancelled',
-] as const;
-export type ReminderStatus = (typeof REMINDER_STATUSES)[number];
 export const RECURRENCE_FREQUENCIES = [
   'daily',
   'weekly',
@@ -28,12 +22,9 @@ export type Reminder = Pick<
   | 'notes'
   | 'scheduledAt'
   | 'timezone'
-  | 'completedAt'
-  | 'cancelledAt'
   | 'createdAt'
   | 'updatedAt'
 > & {
-  status: ReminderStatus;
   recurrence: ReminderRecurrence | null;
   source: {
     type: 'dashboard' | 'chat' | 'whatsapp';
@@ -45,7 +36,6 @@ export type Reminder = Pick<
 export type ReminderWrite = {
   title: string;
   notes?: string | null;
-  status?: ReminderStatus;
   scheduledAt: Date;
   timezone: string;
   recurrence?: ReminderRecurrence | null;

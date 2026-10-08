@@ -42,7 +42,7 @@ export type MessageAttachment = Pick<
   PrismaFileAsset,
   'id' | 'originalName' | 'mimeType' | 'size' | 'kind'
 > & {
-  document: Pick<PrismaDocument, 'title'> | null;
+  document: Pick<PrismaDocument, 'id' | 'title'> | null;
 };
 
 export type Message = Pick<

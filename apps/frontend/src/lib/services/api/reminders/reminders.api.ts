@@ -4,7 +4,6 @@ import { z } from "zod";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
-export type ReminderStatus = "scheduled" | "completed" | "cancelled";
 export type ReminderScheduleFilter = "today" | "upcoming" | "past";
 export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -26,18 +25,14 @@ export type Reminder = {
   id: string;
   title: string;
   notes: string | null;
-  status: ReminderStatus;
   scheduledAt: string;
   recurrence: ReminderRecurrence | null;
   source: ReminderSource | null;
-  completedAt: string | null;
-  cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
 export type ReminderFilters = {
-  status?: ReminderStatus | "all";
   schedule?: ReminderScheduleFilter | "all";
   search?: string;
 };
@@ -50,19 +45,16 @@ export type CreateReminderInput = {
 };
 
 export type UpdateReminderInput = Partial<CreateReminderInput> & {
-  status?: ReminderStatus;
   snoozeUntil?: string;
 };
 
 const reminderFiltersSchema = z.object({
-  status: z.enum(["scheduled", "completed", "cancelled", "all"]).optional(),
   schedule: z.enum(["today", "upcoming", "past", "all"]).optional(),
   search: z.string().optional(),
 });
 
 function reminderParams(filters: ReminderFilters) {
   return {
-    status: filters.status === "all" ? undefined : filters.status,
     schedule: filters.schedule === "all" ? undefined : filters.schedule,
     search: filters.search?.trim() || undefined,
   };

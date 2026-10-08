@@ -1,5 +1,5 @@
 import { AlertTriangle, FileText, LoaderCircle, RotateCcw } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   AssistantActivity,
@@ -10,7 +10,8 @@ import type {
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { formatFileSize } from "@/lib/utils/format";
 import { AssistantMarkdown } from "./assistant-markdown";
-import { ChatActionCards } from "./action-cards";
+import { collectChatEntities, type ChatEntity } from "./chat-entities";
+import { EntityPill } from "./entity-pill";
 
 type ProductionToolName =
   | "get_current_datetime"
@@ -313,10 +314,14 @@ function PendingAssistant({
   activity,
   streamedText,
   locale,
+  timezone,
+  entities,
 }: {
   activity?: AssistantActivity;
   streamedText?: string;
   locale: SupportedLocale;
+  timezone: string;
+  entities?: ChatEntity[];
 }) {
   return (
     <article
@@ -324,7 +329,13 @@ function PendingAssistant({
       aria-label={locale === "en" ? "Sydia answer" : "Jawaban Sydia"}
     >
       {streamedText ? (
-        <AssistantMarkdown content={streamedText} />
+        <AssistantMarkdown
+          content={streamedText}
+          entities={entities}
+          locale={locale}
+          timezone={timezone}
+          appendUnmentioned={false}
+        />
       ) : (
         <div
           className="flex items-center gap-2 text-sm text-ink-muted"
@@ -357,6 +368,7 @@ export function MessageHistory({
   retryErrorMessage,
   onRetry,
   locale,
+  timezone,
 }: {
   messages: ConversationMessage[];
   assistantRuns: AssistantRun[];
@@ -370,6 +382,7 @@ export function MessageHistory({
   retryErrorMessage?: string;
   onRetry: (runId: string) => void;
   locale: SupportedLocale;
+  timezone: string;
 }) {
   const runsByMessageId = useMemo(() => {
     const byMessageId: Record<string, AssistantRun> = {};
@@ -392,6 +405,24 @@ export function MessageHistory({
 
     return byRunId;
   }, [toolInvocations]);
+
+  const entitiesByRunId = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(toolsByRunId).map(([id, invocations]) => [
+          id,
+          collectChatEntities(invocations),
+        ])
+      ),
+    [toolsByRunId]
+  );
+
+  useEffect(() => {
+    for (const collection of Object.values(entitiesByRunId)) {
+      for (const diagnostic of collection.diagnostics)
+        console.warn("Chat entity reference could not be rendered", diagnostic);
+    }
+  }, [entitiesByRunId]);
 
   const timeline = useMemo<TimelineEntry[]>(() => {
     const entries: TimelineEntry[] = messages.map((message) => ({
@@ -452,6 +483,8 @@ export function MessageHistory({
                   activity={activity}
                   streamedText={streamedText}
                   locale={locale}
+                  timezone={timezone}
+                  entities={entitiesByRunId[entry.run.id]?.entities}
                 />
               </li>
             );
@@ -463,6 +496,7 @@ export function MessageHistory({
         const { message } = entry;
         const run = runsByMessageId[message.id];
         const isUser = message.role === "user";
+        const collection = run ? entitiesByRunId[run.id] : undefined;
         const provenance = run
           ? documentSources(toolsByRunId[run.id] ?? [], locale)
           : [];
@@ -509,13 +543,31 @@ export function MessageHistory({
                             key={fileAsset.id}
                             className="flex min-w-0 items-center gap-2"
                           >
-                            <FileText className="size-4 shrink-0 text-ink-muted" />
-                            <span
-                              className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
-                              title={attachmentName}
-                            >
-                              {attachmentName}
-                            </span>
+                            {fileAsset.document?.id ? (
+                              <EntityPill
+                                entity={{
+                                  kind: "file",
+                                  id: fileAsset.document.id,
+                                  title: attachmentName,
+                                  mimeType: fileAsset.mimeType,
+                                  size: fileAsset.size,
+                                  mutation: false,
+                                  observedAt: message.createdAt,
+                                }}
+                                locale={locale}
+                                timezone={timezone}
+                              />
+                            ) : (
+                              <>
+                                <FileText className="size-4 shrink-0 text-ink-muted" />
+                                <span
+                                  className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
+                                  title={attachmentName}
+                                >
+                                  {attachmentName}
+                                </span>
+                              </>
+                            )}
                             <span className="shrink-0 font-mono text-xs text-ink-muted">
                               {formatFileSize(fileAsset.size)}
                             </span>
@@ -526,7 +578,12 @@ export function MessageHistory({
                   ) : null}
                 </>
               ) : (
-                <AssistantMarkdown content={message.content} />
+                <AssistantMarkdown
+                  content={message.content}
+                  entities={collection?.entities}
+                  locale={locale}
+                  timezone={timezone}
+                />
               )}
               {!isUser && provenance.length ? (
                 <aside
@@ -544,30 +601,40 @@ export function MessageHistory({
                         key={source.documentId}
                         className="flex items-start gap-2"
                       >
-                        <FileText className="mt-0.5 size-4 shrink-0 text-brand-deep" />
-                        <span>
-                          <span className="font-medium text-ink-soft">
-                            {source.documentName}
+                        <div className="min-w-0">
+                          <div>
+                            <EntityPill
+                              entity={{
+                                kind: "file",
+                                id: source.documentId,
+                                title: source.documentName,
+                                mutation: false,
+                                observedAt: message.createdAt,
+                              }}
+                              locale={locale}
+                              timezone={timezone}
+                            />
                             {source.locations.length
                               ? ` · ${source.locations.join(", ")}`
                               : ""}
-                          </span>
+                          </div>
                           {source.excerpts[0] ? (
                             <span className="mt-0.5 block line-clamp-2">
                               {source.excerpts[0]}
                             </span>
                           ) : null}
-                        </span>
+                        </div>
                       </li>
                     ))}
                   </ul>
                 </aside>
               ) : null}
-              {!isUser && run ? (
-                <ChatActionCards
-                  invocations={toolsByRunId[run.id] ?? []}
-                  locale={locale}
-                />
+              {!isUser && collection?.diagnostics.length ? (
+                <p className="mt-3 text-sm text-destructive" role="status">
+                  {locale === "en"
+                    ? "Some item references could not be displayed. Open the relevant page to check them."
+                    : "Sebagian referensi item tidak dapat ditampilkan. Buka halaman terkait untuk memeriksanya."}
+                </p>
               ) : null}
             </article>
           </li>
@@ -604,6 +671,7 @@ export function MessageHistory({
             activity={streamedActivity}
             streamedText={streamedText}
             locale={locale}
+            timezone={timezone}
           />
         </li>
       ) : null}

@@ -23,11 +23,13 @@ export class ReminderSchedulerService {
 
   async schedule(reminder: Reminder): Promise<void> {
     await this.cancel(reminder.id);
-    if (reminder.status !== 'scheduled') return;
     const occurrence = await this.reminders.createOccurrence(
       reminder.id,
       reminder.scheduledAt,
     );
+
+    // Editing metadata must not replay an occurrence already delivered.
+    if (occurrence.status === 'delivered') return;
 
     const jobId = occurrence.idempotencyKey.replaceAll(':', '-');
     const existingJob = await this.queue.reminders.getJob(jobId);

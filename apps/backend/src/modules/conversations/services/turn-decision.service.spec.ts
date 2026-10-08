@@ -285,9 +285,9 @@ test.each([
     expect(await service.decide('user', input)).toEqual(expected);
   },
 );
-test('registry covers 37 distinct tools and rejects missing prerequisites', () => {
+test('registry covers 38 distinct tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(37);
+  expect(names).toHaveLength(38);
   expect(() => validateToolGroups(names)).not.toThrow();
   expect(() => validateToolGroups(names.slice(1))).toThrow();
 });

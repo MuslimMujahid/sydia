@@ -11,12 +11,9 @@ const reminder: Reminder = {
   id: 'reminder-1',
   title: 'Pay invoice',
   notes: null,
-  status: 'scheduled',
   scheduledAt: new Date('2026-09-12T12:00:00.000Z'),
   timezone: 'Asia/Jakarta',
   recurrence: null,
-  completedAt: null,
-  cancelledAt: null,
   createdAt: new Date(0),
   updatedAt: new Date(0),
   source: { type: 'dashboard', label: null, messageId: null },
@@ -28,6 +25,7 @@ describe('ReminderSchedulerService', () => {
       .fn<IReminderRepository['createOccurrence']>()
       .mockResolvedValue({
         id: 'occurrence-1',
+        status: 'pending',
         idempotencyKey: 'reminder-1:2026-09-12T12:00:00.000Z',
       });
 
@@ -66,5 +64,31 @@ describe('ReminderSchedulerService', () => {
         jobId: 'reminder-1-2026-09-12T12-00-00.000Z',
       }),
     );
+  });
+  test('does not queue a previously delivered occurrence when reminder metadata is edited', async () => {
+    const createOccurrence = jest
+      .fn<IReminderRepository['createOccurrence']>()
+      .mockResolvedValue({
+        id: 'occurrence-1',
+        idempotencyKey: 'reminder-1:2026-09-12T12:00:00.000Z',
+        status: 'delivered',
+      });
+
+    const add = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const queues = {
+      reminders: {
+        getJobs: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
+        add,
+      },
+    } as unknown as QueueService;
+
+    const service = new ReminderSchedulerService(
+      { createOccurrence } as unknown as IReminderRepository,
+      {} as IUserRepository,
+      queues,
+    );
+
+    await service.schedule(reminder);
+    expect(add).not.toHaveBeenCalled();
   });
 });

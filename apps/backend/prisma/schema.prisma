@@ -353,20 +353,17 @@ model Reminder {
   userId          String
   title           String
   notes           String?
-  status          String               @default("scheduled")
   scheduledAt     DateTime
   timezone        String
   recurrence      Json?
   sourceType      String               @default("dashboard")
   sourceMessageId String?
-  completedAt     DateTime?
-  cancelledAt     DateTime?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @default(now()) @updatedAt
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   occurrences     ReminderOccurrence[]
 
-  @@index([userId, status, scheduledAt])
+  @@index([userId, scheduledAt])
   @@index([userId, updatedAt])
   @@map("reminder")
 }

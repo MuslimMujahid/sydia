@@ -119,7 +119,6 @@ export class RemindersController {
       ...input,
       scheduledAt,
       recurrence,
-      status: input.snoozeUntil ? 'scheduled' : input.status,
     });
 
     const value = this.required(reminder);

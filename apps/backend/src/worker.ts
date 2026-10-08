@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { AppModule } from './app.module';
-import { nextOccurrence } from './shared/date-time';
+import { processReminderJob } from './modules/reminders/reminder-job.processor';
 import {
   REMINDER_REPOSITORY,
   type IReminderRepository,
@@ -63,57 +63,11 @@ async function bootstrap(): Promise<void> {
 
   const reminderWorker = new Worker<ReminderJob>(
     'reminders',
-    async (job) => {
-      const reminder = await reminders.findByIdForDelivery(job.data.reminderId);
-      if (!reminder || reminder.status !== 'scheduled') return;
-
-      await notifications.enqueue({
-        userId: reminder.userId,
-        kind: 'reminder',
-        content: await composer.reminderBody(reminder),
-        idempotencyKey: job.data.idempotencyKey,
-        proactive: false,
-        sourceId: reminder.id,
-        reminderOccurrenceId: job.data.occurrenceId,
-        reminderOccurrenceKey: job.data.idempotencyKey,
-      });
-
-      // The reminder reached the user; acknowledgement is not required.
-      // Close it at dispatch so it can never accumulate as overdue.
-      if (!reminder.recurrence) {
-        await reminders.update(reminder.userId, reminder.id, {
-          status: 'completed',
-        });
-
-        return;
-      }
-
-      const next = nextOccurrence(
-        reminder.recurrence,
-        reminder.scheduledAt,
-        reminder.timezone,
-      );
-
-      if (!next) return;
-      const updated = await reminders.updateDeliverySchedule(reminder.id, next);
-
-      if (updated) {
-        const occurrence = await reminders.createOccurrence(reminder.id, next);
-
-        await queues.reminders.add(
-          'dispatch',
-          {
-            reminderId: reminder.id,
-            idempotencyKey: occurrence.idempotencyKey,
-            occurrenceId: occurrence.id,
-          },
-          {
-            jobId: occurrence.idempotencyKey.replaceAll(':', '-'),
-            delay: Math.max(0, next.getTime() - Date.now()),
-          },
-        );
-      }
-    },
+    (job) =>
+      processReminderJob(
+        { reminders, queues, notifications, composer },
+        job.data,
+      ),
     { connection },
   );
 

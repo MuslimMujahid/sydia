@@ -1,9 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   AlarmClock,
-  Ban,
   CalendarClock,
-  Check,
   LoaderCircle,
   MoreHorizontal,
   Pencil,
@@ -25,7 +23,6 @@ import {
   SelectField,
   TextField,
 } from "@/components/forms/form-fields";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,7 +44,6 @@ import type {
   Reminder,
   ReminderFilters,
   ReminderScheduleFilter,
-  ReminderStatus,
 } from "@/lib/services/api/reminders/reminders.api";
 import {
   reminderQueryOptions,
@@ -55,7 +51,6 @@ import {
   useCreateReminder,
   useDeleteReminder,
   useRescheduleReminder,
-  useSetReminderStatus,
   useSnoozeReminder,
   useUpdateReminder,
 } from "@/lib/services/api/reminders/reminders.queries";
@@ -65,7 +60,6 @@ import {
   toDateTimeLocal,
 } from "@/lib/utils/date-time";
 import { formatRecurrence } from "@/lib/utils/recurrence";
-import { cn } from "@/lib/utils/cn";
 
 const WEEKDAY_LABELS = [
   "Min",
@@ -93,13 +87,6 @@ const FREQUENCY_LABELS: Record<RecurrenceFrequency | "none", string> = {
   weekly: "Mingguan",
   monthly: "Bulanan",
   yearly: "Tahunan",
-};
-
-const STATUS_LABELS: Record<ReminderStatus | "all", string> = {
-  all: "Semua status",
-  scheduled: "Terjadwal",
-  completed: "Selesai",
-  cancelled: "Dibatalkan",
 };
 
 const SCHEDULE_LABELS: Record<ReminderScheduleFilter | "all", string> = {
@@ -176,7 +163,7 @@ function ReminderEditor({
     },
   });
 
-  async function handleDelete() {
+  function handleDelete() {
     if (
       !reminder ||
       !window.confirm(
@@ -184,8 +171,7 @@ function ReminderEditor({
       )
     )
       return;
-    await deleteMutation.mutateAsync(reminder.id);
-    onClose();
+    deleteMutation.mutate(reminder.id, { onSuccess: onClose });
   }
 
   return (
@@ -540,25 +526,26 @@ function ReminderRow({
   onEdit: () => void;
   onQuickTime: (mode: "snooze" | "reschedule") => void;
 }) {
-  const statusMutation = useSetReminderStatus();
-  const active = reminder.status === "scheduled";
+  const deleteMutation = useDeleteReminder();
+
+  function remove() {
+    if (
+      window.confirm(
+        `Hapus pengingat “${reminder.title}”? Tindakan ini tidak dapat dibatalkan.`
+      )
+    )
+      deleteMutation.mutate(reminder.id);
+  }
+
   const recurrence = formatRecurrence(reminder.recurrence);
 
   return (
     <li className="flex items-start gap-2 py-5 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h2
-            className={cn(
-              "font-display text-base font-semibold",
-              !active && "text-ink-muted"
-            )}
-          >
+          <h2 className="font-display text-base font-semibold">
             {reminder.title}
           </h2>
-          <Badge dot={active ? "brand" : "ink-weak"}>
-            {STATUS_LABELS[reminder.status]}
-          </Badge>
         </div>
         {reminder.notes ? (
           <p className="mt-1 line-clamp-2 text-sm text-ink-muted">
@@ -577,9 +564,9 @@ function ReminderRow({
             </span>
           ) : null}
         </div>
-        {statusMutation.error ? (
+        {deleteMutation.error ? (
           <p className="mt-2 text-sm text-destructive" role="alert">
-            {statusMutation.error.message}
+            {deleteMutation.error.message}
           </p>
         ) : null}
       </div>
@@ -598,88 +585,52 @@ function ReminderRow({
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-48">
-          {active ? (
-            <>
-              <DropdownMenuItem
-                disabled={statusMutation.isPending}
-                onClick={() =>
-                  statusMutation.mutate({
-                    reminderId: reminder.id,
-                    status: "completed",
-                  })
-                }
-              >
-                <Check /> Selesai
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onQuickTime("snooze")}>
-                <AlarmClock /> Tunda
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onQuickTime("reschedule")}>
-                <CalendarClock /> Ubah waktu
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={statusMutation.isPending}
-                onClick={() =>
-                  statusMutation.mutate({
-                    reminderId: reminder.id,
-                    status: "cancelled",
-                  })
-                }
-              >
-                <Ban /> Batalkan
-              </DropdownMenuItem>
-            </>
-          ) : null}
+          <>
+            <DropdownMenuItem onClick={() => onQuickTime("snooze")}>
+              <AlarmClock /> Tunda
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onQuickTime("reschedule")}>
+              <CalendarClock /> Ubah waktu
+            </DropdownMenuItem>
+          </>
+          <DropdownMenuItem
+            disabled={deleteMutation.isPending}
+            onClick={remove}
+            className="text-destructive"
+          >
+            <Trash2 /> {deleteMutation.isPending ? "Menghapus…" : "Hapus"}
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={onEdit}>
             <Pencil /> Rincian
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <div className="hidden flex-wrap items-start gap-2 sm:flex">
-        {active ? (
-          <>
-            <Button
-              variant="dark-outline"
-              size="sm"
-              disabled={statusMutation.isPending}
-              onClick={() =>
-                statusMutation.mutate({
-                  reminderId: reminder.id,
-                  status: "completed",
-                })
-              }
-            >
-              <Check /> Selesai
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onQuickTime("snooze")}
-            >
-              <AlarmClock /> Tunda
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onQuickTime("reschedule")}
-            >
-              <CalendarClock /> Ubah waktu
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={statusMutation.isPending}
-              onClick={() =>
-                statusMutation.mutate({
-                  reminderId: reminder.id,
-                  status: "cancelled",
-                })
-              }
-            >
-              <Ban /> Batalkan
-            </Button>
-          </>
-        ) : null}
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onQuickTime("snooze")}
+          >
+            <AlarmClock /> Tunda
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onQuickTime("reschedule")}
+          >
+            <CalendarClock /> Ubah waktu
+          </Button>
+        </>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={deleteMutation.isPending}
+          onClick={remove}
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 /> {deleteMutation.isPending ? "Menghapus…" : "Hapus"}
+        </Button>
         <Button variant="ghost" size="sm" onClick={onEdit}>
           <Pencil /> Rincian
         </Button>
@@ -689,7 +640,6 @@ function ReminderRow({
 }
 
 export function ReminderPage() {
-  const [status, setStatus] = useState<ReminderStatus | "all">("scheduled");
   const [schedule, setSchedule] = useState<ReminderScheduleFilter | "all">(
     "all"
   );
@@ -702,10 +652,10 @@ export function ReminderPage() {
     mode: "snooze" | "reschedule";
   } | null>(null);
 
-  const filters: ReminderFilters = { status, schedule, search };
+  const filters: ReminderFilters = { schedule, search };
   const query = useQuery(remindersQueryOptions(filters));
 
-  const filtered = Boolean(search) || status !== "all" || schedule !== "all";
+  const filtered = Boolean(search) || schedule !== "all";
 
   function clearSearch() {
     setSearch("");
@@ -720,7 +670,7 @@ export function ReminderPage() {
       />
       <section
         aria-label="Filter pengingat"
-        className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1fr)_11rem_11rem]"
+        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]"
       >
         <DomainPageSearch
           label="Cari pengingat"
@@ -730,21 +680,6 @@ export function ReminderPage() {
           onSubmit={() => setSearch(searchDraft.trim())}
           onClear={clearSearch}
         />
-        <label>
-          <span className="sr-only">Status pengingat</span>
-          <SelectField
-            value={status}
-            onChange={(event) =>
-              setStatus(event.target.value as ReminderStatus | "all")
-            }
-          >
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
-        </label>
         <label>
           <span className="sr-only">Waktu pengingat</span>
           <SelectField
@@ -833,24 +768,27 @@ export function ReminderPage() {
 }
 
 export function CompactReminderRow({ reminder }: { reminder: Reminder }) {
-  const mutation = useSetReminderStatus();
+  const mutation = useDeleteReminder();
 
   return (
     <li className="flex items-start gap-3 py-4">
       <Button
         variant="ghost"
-        size="icon-sm"
-        aria-label={`Tandai ${reminder.title} selesai`}
+        size="sm"
+        aria-label={`Hapus pengingat ${reminder.title}`}
         disabled={mutation.isPending}
         onClick={() =>
-          mutation.mutate({ reminderId: reminder.id, status: "completed" })
+          window.confirm(
+            `Hapus pengingat “${reminder.title}”? Tindakan ini tidak dapat dibatalkan.`
+          ) && mutation.mutate(reminder.id)
         }
       >
         {mutation.isPending ? (
           <LoaderCircle className="animate-spin motion-reduce:animate-none" />
         ) : (
-          <AlarmClock />
+          <Trash2 />
         )}
+        Hapus
       </Button>
       <div className="min-w-0 flex-1">
         <p className="font-display font-bold">{reminder.title}</p>

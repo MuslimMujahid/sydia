@@ -15,9 +15,7 @@ import {
 } from 'class-validator';
 import {
   RECURRENCE_FREQUENCIES,
-  REMINDER_STATUSES,
   type RecurrenceFrequency,
-  type ReminderStatus,
 } from '../../database/entities';
 
 export class RecurrenceDto {
@@ -52,11 +50,9 @@ export class UpdateReminderDto {
   @Type(() => RecurrenceDto)
   recurrence?: RecurrenceDto | null;
 
-  @IsOptional() @IsIn(REMINDER_STATUSES) status?: ReminderStatus;
   @IsOptional() @IsDateString() snoozeUntil?: string;
 }
 export class ReminderFiltersDto {
-  @IsOptional() @IsIn(REMINDER_STATUSES) status?: ReminderStatus;
   @IsOptional() @IsIn(['today', 'upcoming', 'past']) schedule?:
     'today' | 'upcoming' | 'past';
 

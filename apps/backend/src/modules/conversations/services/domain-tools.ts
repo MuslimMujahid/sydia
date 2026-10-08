@@ -9,7 +9,6 @@ import type {
 import type {
   Reminder,
   ReminderRecurrence,
-  ReminderStatus,
   TaskStatus,
 } from '../../../database/entities';
 import { firstOccurrence, zonedInstant } from '../../../shared/date-time';
@@ -67,7 +66,7 @@ function schema(
     categoryNames: 'Category names to attach, remove, or filter by.',
     id: 'Exact identifier of the item to target.',
     query: 'Text used to find a matching task, reminder, memory, or secret.',
-    status: 'Current status value for the task or reminder.',
+    status: 'Current status value for the task.',
     categoryMode: 'How categoryNames change a task: add, remove, or set.',
     notes:
       'Optional extended details beyond the title and schedule; never restate them. Omit when empty; null clears them when updating.',
@@ -693,11 +692,11 @@ Call this tool once per reminder.`,
       label: 'Update reminder',
       description: `Use this tool to update an existing reminder.
 
-Use it when the user asks to change a reminder's title, notes, scheduled time, recurrence, or status.
+Use it when the user asks to change a reminder's title, notes, scheduled time, or recurrence.
 
-Do not use it to create a reminder, modify a task, or search reminders without changing them.
+Do not use it to create or delete a reminder, modify a task, or search reminders without changing them. Use 'delete_reminder' when the user asks to remove the reminder or stop future notifications.
 
-Identify the reminder with id or query. Only supplied fields change; status is scheduled, completed, or cancelled. recurrence may be set to change the rule or null to clear it.
+Identify the reminder with id or query. Only supplied fields change. recurrence may be set to change the rule or null to clear it.
 
 date and time are the user's own wall clock, never a converted UTC instant: date is YYYY-MM-DD and time is 24 hour HH:mm. Supply both to reschedule, or neither to leave the time alone. When the reminder remains recurrent, the date must fall on one of the new recurrence weekdays, because it becomes the next notification. Weekdays use ${WEEKDAY_NAMES_TEXT}
 
@@ -710,15 +709,17 @@ A request that fits the existing rule is an update; one that cannot be expressed
         date: string,
         time: string,
         recurrence: recurrenceSchema(),
-        status: {
-          type: 'string',
-          enum: ['scheduled', 'completed', 'cancelled'],
-        },
       }),
     },
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
+      if (
+        !['title', 'notes', 'date', 'time', 'recurrence'].some(
+          (key) => a[key] !== undefined,
+        )
+      )
+        throw invalid('reminder update', 'must include a change.');
       const current = await deps.reminders.findReference(
         userId,
         text(a, 'id', false),
@@ -751,10 +752,10 @@ A request that fits the existing rule is an update; one that cannot be expressed
         notes: a.notes === null ? null : text(a, 'notes', false),
         scheduledAt,
         recurrence: rule,
-        status: a.status as 'scheduled' | 'completed' | 'cancelled' | undefined,
       });
 
-      if (reminder) await deps.scheduler.schedule(reminder);
+      if (!reminder) throw new Error('The specified reminder was not found.');
+      await deps.scheduler.schedule(reminder);
 
       return {
         objectType: 'reminder',
@@ -763,11 +764,50 @@ A request that fits the existing rule is an update; one that cannot be expressed
     },
   };
 
+  const deleteReminder: AssistantTool = {
+    definition: {
+      name: 'delete_reminder',
+      label: 'Delete reminder',
+      description: `Use this tool to permanently delete a reminder and stop every future occurrence.
+
+Use it when the user asks to remove a reminder or stop being reminded.
+
+Do not use it for snoozing, rescheduling, or removing a task.
+
+Identify the reminder with id or query. If several reminders match, ask which one to delete. Only confirm deletion after this tool succeeds; it confirms only the matched reminder, not that all reminders are gone.`,
+      parameters: schema({ id: string, query: string }),
+    },
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, arguments: raw }) => {
+      const a = object(raw);
+      const id = text(a, 'id', false);
+      const query = text(a, 'query', false);
+      if (!id && !query) throw invalid('id or query', 'is required.');
+
+      const matches = id
+        ? [await deps.reminders.findById(userId, id)].filter(
+            (reminder): reminder is Reminder => reminder !== null,
+          )
+        : await deps.reminders.list(userId, { search: query });
+
+      if (matches.length > 1)
+        throw new Error(
+          'Several reminders match. Ask the user to choose a reminder id.',
+        );
+      const reminder = matches[0];
+      if (!reminder || !(await deps.reminders.delete(userId, reminder.id)))
+        throw new Error('The specified reminder was not found.');
+      await deps.scheduler.cancel(reminder.id);
+
+      return { deleted: true, reminderId: reminder.id, title: reminder.title };
+    },
+  };
+
   const listReminders: AssistantTool = {
     definition: {
       name: 'list_reminders',
       label: 'Find reminders',
-      description: `Use this tool to list or find the user's scheduled reminders.
+      description: `Use this tool to list or find the user's reminders.
 
 Use it when the user asks what reminders exist, or before changing a recurring schedule that may not fit the current rule.
 
@@ -776,10 +816,6 @@ Do not use it to create or change a reminder.
 Each reminder reports its id, title, its local date and time with the weekday, and its recurrence. Read the recurrence before editing it; a request that cannot be expressed by the existing recurrence must become more than one reminder. The date and time fields are ready to pass straight back to 'update_reminder'.`,
       parameters: schema({
         query: string,
-        status: {
-          type: 'string',
-          enum: ['scheduled', 'completed', 'cancelled'],
-        },
       }),
     },
     readOnly: true,
@@ -790,7 +826,6 @@ Each reminder reports its id, title, its local date and time with the weekday, a
         (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
 
       const reminders = await deps.reminders.list(userId, {
-        status: (a.status as ReminderStatus | undefined) ?? 'scheduled',
         search: text(a, 'query', false),
       });
 
@@ -799,7 +834,6 @@ Each reminder reports its id, title, its local date and time with the weekday, a
           id: reminder.id,
           title: reminder.title,
           notes: reminder.notes,
-          status: reminder.status,
           date: localDate(reminder.scheduledAt, timezone),
           time: localTime(reminder.scheduledAt, timezone),
           weekday: localWeekday(reminder.scheduledAt, timezone),
@@ -1239,6 +1273,7 @@ Returns reveal-link metadata without the value. Secret storage must be configure
     deleteCategory,
     createReminder,
     updateReminder,
+    deleteReminder,
     listReminders,
     createMemory,
     updateMemory,

@@ -1,8 +1,7 @@
-import type { Reminder, ReminderStatus, ReminderWrite } from '../entities';
+import type { Reminder, ReminderWrite } from '../entities';
 
 export type ReminderDelivery = Reminder & { userId: string };
 export type ReminderFilters = {
-  status?: ReminderStatus;
   schedule?: 'today' | 'upcoming' | 'past';
   search?: string;
   now?: Date;
@@ -32,7 +31,7 @@ export interface IReminderRepository {
   createOccurrence(
     reminderId: string,
     occurrenceAt: Date,
-  ): Promise<{ id: string; idempotencyKey: string }>;
+  ): Promise<{ id: string; idempotencyKey: string; status: string }>;
   markOccurrenceDelivered(idempotencyKey: string): Promise<void>;
 }
 
