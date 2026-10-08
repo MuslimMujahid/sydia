@@ -30,6 +30,16 @@ import {
 
 const VISIBLE_CATEGORY_LIMIT = 2;
 
+// A tight, bottom-weighted shadow instead of a border: it lifts the card off the
+// page and defines the edge, heaviest underneath and barely there on the sides.
+// White open cards already contrast with the page, so they get a lighter one
+// than the tinted finished and cancelled cards.
+const CARD_EDGE_CLASS =
+  "shadow-[0_1px_2px_rgba(23,20,25,0.06),0_1px_1px_rgba(23,20,25,0.02)]";
+
+const FINISHED_CARD_EDGE_CLASS =
+  "shadow-[0_1px_2px_rgba(23,20,25,0.1),0_1px_1px_rgba(23,20,25,0.04)]";
+
 export type TaskRowProps = {
   task: Task;
   now: Date;
@@ -62,7 +72,9 @@ export function TaskRow({
       aria-busy={pending || undefined}
       className={cn(
         "relative flex items-start gap-3 rounded-md bg-canvas py-3 pr-1 pl-4 transition-colors hover:bg-surface-1 sm:items-center sm:gap-4 sm:py-2 sm:pl-5",
-        finished && "bg-surface-2/40"
+        finished
+          ? cn("bg-surface-1 hover:bg-surface-2", FINISHED_CARD_EDGE_CLASS)
+          : CARD_EDGE_CLASS
       )}
     >
       {status === "doing" ? (
@@ -220,7 +232,10 @@ export function TaskListSkeleton({ label }: { label: string }) {
       {SKELETON_WIDTHS.map((width) => (
         <li
           key={width}
-          className="flex items-center gap-3 rounded-md bg-canvas py-4 pr-4 pl-4 sm:gap-4 sm:pl-5"
+          className={cn(
+            "relative flex items-center gap-3 rounded-md bg-canvas py-4 pr-4 pl-4 sm:gap-4 sm:pl-5",
+            CARD_EDGE_CLASS
+          )}
         >
           <div className="size-5 shrink-0 animate-pulse rounded-md bg-surface-1 motion-reduce:animate-none" />
           <div className="min-w-0 flex-1 space-y-2">
