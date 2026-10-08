@@ -24,6 +24,7 @@ import { MemoryAccessService } from '../../memories/memory-access.service';
 import { MemoryEngineService } from '../../memories/memory-engine.service';
 import type { MemorySearchHit } from '../../memories/memory-access.types';
 import {
+  TURN_DECISION_HISTORY_LIMIT,
   TurnDecisionService,
   type TurnDecision,
 } from './turn-decision.service';
@@ -453,18 +454,19 @@ export class ContextBuilderService {
               latest: currentInput.content,
               recent: record.messages
                 .filter(({ id }) => id !== inputMessageId)
-                .slice(-8)
-                .map(({ role, content }) => ({
+                .slice(-TURN_DECISION_HISTORY_LIMIT)
+                .map(({ role, content, attachments }) => ({
                   role,
                   content: truncateToTokens(content, 350),
+                  ...(attachments?.length
+                    ? {
+                        attachments: attachments.map(({ fileAsset }) => ({
+                          name: fileAsset.originalName,
+                          mimeType: fileAsset.mimeType,
+                        })),
+                      }
+                    : {}),
                 })),
-              summary: truncateToTokens(
-                record.conversation.rollingSummary ?? '',
-                500,
-              ),
-              locale: user.locale,
-              timezone: user.timezone,
-              channel,
               attachments: (currentInput.attachments ?? []).map(
                 ({ fileAsset }) => ({
                   name: fileAsset.originalName,

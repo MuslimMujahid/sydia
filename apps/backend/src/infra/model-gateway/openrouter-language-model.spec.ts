@@ -65,6 +65,33 @@ describe('OpenRouterLanguageModel', () => {
     expect(gateway.model).toBe('qwen/qwen3.8-flash');
   });
 
+  it('requires the provider to support the requested parameters', async () => {
+    const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'response-1',
+          choices: [
+            {
+              message: { role: 'assistant', content: 'Halo.' },
+              finish_reason: 'stop',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await model({ BACKEND_MODEL_API_KEY: 'test-key' }).generate({
+      messages: [{ role: 'user', content: 'Halo' }],
+    });
+    const body = fetch.mock.calls[0]![1]?.body;
+    if (typeof body !== 'string')
+      throw new Error('The provider request body must be JSON text.');
+    expect(JSON.parse(body)).toMatchObject({
+      provider: { require_parameters: true },
+    });
+  });
+
   it('rejects missing API keys without tracing or calling the provider', async () => {
     const fetch = jest.spyOn(globalThis, 'fetch');
     const tracing = tracingSpy();
@@ -746,12 +773,16 @@ describe('OpenRouterLanguageModel', () => {
     };
   }
 
-  function textStream(text: string) {
+  function textStream(text: string | string[]) {
     return {
       stream: simulateReadableStream({
         chunks: [
           { type: 'text-start' as const, id: 'text-1' },
-          { type: 'text-delta' as const, id: 'text-1', delta: text },
+          ...(Array.isArray(text) ? text : [text]).map((delta) => ({
+            type: 'text-delta' as const,
+            id: 'text-1',
+            delta,
+          })),
           { type: 'text-end' as const, id: 'text-1' },
           {
             type: 'finish' as const,
@@ -1090,6 +1121,78 @@ describe('OpenRouterLanguageModel', () => {
 
     return gateway;
   }
+
+  it('does not stream raw provider tool protocol as an assistant answer', async () => {
+    const languageModel = new MockLanguageModelV4({
+      doStream: () =>
+        Promise.resolve(
+          textStream(
+            'Saya ambil datanya. <｜DSML｜ invoke name="list_tasks" />',
+          ),
+        ),
+    });
+
+    const onTextDelta = jest.fn<(text: string) => void>();
+
+    await expect(
+      gatewayFor(languageModel).generate({
+        messages: [{ role: 'user', content: 'Daftar tugas saya.' }],
+        tools: fakeTools(),
+        onTextDelta,
+      }),
+    ).rejects.toMatchObject({
+      diagnostics: { errorName: 'ToolProtocolTextError' },
+    });
+    expect(onTextDelta).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['whole', ['<｜DSML｜ invoke name="list_tasks" />']],
+    ['split', ['<', '｜DS', 'ML｜', ' invoke name="list_tasks" />']],
+  ])(
+    'rejects %s raw provider tool protocol even when no tools were selected',
+    async (_label, chunks) => {
+      const languageModel = new MockLanguageModelV4({
+        doStream: () => Promise.resolve(textStream(chunks)),
+      });
+
+      const onTextDelta = jest.fn<(text: string) => void>();
+
+      await expect(
+        gatewayFor(languageModel).generate({
+          messages: [{ role: 'user', content: 'Daftar tugas saya.' }],
+          tools: {},
+          onTextDelta,
+        }),
+      ).rejects.toMatchObject({
+        diagnostics: { errorName: 'ToolProtocolTextError' },
+      });
+      expect(onTextDelta).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects raw provider tool protocol in a non-streaming answer', async () => {
+    const languageModel = new MockLanguageModelV4({
+      doGenerate: () =>
+        Promise.resolve({
+          content: [
+            { type: 'text', text: '<｜DSML｜ invoke name="list_tasks" />' },
+          ],
+          finishReason: { unified: 'stop', raw: undefined },
+          usage: streamUsage,
+          warnings: [],
+        }),
+    });
+
+    await expect(
+      gatewayFor(languageModel).generate({
+        messages: [{ role: 'user', content: 'Daftar tugas saya.' }],
+        tools: fakeTools(),
+      }),
+    ).rejects.toMatchObject({
+      diagnostics: { errorName: 'ToolProtocolTextError' },
+    });
+  });
 
   it('ends the turn after one terminal tool call instead of calling the model again', async () => {
     let calls = 0;

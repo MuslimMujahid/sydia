@@ -18,9 +18,6 @@ import {
 const input: TurnDecisionInput = {
   latest: 'Create a task to buy milk',
   recent: [],
-  summary: '',
-  locale: 'en',
-  timezone: 'Asia/Makassar',
   attachments: [],
   recallEligible: true,
 };
@@ -70,19 +67,124 @@ test('shares one decision and includes task prerequisites', async () => {
   expect(result.toolNames).toContain('get_current_datetime');
   expect(decide).toHaveBeenCalledTimes(1);
 });
-test('provider failure leaves enabled selection empty; outside cohort retains incumbent behavior', async () => {
+test('sends only four preceding messages and the latest message to the classifier', async () => {
+  const { service, decide } = setup();
+  await service.decide('user', {
+    ...input,
+    latest: 'Yes, save that file.',
+    recent: [
+      { role: 'user', content: 'Old unrelated request' },
+      { role: 'assistant', content: 'Old unrelated answer' },
+      { role: 'user', content: 'I have an invoice.' },
+      { role: 'assistant', content: 'What would you like to do with it?' },
+      { role: 'user', content: 'Keep it for later.' },
+      { role: 'assistant', content: 'Shall I save the attachment?' },
+    ],
+  });
+
+  expect(JSON.parse(decide.mock.calls[0]![0].state)).toEqual({
+    messages: [
+      { role: 'user', content: 'I have an invoice.' },
+      { role: 'assistant', content: 'What would you like to do with it?' },
+      { role: 'user', content: 'Keep it for later.' },
+      { role: 'assistant', content: 'Shall I save the attachment?' },
+      { role: 'user', content: 'Yes, save that file.' },
+    ],
+  });
+});
+
+test('retains recent attachment context for a file follow-up', async () => {
+  const { service, decide } = setup();
+  await service.decide('user', {
+    ...input,
+    latest: 'Save it for later.',
+    recent: [
+      {
+        role: 'user',
+        content: 'Here is the invoice.',
+        attachments: [{ name: 'invoice.pdf', mimeType: 'application/pdf' }],
+      },
+    ],
+  });
+
+  expect(JSON.parse(decide.mock.calls[0]![0].state)).toEqual({
+    messages: [
+      {
+        role: 'user',
+        content: 'Here is the invoice.',
+        attachments: [{ name: 'invoice.pdf', mimeType: 'application/pdf' }],
+      },
+      { role: 'user', content: 'Save it for later.' },
+    ],
+  });
+});
+
+test('keeps attachment metadata on the latest message without routing configuration', async () => {
+  const { service, decide } = setup();
+  await service.decide('user', {
+    ...input,
+    latest: 'Save this file.',
+    attachments: [{ name: 'invoice.pdf', mimeType: 'application/pdf' }],
+  });
+
+  expect(JSON.parse(decide.mock.calls[0]![0].state)).toEqual({
+    messages: [
+      {
+        role: 'user',
+        content: 'Save this file.',
+        attachments: [{ name: 'invoice.pdf', mimeType: 'application/pdf' }],
+      },
+    ],
+  });
+});
+
+test.each([
+  [
+    'group_tasks',
+    'Does responding to the latest message in this conversation require any of these tools: create_task, update_task, list_tasks?',
+  ],
+  [
+    'group_calendar',
+    'Does responding to the latest message in this conversation require any of these tools: list_calendar_events, create_calendar_event, update_calendar_event, cancel_calendar_event?',
+  ],
+  [
+    'group_reminders',
+    'Does responding to the latest message in this conversation require any of these tools: create_reminder, update_reminder, delete_reminder, list_reminders?',
+  ],
+  [
+    'group_documents',
+    'Does responding to the latest message in this conversation require any of these tools: list_documents, read_document, save_attached_files, send_file, search_documents?',
+  ],
+  [
+    'recall',
+    'Would recalling stored personal facts or preferences help respond to the latest message in this conversation?',
+  ],
+])('asks a self-contained question for %s', async (key, question) => {
+  const { service, decide } = setup();
+  await service.decide('user', input);
+
+  expect(decide.mock.calls[0]![0].questions[key]).toEqual({
+    type: 'noul',
+    instructions: question,
+  });
+});
+
+test('failed enabled tool selection rejects the turn instead of returning an empty registry', async () => {
   const { service, decide } = setup();
   decide.mockResolvedValueOnce({
     status: 'fallback',
     reason: 'timeout',
     latencyMs: 600,
   });
-  expect(await service.decide('user', input)).toEqual({
-    recall: false,
-    toolNames: [],
+  await expect(service.decide('user', input)).rejects.toMatchObject({
+    name: 'ToolSelectionUnavailableError',
+    reason: 'timeout',
   });
+});
+test('outside cohort retains incumbent behavior without calling the decision provider', async () => {
+  const { service, decide } = setup();
   expect(await service.decide('other', input)).toEqual({ recall: true });
-  expect(decide).toHaveBeenCalledTimes(1);
+  expect(decide).not.toHaveBeenCalled();
 });
 test('keeps context but does not force memory recall or attached-file groups', async () => {
   const { service, decide } = setup();
@@ -99,7 +201,10 @@ test('keeps context but does not force memory recall or attached-file groups', a
   expect(result.toolNames).toEqual(toolNamesForGroups(['tasks']));
   expect(result.toolNames).not.toContain('forget_memory');
   expect(result.toolNames).not.toContain('read_document');
-  expect(decide.mock.calls[0]?.[0].state).toContain('Earlier city reference');
+  expect(decide.mock.calls[0]?.[0].state).toContain('I moved');
+  expect(decide.mock.calls[0]?.[0].state).not.toContain(
+    'Earlier city reference',
+  );
   expect(decide.mock.calls[0]?.[0].questions).not.toHaveProperty('unknown');
 });
 test('does not send credential-bearing context to Jev', async () => {

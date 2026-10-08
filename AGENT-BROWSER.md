@@ -3,6 +3,7 @@
 ## General
 
 - Frontend http://localhost:3000, backend API http://localhost:5000 (direct XHR from browser, session cookie auth). API routes have NO `/api` prefix (e.g. GET `/users/me/preferences`).
+- If live model calls fail with `AI_APICallError` / `ETIMEDOUT` under Node in WSL while the same request succeeds under Bun, launch the development API with `NODE_OPTIONS=--network-family-autoselection-attempt-timeout=1000 bun run dev` from `apps/backend`. This gives each address one second to connect instead of Node's 250 ms default; verified against OpenRouter on 2026-10-08. Check the actual error before applying this workaround.
 - Demo account: `demo.user@example.test` / `DemoSeed1!` (seeded). Sign-in at `/sign-in?redirect=%2F&reason=required`.
 - **"Masuk" (and other) submit buttons sit BELOW the default headless viewport fold (~493px tall); a plain `click @eN` reports success but hits nothing.** Working path: `agent-browser scrollintoview @eN` first, then `click @eN`. No Enter key needed.
 - **Private Chrome must be launched detached (`setsid nohup google-chrome --headless=new --remote-debugging-port=<port> --user-data-dir=/tmp/<dir> ... &`)** — a plain backgrounded `&` chrome is killed when the launching shell exits. Drive with `agent-browser --cdp <port>`.

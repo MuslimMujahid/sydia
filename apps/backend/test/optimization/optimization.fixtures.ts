@@ -4,7 +4,7 @@ import type { ToolGroup } from '../../src/modules/conversations/services/tool-gr
 // Draft expectations for review. Passing these fixtures does not establish a
 // calibrated 99% release gate or authorize broad enablement.
 export const OPTIMIZATION_FIXTURE_VERSION =
-  'synthetic-independent-selection-draft-v2';
+  'synthetic-conversation-tool-selection-draft-v3';
 export type TurnDecisionFixture = {
   id: string;
   input: TurnDecisionInput;
@@ -13,10 +13,6 @@ export type TurnDecisionFixture = {
 const turn: TurnDecisionInput = {
   latest: '',
   recent: [],
-  summary: '',
-  locale: 'en',
-  timezone: 'Asia/Makassar',
-  channel: 'web',
   attachments: [],
   recallEligible: true,
 };
@@ -36,7 +32,6 @@ export const TURN_DECISION_FIXTURES: TurnDecisionFixture[] = [
     id: 'reminder-id',
     input: {
       ...turn,
-      locale: 'id',
       latest: 'Ingatkan saya minum air besok jam 9 pagi.',
     },
     expected: { recall: false, groups: ['reminders'] },
@@ -45,7 +40,6 @@ export const TURN_DECISION_FIXTURES: TurnDecisionFixture[] = [
     id: 'personal-preference-id',
     input: {
       ...turn,
-      locale: 'id',
       latest: 'Apa minuman yang biasanya saya suka?',
     },
     expected: { recall: true, groups: ['memory'] },
@@ -79,7 +73,6 @@ export const TURN_DECISION_FIXTURES: TurnDecisionFixture[] = [
     id: 'forget-explicit-id',
     input: {
       ...turn,
-      locale: 'id',
       latest: 'Lupakan kota lama saya dari memori.',
     },
     expected: { recall: true, groups: ['memory'] },

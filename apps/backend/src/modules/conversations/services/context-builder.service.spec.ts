@@ -173,6 +173,44 @@ describe('ContextBuilderService recent conversations', () => {
     expect(built.decision?.toolNames).toEqual(['list_tasks']);
   });
 
+  it('passes only the latest request and four recent messages for classification', async () => {
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false, toolNames: [] });
+
+    const builder = createBuilder(6000, {
+      rollingSummary: 'Old unrelated calendar workflow',
+      messages: [
+        message('old-user', 'user', 'Plan an old meeting'),
+        message('old-assistant', 'assistant', 'Old meeting planned'),
+        message('first', 'user', 'I have an invoice'),
+        message('second', 'assistant', 'What should I do with it?'),
+        message('third', 'user', 'Keep it for later'),
+        message('fourth', 'assistant', 'Should I save it?'),
+        message('current', 'user', 'Yes, save it'),
+      ],
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+    });
+
+    await builder.build(user, 'conversation-1', 'current', 'telegram');
+
+    expect(decide).toHaveBeenCalledWith(
+      user.id,
+      {
+        latest: 'Yes, save it',
+        recent: [
+          { role: 'user', content: 'I have an invoice' },
+          { role: 'assistant', content: 'What should I do with it?' },
+          { role: 'user', content: 'Keep it for later' },
+          { role: 'assistant', content: 'Should I save it?' },
+        ],
+        attachments: [],
+        recallEligible: false,
+      },
+      undefined,
+    );
+  });
+
   const previous: RecentConversationContext = {
     id: 'previous-chat',
     title: 'Travel plans',

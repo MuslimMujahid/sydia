@@ -41,24 +41,6 @@ export const TOOL_GROUPS = {
   time: ['get_current_datetime'],
 } as const;
 export type ToolGroup = keyof typeof TOOL_GROUPS;
-export const TOOL_GROUP_DESCRIPTIONS: Record<ToolGroup, string> = {
-  tasks: 'Actionable tasks: create, list, update, complete or organize work.',
-  reminders:
-    'Scheduled notifications and reminders: create, list, reschedule or change.',
-  memory:
-    'Explicit remember, correct, forget, or search durable personal facts/preferences.',
-  documents:
-    'Find/read saved files, answer file-dependent questions, save attachments, or send files.',
-  notes: 'Write, read or search dated daily notes/journal entries.',
-  contacts:
-    'People, contact details, contact groups, or resolving a recipient/invitee.',
-  calendar: 'Find, create, change or cancel calendar events/meetings.',
-  secrets:
-    'Store a secret securely or obtain its one-time reveal link; never reveal raw values.',
-  categories:
-    'Find, create, rename, change or delete organizational categories.',
-  time: 'Current date/time or relative dates in the user timezone.',
-};
 
 export function toolNamesForGroups(
   groups: readonly ToolGroup[],

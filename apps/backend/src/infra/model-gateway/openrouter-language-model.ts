@@ -91,6 +91,20 @@ export class ModelGatewayError extends Error {
   }
 }
 
+class ToolProtocolTextError extends Error {
+  constructor() {
+    super(
+      'The provider returned tool protocol as text instead of executing a structured tool call.',
+    );
+    this.name = 'ToolProtocolTextError';
+  }
+}
+
+function assertAssistantText(text: string): void {
+  // DeepSeek control tags are a provider protocol failure, never executable tool input.
+  if (text.includes('<｜DSML｜')) throw new ToolProtocolTextError();
+}
+
 function parseAttempts(value: unknown): number {
   const parsed =
     typeof value === 'number' ? value : Number.parseInt(String(value), 10);
@@ -514,7 +528,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
 
     this.languageModel = openrouter.chat(this.model, {
       usage: { include: true },
-      provider: { sort: this.providerSort },
+      provider: { sort: this.providerSort, require_parameters: true },
       reasoning: { enabled: true, exclude: true, effort: this.reasoningEffort },
     });
   }
@@ -620,10 +634,31 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 let stepText = '';
                 let stepCalledTool = false;
 
-                const flushStep = () => {
+                const flushStep = (partial = false) => {
                   if (stepText && !(mayCallTools && stepCalledTool)) {
-                    answer += stepText;
-                    request.onTextDelta?.(stepText);
+                    assertAssistantText(stepText);
+                    // Hold a split control-tag prefix until it can be validated.
+                    const start = stepText.lastIndexOf('<');
+                    const held =
+                      partial &&
+                      start >= 0 &&
+                      '<｜DSML｜'.startsWith(stepText.slice(start))
+                        ? stepText.slice(start)
+                        : '';
+
+                    const visible = stepText.slice(
+                      0,
+                      stepText.length - held.length,
+                    );
+
+                    answer += visible;
+                    if (visible) request.onTextDelta?.(visible);
+
+                    if (held) {
+                      stepText = held;
+
+                      return;
+                    }
                   }
 
                   stepText = '';
@@ -636,7 +671,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                       textEmitted = true;
                       lastTextEmitted = true;
                       stepText += chunk.text;
-                      if (!mayCallTools) flushStep();
+                      if (!mayCallTools) flushStep(true);
                     }
                   } else if (chunk.type === 'tool-call') {
                     stepCalledTool = true;
@@ -706,6 +741,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   ? JSON.stringify(result.output)
                   : result.text)
               ).trim();
+
+              assertAssistantText(finalText);
 
               const normalizedUsage = {
                 inputTokens: tokenCount(result.usage.inputTokens),
