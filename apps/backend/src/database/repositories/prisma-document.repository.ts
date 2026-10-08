@@ -13,6 +13,7 @@ import type {
   DocumentMetadata,
   DocumentUpdate,
   FileAsset,
+  FileAssetCreate,
   FileKind,
 } from '../entities';
 
@@ -101,6 +102,22 @@ function present(row: DocumentRow): Document {
   };
 }
 
+// Attachment manifests retain processing/failed status, but their cached
+// content is private until the document and all embeddings are ready.
+function presentAttachment(row: DocumentRow): Document {
+  const document = present(row);
+  if (document.status === 'ready') return document;
+
+  return {
+    ...document,
+    textContent: null,
+    transcript: null,
+    imageDescription: null,
+    structuredData: null,
+    chunks: [],
+  };
+}
+
 type DocumentMetadataRow = Pick<
   PrismaDocument,
   'id' | 'title' | 'description' | 'status' | 'createdAt' | 'updatedAt'
@@ -158,6 +175,31 @@ export class PrismaDocumentRepository implements IDocumentRepository {
         select: documentSelect,
       }),
     );
+  }
+
+  async createWithFile(
+    userId: string,
+    input: { file: FileAssetCreate; title: string },
+  ): Promise<Document> {
+    return present(
+      await this.prisma.document.create({
+        data: {
+          title: input.title,
+          user: { connect: { id: userId } },
+          fileAsset: {
+            create: { ...input.file, user: { connect: { id: userId } } },
+          },
+        },
+        select: documentSelect,
+      }),
+    );
+  }
+
+  async deleteFileByStorageKey(
+    userId: string,
+    storageKey: string,
+  ): Promise<void> {
+    await this.prisma.fileAsset.deleteMany({ where: { userId, storageKey } });
   }
 
   async list(userId: string): Promise<Document[]> {
@@ -238,7 +280,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
           chunks: { select: chunkSelect, orderBy: { chunkIndex: 'asc' } },
         },
       })
-    ).map(present);
+    ).map(presentAttachment);
   }
 
   async findMetadataByMessageId(
@@ -266,7 +308,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
           chunks: { select: chunkSelect, orderBy: { chunkIndex: 'asc' } },
         },
       })
-    ).map(present);
+    ).map(presentAttachment);
   }
 
   async readChunks(
@@ -280,7 +322,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     nextCursor: number | null;
   } | null> {
     const row = await this.prisma.document.findFirst({
-      where: { id: documentId, userId },
+      where: { id: documentId, userId, status: 'ready' },
       select: {
         ...documentMetadataSelect,
         chunks: {
@@ -323,8 +365,8 @@ export class PrismaDocumentRepository implements IDocumentRepository {
       structuredData?: Prisma.InputJsonValue | null;
     },
   ): Promise<void> {
-    await this.prisma.document.update({
-      where: { id },
+    await this.prisma.document.updateMany({
+      where: { id, status: 'processing' },
       data: {
         status: 'ready',
         errorMessage: null,
@@ -342,10 +384,14 @@ export class PrismaDocumentRepository implements IDocumentRepository {
 
   async saveExtraction(
     id: string,
-    input: { textContent?: string | null; transcript?: string | null },
+    input: {
+      textContent?: string | null;
+      transcript?: string | null;
+      imageDescription?: string | null;
+    },
   ): Promise<void> {
-    await this.prisma.document.update({
-      where: { id },
+    await this.prisma.document.updateMany({
+      where: { id, status: 'processing' },
       data: {
         ...(input.textContent === undefined
           ? {}
@@ -353,6 +399,9 @@ export class PrismaDocumentRepository implements IDocumentRepository {
         ...(input.transcript === undefined
           ? {}
           : { transcript: input.transcript }),
+        ...(input.imageDescription === undefined
+          ? {}
+          : { imageDescription: input.imageDescription }),
       },
     });
   }
@@ -362,7 +411,10 @@ export class PrismaDocumentRepository implements IDocumentRepository {
       id: string;
       chunkIndex: number;
       content: string;
+      pageNumber: number | null;
       embedded: boolean;
+      embeddingModel: string | null;
+      embeddingVersion: string | null;
     }>
   > {
     return this.prisma.$queryRaw<
@@ -370,28 +422,35 @@ export class PrismaDocumentRepository implements IDocumentRepository {
         id: string;
         chunkIndex: number;
         content: string;
+        pageNumber: number | null;
         embedded: boolean;
+        embeddingModel: string | null;
+        embeddingVersion: string | null;
       }>
     >(
-      Prisma.sql`SELECT id, "chunkIndex", content, (embedding IS NOT NULL) AS embedded FROM document_chunk WHERE "documentId" = ${documentId} ORDER BY "chunkIndex" ASC`,
+      Prisma.sql`SELECT id, "chunkIndex", "pageNumber", content, "embeddingModel", "embeddingVersion", (embedding IS NOT NULL) AS embedded FROM document_chunk WHERE "documentId" = ${documentId} ORDER BY "chunkIndex" ASC`,
     );
   }
 
-  async fail(id: string, message: string): Promise<void> {
-    await this.prisma.document.update({
+  async updateChunkPage(id: string, pageNumber: number | null): Promise<void> {
+    await this.prisma.documentChunk.updateMany({
       where: { id },
+      data: { pageNumber },
+    });
+  }
+
+  async fail(id: string, message: string): Promise<void> {
+    await this.prisma.document.updateMany({
+      where: { id, status: 'processing' },
       data: { status: 'failed', errorMessage: message },
     });
   }
 
   async restart(id: string): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.documentChunk.deleteMany({ where: { documentId: id } }),
-      this.prisma.document.update({
-        where: { id },
-        data: { status: 'processing', errorMessage: null },
-      }),
-    ]);
+    await this.prisma.document.update({
+      where: { id },
+      data: { status: 'processing', errorMessage: null },
+    });
   }
 
   async replaceChunks(

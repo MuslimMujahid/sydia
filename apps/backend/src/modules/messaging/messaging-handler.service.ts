@@ -1,3 +1,5 @@
+import { ApiException, ErrorCodes } from '../../shared/errors';
+import { DocumentProcessingPendingError } from '../../shared/documents';
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import type { User, SupportedLocale } from '../../database/entities';
 import {
@@ -20,6 +22,8 @@ const CHANNEL_MESSAGES = {
     newConversation: 'Percakapan baru dimulai.',
     unavailable: 'Provider atau pengguna tidak tersedia.',
     processingFailed: 'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
+    documentPending:
+      'Dokumen masih diproses di latar belakang. Periksa statusnya di perpustakaan file sebelum mengunggah ulang.',
   },
   en: {
     cancelled: 'Active processing and queued messages have been cancelled.',
@@ -27,6 +31,8 @@ const CHANNEL_MESSAGES = {
     unavailable: 'The provider or user is unavailable.',
     processingFailed:
       'Sorry, your message could not be processed. Please try again.',
+    documentPending:
+      'Your document is still processing in the background. Check its status in your file library before uploading it again.',
   },
 } satisfies Record<SupportedLocale, Record<string, string>>;
 
@@ -334,8 +340,44 @@ export class MessagingHandlerService implements OnModuleDestroy {
         await this.conversations.completeChannelTurns(turnIds, new Date());
       else {
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.error(`Channel turn failed: ${message}`);
-        await this.conversations.failChannelTurns(turnIds, message, new Date());
+        const pending = error instanceof DocumentProcessingPendingError;
+        if (pending)
+          this.logger.warn(
+            'Channel document wait ended; processing continues.',
+          );
+        else this.logger.error(`Channel turn failed: ${message}`);
+        if (pending)
+          await this.conversations.completeChannelTurns(turnIds, new Date());
+        else
+          await this.conversations.failChannelTurns(
+            turnIds,
+            message,
+            new Date(),
+          );
+
+        let response = pending
+          ? channelMessages(user.locale).documentPending
+          : channelMessages(user.locale).processingFailed;
+
+        // Public API validation messages are safe to show; provider errors stay generic.
+        if (
+          error instanceof ApiException &&
+          error.code === ErrorCodes.BAD_REQUEST &&
+          error.getStatus() === 400
+        ) {
+          const payload: unknown = error.getResponse();
+
+          if (payload && typeof payload === 'object' && 'error' in payload) {
+            const detail = payload.error;
+            if (
+              detail &&
+              typeof detail === 'object' &&
+              'message' in detail &&
+              typeof detail.message === 'string'
+            )
+              response = detail.message;
+          }
+        }
 
         stopProcessing?.();
         stopProcessing = undefined;
@@ -347,7 +389,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
               user,
               batch.externalIdentityId,
               last.message.message,
-              channelMessages(user.locale).processingFailed,
+              response,
             );
         } catch (sendError) {
           this.logger.error(

@@ -7,6 +7,7 @@ import {
 } from '../../database/interfaces';
 import { StorageService } from '../../infra/storage';
 import { ApiException, ErrorCodes } from '../../shared/errors';
+import { extractionKey } from '../../shared/documents';
 
 export type AdminAction = 'ban' | 'unban' | 'force-sign-out' | 'delete';
 
@@ -43,6 +44,7 @@ export class AdminService {
     }
 
     let found = true;
+    let cleanupIncomplete = false;
 
     if (action === 'ban') {
       found = await this.adminRepository.ban(
@@ -55,8 +57,39 @@ export class AdminService {
       await this.adminRepository.revokeSessions(userId);
     } else {
       const storageKeys = await this.adminRepository.storageKeys(userId);
-      await Promise.all(storageKeys.map((key) => this.storage.delete(key)));
+
+      // Keep the account until every original and extraction artifact is removed.
+      try {
+        for (const key of storageKeys) {
+          await this.storage.delete(extractionKey(key));
+          await this.storage.delete(key);
+        }
+      } catch (error: unknown) {
+        const failure = new ApiException({
+          code: ErrorCodes.SERVICE_UNAVAILABLE,
+          status: HttpStatus.SERVICE_UNAVAILABLE,
+          message:
+            'Pengguna belum dihapus karena pembersihan file belum selesai. Coba kembali atau hubungi administrator.',
+          details: { cleanupIncomplete: true, accountDeleted: false },
+        });
+
+        failure.cause = error;
+        throw failure;
+      }
+
       found = await this.adminRepository.deleteUser(userId);
+
+      if (found) {
+        // A worker may have saved a checkpoint while the account was being deleted.
+        // Subsequent writes are removed by the worker's missing-record cleanup.
+        const cleanup = await Promise.allSettled(
+          storageKeys.map((key) => this.storage.delete(extractionKey(key))),
+        );
+
+        cleanupIncomplete = cleanup.some(
+          (result) => result.status === 'rejected',
+        );
+      }
     }
 
     if (!found) {
@@ -68,10 +101,23 @@ export class AdminService {
     }
 
     await this.auditEvents.record({
-      userId,
+      // The deleted target can no longer be an audit-event foreign key.
+      userId: action === 'delete' ? actorId : userId,
       eventType: `admin.user.${action}`,
-      metadata: { actorId },
+      metadata: {
+        actorId,
+        ...(action === 'delete' ? { targetUserId: userId } : {}),
+      },
     });
+
+    if (cleanupIncomplete)
+      throw new ApiException({
+        code: ErrorCodes.SERVICE_UNAVAILABLE,
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message:
+          'Pengguna telah dihapus, tetapi pembersihan dokumen belum selesai. Hubungi administrator.',
+        details: { cleanupIncomplete: true, accountDeleted: true },
+      });
 
     return { success: true };
   }

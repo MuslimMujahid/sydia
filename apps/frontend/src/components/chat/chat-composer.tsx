@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import {
   FileAudio,
   FileImage,
@@ -24,7 +25,10 @@ import {
   getDocument,
   type FileKind,
 } from "@/lib/services/api/documents/documents.api";
-import { useUploadDocument } from "@/lib/services/api/documents/documents.queries";
+import {
+  documentQueryOptions,
+  useUploadDocument,
+} from "@/lib/services/api/documents/documents.queries";
 
 export type ComposerAttachment = {
   localId: string;
@@ -94,6 +98,10 @@ export function ChatComposer({
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadMutation = useUploadDocument();
+  const libraryDocument = useQuery(
+    documentQueryOptions(initialAttachmentId ?? "")
+  );
+
   const lastSubmission = useRef<
     { signature: string; idempotencyKey: string } | undefined
   >(undefined);
@@ -112,11 +120,38 @@ export function ChatComposer({
               documentId: initialAttachmentId,
               name: locale === "en" ? "File from library" : "File dari pustaka",
               kind: "document",
-              status: "ready",
+              status: "processing",
             },
           ]
     );
   }, [initialAttachmentId, locale]);
+
+  useEffect(() => {
+    if (!initialAttachmentId) return;
+    const document = libraryDocument.data;
+    if (!document && !libraryDocument.error) return;
+
+    setAttachments((current) =>
+      current.map((attachment) => {
+        if (attachment.documentId !== initialAttachmentId) return attachment;
+        if (libraryDocument.error)
+          return {
+            ...attachment,
+            status: "error",
+            errorMessage: libraryDocument.error.message,
+          };
+        if (!document) return attachment;
+
+        return {
+          ...attachment,
+          name: document.title,
+          kind: document.file.kind,
+          status: document.status === "failed" ? "error" : document.status,
+          errorMessage: document.errorMessage ?? undefined,
+        };
+      })
+    );
+  }, [initialAttachmentId, libraryDocument.data, libraryDocument.error]);
 
   const normalizedContent = content.trim();
   const readyAttachments = attachments.filter(
@@ -325,13 +360,17 @@ export function ChatComposer({
                             ? "Ready"
                             : "Siap"}
                 </span>
-                {attachment.status === "error" ? (
+                {attachment.status === "error" &&
+                (attachment.file || libraryDocument.isError) ? (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`${locale === "en" ? "Try uploading again" : "Coba unggah ulang"} ${attachment.name}`}
-                    onClick={() => void uploadAttachment(attachment)}
+                    aria-label={`${locale === "en" ? "Try again" : "Coba lagi"} ${attachment.name}`}
+                    onClick={() => {
+                      if (attachment.file) void uploadAttachment(attachment);
+                      else void libraryDocument.refetch();
+                    }}
                   >
                     <RefreshCcw />
                   </Button>
@@ -357,7 +396,7 @@ export function ChatComposer({
             ref={fileInputRef}
             type="file"
             onChange={(event) => void handleFiles(event)}
-            accept=".pdf,.doc,.docx,.txt,.md,image/*,audio/*"
+            accept=".pdf,.docx,.xlsx,.pptx,.odt,.ods,.odp,.rtf,.txt,.md,.csv,.html,.json,image/*,audio/*"
             className="sr-only"
           />
           <Button

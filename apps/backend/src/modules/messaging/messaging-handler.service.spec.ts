@@ -1,3 +1,5 @@
+import { ApiException, ErrorCodes } from '../../shared/errors';
+import { DocumentProcessingPendingError } from '../../shared/documents';
 import { jest } from '@jest/globals';
 import type { User } from '../../database/entities';
 import type {
@@ -7,7 +9,10 @@ import type {
 } from '../../database/interfaces';
 import type { NormalizedInboundMessage } from '../../shared/messaging';
 import type { AssistantOrchestratorService } from '../conversations/services';
-import { MessagingHandlerService } from './messaging-handler.service';
+import {
+  MessagingHandlerService,
+  type ChannelTurnAdapter,
+} from './messaging-handler.service';
 
 const user = { id: 'user-1', name: 'User', locale: 'id' } as User;
 const baseMessage: NormalizedInboundMessage = {
@@ -67,7 +72,7 @@ function setup() {
 
   const service = new MessagingHandlerService(assistant, conversations, users);
 
-  return { assistant, conversations, service, conversation };
+  return { assistant, conversations, service, conversation, users };
 }
 
 describe('MessagingHandlerService', () => {
@@ -285,4 +290,151 @@ describe('MessagingHandlerService', () => {
     );
     service.onModuleDestroy();
   });
+});
+
+describe('MessagingHandlerService document preparation feedback', () => {
+  afterEach(() => jest.useRealTimers());
+
+  test.each(['telegram', 'whatsapp'] as const)(
+    '%s shows validation feedback but hides unexpected provider errors',
+    async (provider) => {
+      for (const [failure, expected] of [
+        [
+          new ApiException({
+            code: ErrorCodes.BAD_REQUEST,
+            status: 400,
+            message:
+              'Isi file tidak sesuai dengan formatnya. Ekspor ulang lalu unggah kembali.',
+          }),
+          'Isi file tidak sesuai dengan formatnya. Ekspor ulang lalu unggah kembali.',
+        ],
+        [
+          new Error('secret-provider-endpoint and credentials'),
+          'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
+        ],
+      ] as const) {
+        jest.useFakeTimers();
+        const deps = setup();
+        const send = jest
+          .fn<ChannelTurnAdapter['send']>()
+          .mockResolvedValue(undefined);
+
+        const inbound = { ...baseMessage, provider, kind: 'document' as const };
+        const batch: ClaimedChannelTurns = {
+          channelConversationId: 'channel-1',
+          conversationId: deps.conversation.id,
+          userId: user.id,
+          externalIdentityId: 'identity-1',
+          provider,
+          turns: [
+            {
+              id: 'turn-1',
+              channelConversationId: 'channel-1',
+              providerMessageId: inbound.providerMessageId,
+              message: { message: inbound },
+              status: 'processing',
+              availableAt: new Date(),
+              processingStartedAt: new Date(),
+              cancellationRequestedAt: null,
+            },
+          ],
+        };
+
+        jest
+          .mocked(deps.conversations.claimChannelTurns)
+          .mockResolvedValueOnce(batch)
+          .mockResolvedValue(null);
+        jest
+          .mocked(deps.conversations.findRecoverableChannelConversationIds)
+          .mockResolvedValue(['channel-1']);
+        await deps.service.registerAdapter(provider, {
+          prepare: () => Promise.reject(failure),
+          send,
+        });
+        await jest.runAllTimersAsync();
+        expect(send).toHaveBeenCalledWith(
+          user,
+          'identity-1',
+          inbound,
+          expected,
+        );
+        expect(deps.assistant.sendAndWait).not.toHaveBeenCalled();
+        expect(deps.conversations.failChannelTurns).toHaveBeenCalledTimes(1);
+        deps.service.onModuleDestroy();
+        jest.useRealTimers();
+      }
+    },
+  );
+
+  test.each([
+    [
+      'telegram',
+      'id',
+      'Dokumen masih diproses di latar belakang. Periksa statusnya di perpustakaan file sebelum mengunggah ulang.',
+    ],
+    [
+      'whatsapp',
+      'en',
+      'Your document is still processing in the background. Check its status in your file library before uploading it again.',
+    ],
+  ] as const)(
+    '%s reports a pending document in %s without marking processing failed',
+    async (provider, locale, expected) => {
+      jest.useFakeTimers();
+      const deps = setup();
+      const currentUser = { ...user, locale };
+      jest.mocked(deps.users.findById).mockResolvedValue(currentUser);
+      const send = jest
+        .fn<ChannelTurnAdapter['send']>()
+        .mockResolvedValue(undefined);
+
+      const inbound = { ...baseMessage, provider, kind: 'document' as const };
+      const batch: ClaimedChannelTurns = {
+        channelConversationId: 'channel-1',
+        conversationId: deps.conversation.id,
+        userId: user.id,
+        externalIdentityId: 'identity-1',
+        provider,
+        turns: [
+          {
+            id: 'turn-1',
+            channelConversationId: 'channel-1',
+            providerMessageId: inbound.providerMessageId,
+            message: { message: inbound },
+            status: 'processing',
+            availableAt: new Date(),
+            processingStartedAt: new Date(),
+            cancellationRequestedAt: null,
+          },
+        ],
+      };
+
+      jest
+        .mocked(deps.conversations.claimChannelTurns)
+        .mockResolvedValueOnce(batch)
+        .mockResolvedValue(null);
+      jest
+        .mocked(deps.conversations.findRecoverableChannelConversationIds)
+        .mockResolvedValue(['channel-1']);
+      await deps.service.registerAdapter(provider, {
+        prepare: () =>
+          Promise.reject(new DocumentProcessingPendingError('document-1')),
+        send,
+      });
+      await jest.runAllTimersAsync();
+      expect(send).toHaveBeenCalledWith(
+        currentUser,
+        'identity-1',
+        inbound,
+        expected,
+      );
+      expect(deps.conversations.failChannelTurns).not.toHaveBeenCalled();
+      expect(deps.conversations.completeChannelTurns).toHaveBeenCalledWith(
+        ['turn-1'],
+        expect.any(Date),
+      );
+      expect(deps.assistant.sendAndWait).not.toHaveBeenCalled();
+      deps.service.onModuleDestroy();
+    },
+  );
 });

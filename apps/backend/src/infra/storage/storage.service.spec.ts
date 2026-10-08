@@ -1,14 +1,98 @@
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
-import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { StorageService } from './storage.service';
+import { StorageReadLimitError, StorageService } from './storage.service';
 
 type PrivateStorage = { s3?: S3Client };
 
 describe('StorageService', () => {
+  test('bounds local reads and accepts a file exactly at the limit', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'bounded-storage-'));
+    const service = new StorageService(
+      new ConfigService({ BACKEND_STORAGE_LOCAL_ROOT: root }),
+    );
+
+    try {
+      const bytes = Buffer.from('12345678');
+      await service.put('invoice', bytes, 'application/octet-stream');
+      await expect(service.get('invoice', 8)).resolves.toEqual(bytes);
+      await expect(service.get('invoice', 7)).rejects.toBeInstanceOf(
+        StorageReadLimitError,
+      );
+      await expect(service.get('missing', 8)).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+      await expect(service.get('invoice', 0)).rejects.toBeInstanceOf(
+        RangeError,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test.each([undefined, 100])(
+    'cancels an oversized S3 body with content length %p',
+    async (contentLength) => {
+      const service = new StorageService(
+        new ConfigService({ BACKEND_STORAGE_BUCKET: 'documents' }),
+      );
+
+      const cancelled = jest.fn();
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          controller.enqueue(new Uint8Array([1, 2, 3]));
+        },
+        cancel() {
+          cancelled();
+        },
+      });
+
+      const send = jest
+        .fn<(command: GetObjectCommand) => Promise<unknown>>()
+        .mockResolvedValue({
+          ContentLength: contentLength,
+          Body: { transformToWebStream: () => body },
+        });
+
+      (service as unknown as PrivateStorage).s3 = {
+        send,
+      } as unknown as S3Client;
+      await expect(service.get('oversized', 4)).rejects.toBeInstanceOf(
+        StorageReadLimitError,
+      );
+      expect(cancelled).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  test('reads bounded S3 bodies with no content-length header', async () => {
+    const service = new StorageService(
+      new ConfigService({ BACKEND_STORAGE_BUCKET: 'documents' }),
+    );
+
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+        controller.enqueue(new Uint8Array([3, 4]));
+        controller.close();
+      },
+    });
+
+    const send = jest
+      .fn<(command: GetObjectCommand) => Promise<unknown>>()
+      .mockResolvedValue({ Body: { transformToWebStream: () => body } });
+
+    (service as unknown as PrivateStorage).s3 = { send } as unknown as S3Client;
+    await expect(service.get('small', 4)).resolves.toEqual(
+      Buffer.from([1, 2, 3, 4]),
+    );
+  });
   test('accepts an origin-only S3 endpoint', () => {
     expect(
       () =>

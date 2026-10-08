@@ -4,11 +4,12 @@ import {
   mkdtemp,
   open,
   readFile,
+  rm,
   unlink,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import {
   Inject,
   Injectable,
@@ -22,6 +23,11 @@ import type {
   OutboundMessage,
   OutboundMessageAdapter,
   OutboundMessageResult,
+} from '../../shared/messaging';
+import {
+  MAX_MEDIA_BYTES,
+  MediaDownloadLimitError,
+  readMediaResponse,
 } from '../../shared/messaging';
 import {
   WHATSAPP_REPOSITORY,
@@ -299,6 +305,7 @@ export class WhatsAppGatewayService
       throw new Error('Cannot resolve WhatsApp media message identity.');
 
     const result = await this.client.downloadMedia(chat, messageId);
+    if (result.file_size > MAX_MEDIA_BYTES) throw new MediaDownloadLimitError();
     const url =
       result.file_url ||
       (result.file_path
@@ -313,10 +320,19 @@ export class WhatsAppGatewayService
 
     if (!response.ok)
       throw new Error(`WhatsApp media download failed: ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = await readMediaResponse(response);
     const directory = await mkdtemp(join(tmpdir(), 'sydia-whatsapp-'));
-    const path = join(directory, result.filename || `${messageId}.bin`);
-    await writeFile(path, buffer);
+    const path = join(
+      directory,
+      basename(result.filename || `${messageId}.bin`),
+    );
+
+    try {
+      await writeFile(path, buffer);
+    } catch (error: unknown) {
+      await rm(directory, { recursive: true, force: true });
+      throw error;
+    }
 
     return path;
   }

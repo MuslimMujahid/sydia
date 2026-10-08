@@ -150,7 +150,7 @@ export function DocumentPage() {
         className="sr-only"
         type="file"
         multiple
-        accept=".pdf,.doc,.docx,.txt,.md,image/*,audio/*"
+        accept=".pdf,.docx,.xlsx,.pptx,.odt,.ods,.odp,.rtf,.txt,.md,.csv,.html,.json,image/*,audio/*"
         tabIndex={-1}
         aria-hidden="true"
         onChange={(event) => void handleFiles(event)}

@@ -68,6 +68,21 @@ export class PrismaUserPrivacyRepository implements IUserPrivacyRepository {
       await tx.hindsightReference.deleteMany({
         where: { delivery: { source: { bank: { userId } } } },
       });
+      const assets = await tx.fileAsset.findMany({
+        where: { userId },
+        select: { storageKey: true },
+      });
+
+      const cleanupRequestedAt = new Date();
+
+      await tx.documentArtifactCleanup.createMany({
+        data: assets.map(({ storageKey }) => ({ ownerId: userId, storageKey })),
+        skipDuplicates: true,
+      });
+      await tx.documentArtifactCleanup.updateMany({
+        where: { ownerId: userId },
+        data: { cleanupRequestedAt },
+      });
       const result = await tx.user.deleteMany({ where: { id: userId } });
 
       return result.count === 1;

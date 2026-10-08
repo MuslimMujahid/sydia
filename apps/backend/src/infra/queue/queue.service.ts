@@ -7,7 +7,7 @@ export type ReminderJob = {
   idempotencyKey: string;
   occurrenceId: string;
 };
-export type DocumentJob = { documentId: string; userId: string };
+export type DocumentJob = { documentId: string; userId: string; hint?: string };
 export type MemoryDreamJob = {
   kind: 'dream' | 'recover';
   userId?: string;

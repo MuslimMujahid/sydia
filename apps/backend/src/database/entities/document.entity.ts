@@ -12,6 +12,11 @@ export type FileAsset = Pick<
   'id' | 'originalName' | 'mimeType' | 'size' | 'kind' | 'createdAt'
 > & { kind: FileKind };
 
+export type FileAssetCreate = Pick<
+  PrismaFileAsset,
+  'originalName' | 'mimeType' | 'size' | 'checksum' | 'storageKey'
+> & { kind: FileKind };
+
 export type DocumentChunk = Pick<
   PrismaDocumentChunk,
   'id' | 'chunkIndex' | 'pageNumber' | 'content'

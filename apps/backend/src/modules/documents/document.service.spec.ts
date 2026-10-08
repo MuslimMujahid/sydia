@@ -1,3 +1,4 @@
+import { DocumentProcessingPendingError } from '../../shared/documents';
 import { describe, expect, jest, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import type {
@@ -13,11 +14,12 @@ import type {
 } from '../../infra/model-gateway';
 import type { QueueService } from '../../infra/queue';
 import type { StorageService } from '../../infra/storage';
+import type { DocumentExtractionService } from './document-extraction.service';
 import { DocumentService, NonRetryableDocumentError } from './document.service';
 
 const userId = 'user-1';
 const file = {
-  originalname: 'AQADPhVrG2a7SVV.jpg',
+  originalname: 'message.txt',
   mimetype: 'text/plain',
   size: 11,
   buffer: Buffer.from('hello world'),
@@ -65,6 +67,12 @@ function dependencies() {
   } as unknown as StorageService;
 
   const documents = {
+    createWithFile: jest
+      .fn<IDocumentRepository['createWithFile']>()
+      .mockResolvedValue(document()),
+    deleteFileByStorageKey: jest
+      .fn<IDocumentRepository['deleteFileByStorageKey']>()
+      .mockResolvedValue(undefined),
     createFile: jest
       .fn<
         (
@@ -137,9 +145,16 @@ function dependencies() {
       .fn<
         (
           id: string,
-          input: { textContent?: string | null; transcript?: string | null },
+          input: {
+            textContent?: string | null;
+            transcript?: string | null;
+            imageDescription?: string | null;
+          },
         ) => Promise<void>
       >()
+      .mockResolvedValue(undefined),
+    updateChunkPage: jest
+      .fn<IDocumentRepository['updateChunkPage']>()
       .mockResolvedValue(undefined),
     listChunkEmbeddings: jest
       .fn<IDocumentRepository['listChunkEmbeddings']>()
@@ -231,6 +246,18 @@ function dependencies() {
     }),
   } satisfies LanguageModelGateway;
 
+  const extraction = {
+    extract: jest.fn<DocumentExtractionService['extract']>().mockResolvedValue({
+      text: 'hello world',
+      chunks: [{ chunkIndex: 0, pageNumber: null, content: 'hello world' }],
+      methods: ['native'],
+      warnings: [],
+    }),
+    deleteCheckpoint: jest
+      .fn<DocumentExtractionService['deleteCheckpoint']>()
+      .mockResolvedValue(undefined),
+  };
+
   return {
     service: new DocumentService(
       documents,
@@ -240,6 +267,7 @@ function dependencies() {
       queue as unknown as QueueService,
       languageModel,
       new ConfigService({ BACKEND_AUTH_URL: 'http://localhost:5000' }),
+      extraction as unknown as DocumentExtractionService,
     ),
     storage,
     documents,
@@ -247,6 +275,7 @@ function dependencies() {
     media,
     queue,
     languageModel,
+    extraction,
   };
 }
 
@@ -284,7 +313,11 @@ describe('DocumentService ingest', () => {
         usage: {},
       });
 
-    await service.ingest(userId, file, { hint: 'library membership card' });
+    await service.ingest(
+      userId,
+      { ...file, originalname: 'AQADPhVrG2a7SVV.jpg', mimetype: 'image/jpeg' },
+      { hint: 'library membership card' },
+    );
 
     expect(documents.update).toHaveBeenCalledWith(userId, 'document-1', {
       title: 'Kartu Anggota Perpustakaan.jpg',
@@ -299,7 +332,7 @@ describe('DocumentService ingest', () => {
 
     await service.ingest(
       userId,
-      { ...file, originalname: 'Rencana.png' },
+      { ...file, originalname: 'Rencana.png', mimetype: 'image/png' },
       { hint: 'rencana kegiatan' },
     );
 
@@ -315,7 +348,7 @@ describe('DocumentService ingest', () => {
 
     await service.ingest(
       userId,
-      { ...file, originalname: 'Rencana.png' },
+      { ...file, originalname: 'Rencana.png', mimetype: 'image/png' },
       { hint: 'rencana kegiatan' },
     );
 
@@ -329,7 +362,15 @@ describe('DocumentService ingest', () => {
       .mockRejectedValue(new Error('provider unavailable'));
 
     await expect(
-      service.ingest(userId, file, { hint: 'nota pembelian' }),
+      service.ingest(
+        userId,
+        {
+          ...file,
+          originalname: 'AQADPhVrG2a7SVV.jpg',
+          mimetype: 'image/jpeg',
+        },
+        { hint: 'nota pembelian' },
+      ),
     ).resolves.toEqual(document());
     expect(documents.update).not.toHaveBeenCalled();
     expect(queue.documents.add).toHaveBeenCalled();
@@ -341,7 +382,11 @@ describe('DocumentService ingest', () => {
       .fn<LanguageModelGateway['generate']>()
       .mockResolvedValue({ text: '"   "', usage: {} });
 
-    await service.ingest(userId, file, { hint: 'nota pembelian' });
+    await service.ingest(
+      userId,
+      { ...file, originalname: 'AQADPhVrG2a7SVV.jpg', mimetype: 'image/jpeg' },
+      { hint: 'nota pembelian' },
+    );
 
     expect(documents.update).not.toHaveBeenCalled();
   });
@@ -355,23 +400,11 @@ describe('DocumentService ingest', () => {
     expect(documents.update).not.toHaveBeenCalled();
   });
 
-  test('deletes the blob and propagates a createFile failure', async () => {
-    const { service, storage, documents, queue } = dependencies();
+  test('cleans up the upload and checkpoint when atomic record creation fails', async () => {
+    const { service, storage, documents, queue, extraction } = dependencies();
     const error = new Error('database unavailable');
-    documents.createFile = jest
-      .fn<
-        (
-          id: string,
-          input: {
-            originalName: string;
-            mimeType: string;
-            size: number;
-            checksum: string;
-            storageKey: string;
-            kind: 'document' | 'image' | 'audio';
-          },
-        ) => Promise<FileAsset>
-      >()
+    documents.createWithFile = jest
+      .fn<IDocumentRepository['createWithFile']>()
       .mockRejectedValue(error);
 
     await expect(service.ingest(userId, file)).rejects.toBe(error);
@@ -380,6 +413,13 @@ describe('DocumentService ingest', () => {
       expect.stringMatching(/^user-1\//),
     );
     expect(documents.create).not.toHaveBeenCalled();
+    expect(documents.deleteFileByStorageKey).toHaveBeenCalledWith(
+      userId,
+      expect.stringMatching(/^user-1\//),
+    );
+    expect(extraction.deleteCheckpoint).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\//),
+    );
     expect(queue.documents.add).not.toHaveBeenCalled();
   });
 
@@ -413,7 +453,53 @@ describe('DocumentService ingest', () => {
     expect(storage.delete).toHaveBeenCalledWith(
       expect.stringMatching(/^user-1\//),
     );
-    expect(documents.delete).toHaveBeenCalledWith(userId, 'document-1');
+    expect(documents.deleteFileByStorageKey).toHaveBeenCalledWith(
+      userId,
+      expect.stringMatching(/^user-1\//),
+    );
+  });
+
+  test('removes a partially written original when storage fails', async () => {
+    const { service, storage, documents, extraction, queue } = dependencies();
+    const error = new Error('disk full');
+    storage.put = jest.fn<StorageService['put']>().mockRejectedValue(error);
+
+    await expect(service.ingest(userId, file)).rejects.toBe(error);
+    expect(storage.delete).toHaveBeenCalledTimes(1);
+    expect(extraction.deleteCheckpoint).toHaveBeenCalledTimes(1);
+    expect(documents.createWithFile).not.toHaveBeenCalled();
+    expect(queue.documents.add).not.toHaveBeenCalled();
+  });
+
+  test('reports incomplete cleanup while attempting every artifact deletion', async () => {
+    const { service, storage, documents, extraction, queue } = dependencies();
+    const error = new Error('queue failed');
+    queue.documents.add.mockRejectedValue(error);
+    documents.deleteFileByStorageKey = jest
+      .fn<IDocumentRepository['deleteFileByStorageKey']>()
+      .mockRejectedValue(new Error('database unavailable'));
+    storage.delete = jest
+      .fn<StorageService['delete']>()
+      .mockRejectedValue(new Error('storage unavailable'));
+
+    const outcome = service.ingest(userId, file);
+
+    await expect(outcome).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+      cause: expect.any(AggregateError),
+      message:
+        'Unggahan gagal dan pembersihan file belum selesai. Hubungi administrator.',
+    });
+    await expect(outcome).rejects.toMatchObject({
+      response: {
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          details: { cleanupIncomplete: true },
+        },
+      },
+    });
+    expect(extraction.deleteCheckpoint).toHaveBeenCalledTimes(1);
+    expect(storage.delete).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -451,7 +537,7 @@ describe('DocumentService processDocument', () => {
     const { service, storage, documents } = dependencies();
 
     await service.processDocument('document-1', userId);
-    expect(storage.get).toHaveBeenCalledWith('user-1/blob');
+    expect(storage.get).toHaveBeenCalledWith('user-1/blob', 25 * 1024 * 1024);
     expect(documents.replaceChunks).toHaveBeenCalledWith('document-1', userId, [
       { chunkIndex: 0, pageNumber: null, content: 'hello world' },
     ]);
@@ -480,7 +566,11 @@ describe('DocumentService processDocument', () => {
       >()
       .mockResolvedValue({
         ...document(),
-        file: { ...asset(), mimeType: 'application/octet-stream' },
+        file: {
+          ...asset(),
+          originalName: 'legacy.doc',
+          mimeType: 'application/octet-stream',
+        },
       });
 
     await expect(
@@ -527,7 +617,7 @@ describe('DocumentService processDocument', () => {
       .mockResolvedValue({
         ...document(),
         file: {
-          ...asset('image/png'),
+          ...asset('image/jpeg'),
           kind: 'image',
           originalName: 'AQADkhRrG2a7SVV-.jpg',
         },
@@ -542,7 +632,7 @@ describe('DocumentService processDocument', () => {
 
     await service.processDocument('document-1', userId);
 
-    expect(media.describeImage).toHaveBeenCalledWith(file.buffer, 'image/png');
+    expect(media.describeImage).toHaveBeenCalledWith(file.buffer, 'image/jpeg');
     expect(media.transcribe).not.toHaveBeenCalled();
     expect(languageModel.generate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -632,7 +722,11 @@ describe('DocumentService processDocument', () => {
       .fn<IDocumentRepository['findById']>()
       .mockResolvedValue({
         ...document(),
-        file: { ...asset('image/png'), kind: 'image' },
+        file: {
+          ...asset('image/png'),
+          kind: 'image',
+          originalName: 'photo.png',
+        },
       });
     media.describeImage = jest
       .fn<OpenRouterMediaService['describeImage']>()
@@ -642,7 +736,9 @@ describe('DocumentService processDocument', () => {
 
     expect(media.describeImage).toHaveBeenCalledWith(file.buffer, 'image/png');
     expect(media.transcribe).not.toHaveBeenCalled();
-    expect(documents.saveExtraction).not.toHaveBeenCalled();
+    expect(documents.saveExtraction).toHaveBeenCalledWith('document-1', {
+      imageDescription: description,
+    });
     expect(documents.complete).toHaveBeenCalledWith(
       'document-1',
       expect.objectContaining({ imageDescription: description }),
@@ -658,7 +754,11 @@ describe('DocumentService processDocument', () => {
       .fn<IDocumentRepository['findById']>()
       .mockResolvedValue({
         ...document(),
-        file: { ...asset('image/png'), kind: 'image' },
+        file: {
+          ...asset('image/png'),
+          kind: 'image',
+          originalName: 'photo.png',
+        },
       });
     media.describeImage = jest
       .fn<OpenRouterMediaService['describeImage']>()
@@ -678,7 +778,11 @@ describe('DocumentService processDocument', () => {
       .mockResolvedValue({
         ...document(),
         transcript: 'Halo dari catatan suara.',
-        file: { ...asset('audio/webm'), kind: 'audio' },
+        file: {
+          ...asset('audio/webm'),
+          kind: 'audio',
+          originalName: 'voice.webm',
+        },
       });
 
     await service.processDocument('document-1', userId);
@@ -704,7 +808,11 @@ describe('DocumentService processDocument', () => {
       .fn<IDocumentRepository['findById']>()
       .mockResolvedValue({
         ...document(),
-        file: { ...asset('audio/webm'), kind: 'audio' },
+        file: {
+          ...asset('audio/webm'),
+          kind: 'audio',
+          originalName: 'voice.webm',
+        },
       });
     media.transcribe = jest
       .fn<OpenRouterMediaService['transcribe']>()
@@ -731,7 +839,10 @@ describe('DocumentService processDocument', () => {
           id: 'chunk-0',
           chunkIndex: 0,
           content: 'hello world',
+          pageNumber: null,
           embedded: true,
+          embeddingModel: 'test-model',
+          embeddingVersion: 'test-version',
         },
       ]);
 
@@ -828,5 +939,284 @@ describe('DocumentService retrieval', () => {
     const found = await service.search(userId, 'invoice total', 4);
 
     expect(found.map(({ id }) => id)).toEqual(['a-1', 'a-2', 'b-1']);
+  });
+});
+
+describe('DocumentService processing deletion races', () => {
+  test('removes the checkpoint when deletion races with a failed embedding', async () => {
+    const { service, documents, embeddings, extraction } = dependencies();
+    extraction.extract.mockResolvedValue({
+      text: 'Invoice SYD12345 total 125000',
+      chunks: [
+        {
+          chunkIndex: 0,
+          pageNumber: 1,
+          content: 'Invoice SYD12345 total 125000',
+        },
+      ],
+      methods: ['native'],
+      warnings: [],
+    });
+    const failure = new Error('Embedding temporarily unavailable');
+    jest.mocked(embeddings.embedMany).mockImplementation(() => {
+      jest.mocked(documents.findById).mockResolvedValue(null);
+
+      return Promise.reject(failure);
+    });
+
+    await expect(service.processDocument('document-1', userId)).rejects.toBe(
+      failure,
+    );
+
+    expect(extraction.deleteCheckpoint).toHaveBeenCalledWith('user-1/blob');
+    expect(documents.complete).not.toHaveBeenCalled();
+  });
+
+  test('keeps the checkpoint for an embedding retry when the document survives', async () => {
+    const { service, documents, embeddings, extraction } = dependencies();
+    extraction.extract.mockResolvedValue({
+      text: 'Invoice SYD12345 total 125000',
+      chunks: [
+        {
+          chunkIndex: 0,
+          pageNumber: 1,
+          content: 'Invoice SYD12345 total 125000',
+        },
+      ],
+      methods: ['native'],
+      warnings: [],
+    });
+    jest
+      .mocked(embeddings.embedMany)
+      .mockRejectedValue(new Error('Embedding temporarily unavailable'));
+
+    await expect(service.processDocument('document-1', userId)).rejects.toThrow(
+      'Embedding temporarily unavailable',
+    );
+
+    expect(extraction.deleteCheckpoint).not.toHaveBeenCalled();
+    expect(documents.complete).not.toHaveBeenCalled();
+  });
+});
+
+describe('DocumentService removal lifecycle', () => {
+  test('cleans the checkpoint after record deletion so a worker cannot leave a late sidecar', async () => {
+    const { service, documents, extraction } = dependencies();
+    let deleted = false;
+    jest.mocked(documents.delete).mockImplementation(() => {
+      deleted = true;
+
+      return Promise.resolve('user-1/blob');
+    });
+    extraction.deleteCheckpoint.mockImplementation(() => {
+      expect(deleted).toBe(true);
+
+      return Promise.resolve();
+    });
+
+    await expect(service.remove(userId, 'document-1')).resolves.toBe(true);
+
+    expect(extraction.deleteCheckpoint).toHaveBeenCalledWith('user-1/blob');
+  });
+});
+
+describe('DocumentService chunk provenance on retry', () => {
+  test('updates a changed PDF page reference while preserving a matching embedding', async () => {
+    const { service, documents, embeddings, extraction } = dependencies();
+    extraction.extract.mockResolvedValue({
+      text: 'Invoice total 125000',
+      chunks: [
+        { chunkIndex: 0, pageNumber: 2, content: 'Invoice total 125000' },
+      ],
+      methods: ['native'],
+      warnings: [],
+    });
+    jest.mocked(documents.listChunkEmbeddings).mockResolvedValue([
+      {
+        id: 'previous-chunk',
+        chunkIndex: 0,
+        pageNumber: 1,
+        content: 'Invoice total 125000',
+        embedded: true,
+        embeddingModel: 'test-model',
+        embeddingVersion: 'test-version',
+      },
+    ]);
+
+    await service.processDocument('document-1', userId);
+
+    expect(documents.updateChunkPage).toHaveBeenCalledWith('previous-chunk', 2);
+    expect(documents.replaceChunks).not.toHaveBeenCalled();
+    expect(embeddings.embedMany).not.toHaveBeenCalled();
+    expect(documents.complete).toHaveBeenCalled();
+  });
+
+  test.each([
+    { model: 'old-model', version: 'test-version' },
+    { model: 'test-model', version: 'old-version' },
+    { model: null, version: null },
+  ])(
+    'refreshes embeddings with incompatible provenance %p',
+    async ({ model, version }) => {
+      const { service, documents, embeddings } = dependencies();
+      jest.mocked(documents.listChunkEmbeddings).mockResolvedValue([
+        {
+          id: 'previous-chunk',
+          chunkIndex: 0,
+          pageNumber: null,
+          content: 'hello world',
+          embedded: true,
+          embeddingModel: model,
+          embeddingVersion: version,
+        },
+      ]);
+
+      await service.processDocument('document-1', userId);
+
+      expect(embeddings.embedMany).toHaveBeenCalledWith(['hello world']);
+      expect(documents.setChunkEmbedding).toHaveBeenCalledWith(
+        'previous-chunk',
+        [0.1, 0.2],
+        'test-model',
+        'test-version',
+      );
+      expect(documents.replaceChunks).not.toHaveBeenCalled();
+      expect(documents.updateChunkPage).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe('DocumentService officeparser ingress validation', () => {
+  test.each([
+    ['invoice.docx', 'image/png', 'hello', 'FORMAT_MISMATCH'],
+    ['invoice.pdf', 'audio/mpeg', 'hello', 'FORMAT_MISMATCH'],
+    ['old.doc', 'image/jpeg', 'hello', 'UNSUPPORTED_FORMAT'],
+    ['photo.png', 'image/png', '%PDF-1.7', 'FORMAT_MISMATCH'],
+    ['voice.mp3', 'audio/mpeg', '504b0304', 'FORMAT_MISMATCH'],
+    ['photo.jpg', 'image/jpeg', 'd0cf11e0a1b11ae1', 'FORMAT_MISMATCH'],
+    ['photo.png', 'image/png', '{\\rtf1', 'FORMAT_MISMATCH'],
+    ['invoice.docx', 'application/pdf', 'hello', 'FORMAT_MISMATCH'],
+    ['empty.txt', 'text/plain', '', 'EMPTY_DOCUMENT'],
+  ])(
+    'rejects %s declared as %s before side effects',
+    async (originalname, mimetype, bytes, parserCode) => {
+      const deps = dependencies();
+      const buffer = /^[0-9a-f]{8,16}$/.test(bytes)
+        ? Buffer.from(bytes, 'hex')
+        : Buffer.from(bytes);
+
+      const result = deps.service.ingest(
+        userId,
+        { originalname, mimetype, buffer, size: buffer.length },
+        { hint: 'Name this upload' },
+      );
+
+      await expect(result).rejects.toMatchObject({
+        message: expect.not.stringContaining('Api Exception'),
+        cause: { code: parserCode },
+      });
+      expect(deps.storage.put).not.toHaveBeenCalled();
+      expect(deps.documents.createWithFile).not.toHaveBeenCalled();
+      expect(deps.queue.documents.add).not.toHaveBeenCalled();
+      expect(deps.languageModel.generate).not.toHaveBeenCalled();
+      expect(deps.media.describeImage).not.toHaveBeenCalled();
+      expect(deps.media.transcribe).not.toHaveBeenCalled();
+      expect(deps.storage.delete).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each([
+    ['photo.png', ' IMAGE/PNG; charset=binary ', 'image'],
+    ['voice.mp3', 'Audio/Mpeg', 'audio'],
+    ['invoice.docx', 'application/octet-stream', 'document'],
+    ['invoice.docx', 'application/zip', 'document'],
+    ['notes.md', 'text/plain; charset=UTF-8', 'document'],
+    ['sheet.csv', 'application/vnd.ms-excel', 'document'],
+  ])(
+    'retains routing for %s declared as %s',
+    async (originalname, mimetype, kind) => {
+      const deps = dependencies();
+      await deps.service.ingest(userId, { ...file, originalname, mimetype });
+      expect(deps.documents.createWithFile).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({ file: expect.objectContaining({ kind }) }),
+      );
+      expect(deps.queue.documents.add).toHaveBeenCalledTimes(1);
+    },
+  );
+});
+
+describe('DocumentService existing media validation', () => {
+  test.each(['image', 'audio'] as const)(
+    'rejects disguised documents on %s retries before provider calls',
+    async (kind) => {
+      const deps = dependencies();
+      const record = document();
+      record.file = {
+        ...record.file,
+        kind,
+        originalName: 'upload.bin',
+        mimeType: kind === 'image' ? 'image/png' : 'audio/mpeg',
+      };
+      jest.mocked(deps.documents.findById).mockResolvedValue(record);
+      jest.mocked(deps.storage.get).mockResolvedValue(Buffer.from('%PDF-1.7'));
+      await expect(
+        deps.service.processDocument(record.id, userId),
+      ).rejects.toThrow(NonRetryableDocumentError);
+      expect(deps.media.describeImage).not.toHaveBeenCalled();
+      expect(deps.media.transcribe).not.toHaveBeenCalled();
+      expect(deps.languageModel.generate).not.toHaveBeenCalled();
+      expect(deps.embeddings.embedMany).not.toHaveBeenCalled();
+      expect(deps.documents.complete).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe('DocumentService pending channel wait', () => {
+  test('a wait timeout leaves the queued document recoverable', async () => {
+    const deps = dependencies();
+    await expect(
+      deps.service.waitUntilReady(userId, 'document-1', 0),
+    ).rejects.toMatchObject({
+      name: 'DocumentProcessingPendingError',
+      documentId: 'document-1',
+    });
+    await expect(
+      deps.service.waitUntilReady(userId, 'document-1', 0),
+    ).rejects.toBeInstanceOf(DocumentProcessingPendingError);
+    expect(deps.documents.fail).not.toHaveBeenCalled();
+    expect(deps.documents.restart).not.toHaveBeenCalled();
+    expect(deps.queue.documents.add).not.toHaveBeenCalled();
+    jest.mocked(deps.documents.findById).mockResolvedValue(document('ready'));
+    await expect(
+      deps.service.waitUntilReady(userId, 'document-1'),
+    ).resolves.toMatchObject({ status: 'ready' });
+  });
+});
+
+describe('DocumentService wait deadline state', () => {
+  test('returns a document that becomes ready at the deadline', async () => {
+    const deps = dependencies();
+    jest.mocked(deps.documents.findById).mockResolvedValue(document('ready'));
+    await expect(
+      deps.service.waitUntilReady(userId, 'document-1', 0),
+    ).resolves.toMatchObject({ status: 'ready' });
+  });
+  test('reports a known failure instead of claiming the document is still processing', async () => {
+    const deps = dependencies();
+    jest.mocked(deps.documents.findById).mockResolvedValue({
+      ...document('failed'),
+      errorMessage: 'File rusak.',
+    });
+    await expect(
+      deps.service.waitUntilReady(userId, 'document-1', 0),
+    ).rejects.toThrow('File rusak.');
+  });
+  test('reports deletion at the deadline', async () => {
+    const deps = dependencies();
+    jest.mocked(deps.documents.findById).mockResolvedValue(null);
+    await expect(
+      deps.service.waitUntilReady(userId, 'document-1', 0),
+    ).rejects.toThrow('Dokumen tidak ditemukan.');
   });
 });

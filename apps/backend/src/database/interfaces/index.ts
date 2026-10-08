@@ -10,6 +10,7 @@ export * from './reminder.repository.interface';
 export * from './task.repository.interface';
 export * from './category.repository.interface';
 export * from './document.repository.interface';
+export * from './document-artifact-cleanup.repository.interface';
 export * from './contact.repository.interface';
 export * from './contact-group.repository.interface';
 export * from './calendar.repository.interface';

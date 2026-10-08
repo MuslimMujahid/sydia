@@ -3,9 +3,10 @@
     "bun --cwd apps/frontend eslint --fix --max-warnings 0 --no-warn-ignored",
     "prettier --ignore-unknown --write"
   ],
-  "apps/backend/**/*.{js,jsx,ts,tsx,mjs,cjs}": [
+  "apps/backend/**/*.{js,jsx,ts,tsx,mjs}": [
     "bun --cwd apps/backend eslint --fix --no-warn-ignored",
     "prettier --ignore-unknown --write"
   ],
+  "apps/backend/**/*.cjs": "prettier --ignore-unknown --write",
   "!{apps/frontend,apps/backend}/**/*.{js,jsx,ts,tsx,mjs,cjs}": "prettier --ignore-unknown --write"
 }

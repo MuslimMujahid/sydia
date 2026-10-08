@@ -10,6 +10,7 @@ import {
 import { GoogleCalendarService } from '../../../infra/calendar';
 import { StorageService } from '../../../infra/storage';
 import { ApiException, ErrorCodes } from '../../../shared/errors';
+import { extractionKey } from '../../../shared/documents';
 import { MemoryArchiveService } from '../../memories/memory-archive.service';
 
 @Injectable()
@@ -65,13 +66,29 @@ export class UserPrivacyService {
     const keys = await this.privacy.storageKeys(userId);
 
     try {
-      for (const key of keys) await this.storage.delete(key);
+      for (const key of keys) {
+        await this.storage.delete(extractionKey(key));
+        await this.storage.delete(key);
+      }
     } catch (error) {
       throw this.cleanupError('Stored user assets could not be removed', error);
     }
 
     const deleted = await this.privacy.deleteAccount(userId);
     if (!deleted) throw this.cleanupError('Account deletion did not complete');
+
+    // Workers may have written a checkpoint between the first cleanup and
+    // account deletion. Later writes are cleaned up by their processing finally.
+    try {
+      for (const key of keys) await this.storage.delete(extractionKey(key));
+    } catch {
+      throw new ApiException({
+        code: ErrorCodes.INTERNAL_SERVER_ERROR,
+        message:
+          'Account deleted, but final document artifact cleanup did not complete.',
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+      });
+    }
 
     return { deleted: true };
   }

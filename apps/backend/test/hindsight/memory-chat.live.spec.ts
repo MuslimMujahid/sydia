@@ -21,6 +21,11 @@ import { SecretCipher, TokenCipher } from '../../src/infra/crypto';
 import { GoogleCalendarService } from '../../src/infra/calendar';
 import { StorageService } from '../../src/infra/storage';
 import {
+  DocumentParserService,
+  DocumentParserSettings,
+} from '../../src/infra/document-parser';
+import { DocumentExtractionService } from '../../src/modules/documents/document-extraction.service';
+import {
   PrismaAuditEventRepository,
   PrismaCalendarRepository,
   PrismaCategoryRepository,
@@ -272,6 +277,11 @@ type Turn = {
           queues,
           privateModel,
           config,
+          new DocumentExtractionService(
+            new DocumentParserService(new DocumentParserSettings(config)),
+            new OpenRouterMediaService(config),
+            new StorageService(config),
+          ),
         ),
         calendars,
         new CalendarService(calendars, new GoogleCalendarService(config)),

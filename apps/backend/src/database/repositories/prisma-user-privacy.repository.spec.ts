@@ -2,6 +2,10 @@ import { describe, expect, jest, test } from '@jest/globals';
 import type { PrismaService } from '../../infra/prisma';
 import { PrismaUserPrivacyRepository } from './prisma-user-privacy.repository';
 
+function mockResolved<T>(value: T) {
+  return jest.fn<(input: unknown) => Promise<T>>().mockResolvedValue(value);
+}
+
 function mockUser() {
   return {
     id: 'user-1',
@@ -130,5 +134,54 @@ describe('PrismaUserPrivacyRepository exportData', () => {
     } as unknown as PrismaService);
 
     await expect(repository.exportData('missing-user')).resolves.toBeNull();
+  });
+});
+
+describe('PrismaUserPrivacyRepository deleteAccount', () => {
+  test('commits artifact cleanup intent before the user cascade', async () => {
+    const tx = {
+      $queryRaw: mockResolved([{ id: 'user-1' }]),
+      hindsightCheckpoint: { deleteMany: mockResolved({ count: 1 }) },
+      hindsightBank: { updateMany: mockResolved({ count: 1 }) },
+      hindsightSource: { updateMany: mockResolved({ count: 1 }) },
+      hindsightDelivery: { updateMany: mockResolved({ count: 1 }) },
+      hindsightReference: { deleteMany: mockResolved({ count: 1 }) },
+      fileAsset: {
+        findMany: mockResolved([{ storageKey: 'user-1/document-1' }]),
+      },
+      documentArtifactCleanup: {
+        createMany: mockResolved({ count: 1 }),
+        updateMany: mockResolved({ count: 1 }),
+      },
+      user: { deleteMany: mockResolved({ count: 1 }) },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(
+        async (callback: (transaction: typeof tx) => Promise<boolean>) =>
+          callback(tx),
+      ),
+    };
+
+    const repository = new PrismaUserPrivacyRepository(
+      prisma as unknown as PrismaService,
+    );
+
+    await expect(repository.deleteAccount('user-1')).resolves.toBe(true);
+
+    expect(tx.documentArtifactCleanup.createMany).toHaveBeenCalledWith({
+      data: [{ ownerId: 'user-1', storageKey: 'user-1/document-1' }],
+      skipDuplicates: true,
+    });
+    expect(tx.documentArtifactCleanup.updateMany).toHaveBeenCalledWith({
+      where: { ownerId: 'user-1' },
+      data: { cleanupRequestedAt: expect.any(Date) },
+    });
+    expect(
+      tx.documentArtifactCleanup.updateMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      tx.user.deleteMany.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
+    );
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 });

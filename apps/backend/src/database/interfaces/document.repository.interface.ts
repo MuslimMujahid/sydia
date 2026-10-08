@@ -6,6 +6,7 @@ import type {
   DocumentMetadata,
   DocumentUpdate,
   FileAsset,
+  FileAssetCreate,
   FileKind,
 } from '../entities';
 
@@ -22,6 +23,11 @@ export interface IDocumentRepository {
     },
   ): Promise<FileAsset>;
   create(userId: string, input: DocumentCreate): Promise<Document>;
+  createWithFile(
+    userId: string,
+    input: { file: FileAssetCreate; title: string },
+  ): Promise<Document>;
+  deleteFileByStorageKey(userId: string, storageKey: string): Promise<void>;
   list(userId: string): Promise<Document[]>;
   listMetadata(userId: string): Promise<DocumentMetadata[]>;
   findById(
@@ -63,16 +69,24 @@ export interface IDocumentRepository {
   ): Promise<void>;
   saveExtraction(
     id: string,
-    input: { textContent?: string | null; transcript?: string | null },
+    input: {
+      textContent?: string | null;
+      transcript?: string | null;
+      imageDescription?: string | null;
+    },
   ): Promise<void>;
   listChunkEmbeddings(documentId: string): Promise<
     Array<{
       id: string;
       chunkIndex: number;
       content: string;
+      pageNumber: number | null;
       embedded: boolean;
+      embeddingModel: string | null;
+      embeddingVersion: string | null;
     }>
   >;
+  updateChunkPage(id: string, pageNumber: number | null): Promise<void>;
   fail(id: string, message: string): Promise<void>;
   restart(id: string): Promise<void>;
   replaceChunks(

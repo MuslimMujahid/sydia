@@ -2,7 +2,7 @@ import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UnrecoverableError, Worker } from 'bullmq';
+import { Worker } from 'bullmq';
 import { AppModule } from './app.module';
 import { nextOccurrence } from './shared/date-time';
 import {
@@ -21,10 +21,8 @@ import {
   type MemoryDeliveryJob,
   type MemoryIngestionJob,
 } from './infra/queue';
-import {
-  DocumentService,
-  NonRetryableDocumentError,
-} from './modules/documents/document.service';
+import { DocumentService, processDocumentJob } from './modules/documents';
+import { DocumentArtifactCleanupService } from './modules/document-artifacts/document-artifact-cleanup.service';
 import { MemoryDreamService } from './modules/memories/memory-dream.service';
 import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-scheduler.service';
 import { HindsightDeliveryService } from './modules/memories/hindsight-delivery.service';
@@ -49,6 +47,7 @@ async function bootstrap(): Promise<void> {
   const reminders = context.get<IReminderRepository>(REMINDER_REPOSITORY);
   const queues = context.get(QueueService);
   const documents = context.get(DocumentService);
+  context.get(DocumentArtifactCleanupService).start();
   const memoryDream = context.get(MemoryDreamService);
   const memoryDreamScheduler = context.get(MemoryDreamSchedulerService);
   const dailyNotes = context.get(DailyNoteService);
@@ -120,24 +119,11 @@ async function bootstrap(): Promise<void> {
 
   const documentWorker = new Worker<DocumentJob>(
     'documents',
-    async (job) => {
-      try {
-        await documents.processDocument(job.data.documentId, job.data.userId);
-      } catch (error) {
-        // Deterministic failures (unsupported format, no extractable text,
-        // missing configuration) never succeed on retry, so fail the document
-        // now and stop BullMQ from spending the remaining attempts on it.
-        if (error instanceof NonRetryableDocumentError) {
-          await documents.markProcessingFailed(job.data.documentId, error);
-          throw new UnrecoverableError(error.message);
-        }
-
-        if (job.attemptsMade + 1 >= (job.opts.attempts ?? 1))
-          await documents.markProcessingFailed(job.data.documentId, error);
-        throw error;
-      }
+    (job) => processDocumentJob(documents, job),
+    {
+      connection,
+      concurrency: config.get<number>('BACKEND_DOCUMENT_CONCURRENCY', 1),
     },
-    { connection },
   );
 
   const memoryDreamWorker = new Worker<MemoryDreamJob>(

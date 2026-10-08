@@ -104,17 +104,17 @@ model AuditEvent {
 }
 
 model Session {
-  id             String   @id
-  expiresAt      DateTime
-  token          String   @unique
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
-  ipAddress      String?
-  userAgent      String?
-  impersonatedBy String?
+  id                String             @id
+  expiresAt         DateTime
+  token             String             @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
+  ipAddress         String?
+  userAgent         String?
+  impersonatedBy    String?
   secretVaultUnlock SecretVaultUnlock?
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
   @@map("session")
@@ -505,18 +505,18 @@ model MemoryDeletionMarker {
 
 /// No User foreign key: bank erasure must remain deliverable after account deletion.
 model HindsightBank {
-  id            String           @id
+  id            String            @id
   userId        String
   namespace     String
-  state         String           @default("active")
+  state         String            @default("active")
   leaseToken    String?
   leaseUntil    DateTime?
-  nextAttemptAt DateTime         @default(now())
-  attempts      Int              @default(0)
+  nextAttemptAt DateTime          @default(now())
+  attempts      Int               @default(0)
   lastErrorCode String?
   erasedAt      DateTime?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @default(now()) @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
   sources       HindsightSource[]
 
   @@unique([userId, namespace])
@@ -540,21 +540,21 @@ model HindsightRollback {
 
 /// Logical source identity; remote documents use immutable source generations.
 model HindsightSource {
-  id               String               @id @default(uuid())
+  id               String              @id @default(uuid())
   bankId           String
   sourceKey        String
   kind             String
-  generation       Int                  @default(1)
-  state            String               @default("active")
+  generation       Int                 @default(1)
+  state            String              @default("active")
   checksum         String
-  sourceMessageIds String[]             @default([])
+  sourceMessageIds String[]            @default([])
   conversationId   String?
   legacyMemoryId   String?
   legacyUpdatedAt  DateTime?
   eventAt          DateTime
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @default(now()) @updatedAt
-  bank             HindsightBank        @relation(fields: [bankId], references: [id], onDelete: Restrict)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @default(now()) @updatedAt
+  bank             HindsightBank       @relation(fields: [bankId], references: [id], onDelete: Restrict)
   deliveries       HindsightDelivery[]
 
   @@unique([bankId, sourceKey])
@@ -565,24 +565,24 @@ model HindsightSource {
 
 /// Durable outbox and source replay ledger, not a second extracted-fact corpus.
 model HindsightDelivery {
-  id                String          @id @default(uuid())
-  sourceId          String
-  generation        Int
-  documentId        String          @unique
-  operationId       String          @unique
-  requestKey        String?
+  id                 String               @id @default(uuid())
+  sourceId           String
+  generation         Int
+  documentId         String               @unique
+  operationId        String               @unique
+  requestKey         String?
   requestFingerprint String?
-  checksum          String          @default("")
-  content           String?
-  state             String          @default("pending")
-  dispatchStartedAt DateTime?
-  retainedAt        DateTime?
-  admittedAt        DateTime?
-  erasedAt          DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @default(now()) @updatedAt
-  source            HindsightSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
-  references        HindsightReference[]
+  checksum           String               @default("")
+  content            String?
+  state              String               @default("pending")
+  dispatchStartedAt  DateTime?
+  retainedAt         DateTime?
+  admittedAt         DateTime?
+  erasedAt           DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
+  source             HindsightSource      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  references         HindsightReference[]
 
   @@unique([sourceId, generation])
   @@unique([sourceId, requestKey])
@@ -616,18 +616,18 @@ model HindsightSuppression {
 
 /// Independent active/shadow cursor. Pending boundaries advance only after admission/erasure.
 model HindsightCheckpoint {
-  id                   String   @id @default(uuid())
-  userId               String
-  namespace            String
-  conversationId       String
-  policyVersion        String
-  throughMessageId     String?
-  throughCreatedAt     DateTime?
-  pendingMessageId     String?
-  pendingCreatedAt     DateTime?
-  pendingSourceIds     String[] @default([])
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @default(now()) @updatedAt
+  id               String    @id @default(uuid())
+  userId           String
+  namespace        String
+  conversationId   String
+  policyVersion    String
+  throughMessageId String?
+  throughCreatedAt DateTime?
+  pendingMessageId String?
+  pendingCreatedAt DateTime?
+  pendingSourceIds String[]  @default([])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
 
   @@unique([namespace, conversationId, policyVersion])
   @@index([userId, namespace])
@@ -650,6 +650,22 @@ model FileAsset {
 
   @@index([userId, createdAt])
   @@map("file_asset")
+}
+
+model DocumentArtifactCleanup {
+  storageKey           String    @id
+  ownerId              String
+  cleanupRequestedAt   DateTime?
+  cleanupClaimedAt     DateTime?
+  uploadLeaseExpiresAt DateTime?
+  lastAttemptAt        DateTime?
+  createdAt            DateTime  @default(now())
+
+  @@index([ownerId])
+  @@index([cleanupRequestedAt, createdAt])
+  @@index([cleanupClaimedAt, uploadLeaseExpiresAt, createdAt])
+  @@index([lastAttemptAt, createdAt])
+  @@map("document_artifact_cleanup")
 }
 
 model MessageAttachment {
@@ -704,17 +720,17 @@ model DocumentChunk {
 }
 
 model Contact {
-  id             String   @id @default(cuid())
+  id             String               @id @default(cuid())
   userId         String
   name           String
   normalizedName String
-  aliases        String[] @default([])
+  aliases        String[]             @default([])
   email          String?
   phone          String?
   notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @default(now()) @updatedAt
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   groupMembers   ContactGroupMember[]
 
   @@index([userId, normalizedName])
@@ -805,16 +821,16 @@ model Secret {
 }
 
 model SecretRevealToken {
-  id            String    @id @default(cuid())
-  secretId      String
-  userId        String
-  tokenHash     String    @unique
-  expiresAt     DateTime
-  consumedAt    DateTime?
-  attemptCount  Int       @default(0)
-  createdAt     DateTime  @default(now())
-  secret        Secret    @relation(fields: [secretId], references: [id], onDelete: Cascade)
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  secretId     String
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  attemptCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  secret       Secret    @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([secretId, expiresAt])
   @@index([userId, expiresAt])
@@ -972,8 +988,8 @@ model NotificationDelivery {
   reminderOccurrence   ReminderOccurrence?           @relation(fields: [reminderOccurrenceId], references: [id], onDelete: SetNull)
   attempts             NotificationDeliveryAttempt[]
 
-  @@index([userId, createdAt])
   @@unique([userId, idempotencyKey, channel])
+  @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([proactive, createdAt])
   @@map("notification_delivery")

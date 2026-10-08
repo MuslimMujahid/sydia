@@ -17,7 +17,7 @@ RUN bunx turbo prune backend --docker
 FROM oven/bun:1.3 AS deps
 WORKDIR /app
 COPY --from=prune /app/out/json/ .
-RUN --mount=type=cache,target=/root/.bun/install/cache \
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile --linker hoisted
 
 FROM node:22-alpine AS build
@@ -35,10 +35,10 @@ RUN node ../../node_modules/.bin/prisma generate
 RUN node ../../node_modules/.bin/nest build
 
 # Production-only dependencies for the runtime image.
-FROM oven/bun:1.3 AS prod-deps
+FROM oven/bun:1.3-alpine AS prod-deps
 WORKDIR /app
 COPY --from=prune /app/out/json/ .
-RUN --mount=type=cache,target=/root/.bun/install/cache \
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile --production --linker hoisted --ignore-scripts
 
 FROM node:22-alpine AS migration
@@ -51,6 +51,8 @@ ENV BACKEND_DB_URL=postgresql://postgres:postgres@localhost:5432/app
 CMD ["node", "../../node_modules/.bin/prisma", "migrate", "deploy"]
 
 FROM node:22-alpine AS runtime
+# Fonts support PDF rasterization; production dependencies are installed on musl above.
+RUN apk add --no-cache font-dejavu
 ENV NODE_ENV=production
 WORKDIR /app/apps/backend
 COPY --from=prod-deps /app/node_modules /app/node_modules

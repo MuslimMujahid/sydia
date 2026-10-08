@@ -170,9 +170,35 @@ export class PrismaAdminRepository implements IAdminRepository {
   }
 
   async deleteUser(userId: string): Promise<boolean> {
-    const result = await this.prisma.user.deleteMany({ where: { id: userId } });
+    return this.prisma.$transaction(async (transaction) => {
+      const users = await transaction.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT id FROM "user" WHERE id = ${userId} FOR UPDATE`,
+      );
 
-    return result.count > 0;
+      if (!users.length) return false;
+
+      const files = await transaction.fileAsset.findMany({
+        where: { userId },
+        select: { storageKey: true },
+      });
+
+      const now = new Date();
+
+      await transaction.documentArtifactCleanup.createMany({
+        data: files.map(({ storageKey }) => ({ ownerId: userId, storageKey })),
+        skipDuplicates: true,
+      });
+      await transaction.documentArtifactCleanup.updateMany({
+        where: { ownerId: userId },
+        data: { cleanupRequestedAt: now },
+      });
+
+      const result = await transaction.user.deleteMany({
+        where: { id: userId },
+      });
+
+      return result.count === 1;
+    });
   }
 
   async storageKeys(userId: string): Promise<string[]> {

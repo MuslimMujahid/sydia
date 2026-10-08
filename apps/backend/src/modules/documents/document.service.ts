@@ -13,7 +13,6 @@ import {
   DOCUMENT_REPOSITORY,
   type IDocumentRepository,
 } from '../../database/interfaces';
-import { PDFParse } from 'pdf-parse';
 import type {
   Document,
   DocumentChunk,
@@ -28,11 +27,20 @@ import {
   OpenRouterMediaService,
 } from '../../infra/model-gateway';
 import { QueueService } from '../../infra/queue';
-import { StorageService } from '../../infra/storage';
+import { StorageReadLimitError, StorageService } from '../../infra/storage';
 import { chunkText } from '../../shared/text';
 import { sanitizeDerivedTitle } from './document-naming';
-
-const MIN_EXTRACTED_TEXT_LENGTH = 24;
+import { DocumentExtractionService } from './document-extraction.service';
+import { documentParserFailureMessage } from './document-parser-errors';
+import {
+  assertDocumentUploadMetadata,
+  DocumentParserError,
+  MAX_DOCUMENT_BYTES,
+} from '../../infra/document-parser';
+import { ApiException, ErrorCodes } from '../../shared/errors';
+import { DocumentProcessingPendingError } from '../../shared/documents';
+import { DocumentArtifactCleanupService } from '../document-artifacts/document-artifact-cleanup.service';
+import { HttpStatus } from '@nestjs/common';
 
 /**
  * A failure that cannot succeed on retry: an unsupported format, no
@@ -52,7 +60,18 @@ type ParsedChunk = {
   content: string;
 };
 
+const NO_ARTIFACT_CLEANUP: Pick<
+  DocumentArtifactCleanupService,
+  'trackUpload' | 'startUploadLease' | 'requestCleanup' | 'activateUpload'
+> = {
+  trackUpload: () => Promise.resolve(),
+  startUploadLease: () => () => undefined,
+  requestCleanup: () => Promise.resolve(),
+  activateUpload: () => Promise.resolve(),
+};
+
 function kindFor(mimeType: string): FileKind {
+  mimeType = (mimeType.split(';')[0] ?? '').trim().toLowerCase();
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('audio/')) return 'audio';
 
@@ -141,6 +160,12 @@ export class DocumentService {
     @Inject(LANGUAGE_MODEL)
     private readonly languageModel: LanguageModelGateway,
     private readonly config: ConfigService,
+    private readonly extraction: DocumentExtractionService,
+    @Inject(DocumentArtifactCleanupService)
+    private readonly artifactCleanup: Pick<
+      DocumentArtifactCleanupService,
+      'trackUpload' | 'startUploadLease' | 'requestCleanup' | 'activateUpload'
+    > = NO_ARTIFACT_CLEANUP,
   ) {
     this.publicBaseUrl = config.getOrThrow<string>('BACKEND_AUTH_URL');
   }
@@ -150,52 +175,116 @@ export class DocumentService {
     file: UploadedFile,
     options?: { hint?: string },
   ): Promise<Document> {
+    if (
+      file.buffer.length > MAX_DOCUMENT_BYTES ||
+      file.size > MAX_DOCUMENT_BYTES
+    )
+      throw new ApiException({
+        code: ErrorCodes.BAD_REQUEST,
+        message: 'Ukuran file maksimal 25 MiB.',
+        status: HttpStatus.BAD_REQUEST,
+      });
+
+    try {
+      assertDocumentUploadMetadata(file);
+    } catch (error: unknown) {
+      if (!(error instanceof DocumentParserError)) throw error;
+      const message = documentParserFailureMessage(error.code);
+      const failure = new ApiException({
+        code: ErrorCodes.BAD_REQUEST,
+        status: HttpStatus.BAD_REQUEST,
+        message,
+        details: { parserCode: error.code },
+      });
+
+      // Messaging gateways use Error.message instead of the HTTP envelope.
+      failure.message = message;
+      failure.cause = error;
+      throw failure;
+    }
+
     const kind = kindFor(file.mimetype);
     const storageKey = `${userId}/${randomUUID()}`;
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
-    await this.storage.put(storageKey, file.buffer, file.mimetype);
-    let document: Document;
+
+    await this.artifactCleanup.trackUpload(userId, storageKey);
+    const stopUploadLease = this.artifactCleanup.startUploadLease(storageKey);
 
     try {
-      const asset = await this.documents.createFile(userId, {
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        checksum,
-        storageKey,
-        kind,
-      });
-
-      document = await this.documents.create(userId, {
-        fileAssetId: asset.id,
+      await this.storage.put(storageKey, file.buffer, file.mimetype);
+      let document = await this.documents.createWithFile(userId, {
+        file: {
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          checksum,
+          storageKey,
+          kind,
+        },
         title: file.originalname,
       });
-    } catch (error: unknown) {
-      await this.storage.delete(storageKey).catch(() => {});
-      throw error;
-    }
 
-    document = await this.applyDerivedTitle(
-      userId,
-      document,
-      file,
-      kind,
-      options?.hint,
-    );
+      if (kind !== 'document')
+        document = await this.applyDerivedTitle(
+          userId,
+          document,
+          file,
+          kind,
+          options?.hint,
+        );
 
-    try {
       await this.queue.documents.add(
         'ingest',
-        { documentId: document.id, userId },
+        {
+          documentId: document.id,
+          userId,
+          ...(options?.hint ? { hint: options.hint.slice(0, 4000) } : {}),
+        },
         { jobId: document.id },
       );
-    } catch (error: unknown) {
-      await this.storage.delete(storageKey).catch(() => {});
-      await this.documents.delete(userId, document.id).catch(() => {});
-      throw error;
-    }
+      await this.artifactCleanup.activateUpload(storageKey);
 
-    return document;
+      return document;
+    } catch (error: unknown) {
+      const cleanupErrors: unknown[] = [];
+
+      await this.artifactCleanup
+        .requestCleanup(userId, storageKey)
+        .catch((cleanupError: unknown) => cleanupErrors.push(cleanupError));
+
+      // The unique key also identifies a write whose acknowledgement was lost.
+      // Remove the record first so late workers clean up their own checkpoints.
+      await this.documents
+        .deleteFileByStorageKey(userId, storageKey)
+        .catch((cleanupError: unknown) => cleanupErrors.push(cleanupError));
+      const artifacts = await Promise.allSettled([
+        this.storage.delete(storageKey),
+        this.extraction.deleteCheckpoint(storageKey),
+      ]);
+
+      for (const result of artifacts)
+        if (result.status === 'rejected') cleanupErrors.push(result.reason);
+
+      if (cleanupErrors.length) {
+        const message =
+          'Unggahan gagal dan pembersihan file belum selesai. Hubungi administrator.';
+
+        const failure = new ApiException({
+          code: ErrorCodes.SERVICE_UNAVAILABLE,
+          status: HttpStatus.SERVICE_UNAVAILABLE,
+          message,
+          details: { cleanupIncomplete: true },
+        });
+
+        failure.message = message;
+        failure.cause = new AggregateError([error, ...cleanupErrors]);
+        throw failure;
+      }
+
+      throw error;
+    } finally {
+      stopUploadLease();
+    }
   }
 
   async waitUntilReady(
@@ -214,10 +303,20 @@ export class DocumentService {
       await sleep(500);
     }
 
-    throw new Error('Pemrosesan dokumen melewati batas waktu.');
+    // Recheck the state at the deadline before reporting background processing.
+    const current = await this.documents.findById(userId, documentId);
+    if (!current) throw new Error('Dokumen tidak ditemukan.');
+    if (current.status === 'ready') return current;
+    if (current.status === 'failed')
+      throw new Error(current.errorMessage ?? 'Pemrosesan dokumen gagal.');
+    throw new DocumentProcessingPendingError(documentId);
   }
 
-  async processDocument(documentId: string, userId: string): Promise<void> {
+  async processDocument(
+    documentId: string,
+    userId: string,
+    hint?: string,
+  ): Promise<void> {
     const record = await this.documents.findById(userId, documentId);
     if (!record || record.status !== 'processing') return;
     const storageKey = await this.documents.storageKey(userId, documentId);
@@ -227,13 +326,49 @@ export class DocumentService {
         'Berkas tidak ditemukan di penyimpanan.',
       );
 
-    const buffer = await this.storage.get(storageKey);
+    try {
+      await this.processStoredDocument(record, userId, storageKey, hint);
+    } finally {
+      // Deletion can race with extraction or a later failed embedding call.
+      // Keep checkpoints for surviving records so their retries can reuse them.
+      if (!(await this.documents.findById(userId, documentId)))
+        await this.extraction.deleteCheckpoint(storageKey);
+    }
+  }
+
+  private async processStoredDocument(
+    record: Document,
+    userId: string,
+    storageKey: string,
+    hint?: string,
+  ): Promise<void> {
+    const documentId = record.id;
+    const buffer = await this.storage
+      .get(storageKey, MAX_DOCUMENT_BYTES)
+      .catch((error: unknown) => {
+        if (error instanceof StorageReadLimitError)
+          throw new NonRetryableDocumentError(
+            documentParserFailureMessage('FILE_TOO_LARGE'),
+          );
+        throw error;
+      });
+
     const file = {
       originalname: record.file.originalName,
       mimetype: record.file.mimeType,
       size: record.file.size,
       buffer,
     };
+
+    try {
+      assertDocumentUploadMetadata(file);
+    } catch (error: unknown) {
+      if (error instanceof DocumentParserError)
+        throw new NonRetryableDocumentError(
+          documentParserFailureMessage(error.code),
+        );
+      throw error;
+    }
 
     const kind = record.file.kind;
     let textContent: string | null = null;
@@ -257,10 +392,11 @@ export class DocumentService {
 
       parsedChunks = this.chunkPages([{ text: transcript ?? '' }]);
     } else if (kind === 'image') {
-      imageDescription = await this.media.describeImage(
-        file.buffer,
-        file.mimetype,
-      );
+      imageDescription =
+        record.imageDescription?.trim() ||
+        (await this.media.describeImage(file.buffer, file.mimetype));
+      if (imageDescription && imageDescription !== record.imageDescription)
+        await this.documents.saveExtraction(documentId, { imageDescription });
       const descriptionForTitle = imageDescription?.trim() ?? '';
 
       // The model decides whether the uploaded name is worth keeping; there is
@@ -277,14 +413,29 @@ export class DocumentService {
         );
 
       parsedChunks = this.chunkPages([{ text: imageDescription ?? '' }]);
-    } else if (file.mimetype === 'application/pdf') {
-      const parsed = await this.parsePdf(file);
-      textContent = parsed.text;
-      parsedChunks = parsed.chunks;
     } else {
-      textContent = this.parseDocument(file);
-      parsedChunks = this.chunkPages([{ text: textContent }]);
+      try {
+        const parsed = await this.extraction.extract(file, storageKey);
+        textContent = parsed.text;
+        parsedChunks = parsed.chunks;
+      } catch (error: unknown) {
+        if (error instanceof DocumentParserError && !error.retryable)
+          throw new NonRetryableDocumentError(
+            documentParserFailureMessage(error.code),
+          );
+        throw error;
+      }
     }
+
+    if (kind === 'document' && textContent)
+      await this.applyDerivedTitle(
+        userId,
+        record,
+        file,
+        kind,
+        hint,
+        textContent,
+      );
 
     if (parsedChunks.length === 0)
       throw new NonRetryableDocumentError(
@@ -306,7 +457,13 @@ export class DocumentService {
 
     const pending = parsedChunks
       .map((_chunk, index) => index)
-      .filter((index) => !reusable || !existing[index]?.embedded);
+      .filter(
+        (index) =>
+          !reusable ||
+          !existing[index]?.embedded ||
+          existing[index]?.embeddingModel !== this.embeddings.modelName() ||
+          existing[index]?.embeddingVersion !== this.embeddings.version,
+      );
 
     const embeddings =
       pending.length === 0
@@ -335,6 +492,21 @@ export class DocumentService {
         ),
       ),
     );
+
+    if (reusable)
+      await Promise.all(
+        existing.map((chunk, index) => {
+          const pageNumber = parsedChunks[index]?.pageNumber ?? null;
+
+          return chunk.pageNumber === pageNumber
+            ? Promise.resolve()
+            : this.documents.updateChunkPage(chunk.id, pageNumber);
+        }),
+      );
+
+    if (!(await this.documents.findById(userId, documentId))) {
+      return;
+    }
 
     const searchable = textContent ?? transcript ?? imageDescription ?? '';
     await this.documents.complete(documentId, {
@@ -372,6 +544,19 @@ export class DocumentService {
     }
 
     return this.documents.findById(userId, documentId);
+  }
+
+  async remove(userId: string, documentId: string): Promise<boolean> {
+    const key = await this.documents.storageKey(userId, documentId);
+    if (!key) return false;
+    await this.artifactCleanup.requestCleanup(userId, key);
+    await this.storage.delete(key);
+    await this.documents.delete(userId, documentId);
+    // Once the record is gone, an in-flight worker either wrote before this
+    // cleanup or observes deletion and cleans up its own later write.
+    await this.extraction.deleteCheckpoint(key);
+
+    return true;
   }
 
   async listMetadata(userId: string): Promise<DocumentMetadata[]> {
@@ -535,21 +720,7 @@ export class DocumentService {
   ): Promise<string | null> {
     const normalizedHint = hint?.trim() ?? '';
     const normalizedContent = content?.trim() ?? '';
-    let extracted = normalizedContent ? normalizedContent.slice(0, 4000) : '';
-
-    if (!extracted && kind === 'document') {
-      try {
-        const parsedContent =
-          file.mimetype === 'application/pdf'
-            ? (await this.parsePdf(file)).text
-            : this.parseDocument(file);
-
-        if (parsedContent.trim().length >= MIN_EXTRACTED_TEXT_LENGTH)
-          extracted = parsedContent.trim().slice(0, 4000);
-      } catch {
-        extracted = '';
-      }
-    }
+    const extracted = normalizedContent ? normalizedContent.slice(0, 4000) : '';
 
     // Without content or a user hint there is nothing to base a name on, so the
     // uploaded name is kept rather than replaced with an invented one.
@@ -603,48 +774,6 @@ export class DocumentService {
         pageNumber: pageNumber ?? null,
         content,
       })),
-    );
-  }
-
-  private async parsePdf(
-    file: UploadedFile,
-  ): Promise<{ text: string; chunks: ParsedChunk[] }> {
-    const parser = new PDFParse({ data: file.buffer });
-
-    try {
-      const result = await parser.getText();
-      const pages = result.pages.map((page) => ({
-        pageNumber: page.num,
-        text: page.text.trim(),
-      }));
-
-      const extractedLength = pages.reduce(
-        (total, page) => total + page.text.length,
-        0,
-      );
-
-      if (extractedLength < MIN_EXTRACTED_TEXT_LENGTH)
-        throw new NonRetryableDocumentError(
-          'PDF tidak berisi teks yang dapat diekstraksi.',
-        );
-
-      return {
-        text: result.text,
-        chunks: this.chunkPages(pages),
-      };
-    } finally {
-      await parser.destroy();
-    }
-  }
-
-  private parseDocument(file: UploadedFile): string {
-    if (
-      file.mimetype.startsWith('text/') ||
-      file.mimetype === 'application/json'
-    )
-      return file.buffer.toString('utf8');
-    throw new NonRetryableDocumentError(
-      'Format dokumen belum didukung. Gunakan PDF, teks, atau JSON.',
     );
   }
 

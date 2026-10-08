@@ -13,7 +13,6 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
 import {
@@ -25,6 +24,7 @@ import { ApiException, ErrorCodes } from '../../shared/errors';
 import type { Document } from '../../database/entities';
 import { DocumentService } from './document.service';
 import { UpdateDocumentDto } from './dto';
+import { DocumentUploadInterceptor } from './document-upload.interceptor';
 
 type UploadedDocument = {
   originalname: string;
@@ -79,11 +79,7 @@ export class DocumentsController {
   }
 
   @Post()
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: { fileSize: 25 * 1024 * 1024, files: 1 },
-    }),
-  )
+  @UseInterceptors(DocumentUploadInterceptor)
   async upload(
     @Session() session: UserSession,
     @UploadedFile() file?: UploadedDocument,
@@ -125,10 +121,8 @@ export class DocumentsController {
     @Session() session: UserSession,
     @Param('id') id: string,
   ) {
-    const key = await this.documents.storageKey(session.user.id, id);
-    if (!key) throw this.notFound();
-    await this.storage.delete(key);
-    await this.documents.delete(session.user.id, id);
+    if (!(await this.service.remove(session.user.id, id)))
+      throw this.notFound();
   }
 
   private required<T>(value: T | null): T {

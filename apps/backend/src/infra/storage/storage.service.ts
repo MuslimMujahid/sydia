@@ -6,8 +6,15 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+
+export class StorageReadLimitError extends Error {
+  constructor() {
+    super('Storage object exceeds the read limit.');
+    this.name = 'StorageReadLimitError';
+  }
+}
 
 @Injectable()
 export class StorageService {
@@ -90,7 +97,13 @@ export class StorageService {
     await writeFile(path, value);
   }
 
-  async get(key: string): Promise<Buffer> {
+  async get(key: string, maxBytes?: number): Promise<Buffer> {
+    if (
+      maxBytes !== undefined &&
+      (!Number.isSafeInteger(maxBytes) || maxBytes < 1)
+    )
+      throw new RangeError('Storage read limit must be a positive integer.');
+
     if (this.s3 && this.bucket) {
       const response = await this.s3.send(
         new GetObjectCommand({ Bucket: this.bucket, Key: key }),
@@ -98,10 +111,56 @@ export class StorageService {
 
       if (!response.Body) throw new Error('Objek penyimpanan kosong.');
 
-      return Buffer.from(await response.Body.transformToByteArray());
+      if (maxBytes === undefined)
+        return Buffer.from(await response.Body.transformToByteArray());
+
+      const reader = response.Body.transformToWebStream().getReader();
+      const chunks: Buffer[] = [];
+      let size = 0;
+
+      try {
+        if (
+          response.ContentLength !== undefined &&
+          response.ContentLength > maxBytes
+        )
+          throw new StorageReadLimitError();
+
+        for (;;) {
+          const result = await reader.read();
+          if (result.done) return Buffer.concat(chunks, size);
+          const bytes: unknown = result.value;
+          if (!(bytes instanceof Uint8Array))
+            throw new Error('Invalid storage response body.');
+          size += bytes.byteLength;
+          if (size > maxBytes) throw new StorageReadLimitError();
+          chunks.push(Buffer.from(bytes));
+        }
+      } finally {
+        await reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      }
     }
 
-    return readFile(join(this.localRoot, key));
+    if (maxBytes === undefined) return readFile(join(this.localRoot, key));
+    const handle = await open(join(this.localRoot, key), 'r');
+    const chunks: Buffer[] = [];
+    let size = 0;
+
+    try {
+      if ((await handle.stat()).size > maxBytes)
+        throw new StorageReadLimitError();
+
+      for (;;) {
+        const buffer = Buffer.alloc(Math.min(64 * 1024, maxBytes - size + 1));
+        const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
+        if (bytesRead === 0) return Buffer.concat(chunks, size);
+        size += bytesRead;
+        if (size > maxBytes) throw new StorageReadLimitError();
+        chunks.push(buffer.subarray(0, bytesRead));
+      }
+    } finally {
+      await handle.close();
+    }
   }
 
   async delete(key: string): Promise<void> {

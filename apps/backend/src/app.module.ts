@@ -32,6 +32,7 @@ import { SecretsModule } from './modules/secrets/secrets.module';
 import { parseTimeOfDay } from './shared/date-time';
 import { validateHindsightEnvironment } from './infra/hindsight';
 import { validateDecisionEnvironment } from './infra/decision-gateway';
+import { validateDocumentParserEnvironment } from './infra/document-parser';
 
 function parsePort(
   config: Record<string, unknown>,
@@ -253,6 +254,7 @@ export function validateEnvironment(
     ...config,
     ...validateHindsightEnvironment(config),
     ...validateDecisionEnvironment(config),
+    ...validateDocumentParserEnvironment(config),
     BACKEND_PORT: backendPort,
     FRONTEND_PORT: frontendPort,
     FRONTEND_URL: parseFrontendUrl(config, frontendPort),

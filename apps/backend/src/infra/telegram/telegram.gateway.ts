@@ -12,6 +12,11 @@ import { Agent } from 'node:https';
 import { Bot, GrammyError, HttpError, type Context } from 'grammy';
 import type { OutboundMessageAdapter } from '../../shared/messaging';
 import {
+  MAX_MEDIA_BYTES,
+  MediaDownloadLimitError,
+  readMediaResponse,
+} from '../../shared/messaging';
+import {
   TelegramInboundAdapter,
   TelegramOutboundAdapter,
 } from './telegram.adapter';
@@ -160,15 +165,18 @@ export class TelegramGatewayService implements OnModuleInit, OnModuleDestroy {
   async download(fileId: string): Promise<Uint8Array> {
     if (!this.bot) throw new Error('Telegram bot is not configured.');
     const file = await this.bot.api.getFile(fileId);
+    if (file.file_size !== undefined && file.file_size > MAX_MEDIA_BYTES)
+      throw new MediaDownloadLimitError();
     if (!file.file_path) throw new Error('Telegram file path is unavailable.');
     const response = await fetch(
       `https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`,
+      { signal: AbortSignal.timeout(30_000) },
     );
 
     if (!response.ok)
       throw new Error(`Telegram file download failed (${response.status}).`);
 
-    return new Uint8Array(await response.arrayBuffer());
+    return new Uint8Array(await readMediaResponse(response));
   }
 
   async onModuleInit(): Promise<void> {
