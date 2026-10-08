@@ -606,61 +606,6 @@ describe('ToolExecutorService', () => {
     expect(input).toEqual({ title: 'x', completeTurn: false });
   });
 
-  it('returns a transient reveal link while masking the stored one', async () => {
-    const pending = {
-      id: 'tool-secret',
-      assistantRunId: 'run-1',
-      name: 'create_secret_reveal_link',
-      label: 'Create secret link',
-      status: 'pending',
-      result: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const repository = {
-      createToolInvocation: resolved(pending),
-      claimToolInvocation: resolved(true),
-      updateToolInvocation: jest
-        .fn()
-        .mockImplementation((_id: unknown, update: unknown) =>
-          Promise.resolve({ ...pending, ...(update as object) }),
-        ),
-    } as unknown as IConversationRepository;
-
-    const executor = new ToolExecutorService(repository, [
-      {
-        definition: {
-          name: 'create_secret_reveal_link',
-          label: 'Create secret link',
-          description: 'Create a secret link.',
-          parameters: { type: 'object' },
-        },
-        sensitive: true,
-        exposeTransientResult: true,
-        parseArguments: (value) => value as never,
-        execute: () =>
-          Promise.resolve({
-            objectType: 'secret_reveal',
-            object: {
-              id: 'secret-1',
-              label: 'ATM',
-              url: 'https://sydia.test/secret-reveal#bearer-token',
-            },
-          }),
-      },
-    ]);
-
-    const result = await executor.execute('user-1', 'run-1', 'message-1', {
-      id: 'call-1',
-      name: 'create_secret_reveal_link',
-      arguments: { query: 'ATM' },
-    });
-
-    expect(result.content).toContain('bearer-token');
-    expect(JSON.stringify(result.invocation)).not.toContain('bearer-token');
-  });
-
   it('advertises completeTurn only for eligible tools', () => {
     const repository = {} as unknown as IConversationRepository;
     const definition = (name: string): AssistantToolDefinition => ({

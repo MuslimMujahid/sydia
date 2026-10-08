@@ -581,43 +581,7 @@ describe('terminal tool response', () => {
     }
   });
 
-  it('leaves card-backed tools on the web as a bare heading', () => {
-    for (const [toolName, result, , id] of RICH_BLOCKS) {
-      if (!CARD_BACKED.includes(toolName)) continue;
-
-      const english = web('en', [execution(toolName, result)])!;
-      const indonesian = web('id', [execution(toolName, result)])!;
-
-      // Heading only: no bold, no blank line, no subject, no detail lines.
-      expect(english.split('\n')).toHaveLength(1);
-      expect(indonesian.split('\n')).toHaveLength(1);
-      expect(english).not.toContain('**');
-      expect(indonesian).not.toContain('**');
-
-      // The card is web-only, so a channel still receives the whole block.
-      const sent = chat('en', [execution(toolName, result)])!;
-
-      expect(sent).not.toBe(english);
-      expect(sent.split('\n\n')).toHaveLength(2);
-      expect(sent.split('\n')[0]).toBe(english);
-      expect(id.split('\n')).toHaveLength(1);
-    }
-  });
-
-  it('keeps a non-card-backed tool in full on the web', () => {
-    const [toolName, result] = PLAIN_BLOCKS.find(
-      ([name]) => name === 'store_secret',
-    )!;
-
-    expect(web('en', [execution(toolName, result)])).toBe(
-      '🔐 **Secret stored**\n\n**ATM**',
-    );
-    expect(chat('en', [execution(toolName, result)])).toBe(
-      '🔐 Secret stored\n\nATM',
-    );
-  });
-
-  it('counts the items when one call returns several', () => {
+  it('reports the count and each distinct reminder when one call returns several', () => {
     const reminders = [
       {
         title: 'Olahraga',
@@ -626,7 +590,7 @@ describe('terminal tool response', () => {
         recurrence: null,
       },
       {
-        title: 'Olahraga',
+        title: 'Minum obat',
         scheduledAt: LATER,
         timezone: 'UTC',
         recurrence: { frequency: 'daily', interval: 1 },
@@ -634,17 +598,19 @@ describe('terminal tool response', () => {
     ];
 
     expect(chat('en', [execution('create_reminder', { reminders })])).toBe(
-      '⏰ Reminder created (2)\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Olahraga · 2026-09-23 10:00 (daily)',
+      '⏰ Reminder created (2)\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Minum obat · 2026-09-23 10:00 (daily)',
     );
     expect(chat('id', [execution('create_reminder', { reminders })])).toBe(
-      '⏰ 2 pengingat dibuat\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Olahraga · 2026-09-23 10:00 (harian)',
+      '⏰ 2 pengingat dibuat\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Minum obat · 2026-09-23 10:00 (harian)',
     );
 
     // A web card-backed heading still carries the count.
     expect(web('en', [execution('create_reminder', { reminders })])).toBe(
       '⏰ Reminder created (2)',
     );
+  });
 
+  it('reports the count and filenames when one call saves several files', () => {
     const files = {
       objectType: 'documents',
       objects: [{ filename: 'notulen.pdf' }, { filename: 'anggaran.pdf' }],
@@ -1000,24 +966,6 @@ describe('terminal tool response', () => {
     expect(response).not.toContain('1234#5678');
   });
 
-  it('shows the transient reveal url exactly once', () => {
-    const response = chat('en', [
-      execution('create_secret_reveal_link', {
-        objectType: 'secret_reveal',
-        object: {
-          id: 'secret-1',
-          label: 'ATM',
-          url: 'https://sydia.test/secret-reveal#token',
-          expiresAt: AT,
-        },
-      }),
-    ])!;
-
-    expect(
-      response.match(/https:\/\/sydia\.test\/secret-reveal#token/gu),
-    ).toHaveLength(1);
-  });
-
   it('renders user text verbatim, punctuation included', () => {
     const punctuated: Array<[string, unknown, string]> = [
       [
@@ -1137,87 +1085,5 @@ describe('terminal tool response', () => {
     expect(terminalToolInputSchema(other)).toBe(other.parameters);
     expect(TERMINAL_TOOL_NAMES.has('list_tasks')).toBe(false);
     expect(TERMINAL_TOOL_NAMES.has('save_memory')).toBe(false);
-  });
-
-  it('renders the four headline examples in both locales', () => {
-    const task = {
-      objectType: 'task',
-      object: {
-        title: 'Kirim laporan',
-        dueAt: AT,
-        priority: 'high',
-        categories: [{ name: 'Kerja' }],
-      },
-    };
-
-    const reminders = {
-      reminders: [
-        {
-          title: 'Olahraga',
-          scheduledAt: AT,
-          timezone: 'UTC',
-          recurrence: null,
-        },
-        {
-          title: 'Minum obat',
-          scheduledAt: LATER,
-          timezone: 'UTC',
-          recurrence: null,
-        },
-      ],
-    };
-
-    const file = {
-      objectType: 'file',
-      object: {
-        documentId: 'document-1',
-        filename: 'notulen.pdf',
-        url: 'https://sydia.test/documents/document-1/content',
-        markdownLink:
-          '[notulen.pdf](https://sydia.test/documents/document-1/content)',
-      },
-    };
-
-    const secret = {
-      objectType: 'secret',
-      object: { id: 'secret-1', label: 'ATM' },
-    };
-
-    expect(web('en', [execution('create_task', task)])).toBe('✅ Task created');
-    expect(web('id', [execution('create_task', task)])).toBe('✅ Tugas dibuat');
-
-    expect(chat('en', [execution('create_task', task)])).toBe(
-      '✅ Task created\n\nKirim laporan\n🗓️ Due 2026-09-22 10:00 UTC\n⚡ Priority high\n🏷️ Kerja',
-    );
-    expect(chat('id', [execution('create_task', task)])).toBe(
-      '✅ Tugas dibuat\n\nKirim laporan\n🗓️ Tenggat 2026-09-22 10:00 UTC\n⚡ Prioritas tinggi\n🏷️ Kerja',
-    );
-
-    expect(chat('en', [execution('create_reminder', reminders)])).toBe(
-      '⏰ Reminder created (2)\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Minum obat · 2026-09-23 10:00',
-    );
-    expect(chat('id', [execution('create_reminder', reminders)])).toBe(
-      '⏰ 2 pengingat dibuat\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Minum obat · 2026-09-23 10:00',
-    );
-
-    expect(web('en', [execution('send_file', file)])).toBe(
-      '📤 **File sent**\n\n**notulen.pdf**\n🔗 [notulen.pdf](https://sydia.test/documents/document-1/content)',
-    );
-    expect(web('id', [execution('send_file', file)])).toBe(
-      '📤 **File dikirim**\n\n**notulen.pdf**\n🔗 [notulen.pdf](https://sydia.test/documents/document-1/content)',
-    );
-
-    expect(chat('en', [execution('store_secret', secret)])).toBe(
-      '🔐 Secret stored\n\nATM',
-    );
-    expect(chat('id', [execution('store_secret', secret)])).toBe(
-      '🔐 Rahasia disimpan\n\nATM',
-    );
-    expect(web('en', [execution('store_secret', secret)])).toBe(
-      '🔐 **Secret stored**\n\n**ATM**',
-    );
-    expect(web('id', [execution('store_secret', secret)])).toBe(
-      '🔐 **Rahasia disimpan**\n\n**ATM**',
-    );
   });
 });

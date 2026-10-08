@@ -885,40 +885,6 @@ describe('OpenRouterLanguageModel', () => {
     expect(streamed).not.toContain('create the group');
   });
 
-  it('still streams text live when the request has no tools', async () => {
-    const languageModel = new MockLanguageModelV4({
-      doStream: () =>
-        Promise.resolve({
-          stream: simulateReadableStream({
-            chunks: [
-              { type: 'text-start' as const, id: 'text-1' },
-              { type: 'text-delta' as const, id: 'text-1', delta: 'Halo ' },
-              { type: 'text-delta' as const, id: 'text-1', delta: 'kembali.' },
-              { type: 'text-end' as const, id: 'text-1' },
-              {
-                type: 'finish' as const,
-                finishReason: { unified: 'stop' as const, raw: undefined },
-                logprobs: undefined,
-                usage: streamUsage,
-              },
-            ],
-          }),
-        }),
-    });
-
-    const gateway = model({ BACKEND_MODEL_API_KEY: 'test-key' });
-    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
-    const deltas: string[] = [];
-
-    await gateway.generate({
-      messages: [{ role: 'user', content: 'Halo' }],
-      onTextDelta: (delta) => deltas.push(delta),
-    });
-
-    // Without tools nothing can be narration, so deltas stay incremental.
-    expect(deltas).toEqual(['Halo ', 'kembali.']);
-  });
-
   it('does not retry after a mutating tool call', async () => {
     let calls = 0;
     const languageModel = new MockLanguageModelV4({

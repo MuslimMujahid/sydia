@@ -7,7 +7,6 @@ import {
   rruleWeekday,
   type ReminderRule,
 } from './recurrence';
-import { zonedParts } from './timezone-day';
 
 const WEEKDAYS = [
   'Sunday',
@@ -18,23 +17,6 @@ const WEEKDAYS = [
   'Friday',
   'Saturday',
 ] as const;
-
-/** Local weekday and wall-clock time of an instant, as the zone shows them. */
-function readLocal(
-  spell: Date | null,
-  timezone: string,
-): { weekday: string; time: string } | null {
-  if (!spell) return null;
-  const parts = zonedParts(spell, timezone);
-
-  return {
-    weekday:
-      WEEKDAYS[
-        new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay()
-      ]!,
-    time: `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`,
-  };
-}
 
 /** Wall-clock fields a rule produces, read as the zone's own local time. */
 function readWallClock(value: Date): { weekday: string; time: string } {
@@ -178,23 +160,28 @@ describe('reminder occurrence resolution', () => {
     ).toBe('2026-09-22T10:00:00.000Z');
   });
 
-  it('keeps the local time when the zone offset changes', () => {
-    const tuesday: ReminderRecurrence = {
-      frequency: 'weekly',
-      interval: 1,
-      daysOfWeek: [2],
-    };
-
+  it('keeps Tuesday at 09:00 in New York across the spring clock change', () => {
+    // March 3 is EST (UTC-5), and March 10 is EDT (UTC-4).
+    // Keeping 09:00 local moves the UTC instant from 14:00 to 13:00.
     const next = nextOccurrence(
-      tuesday,
-      new Date('2026-03-10T13:00:00.000Z'),
+      { frequency: 'weekly', interval: 1, daysOfWeek: [2] },
+      new Date('2026-03-03T14:00:00.000Z'),
       'America/New_York',
     );
 
-    expect(readLocal(next, 'America/New_York')).toEqual({
-      weekday: 'Tuesday',
-      time: '09:00',
-    });
+    expect(next?.toISOString()).toBe('2026-03-10T13:00:00.000Z');
+  });
+
+  it('keeps Tuesday at 09:00 in New York across the autumn clock change', () => {
+    // October 27 is EDT (UTC-4), and November 3 is EST (UTC-5).
+    // Keeping 09:00 local moves the UTC instant from 13:00 to 14:00.
+    const next = nextOccurrence(
+      { frequency: 'weekly', interval: 1, daysOfWeek: [2] },
+      new Date('2026-10-27T13:00:00.000Z'),
+      'America/New_York',
+    );
+
+    expect(next?.toISOString()).toBe('2026-11-03T14:00:00.000Z');
   });
 
   it('reports no occurrence once the rule has ended', () => {

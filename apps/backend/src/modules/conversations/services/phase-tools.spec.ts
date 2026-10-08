@@ -351,44 +351,6 @@ describe('phase 5 and 6 assistant tools', () => {
     });
     expect(JSON.stringify(result)).not.toContain('AQADPhVrG2a7SVV.jpg');
   });
-  test('does not expose original upload ids in document tool results', async () => {
-    const documents = [
-      {
-        id: 'doc-1',
-        title: 'KTP Muh Muslim Al-Mujahid.jpg',
-        status: 'ready' as const,
-        createdAt: new Date('2026-09-01T00:00:00Z'),
-        updatedAt: new Date('2026-09-01T00:00:00Z'),
-        file: {
-          id: 'file-1',
-          originalName: 'AQADPhVrG2a7SVV.jpg',
-          mimeType: 'image/jpeg',
-          size: 1234,
-          kind: 'document' as const,
-          createdAt: new Date('2026-09-01T00:00:00Z'),
-        },
-      },
-    ];
-
-    const listMetadata = jest
-      .fn<(userId: string) => Promise<typeof documents>>()
-      .mockResolvedValue(documents);
-
-    const result = await tools({
-      documents: { listMetadata } as unknown as DocumentService,
-    })
-      .find(({ definition }) => definition.name === 'list_documents')
-      ?.execute({
-        userId: 'user-1',
-        sourceMessageId: 'message-1',
-        idempotencyKey: 'list-files-friendly-name',
-        arguments: {},
-      });
-
-    expect(JSON.stringify(result)).toContain('KTP Muh Muslim Al-Mujahid.jpg');
-    expect(JSON.stringify(result)).not.toContain('AQADPhVrG2a7SVV.jpg');
-  });
-
   test('saves every file attached to the source message as compact metadata', async () => {
     const attached = [
       {
