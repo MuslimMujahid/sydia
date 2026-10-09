@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils/cn";
 
+type SearchVariant = "outlined" | "underline";
+
 export type DomainPageSearchProps = {
   /** Accessible name, e.g. “Cari tugas”. */
   label: string;
@@ -16,11 +18,28 @@ export type DomainPageSearchProps = {
   onSubmit: () => void;
   /** Clears both the draft and the applied search. */
   onClear: () => void;
+  /**
+   * Look of the in-page field shown from `lg`. `underline` drops the box for
+   * a transparent field with only a bottom line.
+   */
+  variant?: SearchVariant;
   /** Classes for the in-page field shown from `lg`. */
   className?: string;
 };
 
-type SearchFieldProps = Omit<DomainPageSearchProps, "className">;
+type SearchFieldProps = Omit<DomainPageSearchProps, "className" | "variant">;
+
+const INLINE_INPUT_CLASS: Record<SearchVariant, string> = {
+  outlined: "pr-12",
+  underline:
+    "rounded-none border-x-0 border-t-0 bg-transparent pr-2 pl-9 focus-visible:shadow-[0_1px_0_0_var(--color-brand)] focus-visible:ring-0",
+};
+
+// The underline variant leads with the search icon; the outlined one trails.
+const INLINE_SUBMIT_CLASS: Record<SearchVariant, string> = {
+  outlined: "absolute top-0.5 right-0.5 px-0",
+  underline: "absolute top-1/2 left-0 size-9 -translate-y-1/2 px-0",
+};
 
 // Browsers draw their own clear control on search inputs; ours replaces it.
 const HIDE_NATIVE_CANCEL =
@@ -32,11 +51,16 @@ const HIDE_NATIVE_CANCEL =
  */
 export function DomainPageSearch({
   className,
+  variant,
   ...props
 }: DomainPageSearchProps) {
   return (
     <>
-      <InlineSearch {...props} className={cn("max-lg:hidden", className)} />
+      <InlineSearch
+        {...props}
+        variant={variant}
+        className={cn("max-lg:hidden", className)}
+      />
       <TopbarPortal slot="search">
         <TopbarSearch {...props} />
       </TopbarPortal>
@@ -51,6 +75,7 @@ function InlineSearch({
   onValueChange,
   onSubmit,
   onClear,
+  variant = "outlined",
   className,
 }: DomainPageSearchProps) {
   const inputId = useId();
@@ -74,7 +99,7 @@ function InlineSearch({
         type="search"
         enterKeyHint="search"
         placeholder={placeholder}
-        className="pr-12"
+        className={INLINE_INPUT_CLASS[variant]}
         value={value}
         onChange={(event) => {
           onValueChange(event.target.value);
@@ -86,7 +111,7 @@ function InlineSearch({
         type="submit"
         variant="ghost"
         size="icon-sm"
-        className="absolute top-0.5 right-0.5 px-0"
+        className={INLINE_SUBMIT_CLASS[variant]}
         aria-label={label}
       >
         <Search />

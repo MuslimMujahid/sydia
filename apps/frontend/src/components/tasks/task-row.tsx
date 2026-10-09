@@ -30,15 +30,17 @@ import {
 
 const VISIBLE_CATEGORY_LIMIT = 2;
 
-// A tight, bottom-weighted shadow instead of a border: it lifts the card off the
-// page and defines the edge, heaviest underneath and barely there on the sides.
-// White open cards already contrast with the page, so they get a lighter one
-// than the tinted finished and cancelled cards.
-const CARD_EDGE_CLASS =
-  "shadow-[0_1px_2px_rgba(23,20,25,0.06),0_1px_1px_rgba(23,20,25,0.02)]";
+// Fits the common short labels ("besok", "kemarin", "hari ini"). It is a
+// minimum, so a longer label grows toward the title and never away from the
+// actions menu, which keeps the dates close to it.
+const DUE_COLUMN_CLASS = "sm:min-w-20 sm:shrink-0 sm:justify-start";
 
-const FINISHED_CARD_EDGE_CLASS =
-  "shadow-[0_1px_2px_rgba(23,20,25,0.1),0_1px_1px_rgba(23,20,25,0.04)]";
+/**
+ * The single surface that holds every status section of the task list. Rows
+ * sit directly on it and only gain a background on hover.
+ */
+export const TASK_LIST_CARD_CLASS =
+  "rounded-lg border border-ink/5 bg-canvas shadow-[0_1px_2px_rgba(23,20,25,0.03)]";
 
 export type TaskRowProps = {
   task: Task;
@@ -70,17 +72,12 @@ export function TaskRow({
   return (
     <li
       aria-busy={pending || undefined}
-      className={cn(
-        "relative flex items-start gap-3 rounded-md bg-canvas py-3 pr-1 pl-4 transition-colors hover:bg-surface-1 sm:items-center sm:gap-4 sm:py-2 sm:pl-5",
-        finished
-          ? cn("bg-surface-1 hover:bg-surface-2", FINISHED_CARD_EDGE_CLASS)
-          : CARD_EDGE_CLASS
-      )}
+      className="relative flex items-start gap-3 rounded-md py-1.5 pr-1 pl-2 transition-colors hover:bg-surface-1 sm:items-center sm:gap-4 sm:py-0"
     >
       {status === "doing" ? (
         <span
           aria-hidden="true"
-          className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-brand"
+          className="absolute inset-y-2 left-0 w-0.75 rounded-full bg-brand"
         />
       ) : null}
       {/* The pseudo-element widens the tap target to ~44px on touch screens. */}
@@ -108,7 +105,7 @@ export function TaskRow({
       />
       <button
         type="button"
-        className="min-w-0 flex-1 rounded-sm py-0.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50 sm:flex sm:min-h-10 sm:items-center sm:gap-4"
+        className="min-w-0 flex-1 rounded-sm py-0.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50 sm:flex sm:min-h-8 sm:items-center sm:gap-4 sm:py-0"
         onClick={onOpen}
       >
         <span
@@ -154,10 +151,14 @@ export function TaskRow({
               <span className="sr-only"> kategori lainnya</span>
             </span>
           ) : null}
+          {/* A fixed, left-aligned column keeps every due date icon on the
+              same vertical line, whatever the text length. Rows without a
+              due date keep the column empty so the chips stay aligned. */}
           {task.dueAt ? (
             <span
               className={cn(
                 "inline-flex items-center gap-1 whitespace-nowrap",
+                DUE_COLUMN_CLASS,
                 overdue && "font-semibold text-destructive"
               )}
             >
@@ -166,7 +167,12 @@ export function TaskRow({
               {formatRelativeDay(task.dueAt, now)}
               {overdue ? <span className="sr-only"> (terlambat)</span> : null}
             </span>
-          ) : null}
+          ) : (
+            <span
+              aria-hidden="true"
+              className={cn("hidden sm:block", DUE_COLUMN_CLASS)}
+            />
+          )}
         </span>
       </button>
       <DropdownMenu>
@@ -175,7 +181,7 @@ export function TaskRow({
             <Button
               variant="ghost"
               size="icon-sm"
-              className="shrink-0 max-sm:-my-1.5"
+              className="size-7 shrink-0 max-sm:-my-2 max-sm:size-10 sm:-ml-2"
               aria-label={`Aksi untuk ${task.title}`}
             />
           }
@@ -228,14 +234,15 @@ const SKELETON_WIDTHS = ["w-3/5", "w-2/5", "w-4/5", "w-1/2"];
 
 export function TaskListSkeleton({ label }: { label: string }) {
   return (
-    <ul className="space-y-2" aria-busy="true" aria-label={label}>
+    <ul
+      className={cn(TASK_LIST_CARD_CLASS, "space-y-px p-2")}
+      aria-busy="true"
+      aria-label={label}
+    >
       {SKELETON_WIDTHS.map((width) => (
         <li
           key={width}
-          className={cn(
-            "relative flex items-center gap-3 rounded-md bg-canvas py-4 pr-4 pl-4 sm:gap-4 sm:pl-5",
-            CARD_EDGE_CLASS
-          )}
+          className="flex items-center gap-3 py-1.5 pr-3 pl-2 sm:min-h-8 sm:gap-4 sm:py-0"
         >
           <div className="size-5 shrink-0 animate-pulse rounded-md bg-surface-1 motion-reduce:animate-none" />
           <div className="min-w-0 flex-1 space-y-2">

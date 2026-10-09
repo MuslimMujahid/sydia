@@ -38,7 +38,7 @@ import type {
 import { CategoryIcon } from "./category-icon";
 import { TASK_SHEET_CLASS, TaskEditor, TaskEditorLoader } from "./task-editor";
 import { TaskFilterPanel } from "./task-filters";
-import { TaskListSkeleton, TaskRow } from "./task-row";
+import { TASK_LIST_CARD_CLASS, TaskListSkeleton, TaskRow } from "./task-row";
 import {
   SORT_LABELS,
   STATUS_LABELS,
@@ -598,32 +598,37 @@ export function TaskPage({
             Daftar tugas
           </h2>
           {/* Below `lg` the search lives in the app bar and the sort and
-              filter controls join the result summary row. */}
+              filter controls move to the row under it. */}
           <div className="flex gap-2 max-lg:hidden">
             <DomainPageSearch
               label="Cari tugas"
               placeholder="Cari judul atau catatan"
-              className="flex-1"
+              variant="underline"
+              className="max-w-md flex-1"
               value={searchDraft}
               onValueChange={setSearchDraft}
               onSubmit={() => setSearch(searchDraft.trim())}
               onClear={clearSearch}
             />
-            {sortMenu}
-            {filterButton}
+            <div className="ml-auto flex gap-2">
+              {sortMenu}
+              {filterButton}
+            </div>
           </div>
-          <div className="flex min-h-9 items-center gap-3 text-sm text-ink-muted">
-            <p className="min-w-0 flex-1 truncate" aria-live="polite">
-              {query.isSuccess ? (
-                <>
-                  <span className="font-semibold text-ink tabular-nums">
-                    {visibleTasks.length}
-                  </span>{" "}
-                  tugas
-                  {search ? ` · “${search}”` : null}
-                </>
-              ) : null}
-            </p>
+          {/* The result count is announced to screen readers only. */}
+          <p className="sr-only" aria-live="polite">
+            {query.isSuccess
+              ? `${visibleTasks.length} tugas${search ? ` · “${search}”` : ""}`
+              : null}
+          </p>
+          {/* Below `lg` this row also holds the sort and filter controls; on
+              larger screens it only shows while a filter can be cleared. */}
+          <div
+            className={cn(
+              "flex min-h-9 items-center gap-3 text-sm text-ink-muted",
+              !filtered && "lg:hidden"
+            )}
+          >
             {filtered ? (
               <Button
                 type="button"
@@ -635,7 +640,7 @@ export function TaskPage({
                 <X /> Hapus filter
               </Button>
             ) : null}
-            <div className="flex shrink-0 gap-2 lg:hidden">
+            <div className="ml-auto flex shrink-0 gap-2 lg:hidden">
               {sortMenu}
               {filterButton}
             </div>
@@ -657,27 +662,23 @@ export function TaskPage({
           ) : null}
           {query.isSuccess ? (
             visibleTasks.length ? (
-              <div className="space-y-6">
+              <div className={TASK_LIST_CARD_CLASS}>
                 {sections.map((section) => {
                   const headingId = `task-section-${section.status}`;
 
                   return (
-                    <section
-                      key={section.status}
-                      aria-labelledby={headingId}
-                      className="space-y-2"
-                    >
+                    <section key={section.status} aria-labelledby={headingId}>
                       <h3
                         id={headingId}
-                        className="flex min-h-8 items-center gap-2 px-1 text-xs font-semibold tracking-wide text-ink-muted uppercase"
+                        className="flex items-center gap-2 px-4 pt-3 pb-0.5 text-[11px] font-semibold text-ink-muted"
                       >
                         {STATUS_LABELS[section.status]}
-                        <span className="min-w-7 rounded-pill bg-surface-1 px-2 py-0.5 text-center font-mono text-xs font-normal text-ink-soft tabular-nums">
+                        <span className="min-w-5 rounded-pill bg-surface-1 px-1.5 py-px text-center font-mono text-[11px] font-normal text-ink-soft tabular-nums">
                           {section.tasks.length}
                           <span className="sr-only"> tugas</span>
                         </span>
                       </h3>
-                      <ul className="space-y-2">
+                      <ul className="space-y-px px-2 pb-1.5">
                         {section.tasks.map((task) => (
                           <TaskRow
                             key={task.id}
