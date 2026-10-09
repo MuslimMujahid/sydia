@@ -377,7 +377,7 @@ type TaskListEmptyProps = {
 
 function TaskListEmpty({ filtered, onReset, onCreate }: TaskListEmptyProps) {
   return (
-    <div className="rounded-lg border border-dashed border-ink/12 px-6 py-12 text-center">
+    <div className="rounded-lg border border-dashed border-ink/12 px-6 py-12 text-center max-sm:mx-5">
       <p className="font-display text-base font-semibold text-ink">
         {filtered ? "Tidak ada tugas yang cocok" : "Belum ada tugas"}
       </p>
@@ -625,7 +625,7 @@ export function TaskPage({
               larger screens it only shows while a filter can be cleared. */}
           <div
             className={cn(
-              "flex min-h-9 items-center gap-3 text-sm text-ink-muted",
+              "flex min-h-9 items-center gap-3 text-sm text-ink-muted max-sm:px-5",
               !filtered && "lg:hidden"
             )}
           >
@@ -646,7 +646,7 @@ export function TaskPage({
             </div>
           </div>
           {rowError ? (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-destructive max-sm:px-5" role="alert">
               {rowError.message}
             </p>
           ) : null}
@@ -654,11 +654,13 @@ export function TaskPage({
             <TaskListSkeleton label="Memuat daftar tugas" />
           ) : null}
           {query.isError ? (
-            <DomainInlineError
-              title="Tugas tidak dapat dimuat"
-              message={query.error.message}
-              onRetry={() => void query.refetch()}
-            />
+            <div className="max-sm:px-5">
+              <DomainInlineError
+                title="Tugas tidak dapat dimuat"
+                message={query.error.message}
+                onRetry={() => void query.refetch()}
+              />
+            </div>
           ) : null}
           {query.isSuccess ? (
             visibleTasks.length ? (

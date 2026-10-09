@@ -127,9 +127,11 @@ export function DashboardShell({
   // The calendar page (both its calendar and task modes) uses the full panel
   // width. The calendar mode is also exactly one screen tall from `lg`.
   const calendarSurface = activePath === "/calendar";
-  const calendarGridSurface =
+  const tasksSurface =
     calendarSurface &&
-    new URLSearchParams(location.searchStr).get("mode") !== "tasks";
+    new URLSearchParams(location.searchStr).get("mode") === "tasks";
+
+  const calendarGridSurface = calendarSurface && !tasksSurface;
 
   const moreActive = MORE_NAV_ITEMS.some((item) =>
     activePath.startsWith(item.to)
@@ -436,6 +438,9 @@ export function DashboardShell({
               // The daily note's writing sheet runs edge to edge on phones.
               activePath === "/daily-notes" && "max-sm:px-0 max-sm:pb-0",
               calendarSurface && "max-w-none lg:px-8 lg:py-6",
+              // The task list card runs edge to edge on phones; the task page
+              // pads the controls around it itself.
+              tasksSurface && "max-sm:px-0",
               // The calendar grid scrolls inside the panel instead of the page.
               calendarGridSurface && "lg:flex lg:h-dvh lg:flex-col",
               chatSurface &&

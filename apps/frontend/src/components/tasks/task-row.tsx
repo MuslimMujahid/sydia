@@ -5,7 +5,7 @@ import {
   MoreHorizontal,
   Trash2,
 } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,19 +18,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Task, TaskStatus } from "@/lib/services/api/tasks/tasks.api";
-import { formatRelativeDay } from "@/lib/utils/date-time";
+import { formatDateTime, formatRelativeDay } from "@/lib/utils/date-time";
 import { cn } from "@/lib/utils/cn";
 import { CategoryIcon } from "./category-icon";
 import {
   PRIORITY_LABELS,
   STATUS_ICONS,
   STATUS_LABELS,
-  countOverdueDays,
+  getDueCountdown,
   isTaskOverdue,
   isTaskStatus,
+  type DueCountdown,
 } from "./task-view";
 
 const VISIBLE_CATEGORY_LIMIT = 2;
+
+/**
+ * On phones, a due date this many days ahead (or sooner, or already past)
+ * shows on the row.
+ */
+const COUNTDOWN_WINDOW_DAYS = 7;
 
 // A fixed width, wide enough for the longest label ("30 Des 2026, 18.00" in
 // semibold). The labels are left-aligned inside it, so every row's due date
@@ -41,19 +48,30 @@ const DUE_COLUMN_CLASS = "sm:w-40 sm:shrink-0 sm:justify-start";
 /**
  * The single surface that holds every status section of the task list. Rows
  * sit directly on it and only gain a background on hover. The padding keeps
- * the rows and section headings off the card edge on every side.
+ * the rows and section headings off the card edge on every side. Phones have
+ * no side padding here, because the card already runs the full screen width
+ * and the rows and headings carry their own inset.
  */
 export const TASK_LIST_CARD_CLASS =
-  "rounded-lg border border-ink/5 bg-canvas p-1 shadow-[0_1px_2px_rgba(23,20,25,0.03)] sm:p-1.5";
+  "rounded-lg border border-ink/5 bg-canvas py-1 shadow-[0_1px_2px_rgba(23,20,25,0.03)] sm:p-1.5";
 
 type TaskDueProps = {
   dueAt: string;
-  overdue: boolean;
   now: Date;
+  /** Flag the date as late: red and semibold. */
+  overdue?: boolean;
+  /** Show the full date and time instead of the relative label. */
+  absolute?: boolean;
   className?: string;
 };
 
-function TaskDue({ dueAt, overdue, now, className }: TaskDueProps) {
+function TaskDue({
+  dueAt,
+  now,
+  overdue = false,
+  absolute = false,
+  className,
+}: TaskDueProps) {
   return (
     <span
       className={cn(
@@ -64,7 +82,7 @@ function TaskDue({ dueAt, overdue, now, className }: TaskDueProps) {
     >
       <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
       <span className="sr-only">Tenggat </span>
-      {formatRelativeDay(dueAt, now)}
+      {absolute ? formatDateTime(dueAt) : formatRelativeDay(dueAt, now)}
       {overdue ? <span className="sr-only"> (terlambat)</span> : null}
     </span>
   );
@@ -117,15 +135,12 @@ function TaskCategoryChips({ categories, finished }: TaskCategoryChipsProps) {
   );
 }
 
-/** Only the in-progress and cancelled statuses get a badge. */
+/** Only an in-progress task gets a badge; cancelled tasks have none. */
 function TaskStatusBadge({ status }: { status: TaskStatus }) {
-  if (status !== "doing" && status !== "cancelled") return null;
+  if (status !== "doing") return null;
 
   return (
-    <Badge
-      dot={status === "doing" ? "brand" : "destructive"}
-      className="px-2 py-0.5 text-xs"
-    >
+    <Badge dot="brand" className="px-2 py-0.5 text-xs">
       {STATUS_LABELS[status]}
     </Badge>
   );
@@ -167,27 +182,82 @@ function TaskMeta({ task, status, finished, overdue, now }: TaskMetaProps) {
   );
 }
 
-type TaskDetailsPanelProps = TaskMetaProps & {
+/** "7h" for 7 days (hari), "7j" for 7 hours (jam); negative once it is late. */
+function formatCountdown({ unit, value }: DueCountdown): string {
+  return `${value}${unit === "day" ? "h" : "j"}`;
+}
+
+function describeCountdown(
+  { unit, value }: DueCountdown,
+  overdue: boolean
+): string {
+  const noun = unit === "day" ? "hari" : "jam";
+
+  if (value < 0) return `Terlambat ${-value} ${noun}`;
+
+  if (value === 0) {
+    return overdue
+      ? "Terlambat kurang dari satu jam"
+      : "Tenggat kurang dari satu jam lagi";
+  }
+
+  return `Tenggat ${value} ${noun} lagi`;
+}
+
+type TaskDueCountdownProps = {
+  countdown: DueCountdown;
+  overdue: boolean;
+};
+
+/**
+ * Phones only. The due date is folded away with the other details, so a task
+ * that is late or due within the week keeps a compact marker on the row: the
+ * due date icon, then the time left in days ("7h") or, inside a day, hours
+ * ("7j"), negative when late. A late task is red.
+ * It sits on the title's first line, close to the chevron (the negative
+ * margin cancels most of the row gap). The number starts right after the
+ * icon and has a fixed minimum width (room for "-20j" in semibold, so a red
+ * and a grey marker take the same space), which puts every row's icon on
+ * the same vertical line.
+ */
+function TaskDueCountdown({ countdown, overdue }: TaskDueCountdownProps) {
+  return (
+    <span
+      className={cn(
+        "mt-0.5 flex h-5 shrink-0 items-center gap-1 text-xs tabular-nums max-sm:-mr-3 sm:hidden",
+        overdue ? "font-semibold text-destructive" : "text-ink-muted"
+      )}
+    >
+      <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
+      <span aria-hidden="true" className="min-w-8">
+        {formatCountdown(countdown)}
+      </span>
+      <span className="sr-only">{describeCountdown(countdown, overdue)}</span>
+    </span>
+  );
+}
+
+type TaskDetailsPanelProps = {
   id: string;
   open: boolean;
-  /** The row's actions menu, shown at the end of the panel. */
-  actions: ReactNode;
+  task: Task;
+  status: TaskStatus;
+  finished: boolean;
+  now: Date;
 };
 
 /**
  * Phones only. It wraps onto its own line under the title, indented past the
- * checkbox and flag so the details line up with the title. The due date and
- * the right-aligned categories share the first row, the status badge sits
- * below it, and the actions menu is at the end.
+ * checkbox and flag so the details line up with the title. The full due date
+ * (never flagged as late; the row's marker does that) and the categories sit
+ * side by side, left-aligned, with the in-progress badge on a row below.
  */
 function TaskDetailsPanel({
   id,
   open,
-  actions,
   task,
   status,
   finished,
-  overdue,
   now,
 }: TaskDetailsPanelProps) {
   return (
@@ -195,40 +265,29 @@ function TaskDetailsPanel({
       id={id}
       hidden={!open}
       className={cn(
-        "flex w-full items-start gap-3 pl-14 text-xs text-ink-muted sm:hidden",
+        "flex w-full flex-col items-start gap-3 pt-2.5 pb-1.5 pl-14 text-xs text-ink-muted sm:hidden",
         finished && "text-ink/40"
       )}
     >
       {/* The title button ends 2px below its text, so the 10px of top padding
           puts the first row 12px under the title: the same as the gap-3
           between the rows. */}
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-3 pt-2.5 pb-2">
-        {task.categories.length > 0 || task.dueAt ? (
-          // The date is on the left and the categories on the right. With no
-          // date the categories start on the left. When the two do not fit
-          // side by side, the categories wrap onto their own line.
-          <div className="flex w-full flex-wrap items-center gap-3">
-            {task.dueAt ? (
-              <TaskDue dueAt={task.dueAt} overdue={overdue} now={now} />
-            ) : null}
-            {task.categories.length > 0 ? (
-              <div
-                className={cn(
-                  "flex min-w-0 flex-wrap items-center gap-2",
-                  task.dueAt && "ml-auto justify-end"
-                )}
-              >
-                <TaskCategoryChips
-                  categories={task.categories}
-                  finished={finished}
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        <TaskStatusBadge status={status} />
-      </div>
-      {actions}
+      {task.dueAt || task.categories.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {task.dueAt ? (
+            <TaskDue dueAt={task.dueAt} now={now} absolute />
+          ) : null}
+          {task.categories.length > 0 ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <TaskCategoryChips
+                categories={task.categories}
+                finished={finished}
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <TaskStatusBadge status={status} />
     </div>
   );
 }
@@ -237,17 +296,15 @@ type TaskActionsMenuProps = {
   title: string;
   status: TaskStatus;
   pending: boolean;
-  /** Sizing and visibility of the "⋯" button, which differ per breakpoint. */
-  triggerClassName?: string;
   onStatusChange: (status: TaskStatus) => void;
   onDelete: () => void;
 };
 
+/** From `sm`: the row's "⋯" menu. Phones have no menu. */
 function TaskActionsMenu({
   title,
   status,
   pending,
-  triggerClassName,
   onStatusChange,
   onDelete,
 }: TaskActionsMenuProps) {
@@ -258,7 +315,7 @@ function TaskActionsMenu({
           <Button
             variant="ghost"
             size="icon-sm"
-            className={cn("shrink-0", triggerClassName)}
+            className="size-7 shrink-0 max-sm:hidden sm:-ml-2"
             aria-label={`Aksi untuk ${title}`}
           />
         }
@@ -328,19 +385,25 @@ export function TaskRow({
   const done = status === "done";
   const finished = done || status === "cancelled";
   const overdue = isTaskOverdue({ ...task, status }, now);
-  const daysOverdue =
-    overdue && task.dueAt ? countOverdueDays(task.dueAt, now) : 0;
+
+  // Time to the due date for the phone marker, only for a task still to do
+  // and only when it is late or due within the week.
+  const dueCountdown =
+    !finished && task.dueAt ? getDueCountdown(task.dueAt, now) : null;
+
+  const countdown =
+    dueCountdown &&
+    (dueCountdown.unit === "hour" ||
+      dueCountdown.value <= COUNTDOWN_WINDOW_DAYS)
+      ? dueCountdown
+      : null;
 
   const priorityLabel = `Prioritas ${PRIORITY_LABELS[task.priority].toLowerCase()}`;
 
   // Phones fold a task's details (status badge, categories, due date) into a
-  // panel behind a chevron. A task with none has no panel, so its actions
-  // menu takes the chevron's place on the row.
+  // panel behind a chevron. A task with none has no panel and no chevron.
   const hasDetails =
-    status === "doing" ||
-    status === "cancelled" ||
-    task.categories.length > 0 ||
-    Boolean(task.dueAt);
+    status === "doing" || task.categories.length > 0 || Boolean(task.dueAt);
 
   return (
     <li
@@ -398,22 +461,8 @@ export function TaskRow({
           now={now}
         />
       </button>
-      {/* Phones fold the due date away, so an overdue task keeps a compact
-          flag on the row itself: the same icon and size as the due date, then
-          the days past due. It sits on the title's first line, close to the
-          chevron (the negative margin cancels most of the row gap). */}
-      {overdue ? (
-        <span className="mt-0.5 flex h-5 shrink-0 items-center gap-1 text-xs font-semibold text-destructive tabular-nums max-sm:-mr-3 sm:hidden">
-          <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
-          {daysOverdue > 0 ? (
-            <span aria-hidden="true">{daysOverdue}</span>
-          ) : null}
-          <span className="sr-only">
-            {daysOverdue > 0
-              ? `Terlambat ${daysOverdue} hari`
-              : "Terlambat hari ini"}
-          </span>
-        </span>
+      {countdown ? (
+        <TaskDueCountdown countdown={countdown} overdue={overdue} />
       ) : null}
       {hasDetails ? (
         <Button
@@ -421,7 +470,7 @@ export function TaskRow({
           variant="ghost"
           size="icon-sm"
           className="shrink-0 max-sm:-my-2 max-sm:size-10 sm:hidden"
-          aria-label={`Detail dan aksi untuk ${task.title}`}
+          aria-label={`Detail untuk ${task.title}`}
           aria-expanded={detailsOpen}
           aria-controls={detailsPanelId}
           onClick={() => setDetailsOpen((open) => !open)}
@@ -434,16 +483,10 @@ export function TaskRow({
           />
         </Button>
       ) : null}
-      {/* From `sm` this is the row's menu. On phones it only shows here when
-          there is no details panel, in the chevron's spot. */}
       <TaskActionsMenu
         title={task.title}
         status={status}
         pending={pending}
-        triggerClassName={cn(
-          "size-7 sm:-ml-2",
-          hasDetails ? "max-sm:hidden" : "max-sm:-my-2 max-sm:size-10"
-        )}
         onStatusChange={onStatusChange}
         onDelete={onDelete}
       />
@@ -454,18 +497,7 @@ export function TaskRow({
           task={task}
           status={status}
           finished={finished}
-          overdue={overdue}
           now={now}
-          actions={
-            <TaskActionsMenu
-              title={task.title}
-              status={status}
-              pending={pending}
-              triggerClassName="mt-1 h-8 w-10"
-              onStatusChange={onStatusChange}
-              onDelete={onDelete}
-            />
-          }
         />
       ) : null}
     </li>

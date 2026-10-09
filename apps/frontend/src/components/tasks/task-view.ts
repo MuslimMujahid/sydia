@@ -152,15 +152,32 @@ export function isTaskOverdue(task: Task, now: Date): boolean {
   return timeOf(task.dueAt) < now.getTime();
 }
 
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+
+export type DueCountdown = {
+  /** `hour` within a day of now, `day` beyond that. */
+  unit: "day" | "hour";
+  /** Whole units until the due date: negative once it has passed. */
+  value: number;
+};
+
 /**
- * Whole calendar days between a due date and today, counted the same way as
- * the relative due label ("3 hari yang lalu"). A due date earlier today, or
- * one that has not passed, counts as 0.
+ * How far a due date is from now. Within 24 hours either way it counts hours
+ * (rounded to the nearest); beyond that it counts calendar days, the same way
+ * as the relative due label ("besok", "3 hari yang lalu"). Null when the date
+ * cannot be read.
  */
-export function countOverdueDays(dueAt: string, now: Date): number {
+export function getDueCountdown(dueAt: string, now: Date): DueCountdown | null {
   const due = new Date(dueAt);
 
-  if (Number.isNaN(due.getTime())) return 0;
+  if (Number.isNaN(due.getTime())) return null;
+
+  const msUntilDue = due.getTime() - now.getTime();
+
+  if (Math.abs(msUntilDue) < DAY_MS) {
+    return { unit: "hour", value: Math.round(msUntilDue / HOUR_MS) };
+  }
 
   const startOfToday = new Date(
     now.getFullYear(),
@@ -170,9 +187,8 @@ export function countOverdueDays(dueAt: string, now: Date): number {
 
   const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate());
 
-  const days = Math.round(
-    (startOfToday.getTime() - startOfDue.getTime()) / 86_400_000
-  );
-
-  return Math.max(0, days);
+  return {
+    unit: "day",
+    value: Math.round((startOfDue.getTime() - startOfToday.getTime()) / DAY_MS),
+  };
 }
