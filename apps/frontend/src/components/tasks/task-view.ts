@@ -151,3 +151,28 @@ export function isTaskOverdue(task: Task, now: Date): boolean {
 
   return timeOf(task.dueAt) < now.getTime();
 }
+
+/**
+ * Whole calendar days between a due date and today, counted the same way as
+ * the relative due label ("3 hari yang lalu"). A due date earlier today, or
+ * one that has not passed, counts as 0.
+ */
+export function countOverdueDays(dueAt: string, now: Date): number {
+  const due = new Date(dueAt);
+
+  if (Number.isNaN(due.getTime())) return 0;
+
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+
+  const days = Math.round(
+    (startOfToday.getTime() - startOfDue.getTime()) / 86_400_000
+  );
+
+  return Math.max(0, days);
+}

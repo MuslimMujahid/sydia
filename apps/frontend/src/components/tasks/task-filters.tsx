@@ -24,11 +24,18 @@ const DUE_FILTER_ICONS: Record<TaskDueFilter | "all", LucideIcon> = {
   none: CalendarX,
 };
 
+/**
+ * What the panel sits on. `card` is a white sheet (the mobile dialog); `page`
+ * is the bone page background, where the panel has no surface of its own.
+ */
+export type TaskFilterTone = "card" | "page";
+
 type FilterOptionProps = {
   icon: ReactNode;
   label: string;
   active: boolean;
   count?: number;
+  tone: TaskFilterTone;
   onClick: () => void;
 };
 
@@ -37,6 +44,7 @@ function FilterOption({
   label,
   active,
   count,
+  tone,
   onClick,
 }: FilterOptionProps) {
   return (
@@ -63,7 +71,13 @@ function FilterOption({
         <span
           className={cn(
             "min-w-7 rounded-pill px-2 py-0.5 text-center font-mono text-xs tabular-nums",
-            active ? "bg-brand text-canvas" : "bg-surface-1 text-ink-soft"
+            active
+              ? "bg-brand text-canvas"
+              : // On the page background a white chip reads as a lift, the same
+                // way the white task list does; on a white card it would vanish.
+                tone === "page"
+                ? "bg-canvas text-ink-soft"
+                : "bg-surface-1 text-ink-soft"
           )}
         >
           {count}
@@ -104,6 +118,8 @@ export type TaskFilterPanelProps = {
   categories: Category[];
   categoriesLoading: boolean;
   selectedCategoryIds: string[];
+  /** The surface behind the panel. Defaults to a white card. */
+  tone?: TaskFilterTone;
   className?: string;
   onDueChange: (due: TaskDueFilter | "all") => void;
   onCategoryToggle: (categoryId: string) => void;
@@ -115,6 +131,7 @@ export function TaskFilterPanel({
   categories,
   categoriesLoading,
   selectedCategoryIds,
+  tone = "card",
   className,
   onDueChange,
   onCategoryToggle,
@@ -133,6 +150,7 @@ export function TaskFilterPanel({
                 icon={<Icon />}
                 label={DUE_LABELS[value]}
                 active={due === value}
+                tone={tone}
                 onClick={() => onDueChange(value)}
               />
             );
@@ -187,6 +205,7 @@ export function TaskFilterPanel({
                   label={category.name}
                   count={category.taskCount}
                   active={active}
+                  tone={tone}
                   onClick={() => onCategoryToggle(category.id)}
                 />
               );

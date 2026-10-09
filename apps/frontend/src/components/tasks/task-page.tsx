@@ -710,11 +710,13 @@ export function TaskPage({
             )
           ) : null}
         </section>
+        {/* No card: the filters sit directly on the page background, so the
+            white task list is the only raised surface beside them. */}
         <aside
           aria-label="Filter tugas"
-          className="hidden rounded-lg border border-hairline bg-canvas p-2 shadow-card xl:sticky xl:top-12 xl:block"
+          className="hidden xl:sticky xl:top-12 xl:block"
         >
-          <TaskFilterPanel {...filterPanelProps} />
+          <TaskFilterPanel {...filterPanelProps} tone="page" />
         </aside>
       </div>
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
