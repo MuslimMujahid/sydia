@@ -90,9 +90,8 @@ export function terminalToolInputSchema(
 
 /**
  * Where the acknowledgement is going, and therefore how it is written. The
- * channel decides the markup: the web chat renders markdown, while WhatsApp and
- * Telegram send raw text with no `parse_mode`, so `**` there would reach the
- * user as literal asterisks.
+ * channel decides the markup: web chat and Telegram render Markdown; WhatsApp
+ * keeps the existing plain-text acknowledgement layout.
  */
 export type TerminalResponseContext = {
   locale: SupportedLocale;
@@ -356,8 +355,8 @@ type BlockOptions = {
 /**
  * Renders one block: the icon and heading, a blank line, then the subject and
  * its detail lines. The web chat gets markdown bold on the heading and subject
- * so the block scans as one object; channels get the identical layout without
- * markup, because they render the text literally. This legacy layout remains
+ * so the block scans as one object. Telegram uses the same Rich Markdown;
+ * WhatsApp keeps the identical layout without markup. This legacy layout remains
  * for categories, secrets, and daily notes.
  */
 function renderAcknowledgement(
@@ -377,12 +376,14 @@ function renderAcknowledgement(
         )
       : pick(context.locale, en, id));
 
-  const rich = context.channel === undefined;
+  const rich = context.channel !== 'whatsapp';
 
   const body: string[] = [];
 
   if (options.subject)
-    body.push(rich ? `**${options.subject}**` : options.subject);
+    body.push(
+      rich ? `**${escapeReceiptMarkdown(options.subject)}**` : options.subject,
+    );
   if (options.details) body.push(...options.details);
 
   const head = `${icon} ${rich ? `**${heading}**` : heading}`;
@@ -629,7 +630,7 @@ function taskAck(
   name: TaskToolName,
   results: readonly unknown[],
 ): string | null {
-  const rich = context.channel === undefined;
+  const rich = context.channel !== 'whatsapp';
   const entries = new Map<string, string>();
 
   for (const result of results) {
@@ -726,7 +727,7 @@ function taskAck(
 
 /** Escape user text before adding Markdown; entity pills match rendered text. */
 function escapeReceiptMarkdown(value: string): string {
-  return value.replace(/([\\`*_[\]<>!#|~])/g, '\\$1');
+  return value.replace(/([\\`*_[\]<>!#|~$=^])/g, '\\$1');
 }
 
 type ReceiptItem = {
@@ -861,7 +862,7 @@ function receiptAck(
           `Siap, ${entries.size} ${id} sudah ${idVerb}.`,
         );
 
-  const rich = context.channel === undefined;
+  const rich = context.channel !== 'whatsapp';
   const rows = [...entries.values()].map((item) => {
     const title = rich ? escapeReceiptMarkdown(item.subject) : item.subject;
     const subject = rich

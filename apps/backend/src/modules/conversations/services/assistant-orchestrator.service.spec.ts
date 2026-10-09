@@ -668,16 +668,15 @@ describe('AssistantOrchestratorService', () => {
     ]);
   });
 
-  it.each(['telegram', 'whatsapp'] as const)(
-    'stream persists the native %s receipt instead of web markdown',
-    async (channel) => {
+  it.each([
+    ['telegram', 'All set, your task has been created.\n\n- **Kirim laporan**'],
+    ['whatsapp', 'All set, your task has been created.\n\n- Kirim laporan'],
+  ] as const)(
+    'stream persists and emits the formatted %s receipt',
+    async (channel, expected) => {
       const result = await runReceiptTurn('en', channel);
-      expect(result.persisted).toBe(
-        'All set, your task has been created.\n\n- Kirim laporan',
-      );
-      expect(result.deltas).toEqual([
-        'All set, your task has been created.\n\n- Kirim laporan',
-      ]);
+      expect(result.persisted).toBe(expected);
+      expect(result.deltas).toEqual([expected]);
     },
   );
 

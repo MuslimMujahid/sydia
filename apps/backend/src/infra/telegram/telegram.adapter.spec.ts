@@ -62,23 +62,25 @@ describe('Telegram message adapters', () => {
     });
   });
 
-  it('sends text without Telegram reply parameters and returns a stable provider id', async () => {
-    const sendMessage = jest.fn(() =>
+  it('sends rich Markdown without reply parameters and returns a stable provider id', async () => {
+    const sendRichMessage = jest.fn(() =>
       Promise.resolve({ chat: { id: 123 }, message_id: 43 }),
     );
 
     const adapter = new TelegramOutboundAdapter({
-      sendMessage,
+      sendRichMessage,
     } as unknown as Api);
 
     await expect(
       adapter.send({
         recipientExternalId: '123',
-        content: 'reply',
+        content: '**Ready**\n\n- First\n  - Nested\n- Second',
         replyToProviderMessageId: '123:42',
       }),
     ).resolves.toEqual({ providerMessageId: '123:43' });
-    expect(sendMessage).toHaveBeenCalledWith('123', 'reply', undefined);
+    expect(sendRichMessage).toHaveBeenCalledWith('123', {
+      markdown: '**Ready**\n\n- First\n  - Nested\n- Second',
+    });
   });
 
   it('uploads a document buffer without Telegram reply parameters and returns a stable provider id', async () => {
@@ -110,5 +112,20 @@ describe('Telegram message adapters', () => {
         message_thread_id: 8,
       },
     );
+  });
+
+  it('passes API rejection to the delivery handler without sending a duplicate plain message', async () => {
+    const error = new Error('Telegram rejected rich message');
+    const sendRichMessage = jest.fn(() => Promise.reject(error));
+    const sendMessage = jest.fn();
+    const adapter = new TelegramOutboundAdapter({
+      sendRichMessage,
+      sendMessage,
+    } as unknown as Api);
+
+    await expect(
+      adapter.send({ recipientExternalId: '123', content: '- Item' }),
+    ).rejects.toBe(error);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

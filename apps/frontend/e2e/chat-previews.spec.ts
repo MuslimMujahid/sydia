@@ -14,7 +14,7 @@ function response(values: SendMessageVariables) {
     channel === "web"
       ? "**Baca buku** — saved"
       : channel === "telegram"
-        ? "*Baca buku* — saved"
+        ? "**Baca buku** — saved\n\n## Plan\n\n- One\n  - Nested\n- Two\n\n1. First\n2. Second\n\n> Quoted\n\n`my_task_id`\n\n| Task | Status |\n| --- | --- |\n| Read | Ready |"
         : "*Baca buku* — saved\n- One\n- Two\n> Quoted\n`my_task_id`";
 
   return {
@@ -209,8 +209,14 @@ test("renders channel syntax and reserves entity pills for web chat", async ({
   await expect(
     web.getByRole("button", { name: "Task: Baca buku" })
   ).toBeVisible();
-  await expect(telegram.getByRole("article")).toContainText("*Baca buku*");
-  await expect(telegram.locator("strong")).toHaveCount(0);
+  await expect(telegram.locator("strong")).toHaveText("Baca buku");
+  await expect(telegram.getByRole("heading", { name: "Plan" })).toBeVisible();
+  await expect(telegram.getByRole("list")).toHaveCount(3);
+  await expect(telegram.getByRole("listitem")).toHaveCount(5);
+  await expect(telegram.locator("blockquote")).toHaveText("Quoted");
+  await expect(telegram.locator("code")).toHaveText("my_task_id");
+  await expect(telegram.getByRole("table")).toContainText("Ready");
+  await expect(telegram.locator("button[data-entity-kind]")).toHaveCount(0);
   await expect(whatsapp.locator("strong")).toHaveText("Baca buku");
   await expect(whatsapp.getByRole("listitem")).toHaveText(["One", "Two"]);
   await expect(whatsapp.locator("code")).toHaveText("my_task_id");

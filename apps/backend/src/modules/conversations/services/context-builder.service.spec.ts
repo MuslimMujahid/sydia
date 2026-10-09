@@ -159,7 +159,7 @@ describe('ContextBuilderService task-list formatting', () => {
         'title — deadline · priority · status · categories',
       );
       expect(policy?.content).toContain(
-        'bold on web, plain on WhatsApp/Telegram',
+        'bold on web and Telegram, plain on WhatsApp',
       );
       expect(policy?.content).toContain('If no tasks match, say so briefly');
       expect(policy?.content).toContain(
@@ -674,7 +674,7 @@ describe('ContextBuilderService channel formatting', () => {
     );
 
     expect(channelPrompt?.content).toContain(
-      'Telegram delivery is plain text and does not rely on Markdown',
+      'Telegram delivery uses sendRichMessage with Rich Markdown',
     );
     expect(tokenUsage.channelPrompt).toBe(
       estimateTokens(channelPrompt?.content as string),

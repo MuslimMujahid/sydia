@@ -31,10 +31,15 @@ against persisted conversation state and log any degraded recovery.
 
 - Web chat uses the existing Markdown and entity renderer. Entity popovers show
   snapshots from tool results; they do not fetch or mutate normal user entities.
-- Telegram previews plain text, line breaks, emoji, and HTTP links. The current
-  outbound adapter supplies neither `parse_mode` nor explicit formatting entities,
-  so Markdown markers remain literal. Telegram supports rich formatting when
-  explicitly requested: [Telegram Bot API formatting options](https://core.telegram.org/bots/api#formatting-options).
+- Telegram delivers replies through `sendRichMessage` with the `markdown` field
+  (Bot API 10.1+). The local preview renders the supported Markdown text subset:
+  emphasis, headings, nested bullet and numbered lists, task lists, tables,
+  quotes, code, and links. It does not add web entity pills. Raw HTML, media,
+  formulas, spoilers, and Telegram-specific blocks are not simulated. The
+  assistant's Telegram prompt requests this text subset and literal emoji.
+  See [Telegram rich-message formatting](https://core.telegram.org/bots/api#rich-message-formatting-options).
+  API failures propagate to the existing delivery failure handling; the adapter
+  does not silently retry as plain text or risk a duplicate delivery.
 - WhatsApp renders bold, italic, strikethrough, monospace, inline code, bullets,
   numbered lists, and quotes using its text markers. Unsupported syntax stays
   visible. See [WhatsApp text formatting](https://faq.whatsapp.com/539178204879377/).
@@ -48,13 +53,14 @@ From `apps/backend`:
 
 ```sh
 bun run test --runInBand prisma-chat-preview.repository.spec assistant-orchestrator.service.spec
+bun run test --runInBand telegram.adapter.spec terminal-tool-response.spec context-builder.service.spec
 bun run check-types
 ```
 
 From `apps/frontend`:
 
 ```sh
-bun test src/components/chat/whatsapp-format.test.ts src/lib/services/api/conversations/conversations.api.test.ts
+bun test src/components/chat/telegram-rich-text.test.tsx src/components/chat/whatsapp-format.test.ts src/lib/services/api/conversations/conversations.api.test.ts
 bunx playwright test --config playwright.entities.config.ts chat-previews.spec.ts --workers 2
 bun run check-types
 bun run build

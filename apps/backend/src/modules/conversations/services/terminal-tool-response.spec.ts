@@ -186,7 +186,7 @@ function web(
   return buildTerminalToolResponse({ locale }, executions);
 }
 
-/** A channel, which sends raw text and shows no cards. */
+/** A native channel, which shows no web entity cards. */
 function chat(
   locale: 'en' | 'id',
   executions: readonly TerminalToolExecution[],
@@ -196,9 +196,8 @@ function chat(
 }
 
 /**
- * The block a channel receives for every tool: heading, blank line, subject,
- * then detail lines. No markdown, because WhatsApp and Telegram render it
- * literally.
+ * WhatsApp snapshots preserve the plain acknowledgement layouts. Telegram
+ * and web snapshots exercise Markdown formatting separately.
  */
 const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
   [
@@ -875,10 +874,10 @@ describe('terminal tool response', () => {
   });
 
   it.each(PLAIN_BLOCKS)(
-    'writes %s as a plain block on a channel',
+    'writes %s as a plain block on WhatsApp',
     (toolName, result, en, id) => {
       expect(chat('en', [execution(toolName, result)])).toBe(en);
-      expect(chat('id', [execution(toolName, result)], 'telegram')).toBe(id);
+      expect(chat('id', [execution(toolName, result)], 'whatsapp')).toBe(id);
     },
   );
 
@@ -890,13 +889,13 @@ describe('terminal tool response', () => {
     },
   );
 
-  it('never emits markdown on a channel and always on the web', () => {
+  it('keeps WhatsApp plain and formats web and Telegram receipts', () => {
     for (const [toolName, result] of PLAIN_BLOCKS) {
       expect(chat('en', [execution(toolName, result)])).not.toContain('**');
       expect(chat('id', [execution(toolName, result)])).not.toContain('**');
     }
 
-    // Compact tools bold the subject on the web only.
+    // Compact tools bold the subject on web and Telegram.
     const contact = {
       objectType: 'contact',
       object: { name: 'Bu Rina', groups: [] },
@@ -909,7 +908,7 @@ describe('terminal tool response', () => {
       'All set, your contact has been saved.\n\n- Bu Rina',
     );
     expect(chat('id', [execution('save_contact', contact)], 'telegram')).toBe(
-      'Siap, kontaknya sudah disimpan.\n\n- Bu Rina',
+      'Siap, kontaknya sudah disimpan.\n\n- **Bu Rina**',
     );
   });
 
@@ -931,6 +930,62 @@ describe('terminal tool response', () => {
     expect(result).toBe(
       'Siap, 2 tugas sudah dibuat.\n\n- **Kirim laporan** — Tenggat 22 Sep 2026, 18.00 · Prioritas tinggi\n- **Baca buku**',
     );
+  });
+
+  it('formats a Telegram task batch as a native Markdown list', () => {
+    const result = chat(
+      'en',
+      [
+        execution('create_task', {
+          objectType: 'task',
+          object: { title: 'Read book', dueAt: null, priority: 'medium' },
+        }),
+        execution('create_task', {
+          objectType: 'task',
+          object: { title: 'Send report', dueAt: null, priority: 'high' },
+        }),
+      ],
+      'telegram',
+    );
+
+    expect(result).toBe(
+      'All set, 2 tasks have been created.\n\n- **Read book**\n- **Send report** — Priority high',
+    );
+  });
+
+  it('escapes formatting in literal Telegram task titles and categories', () => {
+    const result = chat(
+      'en',
+      [
+        execution('create_task', {
+          objectType: 'task',
+          object: {
+            title: 'Read *draft* <b> $5 ==ready==',
+            categories: [{ name: 'Work_2026' }],
+          },
+        }),
+      ],
+      'telegram',
+    );
+
+    expect(result).toBe(
+      'All set, your task has been created.\n\n- **Read \\*draft\\* \\<b\\> \\$5 \\=\\=ready\\=\\=** — Categories: Work\\_2026',
+    );
+  });
+
+  it('formats Telegram category acknowledgements with literal subjects', () => {
+    const result = chat(
+      'en',
+      [
+        execution('update_category', {
+          objectType: 'category',
+          object: { name: 'Work_2026' },
+        }),
+      ],
+      'telegram',
+    );
+
+    expect(result).toBe('✏️ **Category updated**\n\n**Work\\_2026**');
   });
 
   it('groups task updates into one plain receipt on a channel', () => {

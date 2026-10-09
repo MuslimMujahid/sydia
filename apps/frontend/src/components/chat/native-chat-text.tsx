@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { parseWhatsAppText, type WhatsAppInline } from "./whatsapp-format";
+import { TelegramRichText } from "./telegram-rich-text";
 
 function linkedText(text: string): ReactNode {
   return text.split(/(https?:\/\/[^\s<>]+)/g).map((part, index) =>
@@ -47,12 +48,7 @@ export function NativeChatText({
   content: string;
   channel: "telegram" | "whatsapp";
 }) {
-  if (channel === "telegram")
-    return (
-      <div className="break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
-        {linkedText(content)}
-      </div>
-    );
+  if (channel === "telegram") return <TelegramRichText content={content} />;
   const blocks = parseWhatsAppText(content);
   const nodes: ReactNode[] = [];
 

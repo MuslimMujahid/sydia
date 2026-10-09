@@ -89,11 +89,9 @@ export class TelegramOutboundAdapter implements OutboundMessageAdapter {
   }
 
   async send(input: OutboundMessage): Promise<OutboundMessageResult> {
-    const sent = await this.api.sendMessage(
-      input.recipientExternalId,
-      input.content,
-      undefined,
-    );
+    const sent = await this.api.sendRichMessage(input.recipientExternalId, {
+      markdown: input.content,
+    });
 
     return { providerMessageId: `${sent.chat.id}:${sent.message_id}` };
   }
