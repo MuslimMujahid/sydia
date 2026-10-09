@@ -19,6 +19,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AppChatsRouteImport } from './routes/_app.chats'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppDailyNotesRouteImport } from './routes/_app.daily-notes'
 import { Route as AppFilesRouteImport } from './routes/_app.files'
@@ -83,6 +84,11 @@ const AppCalendarRoute = AppCalendarRouteImport.update({
 const AppChatRoute = AppChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChatsRoute = AppChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
   getParentRoute: () => AppRoute,
 } as any)
 const AppContactsRoute = AppContactsRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
+  '/chats': typeof AppChatsRoute
   '/contacts': typeof AppContactsRoute
   '/daily-notes': typeof AppDailyNotesRoute
   '/files': typeof AppFilesRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRoute
   '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
+  '/chats': typeof AppChatsRoute
   '/contacts': typeof AppContactsRoute
   '/daily-notes': typeof AppDailyNotesRoute
   '/files': typeof AppFilesRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/chat': typeof AppChatRoute
+  '/_app/chats': typeof AppChatsRoute
   '/_app/contacts': typeof AppContactsRoute
   '/_app/daily-notes': typeof AppDailyNotesRoute
   '/_app/files': typeof AppFilesRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/calendar'
     | '/chat'
+    | '/chats'
     | '/contacts'
     | '/daily-notes'
     | '/files'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/calendar'
     | '/chat'
+    | '/chats'
     | '/contacts'
     | '/daily-notes'
     | '/files'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/_app/calendar'
     | '/_app/chat'
+    | '/_app/chats'
     | '/_app/contacts'
     | '/_app/daily-notes'
     | '/_app/files'
@@ -417,6 +429,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof AppChatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/chats': {
+      id: '/_app/chats'
+      path: '/chats'
+      fullPath: '/chats'
+      preLoaderRoute: typeof AppChatsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/contacts': {
@@ -559,6 +578,7 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppChatRoute: typeof AppChatRoute
+  AppChatsRoute: typeof AppChatsRoute
   AppContactsRoute: typeof AppContactsRoute
   AppDailyNotesRoute: typeof AppDailyNotesRoute
   AppFilesRoute: typeof AppFilesRoute
@@ -573,6 +593,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppChatRoute: AppChatRoute,
+  AppChatsRoute: AppChatsRoute,
   AppContactsRoute: AppContactsRoute,
   AppDailyNotesRoute: AppDailyNotesRoute,
   AppFilesRoute: AppFilesRoute,

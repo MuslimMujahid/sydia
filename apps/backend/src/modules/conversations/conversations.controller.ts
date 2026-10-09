@@ -7,6 +7,7 @@ import {
   Inject,
   Param,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -21,6 +22,8 @@ import {
 } from '../../database/interfaces';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { SendMessageDto } from './dto';
+import { ChatPreviewScopeDto } from './dto/conversation.dto';
+import { ChatPreviewService } from './services/chat-preview.service';
 import { AssistantOrchestratorService } from './services';
 
 @Roles(['user'])
@@ -31,6 +34,7 @@ export class ConversationsController {
     private readonly conversations: IConversationRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
     private readonly orchestrator: AssistantOrchestratorService,
+    private readonly previews: ChatPreviewService,
   ) {}
 
   @Get()
@@ -42,11 +46,10 @@ export class ConversationsController {
   async delete(
     @Session() session: UserSession,
     @Param('conversationId') conversationId: string,
+    @Query() scope: ChatPreviewScopeDto,
   ) {
-    const deleted = await this.conversations.delete(
-      session.user.id,
-      conversationId,
-    );
+    const user = await this.resolveUser(session, scope);
+    const deleted = await this.conversations.delete(user.id, conversationId);
 
     if (!deleted) throw this.notFound();
 
@@ -57,11 +60,10 @@ export class ConversationsController {
   async detail(
     @Session() session: UserSession,
     @Param('conversationId') conversationId: string,
+    @Query() scope: ChatPreviewScopeDto,
   ) {
-    const detail = await this.conversations.findDetail(
-      session.user.id,
-      conversationId,
-    );
+    const user = await this.resolveUser(session, scope);
+    const detail = await this.conversations.findDetail(user.id, conversationId);
 
     if (!detail) throw this.notFound();
 
@@ -70,11 +72,14 @@ export class ConversationsController {
 
   @Post('messages')
   async send(@Session() session: UserSession, @Body() input: SendMessageDto) {
-    const user = await this.users.findById(session.user.id);
-    if (!user) throw this.notFound();
+    const user = await this.resolveUser(session, input, true);
 
     try {
-      return await this.orchestrator.sendQueued(user, input);
+      return await this.orchestrator.sendQueued(
+        user,
+        input,
+        this.previewContext(input),
+      );
     } catch (error) {
       if (error instanceof ConversationNotFoundError) throw this.notFound();
       throw error;
@@ -87,12 +92,11 @@ export class ConversationsController {
     @Body() input: SendMessageDto,
     @Res() response: Response,
   ): Promise<void> {
-    const user = await this.users.findById(session.user.id);
-    if (!user) throw this.notFound();
+    const user = await this.resolveUser(session, input, true);
 
     await pipeUIMessageStreamToResponse({
       response,
-      stream: this.orchestrator.stream(user, input),
+      stream: this.orchestrator.stream(user, input, this.previewContext(input)),
     });
   }
 
@@ -101,14 +105,41 @@ export class ConversationsController {
     @Session() session: UserSession,
     @Param('conversationId') conversationId: string,
     @Param('runId') runId: string,
+    @Query() scope: ChatPreviewScopeDto,
   ) {
-    const user = await this.users.findById(session.user.id);
-    if (!user) throw this.notFound();
+    const user = await this.resolveUser(session, scope);
 
-    const result = await this.orchestrator.retry(user, conversationId, runId);
+    const result = await this.orchestrator.retry(
+      user,
+      conversationId,
+      runId,
+      this.previewContext(scope),
+    );
+
     if (!result) throw this.notFound();
 
     return result;
+  }
+
+  private async resolveUser(
+    session: UserSession,
+    scope: ChatPreviewScopeDto,
+    create = false,
+  ) {
+    const owner = await this.users.findById(session.user.id);
+    if (!owner) throw this.notFound();
+
+    return this.previews.resolve(owner, scope, create);
+  }
+
+  private previewContext(scope: ChatPreviewScopeDto) {
+    if (!scope.previewSessionId) return undefined;
+
+    return {
+      channel:
+        scope.previewChannel === 'web' ? undefined : scope.previewChannel,
+      captureFiles: true,
+    };
   }
 
   private notFound(): ApiException {

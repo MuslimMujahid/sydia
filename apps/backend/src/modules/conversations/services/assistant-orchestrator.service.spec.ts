@@ -70,6 +70,108 @@ function createRun(status = 'queued'): AssistantRun {
   };
 }
 
+async function runReceiptTurn(
+  locale: 'id' | 'en',
+  channel?: 'telegram' | 'whatsapp',
+) {
+  const execution: TerminalToolExecution = {
+    toolCallId: 'call-1',
+    toolName: 'create_task',
+    arguments: { title: 'Kirim laporan' },
+    result: {
+      objectType: 'task',
+      object: { title: 'Kirim laporan', dueAt: null },
+    },
+  };
+
+  const turnUser = { ...user, locale };
+  const completeRun = jest.fn((input: { content: string }) =>
+    Promise.resolve({
+      assistantMessage: {
+        ...userMessage,
+        id: 'message-2',
+        role: 'assistant' as const,
+        content: input.content,
+      },
+      assistantRun: createRun('completed'),
+    }),
+  );
+
+  const repository = {
+    writeUserMessage: resolved({
+      conversation,
+      userMessage,
+      replayed: false,
+    }),
+    findLatestRunForMessage: resolved(null),
+    createRun: resolved(createRun()),
+    claimRun: resolved(true),
+    findRecentContexts: resolved([]),
+    findContext: resolved({
+      conversation: {
+        id: conversation.id,
+        rollingSummary: null,
+        summaryThroughMessageId: null,
+      },
+      messages: [userMessage],
+    }),
+    completeRun,
+    replaceSummary: jest.fn(),
+  } as unknown as IConversationRepository;
+
+  const deltas: string[] = [];
+  let acknowledged: string | null = null;
+
+  const generate = jest.fn<LanguageModelGateway['generate']>((request) => {
+    // Stands in for the gateway: the step finished, so the domain's own
+    // acknowledger decides the reply and whether the loop ends.
+    acknowledged =
+      request.acknowledgeTerminalStep?.([execution], [execution]) ?? null;
+
+    expect(acknowledged).not.toBeNull();
+
+    request.onTextDelta?.(acknowledged as string);
+
+    return Promise.resolve({ text: acknowledged as string, usage: {} });
+  });
+
+  const model: LanguageModelGateway = {
+    provider: 'openrouter',
+    model: 'test-model',
+    generate,
+  };
+
+  const config = new ConfigService();
+  const orchestrator = new AssistantOrchestratorService(
+    repository,
+    model,
+    new ContextBuilderService(repository, config),
+    new ConversationSummarizerService(repository, model, config),
+    new ToolExecutorService(repository, []),
+    { conversationSummaries: { add: resolved({}) } } as never,
+    { schedule: resolved(undefined) } as never,
+  );
+
+  for await (const chunk of orchestrator.stream(
+    turnUser,
+    {
+      content: 'Buat tugas.',
+      idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
+    },
+    { channel },
+  )) {
+    const part = chunk as { type: string; delta?: string };
+
+    if (part.type === 'text-delta' && part.delta) deltas.push(part.delta);
+  }
+
+  return {
+    acknowledged,
+    persisted: completeRun.mock.calls[0]?.[0]?.content,
+    deltas,
+  };
+}
+
 describe('AssistantOrchestratorService', () => {
   it('persists a successful assistant turn', async () => {
     const completedRun = createRun('completed');
@@ -541,102 +643,7 @@ describe('AssistantOrchestratorService', () => {
     expect(scheduleMemoryDream).not.toHaveBeenCalled();
   });
   it('passes a locale-aware acknowledger and persists its deterministic text', async () => {
-    const execution: TerminalToolExecution = {
-      toolCallId: 'call-1',
-      toolName: 'create_task',
-      arguments: { title: 'Kirim laporan' },
-      result: {
-        objectType: 'task',
-        object: { title: 'Kirim laporan', dueAt: null },
-      },
-    };
-
-    const runTurn = async (locale: 'id' | 'en') => {
-      const turnUser = { ...user, locale };
-      const completeRun = jest.fn((input: { content: string }) =>
-        Promise.resolve({
-          assistantMessage: {
-            ...userMessage,
-            id: 'message-2',
-            role: 'assistant' as const,
-            content: input.content,
-          },
-          assistantRun: createRun('completed'),
-        }),
-      );
-
-      const repository = {
-        writeUserMessage: resolved({
-          conversation,
-          userMessage,
-          replayed: false,
-        }),
-        findLatestRunForMessage: resolved(null),
-        createRun: resolved(createRun()),
-        claimRun: resolved(true),
-        findRecentContexts: resolved([]),
-        findContext: resolved({
-          conversation: {
-            id: conversation.id,
-            rollingSummary: null,
-            summaryThroughMessageId: null,
-          },
-          messages: [userMessage],
-        }),
-        completeRun,
-        replaceSummary: jest.fn(),
-      } as unknown as IConversationRepository;
-
-      const deltas: string[] = [];
-      let acknowledged: string | null = null;
-
-      const generate = jest.fn<LanguageModelGateway['generate']>((request) => {
-        // Stands in for the gateway: the step finished, so the domain's own
-        // acknowledger decides the reply and whether the loop ends.
-        acknowledged =
-          request.acknowledgeTerminalStep?.([execution], [execution]) ?? null;
-
-        expect(acknowledged).not.toBeNull();
-
-        request.onTextDelta?.(acknowledged as string);
-
-        return Promise.resolve({ text: acknowledged as string, usage: {} });
-      });
-
-      const model: LanguageModelGateway = {
-        provider: 'openrouter',
-        model: 'test-model',
-        generate,
-      };
-
-      const config = new ConfigService();
-      const orchestrator = new AssistantOrchestratorService(
-        repository,
-        model,
-        new ContextBuilderService(repository, config),
-        new ConversationSummarizerService(repository, model, config),
-        new ToolExecutorService(repository, []),
-        { conversationSummaries: { add: resolved({}) } } as never,
-        { schedule: resolved(undefined) } as never,
-      );
-
-      for await (const chunk of orchestrator.stream(turnUser, {
-        content: 'Buat tugas.',
-        idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
-      })) {
-        const part = chunk as { type: string; delta?: string };
-
-        if (part.type === 'text-delta' && part.delta) deltas.push(part.delta);
-      }
-
-      return {
-        acknowledged,
-        persisted: completeRun.mock.calls[0]?.[0]?.content,
-        deltas,
-      };
-    };
-
-    const indonesian = await runTurn('id');
+    const indonesian = await runReceiptTurn('id');
 
     expect(indonesian.acknowledged).toBe(
       'Siap, tugasnya sudah dibuat.\n\n- **Kirim laporan**',
@@ -648,7 +655,7 @@ describe('AssistantOrchestratorService', () => {
       'Siap, tugasnya sudah dibuat.\n\n- **Kirim laporan**',
     ]);
 
-    const english = await runTurn('en');
+    const english = await runReceiptTurn('en');
 
     expect(english.acknowledged).toBe(
       'All set, your task has been created.\n\n- **Kirim laporan**',
@@ -660,6 +667,19 @@ describe('AssistantOrchestratorService', () => {
       'All set, your task has been created.\n\n- **Kirim laporan**',
     ]);
   });
+
+  it.each(['telegram', 'whatsapp'] as const)(
+    'stream persists the native %s receipt instead of web markdown',
+    async (channel) => {
+      const result = await runReceiptTurn('en', channel);
+      expect(result.persisted).toBe(
+        'All set, your task has been created.\n\n- Kirim laporan',
+      );
+      expect(result.deltas).toEqual([
+        'All set, your task has been created.\n\n- Kirim laporan',
+      ]);
+    },
+  );
 
   it('passes the channel through to context building and model generation', async () => {
     const completedRun = createRun('completed');

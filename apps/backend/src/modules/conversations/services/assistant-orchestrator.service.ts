@@ -80,8 +80,15 @@ export type AssistantStreamMessage = UIMessage<
   {
     activity: { phase: AssistantActivityPhase; label: string };
     turn: AssistantTurnResult & { userMessage: Message };
+    previewFile: { filename: string; mimeType: string; base64: string };
   }
 >;
+
+type AssistantExecutionContext = {
+  channel?: MessageProvider;
+  sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>;
+  captureFiles?: boolean;
+};
 
 type ExecutionObserver = {
   onTextDelta(delta: string): void;
@@ -163,6 +170,7 @@ export class AssistantOrchestratorService {
       idempotencyKey: string;
       attachmentIds?: string[];
     },
+    context?: AssistantExecutionContext,
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
     const prepared = await this.prepareSend(user, input);
 
@@ -173,6 +181,7 @@ export class AssistantOrchestratorService {
       prepared.conversation,
       prepared.userMessage,
       prepared.run,
+      context,
     );
 
     return {
@@ -192,10 +201,34 @@ export class AssistantOrchestratorService {
       idempotencyKey: string;
       attachmentIds?: string[];
     },
+    context?: AssistantExecutionContext,
   ): ReadableStream<InferUIMessageChunk<AssistantStreamMessage>> {
     return createUIMessageStream<AssistantStreamMessage>({
       execute: async ({ writer }) => {
         writer.write({ type: 'start' });
+        let capturedBytes = 0;
+        const sendFile = context?.captureFiles
+          ? (file: AssistantFile) => {
+              capturedBytes += file.buffer.byteLength;
+              if (capturedBytes > 10 * 1024 * 1024)
+                throw new Error(
+                  'Preview file capture exceeds the 10 MB turn limit.',
+                );
+              writer.write({
+                type: 'data-previewFile',
+                data: {
+                  filename: file.filename,
+                  mimeType: file.mimeType,
+                  base64: file.buffer.toString('base64'),
+                },
+              });
+
+              return Promise.resolve({
+                providerMessageId: `preview-${prepared.run.id}-${capturedBytes}`,
+              });
+            }
+          : context?.sendFile;
+
         writer.write({
           type: 'data-activity',
           data: {
@@ -260,6 +293,10 @@ export class AssistantOrchestratorService {
               });
             },
           },
+          undefined,
+          undefined,
+          context?.channel,
+          sendFile,
         );
 
         if (textStarted) writer.write({ type: 'text-end', id: textId });
@@ -286,7 +323,14 @@ export class AssistantOrchestratorService {
             result.assistantRun.status === 'failed' ? 'error' : 'stop',
         });
       },
-      onError: () => assistantMessage(user.locale, 'safeFailure'),
+      onError: (error) => {
+        this.logger.error(
+          'Assistant stream failed',
+          error instanceof Error ? error.stack : String(error),
+        );
+
+        return assistantMessage(user.locale, 'safeFailure');
+      },
     });
   }
 
@@ -468,34 +512,44 @@ export class AssistantOrchestratorService {
     conversation: Conversation,
     inputMessage: Message,
     run: AssistantRun,
+    context?: AssistantExecutionContext,
   ): void {
-    void this.execute(user, conversation, inputMessage, run).catch(
-      async (error: unknown) => {
-        this.logger.error(
-          `Assistant run execution failed for ${run.id}`,
-          error instanceof Error ? error.stack : undefined,
-        );
+    void this.execute(
+      user,
+      conversation,
+      inputMessage,
+      run,
+      undefined,
+      undefined,
+      undefined,
+      context?.channel,
+      context?.sendFile,
+    ).catch(async (error: unknown) => {
+      this.logger.error(
+        `Assistant run execution failed for ${run.id}`,
+        error instanceof Error ? error.stack : undefined,
+      );
 
-        try {
-          await this.conversations.updateRun(run.id, {
-            status: 'failed',
-            errorMessage: assistantMessage(user.locale, 'safeFailure'),
-            completedAt: new Date(),
-          });
-        } catch (failureError) {
-          this.logger.error(
-            `Assistant run failure persistence failed for ${run.id}`,
-            failureError instanceof Error ? failureError.stack : undefined,
-          );
-        }
-      },
-    );
+      try {
+        await this.conversations.updateRun(run.id, {
+          status: 'failed',
+          errorMessage: assistantMessage(user.locale, 'safeFailure'),
+          completedAt: new Date(),
+        });
+      } catch (failureError) {
+        this.logger.error(
+          `Assistant run failure persistence failed for ${run.id}`,
+          failureError instanceof Error ? failureError.stack : undefined,
+        );
+      }
+    });
   }
 
   async retry(
     user: TurnUser,
     conversationId: string,
     runId: string,
+    context?: AssistantExecutionContext,
   ): Promise<AssistantTurnResult | null> {
     const failedRun = await this.conversations.findRun(
       user.id,
@@ -519,6 +573,11 @@ export class AssistantOrchestratorService {
         detail.conversation,
         inputMessage,
         failedRun,
+        undefined,
+        undefined,
+        undefined,
+        context?.channel,
+        context?.sendFile,
       )),
     };
   }

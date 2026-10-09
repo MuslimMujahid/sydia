@@ -17,6 +17,7 @@ interface EntityMentionContextValue {
   entitiesByKey: Map<string, ChatEntity>;
   locale: SupportedLocale;
   timezone: string;
+  snapshotOnly?: boolean;
 }
 
 const EntityMentionContext = createContext<EntityMentionContextValue | null>(
@@ -44,6 +45,7 @@ function EntitySpan({
       label={label}
       locale={context.locale}
       timezone={context.timezone}
+      snapshotOnly={context.snapshotOnly}
     />
   );
 }
@@ -161,6 +163,7 @@ interface AssistantMarkdownProps {
   entities?: ChatEntity[];
   locale: SupportedLocale;
   timezone: string;
+  snapshotOnly?: boolean;
   appendUnmentioned?: boolean;
 }
 
@@ -170,6 +173,7 @@ function AssistantMarkdown({
   locale,
   timezone,
   appendUnmentioned = true,
+  snapshotOnly = false,
 }: AssistantMarkdownProps) {
   const entitiesByKey = useMemo(
     () => new Map(entities.map((entity) => [entityKey(entity), entity])),
@@ -182,8 +186,8 @@ function AssistantMarkdown({
   );
 
   const context = useMemo(
-    () => ({ entitiesByKey, locale, timezone }),
-    [entitiesByKey, locale, timezone]
+    () => ({ entitiesByKey, locale, timezone, snapshotOnly }),
+    [entitiesByKey, locale, timezone, snapshotOnly]
   );
 
   return (

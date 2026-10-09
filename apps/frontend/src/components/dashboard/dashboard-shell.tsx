@@ -63,6 +63,16 @@ const NAV_ITEMS = [
 ] as const;
 
 const MORE_NAV_ITEMS = [
+  // eslint-disable-next-line turbo/no-undeclared-env-vars -- Vite build-time constant, not a process environment variable.
+  ...(import.meta.env.DEV
+    ? [
+        {
+          to: "/chats" as const,
+          label: "Pratinjau chat",
+          icon: MessageSquarePlus,
+        },
+      ]
+    : []),
   { to: "/reminders", label: "Pengingat", icon: Bell },
   { to: "/contacts", label: "Kontak", icon: ContactRound },
   { to: "/secrets", label: "Rahasia", icon: ShieldCheck },

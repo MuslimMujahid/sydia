@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
+import axios from "axios";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
@@ -82,7 +83,18 @@ export type ConversationDetail = {
   toolInvocations: ToolInvocation[];
 };
 
-export type SendMessageVariables = {
+export type ChatPreviewChannel = "web" | "telegram" | "whatsapp";
+export type ChatPreviewScope = {
+  previewSessionId: string;
+  previewChannel: ChatPreviewChannel;
+};
+export type PreviewFile = {
+  filename: string;
+  mimeType: string;
+  base64: string;
+};
+
+export type SendMessageVariables = Partial<ChatPreviewScope> & {
   conversationId?: string;
   content: string;
   idempotencyKey: string;
@@ -103,7 +115,7 @@ export type SendMessageResult = {
   toolInvocations: ToolInvocation[];
 };
 
-export type RetryAssistantRunVariables = {
+export type RetryAssistantRunVariables = Partial<ChatPreviewScope> & {
   conversationId: string;
   runId: string;
 };
@@ -179,15 +191,18 @@ export async function getConversations(): Promise<ConversationSummary[]> {
 }
 
 export async function getConversation(
-  conversationId: string
+  conversationId: string,
+  preview?: ChatPreviewScope,
+  signal?: AbortSignal
 ): Promise<ConversationDetail> {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined" && !preview) {
     return getConversationServer({ data: conversationId });
   }
 
   try {
     const response = await api.get<ApiResponse<ConversationDetail>>(
-      `/conversations/${encodeURIComponent(conversationId)}`
+      `/conversations/${encodeURIComponent(conversationId)}`,
+      { params: preview, signal }
     );
 
     return response.data.data;
@@ -206,6 +221,7 @@ export type ConversationStreamHandlers = {
   onActivity(activity: AssistantActivity): void;
   onTextDelta(delta: string): void;
   onTurn(result: SendMessageResult): void;
+  onPreviewFile?(file: PreviewFile): void;
 };
 
 const activitySchema = z.object({
@@ -279,6 +295,14 @@ const streamPartSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("data-turn"), data: sendMessageResultSchema }),
   z.object({ type: z.literal("text-delta"), delta: z.string() }),
   z.object({ type: z.literal("error"), errorText: z.string() }),
+  z.object({
+    type: z.literal("data-previewFile"),
+    data: z.object({
+      filename: z.string(),
+      mimeType: z.string(),
+      base64: z.string(),
+    }),
+  }),
 ]);
 
 export async function consumeUIMessageStream(
@@ -309,6 +333,8 @@ export async function consumeUIMessageStream(
       if (part.type === "data-activity") handlers.onActivity(part.data);
       else if (part.type === "data-turn") handlers.onTurn(part.data);
       else if (part.type === "text-delta") handlers.onTextDelta(part.delta);
+      else if (part.type === "data-previewFile")
+        handlers.onPreviewFile?.(part.data);
       else throw new Error(part.errorText);
     }
 
@@ -335,7 +361,9 @@ export function requireTerminalTurn(
 }
 
 async function reconcileTerminalTurn(
-  streamed: SendMessageResult | undefined
+  streamed: SendMessageResult | undefined,
+  preview?: ChatPreviewScope,
+  signal?: AbortSignal
 ): Promise<SendMessageResult | undefined> {
   if (!streamed) return undefined;
   if (
@@ -346,7 +374,13 @@ async function reconcileTerminalTurn(
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      const detail = await getConversation(streamed.conversation.id);
+      signal?.throwIfAborted();
+      const detail = await getConversation(
+        streamed.conversation.id,
+        preview,
+        signal
+      );
+
       const assistantRun = detail.assistantRuns.find(
         (run) => run.id === streamed.assistantRun.id
       );
@@ -374,8 +408,14 @@ async function reconcileTerminalTurn(
           ),
         };
       }
-    } catch {
-      // Preserve the stream failure when persisted state cannot be read.
+    } catch (error) {
+      console.warn("Conversation stream reconciliation failed", {
+        attempt: attempt + 1,
+        error,
+      });
+      signal?.throwIfAborted();
+      // Bounded degraded mode: try persisted state up to five times, then let
+      // requireTerminalTurn surface the incomplete response to the caller.
     }
 
     if (attempt < 4)
@@ -389,7 +429,8 @@ async function reconcileTerminalTurn(
 
 export async function sendConversationMessage(
   values: SendMessageVariables,
-  handlers: ConversationStreamHandlers
+  handlers: ConversationStreamHandlers,
+  signal?: AbortSignal
 ): Promise<SendMessageResult> {
   let finalResult: SendMessageResult | undefined;
 
@@ -397,7 +438,7 @@ export async function sendConversationMessage(
     const response = await api.post<ReadableStream<Uint8Array>>(
       "/conversations/messages/stream",
       values,
-      { adapter: "fetch", responseType: "stream" }
+      { adapter: "fetch", responseType: "stream", signal }
     );
 
     let streamError: unknown;
@@ -411,10 +452,27 @@ export async function sendConversationMessage(
         },
       });
     } catch (error) {
+      console.warn(
+        "Conversation stream failed; checking persisted result",
+        error
+      );
       streamError = error;
     }
 
-    const reconciled = await reconcileTerminalTurn(finalResult);
+    const preview =
+      values.previewSessionId && values.previewChannel
+        ? {
+            previewSessionId: values.previewSessionId,
+            previewChannel: values.previewChannel,
+          }
+        : undefined;
+
+    const reconciled = await reconcileTerminalTurn(
+      finalResult,
+      preview,
+      signal
+    );
+
     if (
       reconciled &&
       reconciled.assistantRun.status !== finalResult?.assistantRun.status
@@ -424,6 +482,26 @@ export async function sendConversationMessage(
 
     return requireTerminalTurn(reconciled);
   } catch (error) {
+    // Axios keeps error bodies as streams when responseType is "stream".
+    // Decode the normal API error envelope so channel failures retain their message.
+    if (
+      axios.isAxiosError<unknown>(error) &&
+      error.response?.data instanceof ReadableStream
+    ) {
+      try {
+        error.response.data = (await new Response(
+          error.response.data
+        ).json()) as unknown;
+      } catch (decodeError) {
+        console.warn(
+          "Conversation error response could not be decoded",
+          decodeError
+        );
+        // Degraded mode: toApiError retains the HTTP status and exposes the
+        // connection/retry message when the server did not return valid JSON.
+      }
+    }
+
     throw toApiError(
       error,
       getConversationFallback(
@@ -437,10 +515,14 @@ export async function sendConversationMessage(
 export async function retryAssistantRun({
   conversationId,
   runId,
+  previewSessionId,
+  previewChannel,
 }: RetryAssistantRunVariables): Promise<RetryAssistantRunResult> {
   try {
     const response = await api.post<ApiResponse<RetryAssistantRunResult>>(
-      `/conversations/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(runId)}/retry`
+      `/conversations/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(runId)}/retry`,
+      undefined,
+      { params: { previewSessionId, previewChannel } }
     );
 
     return response.data.data;

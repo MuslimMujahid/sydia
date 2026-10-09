@@ -11,13 +11,16 @@ import { ContactsModule } from '../contacts/contacts.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { SecretsModule } from '../secrets/secrets.module';
 import {
+  CHAT_PREVIEW_REPOSITORY,
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
 } from '../../database/interfaces';
 import {
+  PrismaChatPreviewRepository,
   PrismaConversationRepository,
   PrismaUserRepository,
 } from '../../database/repositories';
+import { ChatPreviewService } from './services/chat-preview.service';
 import { ConversationsController } from './conversations.controller';
 import {
   ASSISTANT_TOOLS,
@@ -43,6 +46,8 @@ import {
   ],
   controllers: [ConversationsController],
   providers: [
+    ChatPreviewService,
+    { provide: CHAT_PREVIEW_REPOSITORY, useClass: PrismaChatPreviewRepository },
     {
       provide: CONVERSATION_REPOSITORY,
       useClass: PrismaConversationRepository,

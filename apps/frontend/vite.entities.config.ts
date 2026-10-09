@@ -7,11 +7,16 @@ const entityFixture: Plugin = {
   name: "entity-renderer-fixture",
   configureServer(server) {
     server.middlewares.use(async (request, response, next) => {
-      if (!request.url?.startsWith("/e2e/entity-renderer.html")) return next();
+      const fixture = request.url?.split("?")[0];
+      if (
+        fixture !== "/e2e/entity-renderer.html" &&
+        fixture !== "/e2e/chat-previews.html"
+      )
+        return next();
 
       try {
         const source = await readFile(
-          new URL("./e2e/entity-renderer.html", import.meta.url),
+          new URL(`.${fixture}`, import.meta.url),
           "utf8"
         );
 

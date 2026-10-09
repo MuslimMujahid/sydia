@@ -3,13 +3,24 @@ import {
   ArrayMaxSize,
   IsArray,
   IsNotEmpty,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
 } from 'class-validator';
 
-export class SendMessageDto {
+export class ChatPreviewScopeDto {
+  @IsOptional()
+  @IsUUID()
+  previewSessionId?: string;
+
+  @IsOptional()
+  @IsIn(['web', 'telegram', 'whatsapp'])
+  previewChannel?: 'web' | 'telegram' | 'whatsapp';
+}
+
+export class SendMessageDto extends ChatPreviewScopeDto {
   @IsOptional()
   @IsString()
   conversationId?: string;

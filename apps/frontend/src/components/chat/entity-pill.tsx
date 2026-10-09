@@ -8,6 +8,7 @@ import {
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
 import type { ChatEntity } from "./chat-entities";
+import { EntitySnapshotDetails } from "./entity-snapshot-details";
 import { EntityDetails } from "./entity-details";
 
 const ENTITY_STYLES = {
@@ -42,6 +43,7 @@ interface EntityPillProps {
   label?: string;
   locale: SupportedLocale;
   timezone: string;
+  snapshotOnly?: boolean;
 }
 
 export function EntityPill({
@@ -49,6 +51,7 @@ export function EntityPill({
   label = entity.title,
   locale,
   timezone,
+  snapshotOnly = false,
 }: EntityPillProps) {
   const [open, setOpen] = useState(false);
   const style = ENTITY_STYLES[entity.kind];
@@ -71,7 +74,19 @@ export function EntityPill({
       </PopoverTrigger>
       <PopoverContent>
         {open ? (
-          <EntityDetails entity={entity} locale={locale} timezone={timezone} />
+          snapshotOnly ? (
+            <EntitySnapshotDetails
+              entity={entity}
+              locale={locale}
+              timezone={timezone}
+            />
+          ) : (
+            <EntityDetails
+              entity={entity}
+              locale={locale}
+              timezone={timezone}
+            />
+          )
         ) : null}
       </PopoverContent>
     </Popover>
