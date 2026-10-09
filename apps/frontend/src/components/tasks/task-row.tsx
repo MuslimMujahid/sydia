@@ -37,10 +37,11 @@ const DUE_COLUMN_CLASS = "sm:min-w-20 sm:shrink-0 sm:justify-start";
 
 /**
  * The single surface that holds every status section of the task list. Rows
- * sit directly on it and only gain a background on hover.
+ * sit directly on it and only gain a background on hover. The padding keeps
+ * the rows and section headings off the card edge on every side.
  */
 export const TASK_LIST_CARD_CLASS =
-  "rounded-lg border border-ink/5 bg-canvas shadow-[0_1px_2px_rgba(23,20,25,0.03)]";
+  "rounded-lg border border-ink/5 bg-canvas p-2 shadow-[0_1px_2px_rgba(23,20,25,0.03)] sm:p-3";
 
 export type TaskRowProps = {
   task: Task;
@@ -72,7 +73,7 @@ export function TaskRow({
   return (
     <li
       aria-busy={pending || undefined}
-      className="relative flex items-start gap-3 rounded-md py-1.5 pr-1 pl-2 transition-colors hover:bg-surface-1 sm:items-center sm:gap-4 sm:py-0"
+      className="relative flex items-start gap-3 rounded-md py-1 pr-1 pl-2 transition-colors hover:bg-surface-1 sm:items-center sm:gap-4 sm:py-0"
     >
       {status === "doing" ? (
         <span
@@ -89,7 +90,7 @@ export function TaskRow({
             ? `Tandai “${task.title}” belum selesai`
             : `Tandai “${task.title}” selesai`
         }
-        className="relative mt-0.5 size-5 rounded-md after:absolute after:-inset-3 sm:mt-0"
+        className="relative mt-0.5 size-4 rounded-md after:absolute after:-inset-3 sm:mt-0"
         onCheckedChange={(checked) =>
           onStatusChange(checked ? "done" : "inbox")
         }
@@ -235,7 +236,7 @@ const SKELETON_WIDTHS = ["w-3/5", "w-2/5", "w-4/5", "w-1/2"];
 export function TaskListSkeleton({ label }: { label: string }) {
   return (
     <ul
-      className={cn(TASK_LIST_CARD_CLASS, "space-y-px p-2")}
+      className={cn(TASK_LIST_CARD_CLASS, "space-y-px")}
       aria-busy="true"
       aria-label={label}
     >
