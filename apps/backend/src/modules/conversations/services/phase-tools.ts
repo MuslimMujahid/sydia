@@ -599,7 +599,7 @@ Use it when the user has identified the exact saved file they want and you know 
 
 Do not use it when more than one saved file could match the request, when the file is an unsaved attachment, or to send several files in one call.
 
-matchingDocumentIds must list every saved file that matches the user's request; the tool sends only when exactly that one file is listed, so when several match it refuses and you must ask the user to choose. On WhatsApp and Telegram the file is sent as an attachment after a “📂 Sending file ...” notice. In web chat the result carries the file's url and a ready-to-paste Markdown link; include that link in your reply with the file name as its text.`,
+matchingDocumentIds must list every saved file that matches the user's request; the tool sends only when exactly that one file is listed, so when several match it refuses and you must ask the user to choose. On WhatsApp and Telegram the file is sent as an attachment after a “📂 Sending file ...” notice. In web chat the result carries the file's identity and url; mention the exact filename so its existing smart entity pill provides file access, without adding a duplicate link.`,
         parameters: schema(
           {
             documentId: {

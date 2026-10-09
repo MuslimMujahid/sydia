@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { jsonSchema, simulateReadableStream, tool } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
@@ -14,14 +15,6 @@ import {
 
 const AT = new Date('2026-09-22T10:00:00.000Z');
 const LATER = new Date('2026-09-23T10:00:00.000Z');
-
-/** The four tools the web chat already renders as an action card. */
-const CARD_BACKED = [
-  'create_task',
-  'update_task',
-  'create_reminder',
-  'update_reminder',
-];
 
 describe('memory tools continue the conversation', () => {
   it.each(['save_memory', 'update_memory', 'forget_memory'])(
@@ -185,7 +178,7 @@ function execution(
   return { toolCallId: `call-${toolName}`, toolName, arguments: args, result };
 }
 
-/** The web chat, which renders markdown and shows action cards. */
+/** The web chat, which renders markdown and smart entity pills. */
 function web(
   locale: 'en' | 'id',
   executions: readonly TerminalToolExecution[],
@@ -211,14 +204,14 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
   [
     'create_task',
     { objectType: 'task', object: { title: 'Kirim laporan', dueAt: null } },
-    '✅ Task created\n\nKirim laporan',
-    '✅ Tugas dibuat\n\nKirim laporan',
+    'All set, your task has been created.\n\n- Kirim laporan',
+    'Siap, tugasnya sudah dibuat.\n\n- Kirim laporan',
   ],
   [
     'update_task',
     { objectType: 'task', object: { title: 'Kirim laporan', dueAt: AT } },
-    '✏️ Task updated\n\nKirim laporan\n🗓️ Due 2026-09-22 10:00 UTC',
-    '✏️ Tugas diperbarui\n\nKirim laporan\n🗓️ Tenggat 2026-09-22 10:00 UTC',
+    'All set, your task has been updated.\n\n- Kirim laporan — Due 22 Sept 2026, 10:00 UTC',
+    'Siap, tugasnya sudah diperbarui.\n\n- Kirim laporan — Tenggat 22 Sep 2026, 10.00 UTC',
   ],
   [
     'update_category',
@@ -244,8 +237,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         },
       ],
     },
-    '⏰ Reminder created\n\nMinum obat\n🗓️ 2026-09-22 17:00',
-    '⏰ Pengingat dibuat\n\nMinum obat\n🗓️ 2026-09-22 17:00',
+    'All set, your reminder has been created.\n\n- Minum obat — At 22 Sept 2026, 17:00',
+    'Siap, pengingatnya sudah dibuat.\n\n- Minum obat — Pada 22 Sep 2026, 17.00',
   ],
   [
     'update_reminder',
@@ -258,8 +251,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         recurrence: { frequency: 'weekly', interval: 1, daysOfWeek: [2, 4] },
       },
     },
-    '⏰ Reminder updated\n\nMinum obat\n🗓️ 2026-09-22 17:00 (weekly on Tuesday, Thursday)',
-    '⏰ Pengingat diperbarui\n\nMinum obat\n🗓️ 2026-09-22 17:00 (mingguan pada Selasa, Kamis)',
+    'All set, your reminder has been updated.\n\n- Minum obat — At 22 Sept 2026, 17:00 · weekly on Tuesday, Thursday',
+    'Siap, pengingatnya sudah diperbarui.\n\n- Minum obat — Pada 22 Sep 2026, 17.00 · mingguan pada Selasa, Kamis',
   ],
   [
     'store_secret',
@@ -292,20 +285,20 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         groups: [{ name: 'Teman Kerja' }],
       },
     },
-    '👤 Contact saved\n\nBu Rina\n📧 rina@example.test\n📞 +62 811 000\n👥 Teman Kerja',
-    '👤 Kontak disimpan\n\nBu Rina\n📧 rina@example.test\n📞 +62 811 000\n👥 Teman Kerja',
+    'All set, your contact has been saved.\n\n- Bu Rina — rina@example.test · +62 811 000 · Groups: Teman Kerja',
+    'Siap, kontaknya sudah disimpan.\n\n- Bu Rina — rina@example.test · +62 811 000 · Grup: Teman Kerja',
   ],
   [
     'update_contact_group',
     { objectType: 'contact_group', object: { name: 'Teman Kerja' } },
-    '🏷️ Contact group updated\n\nTeman Kerja',
-    '🏷️ Grup kontak diperbarui\n\nTeman Kerja',
+    'All set, your contact group has been updated.\n\n- Teman Kerja',
+    'Siap, grup kontaknya sudah diperbarui.\n\n- Teman Kerja',
   ],
   [
     'delete_contact_group',
     { objectType: 'contact_group', object: { name: 'Teman Kerja' } },
-    '🗑️ Contact group deleted\n\nTeman Kerja',
-    '🗑️ Grup kontak dihapus\n\nTeman Kerja',
+    'All set, your contact group has been deleted.\n\n- Teman Kerja',
+    'Siap, grup kontaknya sudah dihapus.\n\n- Teman Kerja',
   ],
   [
     'assign_contact_groups',
@@ -313,8 +306,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
       objectType: 'contact',
       object: { name: 'Bu Rina', groups: [{ name: 'Teman Kerja' }] },
     },
-    '🏷️ Contact groups updated\n\nBu Rina\n👥 Teman Kerja',
-    '🏷️ Grup kontak diperbarui\n\nBu Rina\n👥 Teman Kerja',
+    'All set, your contact has been updated.\n\n- Bu Rina — Groups: Teman Kerja',
+    'Siap, kontaknya sudah diperbarui.\n\n- Bu Rina — Grup: Teman Kerja',
   ],
   [
     'save_attached_files',
@@ -322,8 +315,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
       objectType: 'documents',
       objects: [{ filename: 'notulen.pdf' }, { filename: 'anggaran.pdf' }],
     },
-    '📎 Files saved (2)\n\n📄 notulen.pdf\n📄 anggaran.pdf',
-    '📎 2 file disimpan\n\n📄 notulen.pdf\n📄 anggaran.pdf',
+    'All set, 2 files have been saved.\n\n- notulen.pdf\n- anggaran.pdf',
+    'Siap, 2 file sudah disimpan.\n\n- notulen.pdf\n- anggaran.pdf',
   ],
   [
     'send_file',
@@ -337,8 +330,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
           '[notulen.pdf](https://sydia.test/documents/document-1/content)',
       },
     },
-    '📤 File sent\n\nnotulen.pdf\n🔗 https://sydia.test/documents/document-1/content',
-    '📤 File dikirim\n\nnotulen.pdf\n🔗 https://sydia.test/documents/document-1/content',
+    'All set, your file has been sent.\n\n- notulen.pdf — https://sydia.test/documents/document-1/content',
+    'Siap, filenya sudah dikirim.\n\n- notulen.pdf — https://sydia.test/documents/document-1/content',
   ],
   [
     'send_file',
@@ -350,8 +343,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         providerMessageId: 'wamid-1',
       },
     },
-    '📤 File sent\n\nnotulen.pdf\n📌 Sent as an attachment',
-    '📤 File dikirim\n\nnotulen.pdf\n📌 Terkirim sebagai lampiran',
+    'All set, your file has been sent.\n\n- notulen.pdf — Sent as an attachment',
+    'Siap, filenya sudah dikirim.\n\n- notulen.pdf — Terkirim sebagai lampiran',
   ],
   [
     'create_calendar_event',
@@ -365,8 +358,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         location: 'Ruang rapat 2',
       },
     },
-    '📅 Event created\n\nRapat\n🗓️ 2026-09-22 09:00–10:30\n📍 Ruang rapat 2',
-    '📅 Acara dibuat\n\nRapat\n🗓️ 2026-09-22 09:00–10:30\n📍 Ruang rapat 2',
+    'All set, your event has been created.\n\n- Rapat — 22 Sept 2026, 09:00–10:30 · Ruang rapat 2',
+    'Siap, acaranya sudah dibuat.\n\n- Rapat — 22 Sep 2026, 09.00–10.30 · Ruang rapat 2',
   ],
   [
     'update_calendar_event',
@@ -379,8 +372,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         timezone: 'Asia/Jakarta',
       },
     },
-    '📅 Event updated\n\nRapat\n🗓️ 2026-09-22 09:00–2026-09-23 10:00',
-    '📅 Acara diperbarui\n\nRapat\n🗓️ 2026-09-22 09:00–2026-09-23 10:00',
+    'All set, your event has been updated.\n\n- Rapat — 22 Sept 2026, 09:00–23 Sept 2026, 10:00',
+    'Siap, acaranya sudah diperbarui.\n\n- Rapat — 22 Sep 2026, 09.00–23 Sep 2026, 10.00',
   ],
   [
     'cancel_calendar_event',
@@ -388,8 +381,8 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
       objectType: 'calendar_event',
       object: { title: 'Rapat', status: 'cancelled' },
     },
-    '📅 Event cancelled\n\nRapat\n📌 Cancelled',
-    '📅 Acara dibatalkan\n\nRapat\n📌 Dibatalkan',
+    'All set, your event has been cancelled.\n\n- Rapat',
+    'Siap, acaranya sudah dibatalkan.\n\n- Rapat',
   ],
   [
     'write_daily_note',
@@ -397,21 +390,39 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
     '📝 Daily note written\n\n2026-09-22',
     '📝 Catatan harian ditulis\n\n2026-09-22',
   ],
+  [
+    'delete_reminder',
+    { deleted: true, reminderId: 'r1', title: 'Minum obat' },
+    'All set, your reminder has been deleted.\n\n- Minum obat',
+    'Siap, pengingatnya sudah dihapus.\n\n- Minum obat',
+  ],
+  [
+    'create_contact_group',
+    {
+      objectType: 'contact_group',
+      object: { id: 'g1', name: 'Teman Kerja', contactCount: 2 },
+    },
+    'All set, your contact group is ready.\n\n- Teman Kerja — 2 contacts',
+    'Siap, grup kontaknya sudah tersedia.\n\n- Teman Kerja — 2 kontak',
+  ],
 ];
 
 /**
- * The web block for the same results: identical layout, with the heading and
- * subject in markdown bold — except the four tools the chat already renders as
- * an action card, which collapse to the bare heading so the text does not
- * restate the card beside it.
+ * Web snapshots retain entity titles in bold, while metadata stays inline.
+ * Categories, secrets, and notes retain their existing block layout.
  */
 const RICH_BLOCKS: Array<[string, unknown, string, string]> = [
-  ['create_task', PLAIN_BLOCKS[0]![1], '✅ Task created', '✅ Tugas dibuat'],
+  [
+    'create_task',
+    PLAIN_BLOCKS[0]![1],
+    'All set, your task has been created.\n\n- **Kirim laporan**',
+    'Siap, tugasnya sudah dibuat.\n\n- **Kirim laporan**',
+  ],
   [
     'update_task',
     PLAIN_BLOCKS[1]![1],
-    '✏️ Task updated',
-    '✏️ Tugas diperbarui',
+    'All set, your task has been updated.\n\n- **Kirim laporan** — Due 22 Sept 2026, 10:00 UTC',
+    'Siap, tugasnya sudah diperbarui.\n\n- **Kirim laporan** — Tenggat 22 Sep 2026, 10.00 UTC',
   ],
   [
     'update_category',
@@ -428,14 +439,14 @@ const RICH_BLOCKS: Array<[string, unknown, string, string]> = [
   [
     'create_reminder',
     PLAIN_BLOCKS[4]![1],
-    '⏰ Reminder created',
-    '⏰ Pengingat dibuat',
+    'All set, your reminder has been created.\n\n- **Minum obat** — At 22 Sept 2026, 17:00',
+    'Siap, pengingatnya sudah dibuat.\n\n- **Minum obat** — Pada 22 Sep 2026, 17.00',
   ],
   [
     'update_reminder',
     PLAIN_BLOCKS[5]![1],
-    '⏰ Reminder updated',
-    '⏰ Pengingat diperbarui',
+    'All set, your reminder has been updated.\n\n- **Minum obat** — At 22 Sept 2026, 17:00 · weekly on Tuesday, Thursday',
+    'Siap, pengingatnya sudah diperbarui.\n\n- **Minum obat** — Pada 22 Sep 2026, 17.00 · mingguan pada Selasa, Kamis',
   ],
   [
     'store_secret',
@@ -452,62 +463,62 @@ const RICH_BLOCKS: Array<[string, unknown, string, string]> = [
   [
     'save_contact',
     PLAIN_BLOCKS[8]![1],
-    '👤 **Contact saved**\n\n**Bu Rina**\n📧 rina@example.test\n📞 +62 811 000\n👥 Teman Kerja',
-    '👤 **Kontak disimpan**\n\n**Bu Rina**\n📧 rina@example.test\n📞 +62 811 000\n👥 Teman Kerja',
+    'All set, your contact has been saved.\n\n- **Bu Rina** — rina@example.test · +62 811 000 · Groups: Teman Kerja',
+    'Siap, kontaknya sudah disimpan.\n\n- **Bu Rina** — rina@example.test · +62 811 000 · Grup: Teman Kerja',
   ],
   [
     'update_contact_group',
     PLAIN_BLOCKS[9]![1],
-    '🏷️ **Contact group updated**\n\n**Teman Kerja**',
-    '🏷️ **Grup kontak diperbarui**\n\n**Teman Kerja**',
+    'All set, your contact group has been updated.\n\n- **Teman Kerja**',
+    'Siap, grup kontaknya sudah diperbarui.\n\n- **Teman Kerja**',
   ],
   [
     'delete_contact_group',
     PLAIN_BLOCKS[10]![1],
-    '🗑️ **Contact group deleted**\n\n**Teman Kerja**',
-    '🗑️ **Grup kontak dihapus**\n\n**Teman Kerja**',
+    'All set, your contact group has been deleted.\n\n- **Teman Kerja**',
+    'Siap, grup kontaknya sudah dihapus.\n\n- **Teman Kerja**',
   ],
   [
     'assign_contact_groups',
     PLAIN_BLOCKS[11]![1],
-    '🏷️ **Contact groups updated**\n\n**Bu Rina**\n👥 Teman Kerja',
-    '🏷️ **Grup kontak diperbarui**\n\n**Bu Rina**\n👥 Teman Kerja',
+    'All set, your contact has been updated.\n\n- **Bu Rina** — Groups: Teman Kerja',
+    'Siap, kontaknya sudah diperbarui.\n\n- **Bu Rina** — Grup: Teman Kerja',
   ],
   [
     'save_attached_files',
     PLAIN_BLOCKS[12]![1],
-    '📎 **Files saved (2)**\n\n📄 notulen.pdf\n📄 anggaran.pdf',
-    '📎 **2 file disimpan**\n\n📄 notulen.pdf\n📄 anggaran.pdf',
+    'All set, 2 files have been saved.\n\n- **notulen.pdf**\n- **anggaran.pdf**',
+    'Siap, 2 file sudah disimpan.\n\n- **notulen.pdf**\n- **anggaran.pdf**',
   ],
   [
     'send_file',
     PLAIN_BLOCKS[13]![1],
-    '📤 **File sent**\n\n**notulen.pdf**\n🔗 [notulen.pdf](https://sydia.test/documents/document-1/content)',
-    '📤 **File dikirim**\n\n**notulen.pdf**\n🔗 [notulen.pdf](https://sydia.test/documents/document-1/content)',
+    'All set, your file has been sent.\n\n- **notulen.pdf**',
+    'Siap, filenya sudah dikirim.\n\n- **notulen.pdf**',
   ],
   [
     'send_file',
     PLAIN_BLOCKS[14]![1],
-    '📤 **File sent**\n\n**notulen.pdf**\n📌 Sent as an attachment',
-    '📤 **File dikirim**\n\n**notulen.pdf**\n📌 Terkirim sebagai lampiran',
+    'All set, your file has been sent.\n\n- **notulen.pdf** — Sent as an attachment',
+    'Siap, filenya sudah dikirim.\n\n- **notulen.pdf** — Terkirim sebagai lampiran',
   ],
   [
     'create_calendar_event',
     PLAIN_BLOCKS[15]![1],
-    '📅 **Event created**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–10:30\n📍 Ruang rapat 2',
-    '📅 **Acara dibuat**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–10:30\n📍 Ruang rapat 2',
+    'All set, your event has been created.\n\n- **Rapat** — 22 Sept 2026, 09:00–10:30 · Ruang rapat 2',
+    'Siap, acaranya sudah dibuat.\n\n- **Rapat** — 22 Sep 2026, 09.00–10.30 · Ruang rapat 2',
   ],
   [
     'update_calendar_event',
     PLAIN_BLOCKS[16]![1],
-    '📅 **Event updated**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–2026-09-23 10:00',
-    '📅 **Acara diperbarui**\n\n**Rapat**\n🗓️ 2026-09-22 09:00–2026-09-23 10:00',
+    'All set, your event has been updated.\n\n- **Rapat** — 22 Sept 2026, 09:00–23 Sept 2026, 10:00',
+    'Siap, acaranya sudah diperbarui.\n\n- **Rapat** — 22 Sep 2026, 09.00–23 Sep 2026, 10.00',
   ],
   [
     'cancel_calendar_event',
     PLAIN_BLOCKS[17]![1],
-    '📅 **Event cancelled**\n\n**Rapat**\n📌 Cancelled',
-    '📅 **Acara dibatalkan**\n\n**Rapat**\n📌 Dibatalkan',
+    'All set, your event has been cancelled.\n\n- **Rapat**',
+    'Siap, acaranya sudah dibatalkan.\n\n- **Rapat**',
   ],
   [
     'write_daily_note',
@@ -515,15 +526,350 @@ const RICH_BLOCKS: Array<[string, unknown, string, string]> = [
     '📝 **Daily note written**\n\n**2026-09-22**',
     '📝 **Catatan harian ditulis**\n\n**2026-09-22**',
   ],
+  [
+    'delete_reminder',
+    { deleted: true, reminderId: 'r1', title: 'Minum obat' },
+    'All set, your reminder has been deleted.\n\n- **Minum obat**',
+    'Siap, pengingatnya sudah dihapus.\n\n- **Minum obat**',
+  ],
+  [
+    'create_contact_group',
+    {
+      objectType: 'contact_group',
+      object: { id: 'g1', name: 'Teman Kerja', contactCount: 2 },
+    },
+    'All set, your contact group is ready.\n\n- **Teman Kerja** — 2 contacts',
+    'Siap, grup kontaknya sudah tersedia.\n\n- **Teman Kerja** — 2 kontak',
+  ],
 ];
 
 describe('terminal tool response', () => {
-  it('covers exactly the 18 eligible tools in both tables', () => {
+  it('batches confirmed reminder deletions without claiming every reminder is gone', () => {
+    const result = web('id', [
+      execution('delete_reminder', {
+        deleted: true,
+        reminderId: 'r1',
+        title: 'Minum obat',
+      }),
+      execution('delete_reminder', {
+        deleted: true,
+        reminderId: 'r2',
+        title: 'Olahraga',
+      }),
+    ]);
+
+    expect(result).toBe(
+      'Siap, 2 pengingat sudah dihapus.\n\n- **Minum obat**\n- **Olahraga**',
+    );
+  });
+
+  it('does not confirm reminder deletion from an unsuccessful result', () => {
+    expect(
+      web('id', [
+        execution('delete_reminder', {
+          deleted: false,
+          reminderId: 'r1',
+          title: 'Minum obat',
+        }),
+      ]),
+    ).toBeNull();
+  });
+
+  it('keeps newly terminal group creation open when contact assignment must follow', () => {
+    const result = web('en', [
+      execution(
+        'create_contact_group',
+        { objectType: 'contact_group', object: { id: 'g1', name: 'Work' } },
+        { completeTurn: false },
+      ),
+    ]);
+
+    expect(result).toBeNull();
+  });
+
+  it('batches reminder calls while preserving separate schedules with the same title', () => {
+    const result = buildTerminalToolResponse(
+      { locale: 'id', timezone: 'Asia/Makassar' },
+      [
+        execution('create_reminder', {
+          reminders: [
+            { id: 'r1', title: 'Minum obat', scheduledAt: AT, timezone: 'UTC' },
+          ],
+        }),
+        execution('create_reminder', {
+          reminders: [
+            {
+              id: 'r2',
+              title: 'Minum obat',
+              scheduledAt: LATER,
+              timezone: 'UTC',
+            },
+          ],
+        }),
+      ],
+    );
+
+    expect(result).toBe(
+      'Siap, 2 pengingat sudah dibuat.\n\n- **Minum obat** — Pada 22 Sep 2026, 18.00\n- **Minum obat** — Pada 23 Sep 2026, 18.00',
+    );
+  });
+
+  it('batches event creations with a local time range and optional location', () => {
+    const result = buildTerminalToolResponse(
+      { locale: 'id', timezone: 'Asia/Makassar' },
+      [
+        execution('create_calendar_event', {
+          objectType: 'calendar_event',
+          object: {
+            id: 'e1',
+            title: 'Rapat tim',
+            startAt: AT,
+            endAt: '2026-09-22T11:00:00Z',
+            timezone: 'UTC',
+            location: 'Kantor',
+          },
+        }),
+        execution('create_calendar_event', {
+          objectType: 'calendar_event',
+          object: {
+            id: 'e2',
+            title: 'Lokakarya',
+            startAt: LATER,
+            endAt: '2026-09-24T10:00:00Z',
+            timezone: 'UTC',
+          },
+        }),
+      ],
+    );
+
+    expect(result).toBe(
+      'Siap, 2 acara sudah dibuat.\n\n- **Rapat tim** — 22 Sep 2026, 18.00–19.00 · Kantor\n- **Lokakarya** — 23 Sep 2026, 18.00–24 Sep 2026, 18.00',
+    );
+  });
+
+  it('batches contacts without altering punctuation in their details', () => {
+    const result = chat('en', [
+      execution('save_contact', {
+        objectType: 'contact',
+        object: {
+          id: 'c1',
+          name: 'Rina',
+          email: 'rina+work@example.test',
+          phone: '+62 811',
+          groups: [{ name: 'Work' }],
+        },
+      }),
+      execution('save_contact', {
+        objectType: 'contact',
+        object: { id: 'c2', name: 'Adi', phone: '+62 812' },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'All set, 2 contacts have been saved.\n\n- Rina — rina+work@example.test · +62 811 · Groups: Work\n- Adi — +62 812',
+    );
+  });
+
+  it('batches contact-group updates and keeps confirmed zero counts visible', () => {
+    const result = web('id', [
+      execution('update_contact_group', {
+        objectType: 'contact_group',
+        object: { id: 'g1', name: 'Tim', contactCount: 2 },
+      }),
+      execution('update_contact_group', {
+        objectType: 'contact_group',
+        object: { id: 'g2', name: 'Teman', contactCount: 0 },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'Siap, 2 grup kontak sudah diperbarui.\n\n- **Tim** — 2 kontak\n- **Teman** — 0 kontak',
+    );
+  });
+
+  it('shows file size and unfinished processing without claiming content is ready', () => {
+    const result = web('id', [
+      execution('save_attached_files', {
+        objectType: 'documents',
+        objects: [
+          {
+            id: 'd1',
+            filename: 'Laporan.pdf',
+            mimeType: 'application/pdf',
+            size: 1536,
+            status: 'processing',
+          },
+        ],
+      }),
+      execution('save_attached_files', {
+        objectType: 'documents',
+        objects: [
+          {
+            id: 'd2',
+            filename: 'Catatan.txt',
+            mimeType: 'text/plain',
+            size: 0,
+            status: 'failed',
+          },
+        ],
+      }),
+    ]);
+
+    expect(result).toBe(
+      'Siap, 2 file sudah disimpan.\n\n- **Laporan.pdf** — PDF · 1,5 KB · Sedang diproses\n- **Catatan.txt** — TXT · 0 B · Pemrosesan gagal',
+    );
+  });
+
+  it('counts replayed files once using the latest metadata', () => {
+    const result = web('en', [
+      execution('save_attached_files', {
+        objectType: 'documents',
+        objects: [{ id: 'd1', filename: 'Report.pdf', status: 'processing' }],
+      }),
+      execution('save_attached_files', {
+        objectType: 'documents',
+        objects: [{ id: 'd1', filename: 'Report.pdf', status: 'ready' }],
+      }),
+    ]);
+
+    expect(result).toBe(
+      'All set, your file has been saved.\n\n- **Report.pdf**',
+    );
+  });
+
+  it('batches file sends without duplicating web links or pill titles', () => {
+    const result = web('en', [
+      execution('send_file', {
+        objectType: 'file',
+        object: {
+          documentId: 'd1',
+          filename: 'Report.pdf',
+          url: 'https://sydia.test/documents/d1/content',
+        },
+      }),
+      execution('send_file', {
+        objectType: 'file',
+        object: {
+          documentId: 'd2',
+          filename: 'Budget.pdf',
+          url: 'https://sydia.test/documents/d2/content',
+        },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'All set, 2 files have been sent.\n\n- **Report.pdf**\n- **Budget.pdf**',
+    );
+  });
+
+  it('keeps an accessible inline file link when a legacy result has no entity ID', () => {
+    const result = web('en', [
+      execution('send_file', {
+        objectType: 'file',
+        object: {
+          filename: 'Report [final].pdf',
+          url: 'https://sydia.test/files/report(final).pdf',
+        },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'All set, your file has been sent.\n\n- [Report \\[final\\].pdf](https://sydia.test/files/report%28final%29.pdf)',
+    );
+  });
+
+  it('preserves recurrence end dates inline', () => {
+    const result = chat('id', [
+      execution('update_reminder', {
+        objectType: 'reminder',
+        object: {
+          title: 'Olahraga',
+          scheduledAt: AT,
+          timezone: 'UTC',
+          recurrence: { frequency: 'daily', interval: 1, endsAt: LATER },
+        },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'Siap, pengingatnya sudah diperbarui.\n\n- Olahraga — Pada 22 Sep 2026, 10.00 · harian · Hingga 23 Sep 2026, 10.00',
+    );
+  });
+
+  it.each([
+    [
+      'save_contact',
+      { objectType: 'contact', object: { name: 'Rina', phone: 123 } },
+    ],
+    [
+      'save_attached_files',
+      {
+        objectType: 'documents',
+        objects: [{ filename: 'Report.pdf', size: -1 }],
+      },
+    ],
+    [
+      'update_contact_group',
+      {
+        objectType: 'contact_group',
+        object: { name: 'Work', contactCount: -1 },
+      },
+    ],
+    [
+      'create_calendar_event',
+      {
+        objectType: 'calendar_event',
+        object: { title: 'Rapat', startAt: LATER, endAt: AT, timezone: 'UTC' },
+      },
+    ],
+  ])('leaves malformed %s metadata for a model reply', (toolName, result) => {
+    expect(web('en', [execution(toolName, result)])).toBeNull();
+  });
+
+  it('leaves a partially failed contact batch for an honest model reply', () => {
+    const result = web('en', [
+      execution('save_contact', {
+        objectType: 'contact',
+        object: { name: 'Rina' },
+      }),
+      execution('save_contact', { error: 'Save failed' }),
+    ]);
+
+    expect(result).toBeNull();
+  });
+
+  it('logs an invalid reminder timezone before continuing with the model', () => {
+    const warning = jest.spyOn(Logger, 'warn').mockImplementation(() => {});
+
+    try {
+      const result = web('en', [
+        execution('create_reminder', {
+          reminders: [
+            {
+              title: 'Private reminder',
+              scheduledAt: AT,
+              timezone: 'Invalid/Zone',
+            },
+          ],
+        }),
+      ]);
+
+      expect(result).toBeNull();
+      expect(warning).toHaveBeenCalledWith(
+        'Acknowledgement formatter failed (RangeError); continuing with model response.',
+        'TerminalToolResponse',
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it('covers exactly the 20 eligible tools in both tables', () => {
     const names = [...TERMINAL_TOOL_NAMES].sort();
     const plain = [...new Set(PLAIN_BLOCKS.map(([name]) => name))].sort();
     const rich = [...new Set(RICH_BLOCKS.map(([name]) => name))].sort();
 
-    expect(names).toHaveLength(18);
+    expect(names).toHaveLength(20);
     expect(plain).toEqual(names);
     expect(rich).toEqual(names);
   });
@@ -550,34 +896,159 @@ describe('terminal tool response', () => {
       expect(chat('id', [execution(toolName, result)])).not.toContain('**');
     }
 
-    // Non-card tools bold the heading and subject on the web only.
+    // Compact tools bold the subject on the web only.
     const contact = {
       objectType: 'contact',
       object: { name: 'Bu Rina', groups: [] },
     };
 
     expect(web('en', [execution('save_contact', contact)])).toBe(
-      '👤 **Contact saved**\n\n**Bu Rina**',
+      'All set, your contact has been saved.\n\n- **Bu Rina**',
     );
     expect(chat('en', [execution('save_contact', contact)])).toBe(
-      '👤 Contact saved\n\nBu Rina',
+      'All set, your contact has been saved.\n\n- Bu Rina',
     );
     expect(chat('id', [execution('save_contact', contact)], 'telegram')).toBe(
-      '👤 Kontak disimpan\n\nBu Rina',
+      'Siap, kontaknya sudah disimpan.\n\n- Bu Rina',
+    );
+  });
+
+  it('groups task creations into one web receipt with each task detail', () => {
+    const result = buildTerminalToolResponse(
+      { locale: 'id', timezone: 'Asia/Makassar' },
+      [
+        execution('create_task', {
+          objectType: 'task',
+          object: { title: 'Kirim laporan', dueAt: AT, priority: 'high' },
+        }),
+        execution('create_task', {
+          objectType: 'task',
+          object: { title: 'Baca buku', dueAt: null, priority: 'medium' },
+        }),
+      ],
     );
 
-    const plainHeadings: Record<string, string> = Object.fromEntries(
-      PLAIN_BLOCKS.map(([name, , en]) => [name, en.split('\n')[0]!]),
+    expect(result).toBe(
+      'Siap, 2 tugas sudah dibuat.\n\n- **Kirim laporan** — Tenggat 22 Sep 2026, 18.00 · Prioritas tinggi\n- **Baca buku**',
     );
+  });
 
-    for (const [toolName, result] of RICH_BLOCKS) {
-      const rich = web('en', [execution(toolName, result)])!.split('\n')[0]!;
-      const plain = plainHeadings[toolName]!;
-      const [icon, ...words] = plain.split(' ');
-      const bolded = `${icon} **${words.join(' ')}**`;
+  it('groups task updates into one plain receipt on a channel', () => {
+    const result = chat('en', [
+      execution('update_task', {
+        objectType: 'task',
+        object: { title: 'Send report', priority: 'low' },
+      }),
+      execution('update_task', {
+        objectType: 'task',
+        object: { title: 'Read book', dueAt: AT },
+      }),
+    ]);
 
-      expect(rich).toBe(CARD_BACKED.includes(toolName) ? plain : bolded);
-      expect(rich.includes('**')).toBe(!CARD_BACKED.includes(toolName));
+    expect(result).toBe(
+      'All set, 2 tasks have been updated.\n\n- Send report — Priority low\n- Read book — Due 22 Sept 2026, 10:00 UTC',
+    );
+  });
+
+  it('keeps task creation, updates, and other tool acknowledgements separate', () => {
+    const result = web('id', [
+      execution('create_task', {
+        objectType: 'task',
+        object: { title: 'Baca buku' },
+      }),
+      execution('save_contact', {
+        objectType: 'contact',
+        object: { name: 'Bu Rina' },
+      }),
+      execution('update_task', {
+        objectType: 'task',
+        object: { title: 'Kirim laporan' },
+      }),
+      execution('create_task', {
+        objectType: 'task',
+        object: { title: 'Beli kopi' },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'Siap, 2 tugas sudah dibuat.\n\n- **Baca buku**\n- **Beli kopi**\n\nSiap, kontaknya sudah disimpan.\n\n- **Bu Rina**\n\nSiap, tugasnya sudah diperbarui.\n\n- **Kirim laporan**',
+    );
+  });
+
+  it('does not acknowledge a task batch containing a failed result', () => {
+    const result = web('id', [
+      execution('create_task', {
+        objectType: 'task',
+        object: { title: 'Baca buku' },
+      }),
+      execution('create_task', { error: 'Task creation failed' }),
+    ]);
+
+    expect(result).toBeNull();
+  });
+
+  it('preserves Markdown punctuation in task titles as literal text', () => {
+    const result = web('id', [
+      execution('create_task', {
+        objectType: 'task',
+        object: { title: 'Baca [bab 1] *penting*' },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'Siap, tugasnya sudah dibuat.\n\n- **Baca \\[bab 1\\] \\*penting\\***',
+    );
+  });
+
+  it('counts a replayed saved task once and uses its newest result', () => {
+    const result = web('en', [
+      execution('update_task', {
+        objectType: 'task',
+        object: { id: 'task-1', title: 'Read book', priority: 'high' },
+      }),
+      execution('update_task', {
+        objectType: 'task',
+        object: { id: 'task-1', title: 'Read chapter 1', priority: 'low' },
+      }),
+    ]);
+
+    expect(result).toBe(
+      'All set, your task has been updated.\n\n- **Read chapter 1** — Priority low',
+    );
+  });
+
+  it('keeps a full-length task title available for smart entity matching', () => {
+    const title = 'a'.repeat(240);
+    const result = web('en', [
+      execution('create_task', { objectType: 'task', object: { title } }),
+    ]);
+
+    expect(result).toBe(
+      `All set, your task has been created.\n\n- **${title}**`,
+    );
+  });
+
+  it('logs an invalid task timezone and leaves the response to the model', () => {
+    const warning = jest.spyOn(Logger, 'warn').mockImplementation(() => {});
+
+    try {
+      const result = buildTerminalToolResponse(
+        { locale: 'en', timezone: 'Invalid/Zone' },
+        [
+          execution('create_task', {
+            objectType: 'task',
+            object: { title: 'Private task title', dueAt: AT },
+          }),
+        ],
+      );
+
+      expect(result).toBeNull();
+      expect(warning).toHaveBeenCalledWith(
+        'Acknowledgement formatter failed (RangeError); continuing with model response.',
+        'TerminalToolResponse',
+      );
+    } finally {
+      warning.mockRestore();
     }
   });
 
@@ -598,15 +1069,15 @@ describe('terminal tool response', () => {
     ];
 
     expect(chat('en', [execution('create_reminder', { reminders })])).toBe(
-      '⏰ Reminder created (2)\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Minum obat · 2026-09-23 10:00 (daily)',
+      'All set, 2 reminders have been created.\n\n- Olahraga — At 22 Sept 2026, 10:00\n- Minum obat — At 23 Sept 2026, 10:00 · daily',
     );
     expect(chat('id', [execution('create_reminder', { reminders })])).toBe(
-      '⏰ 2 pengingat dibuat\n\n⏰ Olahraga · 2026-09-22 10:00\n⏰ Minum obat · 2026-09-23 10:00 (harian)',
+      'Siap, 2 pengingat sudah dibuat.\n\n- Olahraga — Pada 22 Sep 2026, 10.00\n- Minum obat — Pada 23 Sep 2026, 10.00 · harian',
     );
 
-    // A web card-backed heading still carries the count.
+    // The web receipt retains every schedule and its count.
     expect(web('en', [execution('create_reminder', { reminders })])).toBe(
-      '⏰ Reminder created (2)',
+      'All set, 2 reminders have been created.\n\n- **Olahraga** — At 22 Sept 2026, 10:00\n- **Minum obat** — At 23 Sept 2026, 10:00 · daily',
     );
   });
 
@@ -617,14 +1088,14 @@ describe('terminal tool response', () => {
     };
 
     expect(chat('en', [execution('save_attached_files', files)])).toBe(
-      '📎 Files saved (2)\n\n📄 notulen.pdf\n📄 anggaran.pdf',
+      'All set, 2 files have been saved.\n\n- notulen.pdf\n- anggaran.pdf',
     );
     expect(web('id', [execution('save_attached_files', files)])).toBe(
-      '📎 **2 file disimpan**\n\n📄 notulen.pdf\n📄 anggaran.pdf',
+      'Siap, 2 file sudah disimpan.\n\n- **notulen.pdf**\n- **anggaran.pdf**',
     );
   });
 
-  it('renders a single-item reminder and file as a subject, not a list', () => {
+  it('renders a single reminder and file as one inline bullet', () => {
     expect(
       chat('en', [
         execution('create_reminder', {
@@ -638,7 +1109,9 @@ describe('terminal tool response', () => {
           ],
         }),
       ]),
-    ).toBe('⏰ Reminder created\n\nMinum obat\n🗓️ 2026-09-22 10:00');
+    ).toBe(
+      'All set, your reminder has been created.\n\n- Minum obat — At 22 Sept 2026, 10:00',
+    );
 
     expect(
       web('id', [
@@ -647,7 +1120,7 @@ describe('terminal tool response', () => {
           objects: [{ filename: 'a.pdf' }],
         }),
       ]),
-    ).toBe('📎 **File disimpan**\n\n**a.pdf**');
+    ).toBe('Siap, filenya sudah disimpan.\n\n- **a.pdf**');
   });
 
   it('joins several executions of one turn with a blank line', () => {
@@ -669,7 +1142,7 @@ describe('terminal tool response', () => {
         }),
       ]),
     ).toBe(
-      '✅ Task created\n\nKirim laporan\n\n⏰ Reminder created\n\nMinum obat\n🗓️ 2026-09-22 10:00',
+      'All set, your task has been created.\n\n- Kirim laporan\n\nAll set, your reminder has been created.\n\n- Minum obat — At 22 Sept 2026, 10:00',
     );
   });
 
@@ -687,7 +1160,7 @@ describe('terminal tool response', () => {
         }),
       ]),
     ).toBe(
-      '⏰ Reminder updated\n\nCek stok\n🗓️ 2026-09-22 10:00 (every 2 weeks on the same weekdays)',
+      'All set, your reminder has been updated.\n\n- Cek stok — At 22 Sept 2026, 10:00 · every 2 weeks on the same weekdays',
     );
 
     expect(
@@ -703,7 +1176,7 @@ describe('terminal tool response', () => {
         }),
       ]),
     ).toBe(
-      '⏰ Pengingat diperbarui\n\nBayar sewa\n🗓️ 2026-09-22 10:00 (bulanan)',
+      'Siap, pengingatnya sudah diperbarui.\n\n- Bayar sewa — Pada 22 Sep 2026, 10.00 · bulanan',
     );
   });
 
@@ -719,10 +1192,10 @@ describe('terminal tool response', () => {
     };
 
     expect(chat('en', [execution('create_task', result)])).toBe(
-      '✅ Task created\n\nKirim laporan\n🗓️ Due 2026-09-22 10:00 UTC\n⚡ Priority high\n🏷️ Kerja, Penting',
+      'All set, your task has been created.\n\n- Kirim laporan — Due 22 Sept 2026, 10:00 UTC · Priority high · Categories: Kerja, Penting',
     );
     expect(chat('id', [execution('create_task', result)])).toBe(
-      '✅ Tugas dibuat\n\nKirim laporan\n🗓️ Tenggat 2026-09-22 10:00 UTC\n⚡ Prioritas tinggi\n🏷️ Kerja, Penting',
+      'Siap, tugasnya sudah dibuat.\n\n- Kirim laporan — Tenggat 22 Sep 2026, 10.00 UTC · Prioritas tinggi · Kategori: Kerja, Penting',
     );
   });
 
@@ -734,7 +1207,7 @@ describe('terminal tool response', () => {
           object: { title: 'Kirim laporan', dueAt: null, priority: 'medium' },
         }),
       ]),
-    ).toBe('✏️ Task updated\n\nKirim laporan');
+    ).toBe('All set, your task has been updated.\n\n- Kirim laporan');
   });
 
   it('renders a due date on the user clock when the zone is known', () => {
@@ -749,14 +1222,18 @@ describe('terminal tool response', () => {
         { locale: 'id', timezone: 'Asia/Makassar', channel: 'whatsapp' },
         [execution('create_task', result)],
       ),
-    ).toBe('✅ Tugas dibuat\n\nKirim laporan\n🗓️ Tenggat 2026-09-22 18:00');
+    ).toBe(
+      'Siap, tugasnya sudah dibuat.\n\n- Kirim laporan — Tenggat 22 Sep 2026, 18.00',
+    );
 
     expect(
       buildTerminalToolResponse(
         { locale: 'en', timezone: 'Asia/Makassar', channel: 'whatsapp' },
         [execution('update_task', result)],
       ),
-    ).toBe('✏️ Task updated\n\nKirim laporan\n🗓️ Due 2026-09-22 18:00');
+    ).toBe(
+      'All set, your task has been updated.\n\n- Kirim laporan — Due 22 Sept 2026, 18:00',
+    );
   });
 
   it('falls back to a labelled UTC instant when no zone is supplied', () => {
@@ -767,7 +1244,9 @@ describe('terminal tool response', () => {
           object: { title: 'Kirim laporan', dueAt: AT },
         }),
       ]),
-    ).toBe('✏️ Task updated\n\nKirim laporan\n🗓️ Due 2026-09-22 10:00 UTC');
+    ).toBe(
+      'All set, your task has been updated.\n\n- Kirim laporan — Due 22 Sept 2026, 10:00 UTC',
+    );
   });
 
   it('keeps both send_file branches apart by result shape', () => {
@@ -793,20 +1272,20 @@ describe('terminal tool response', () => {
 
     // The web result carries the link and no provider message id.
     expect(web('en', [execution('send_file', link)])).toBe(
-      '📤 **File sent**\n\n**notulen.pdf**\n🔗 [notulen.pdf](https://sydia.test/documents/document-1/content)',
+      'All set, your file has been sent.\n\n- **notulen.pdf**',
     );
     expect(web('en', [execution('send_file', attachment)])).toBe(
-      '📤 **File sent**\n\n**notulen.pdf**\n📌 Sent as an attachment',
+      'All set, your file has been sent.\n\n- **notulen.pdf** — Sent as an attachment',
     );
 
     // A channel that sent the attachment gets a confirmation, never a link.
     expect(chat('en', [execution('send_file', attachment)])).toBe(
-      '📤 File sent\n\nnotulen.pdf\n📌 Sent as an attachment',
+      'All set, your file has been sent.\n\n- notulen.pdf — Sent as an attachment',
     );
 
     // A channel result that does carry a url gets the bare url, not markdown.
     expect(chat('en', [execution('send_file', link)])).toBe(
-      '📤 File sent\n\nnotulen.pdf\n🔗 https://sydia.test/documents/document-1/content',
+      'All set, your file has been sent.\n\n- notulen.pdf — https://sydia.test/documents/document-1/content',
     );
     expect(chat('en', [execution('send_file', link)])).not.toContain('[');
 
@@ -837,12 +1316,12 @@ describe('terminal tool response', () => {
     ).toBeNull();
     expect(
       web('en', [execution('create_task', task, { completeTurn: true })]),
-    ).toBe('✅ Task created');
+    ).toBe('All set, your task has been created.\n\n- **Kirim laporan**');
     expect(
       buildTerminalToolResponse({ locale: 'en', channel: 'whatsapp' }, [
         execution('create_task', task, { completeTurn: true }),
       ]),
-    ).toBe('✅ Task created\n\nKirim laporan');
+    ).toBe('All set, your task has been created.\n\n- Kirim laporan');
   });
 
   it('lets a later step decide the turn when an earlier call asked for a follow-up', () => {
@@ -869,7 +1348,7 @@ describe('terminal tool response', () => {
         [sent],
       ),
     ).toBe(
-      '📎 Files saved\n\na.pdf\n\n📤 File sent\n\na.pdf\n📌 Sent as an attachment',
+      'All set, your file has been saved.\n\n- a.pdf\n\nAll set, your file has been sent.\n\n- a.pdf — Sent as an attachment',
     );
 
     // With `decidedBy` defaulting to every execution, the opt-out blocks it.
@@ -974,7 +1453,7 @@ describe('terminal tool response', () => {
           objectType: 'task',
           object: { title: 'Kirim laporan.', dueAt: null },
         },
-        '✅ Task created\n\nKirim laporan.',
+        'All set, your task has been created.\n\n- Kirim laporan.',
       ],
       [
         'update_category',
@@ -984,12 +1463,12 @@ describe('terminal tool response', () => {
       [
         'save_contact',
         { objectType: 'contact', object: { name: 'Bu Rina.', groups: [] } },
-        '👤 Contact saved\n\nBu Rina.',
+        'All set, your contact has been saved.\n\n- Bu Rina.',
       ],
       [
         'update_contact_group',
         { objectType: 'contact_group', object: { name: 'Tim.' } },
-        '🏷️ Contact group updated\n\nTim.',
+        'All set, your contact group has been updated.\n\n- Tim.',
       ],
       [
         'cancel_calendar_event',
@@ -997,7 +1476,7 @@ describe('terminal tool response', () => {
           objectType: 'calendar_event',
           object: { title: 'Rapat laporan.', status: 'cancelled' },
         },
-        '📅 Event cancelled\n\nRapat laporan.\n📌 Cancelled',
+        'All set, your event has been cancelled.\n\n- Rapat laporan.',
       ],
       [
         'store_secret',
@@ -1007,7 +1486,7 @@ describe('terminal tool response', () => {
       [
         'save_attached_files',
         { objectType: 'documents', objects: [{ filename: 'notulen.pdf.' }] },
-        '📎 Files saved\n\nnotulen.pdf.',
+        'All set, your file has been saved.\n\n- notulen.pdf.',
       ],
     ];
 
@@ -1022,7 +1501,7 @@ describe('terminal tool response', () => {
           object: { title: 'Kirim laporan.', dueAt: null },
         }),
       ]),
-    ).toBe('✅ Task created');
+    ).toBe('All set, your task has been created.\n\n- **Kirim laporan.**');
   });
 
   it('says a contact has no groups when the group list is empty', () => {
@@ -1033,7 +1512,7 @@ describe('terminal tool response', () => {
           object: { name: 'Bu Rina', groups: [] },
         }),
       ]),
-    ).toBe('🏷️ Contact groups updated\n\nBu Rina\n👥 No groups');
+    ).toBe('All set, your contact has been updated.\n\n- Bu Rina — No groups');
 
     expect(
       chat('id', [
@@ -1042,7 +1521,7 @@ describe('terminal tool response', () => {
           object: { name: 'Bu Rina', groups: [] },
         }),
       ]),
-    ).toBe('🏷️ Grup kontak diperbarui\n\nBu Rina\n👥 Tanpa grup');
+    ).toBe('Siap, kontaknya sudah diperbarui.\n\n- Bu Rina — Tanpa grup');
   });
 
   it('collapses user text so a name cannot reflow a block', () => {
@@ -1053,7 +1532,7 @@ describe('terminal tool response', () => {
           object: { name: 'Bu\nRina\t—  “sore”', groups: [] },
         }),
       ]),
-    ).toBe('👤 Contact saved\n\nBu Rina — “sore”');
+    ).toBe('All set, your contact has been saved.\n\n- Bu Rina — “sore”');
   });
 
   it('adds completeTurn to eligible input schemas only', () => {

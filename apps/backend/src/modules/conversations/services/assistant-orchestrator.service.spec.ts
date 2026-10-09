@@ -638,15 +638,27 @@ describe('AssistantOrchestratorService', () => {
 
     const indonesian = await runTurn('id');
 
-    expect(indonesian.acknowledged).toBe('✅ Tugas dibuat');
-    expect(indonesian.persisted).toBe('✅ Tugas dibuat');
-    expect(indonesian.deltas).toEqual(['✅ Tugas dibuat']);
+    expect(indonesian.acknowledged).toBe(
+      'Siap, tugasnya sudah dibuat.\n\n- **Kirim laporan**',
+    );
+    expect(indonesian.persisted).toBe(
+      'Siap, tugasnya sudah dibuat.\n\n- **Kirim laporan**',
+    );
+    expect(indonesian.deltas).toEqual([
+      'Siap, tugasnya sudah dibuat.\n\n- **Kirim laporan**',
+    ]);
 
     const english = await runTurn('en');
 
-    expect(english.acknowledged).toBe('✅ Task created');
-    expect(english.persisted).toBe('✅ Task created');
-    expect(english.deltas).toEqual(['✅ Task created']);
+    expect(english.acknowledged).toBe(
+      'All set, your task has been created.\n\n- **Kirim laporan**',
+    );
+    expect(english.persisted).toBe(
+      'All set, your task has been created.\n\n- **Kirim laporan**',
+    );
+    expect(english.deltas).toEqual([
+      'All set, your task has been created.\n\n- **Kirim laporan**',
+    ]);
   });
 
   it('passes the channel through to context building and model generation', async () => {

@@ -128,6 +128,122 @@ test("shows an omitted saved entity as a compact pill", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("renders a task receipt with metadata and one existing smart entity pill", async ({
+  page,
+}) => {
+  await page.goto("/e2e/entity-renderer.html?mode=task-receipt");
+  const answer = page.getByRole("article", { name: "Jawaban Sydia" });
+  await expect(answer.getByText("Siap, tugasnya sudah dibuat.")).toBeVisible();
+  await expect(answer.getByRole("listitem")).toHaveText(
+    "Baca buku — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi"
+  );
+  await expect(answer.getByRole("listitem")).toBeVisible();
+  await expect(answer.getByRole("button")).toHaveCount(1);
+  await expect(answer.getByRole("link")).toHaveCount(0);
+
+  const pill = answer.getByRole("button", { name: "Tugas: Baca buku" });
+  await pill.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Tandai selesai", exact: true })
+  ).toBeVisible();
+});
+
+test("renders a task batch with one confirmation and one pill per saved task", async ({
+  page,
+}) => {
+  await page.goto("/e2e/entity-renderer.html?mode=task-batch");
+  const answer = page.getByRole("article", { name: "Jawaban Sydia" });
+  await expect(answer.getByText("Siap, 3 tugas sudah dibuat.")).toBeVisible();
+  await expect(answer.getByRole("listitem")).toHaveText([
+    "Baca buku — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi",
+    "Kirim proposal — Tenggat 9 Okt 2026, 11.00",
+    "Beli perlengkapan kantor",
+  ]);
+  await expect(answer.getByRole("button")).toHaveCount(3);
+  await expect(
+    answer.getByRole("button", { name: "Tugas: Baca buku" })
+  ).toHaveCount(1);
+  await expect(
+    answer.getByRole("button", { name: "Tugas: Kirim proposal" })
+  ).toHaveCount(1);
+  await expect(
+    answer.getByRole("button", { name: "Tugas: Beli perlengkapan kantor" })
+  ).toHaveCount(1);
+  await expect(answer.getByRole("listitem").nth(1)).toBeVisible();
+  await expect(answer.getByRole("link")).toHaveCount(0);
+});
+
+test("renders listed tasks with inline metadata and interactive smart entity pills", async ({
+  page,
+}) => {
+  await page.goto("/e2e/entity-renderer.html?mode=task-list");
+  const answer = page.getByRole("article", { name: "Jawaban Sydia" });
+  await expect(
+    answer.getByText("Ada 3 tugas yang belum selesai:")
+  ).toBeVisible();
+  await expect(answer.getByRole("listitem")).toHaveText([
+    "Baca buku — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi · Sedang dikerjakan",
+    "Kirim proposal — Tenggat 9 Okt 2026, 11.00",
+    "Beli perlengkapan kantor",
+  ]);
+  await expect(answer.getByRole("button")).toHaveCount(3);
+
+  for (const title of [
+    "Baca buku",
+    "Kirim proposal",
+    "Beli perlengkapan kantor",
+  ]) {
+    await expect(
+      answer.getByRole("button", { name: `Tugas: ${title}` })
+    ).toHaveCount(1);
+  }
+
+  await expect(answer.getByRole("link")).toHaveCount(0);
+
+  await answer.getByRole("button", { name: "Tugas: Baca buku" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+for (const mode of ["compact-receipts", "compact-lists"]) {
+  test(`renders ${mode} with inline details and existing entity access`, async ({
+    page,
+  }) => {
+    await page.goto(`/e2e/entity-renderer.html?mode=${mode}`);
+    const answer = page.getByRole("article", { name: "Jawaban Sydia" });
+
+    await expect(answer.getByRole("listitem")).toHaveText([
+      "Minum obat — Pada 13 Okt 2026, 17.00 · mingguan pada Selasa, Kamis",
+      "Rapat tim — 8 Okt 2026, 16.00–17.00 · Kantor",
+      "Invoice.pdf — PDF · 150 KB",
+      "Bu Rina — rina@example.test · +62 811 000 · Grup: Teman Kerja",
+      "Teman Kerja — 2 kontak",
+    ]);
+    await expect(answer.getByRole("button")).toHaveCount(3);
+    await expect(
+      answer.getByRole("button", { name: "Pengingat: Minum obat" })
+    ).toHaveCount(1);
+    await expect(
+      answer.getByRole("button", { name: "Acara: Rapat tim" })
+    ).toHaveCount(1);
+    await expect(
+      answer.getByRole("button", { name: "File: Invoice.pdf" })
+    ).toHaveCount(1);
+    await expect(answer.getByRole("link", { name: "Invoice.pdf" })).toHaveCount(
+      0
+    );
+
+    const filePill = answer.getByRole("button", { name: "File: Invoice.pdf" });
+    await filePill.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(
+      page.getByRole("dialog").getByText("Invoice.pdf", { exact: true })
+    ).toBeVisible();
+  });
+}
+
 test("keeps an entity popover open when message data refreshes", async ({
   page,
 }) => {

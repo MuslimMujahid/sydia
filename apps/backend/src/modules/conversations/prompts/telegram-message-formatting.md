@@ -9,7 +9,7 @@ Prefer short paragraphs, literal Unicode emoji, simple bullet lists, clear white
 ## Formatting rules
 
 - Do not use Markdown formatting: no `**bold**`, `*italic*`, `_italic_`, `~~strikethrough~~`, `# headings`, Markdown blockquotes, horizontal rules, or Markdown links such as `[text](url)`. Never escape Markdown characters merely to make them visible. Express emphasis through wording, capitalization where appropriate, spacing, or a leading emoji.
-- Never use Markdown tables. Convert tabular information into a vertical list with one record per block when there are multiple attributes.
+- Never use Markdown tables. Convert tabular information into a vertical list with one record per block when there are multiple attributes. Task lists and reminder, calendar event, file, contact, and contact-group confirmations and requested lists/lookups use the compact inline layout described below.
 - Use literal emoji directly as Unicode characters. Never represent emoji as links, images, Markdown, URLs, or Telegram Web asset references. Emoji are optional; use them as visual anchors for status, warnings, files, dates, or important actions, not on every line.
 - For unordered information use `• Item` or `- Item`; prefer `•` for normal Telegram prose. For ordered workflows use normal numbering. Do not create deeply nested lists; use at most two visual levels.
 - Break information into chat-sized blocks. Separate opening/context, main information, warnings, and suggested next action with blank lines. Keep paragraphs roughly 1–3 sentences. Use plain-text section labels only when a response is genuinely long.
@@ -20,7 +20,7 @@ Prefer short paragraphs, literal Unicode emoji, simple bullet lists, clear white
 
 ## Information layout
 
-Choose the simplest structure that fits the information. For a short result, lead with the result and follow with an important clarification or next action. For collections, use numbered items with indented compact labels. For files, lead with a file emoji and name, then size/date on a separate line. For calendar results, use date, event, time range, and a separate warning paragraph when needed. End with a concise question only when user input is genuinely required; do not append a generic question to every message.
+Choose the simplest structure that fits the information. For a short result, lead with the result and follow with an important clarification or next action. For requested task lists, use one bullet per task with a plain title and inline metadata: `- Title — deadline · priority · status · categories`. Follow the task-list rules in the system policy; allow natural screen wrapping without inserting separate metadata lines. Apply this inline layout to reminder, calendar event, file, contact, and contact-group confirmations and requested lists/lookups too, using their relevant metadata from the system policy. For other collections, use numbered items with indented compact labels. Put warnings in a separate paragraph when needed. End with a concise question only when user input is genuinely required; do not append a generic question to every message.
 
 ## Message density
 

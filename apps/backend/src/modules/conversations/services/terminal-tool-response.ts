@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { JSONSchema7 } from 'ai';
 import type { SupportedLocale } from '../../../database/entities';
 import type { MessageProvider } from '../../../shared/messaging';
@@ -20,9 +21,11 @@ const TERMINAL_TOOL_NAME_LIST = [
   'delete_category',
   'create_reminder',
   'update_reminder',
+  'delete_reminder',
   'store_secret',
   'create_secret_reveal_link',
   'save_contact',
+  'create_contact_group',
   'update_contact_group',
   'delete_contact_group',
   'assign_contact_groups',
@@ -40,18 +43,11 @@ export const TERMINAL_TOOL_NAMES: ReadonlySet<string> = new Set(
   TERMINAL_TOOL_NAME_LIST,
 );
 
-/**
- * Tools the web chat already answers with a structured action card showing the
- * title, status, due date or scheduled time, recurrence and action buttons. On
- * that surface a full block would only repeat the card, so it collapses to its
- * heading. Channels have no card, so they always get the whole block.
- */
-const CARD_BACKED_TOOL_NAMES: Readonly<Record<string, true>> = {
-  create_task: true,
-  update_task: true,
-  create_reminder: true,
-  update_reminder: true,
-};
+type TaskToolName = 'create_task' | 'update_task';
+
+function isTaskTool(name: string): name is TaskToolName {
+  return name === 'create_task' || name === 'update_task';
+}
 
 /**
  * One tool execution of a completed model step, as the orchestrator observed
@@ -67,7 +63,7 @@ export type TerminalToolExecution = {
 };
 
 const COMPLETE_TURN_DESCRIPTION =
-  'Set to false only when another tool call must still run after this one, because this call alone cannot finish the user request — a reminder split (update a recurring reminder, then create the remaining schedules, or vice versa) or a save/process/send chain (save files, then send one, or save a file, then read it). Leave it unset otherwise: a short confirmation is generated for you from the result, so do not set false merely to add commentary, restate the result, or offer follow-up suggestions. Several independent calls that together finish the request all keep the default.';
+  'Set to false only when another tool call must still run after this one, because this call alone cannot finish the user request — a reminder split (update a recurring reminder, then create the remaining schedules, or vice versa), creating a contact group before assigning contacts, or a save/process/send chain (save files, then send one, or save a file, then read it). Leave it unset otherwise: a short confirmation is generated for you from the result, so do not set false merely to add commentary, restate the result, or offer follow-up suggestions. Several independent calls that together finish the request all keep the default.';
 
 /**
  * Model-facing input schema for one tool. Eligible tools gain the optional
@@ -133,15 +129,46 @@ export function buildTerminalToolResponse(
     if (requestsFollowUp(execution.arguments)) return null;
   }
 
-  const messages: string[] = [];
+  // Batch compact receipts by action at its first occurrence. Creations and
+  // updates remain separate so the confirmation describes what happened.
+  const groups: Array<{ toolName: string; results: unknown[] }> = [];
+  const receiptGroups = new Map<string, unknown[]>();
 
   for (const execution of executions) {
     if (!TERMINAL_TOOL_NAMES.has(execution.toolName)) return null;
 
-    const formatter = FORMATTER_ENTRIES[execution.toolName];
+    if (isTaskTool(execution.toolName) || isReceiptTool(execution.toolName)) {
+      const existing = receiptGroups.get(execution.toolName);
+
+      if (existing) {
+        existing.push(execution.result);
+        continue;
+      }
+
+      const results = [execution.result];
+      receiptGroups.set(execution.toolName, results);
+      groups.push({ toolName: execution.toolName, results });
+    } else {
+      groups.push({
+        toolName: execution.toolName,
+        results: [execution.result],
+      });
+    }
+  }
+
+  const messages: string[] = [];
+
+  for (const group of groups) {
+    const name = group.toolName;
+    const formatter: Formatter | undefined = isTaskTool(name)
+      ? (context) => taskAck(context, name, group.results)
+      : isReceiptTool(name)
+        ? (context) => receiptAck(context, name, group.results)
+        : FORMATTER_ENTRIES[name];
+
     if (!formatter) return null;
 
-    const message = safeMessage(context, formatter, execution.result);
+    const message = safeMessage(context, formatter, group.results[0]);
     if (!message) return null;
 
     messages.push(message);
@@ -178,7 +205,14 @@ function safeMessage(
     return typeof message === 'string' && message.trim()
       ? message.trim()
       : null;
-  } catch {
+  } catch (error) {
+    // Degraded mode: hand the turn back to the model, but retain evidence that
+    // a formatter failed. Do not log tool results or personal task content.
+    Logger.warn(
+      `Acknowledgement formatter failed (${error instanceof Error ? error.name : typeof error}); continuing with model response.`,
+      'TerminalToolResponse',
+    );
+
     return null;
   }
 }
@@ -255,6 +289,16 @@ const HEADINGS: Readonly<
     id: 'Pengingat diperbarui',
   },
   store_secret: { icon: '🔐', en: 'Secret stored', id: 'Rahasia disimpan' },
+  delete_reminder: {
+    icon: '🗑️',
+    en: 'Reminder deleted',
+    id: 'Pengingat dihapus',
+  },
+  create_contact_group: {
+    icon: '🏷️',
+    en: 'Contact group ready',
+    id: 'Grup kontak tersedia',
+  },
   create_secret_reveal_link: {
     icon: '🔗',
     en: 'Reveal link created',
@@ -313,9 +357,8 @@ type BlockOptions = {
  * Renders one block: the icon and heading, a blank line, then the subject and
  * its detail lines. The web chat gets markdown bold on the heading and subject
  * so the block scans as one object; channels get the identical layout without
- * markup, because they render the text literally. A card-backed tool on the web
- * collapses to the bare heading, since the card beside it already carries the
- * detail.
+ * markup, because they render the text literally. This legacy layout remains
+ * for categories, secrets, and daily notes.
  */
 function renderAcknowledgement(
   context: TerminalResponseContext,
@@ -335,8 +378,6 @@ function renderAcknowledgement(
       : pick(context.locale, en, id));
 
   const rich = context.channel === undefined;
-
-  if (rich && CARD_BACKED_TOOL_NAMES[name]) return `${icon} ${heading}`;
 
   const body: string[] = [];
 
@@ -422,23 +463,6 @@ function utcLabel(value: unknown): string | null {
   const parts = zoneParts(instant, 'UTC');
 
   return parts ? `${parts.date} ${parts.time} UTC` : null;
-}
-
-function rangeLabel(
-  start: unknown,
-  end: unknown,
-  timezone: unknown,
-): string | null {
-  const from = instantOf(start);
-  const to = instantOf(end);
-  if (!from || !to) return null;
-  const first = zoneParts(from, timezone);
-  const last = zoneParts(to, timezone);
-  if (!first || !last) return null;
-
-  return first.date === last.date
-    ? `${first.date} ${first.time}–${last.time}`
-    : `${first.date} ${first.time}–${last.date} ${last.time}`;
 }
 
 /** Absolute http(s) link, or null when the result is not one. */
@@ -580,22 +604,6 @@ function recurrencePhrase(
   );
 }
 
-/** `2026-09-22 17:00 (daily)`, with the repeat only when there is one. */
-function reminderTime(
-  locale: SupportedLocale,
-  reminder: Record<string, unknown>,
-): string | null {
-  const at = zonedLabel(reminder.scheduledAt, reminder.timezone);
-  if (!at) return null;
-
-  if (reminder.recurrence === null || reminder.recurrence === undefined)
-    return at;
-
-  const repeat = recurrencePhrase(locale, reminder.recurrence);
-
-  return repeat ? `${at} (${repeat})` : null;
-}
-
 /**
  * Names of a `{ name }[]` field — task categories, contact groups. A malformed
  * entry returns null so the caller refuses the whole acknowledgement.
@@ -618,47 +626,611 @@ function namedValues(value: unknown): string[] | null {
 
 function taskAck(
   context: TerminalResponseContext,
-  name: 'create_task' | 'update_task',
-  result: unknown,
+  name: TaskToolName,
+  results: readonly unknown[],
 ): string | null {
-  const object = wrappedObject(result, 'task');
-  if (!object) return null;
+  const rich = context.channel === undefined;
+  const entries = new Map<string, string>();
 
-  const title = asText(object.title);
-  if (!title) return null;
+  for (const result of results) {
+    const object = wrappedObject(result, 'task');
+    if (!object) return null;
 
-  const details: string[] = [];
+    // Task titles can be up to 240 characters. Keep the full title so the web
+    // renderer can match the saved entity instead of appending a second pill.
+    const title = asText(object.title, 240);
+    if (!title) return null;
 
-  if (object.dueAt !== null && object.dueAt !== undefined) {
-    const due = context.timezone
-      ? zonedLabel(object.dueAt, context.timezone)
-      : utcLabel(object.dueAt);
+    const details: string[] = [];
 
-    if (!due) return null;
+    if (object.dueAt !== null && object.dueAt !== undefined) {
+      const instant = instantOf(object.dueAt);
+      if (!instant) return null;
 
-    details.push(`🗓️ ${pick(context.locale, `Due ${due}`, `Tenggat ${due}`)}`);
+      const due = new Intl.DateTimeFormat(
+        context.locale === 'id' ? 'id-ID' : 'en-GB',
+        {
+          timeZone: context.timezone ?? 'UTC',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        },
+      ).format(instant);
+
+      const labelled = context.timezone ? due : `${due} UTC`;
+      details.push(
+        pick(context.locale, `Due ${labelled}`, `Tenggat ${labelled}`),
+      );
+    }
+
+    const priority = object.priority;
+
+    if (priority !== null && priority !== undefined) {
+      if (priority !== 'low' && priority !== 'medium' && priority !== 'high')
+        return null;
+      if (priority !== 'medium')
+        details.push(
+          `${pick(context.locale, 'Priority', 'Prioritas')} ${priorityLabel(context.locale, priority)}`,
+        );
+    }
+
+    const categories =
+      object.categories === null || object.categories === undefined
+        ? []
+        : namedValues(object.categories);
+
+    if (!categories) return null;
+
+    if (categories.length > 0) {
+      const labels = joined(categories);
+      details.push(
+        `${pick(context.locale, 'Categories', 'Kategori')}: ${rich ? escapeReceiptMarkdown(labels) : labels}`,
+      );
+    }
+
+    // Replayed results for one saved task count once; keep its newest snapshot.
+    // Legacy results without IDs remain supported as distinct entries.
+    const id = object.id === undefined ? null : asText(object.id);
+    if (object.id !== undefined && !id) return null;
+    const subject = rich ? `**${escapeReceiptMarkdown(title)}**` : title;
+    const row =
+      details.length > 0 ? `${subject} — ${details.join(' · ')}` : subject;
+
+    entries.set(id ? `task:${id}` : `legacy:${entries.size}`, `- ${row}`);
   }
 
-  const priority = object.priority;
+  if (entries.size === 0) return null;
+  const verb =
+    name === 'create_task'
+      ? pick(context.locale, 'created', 'dibuat')
+      : pick(context.locale, 'updated', 'diperbarui');
 
-  if (priority !== null && priority !== undefined) {
-    if (priority !== 'low' && priority !== 'medium' && priority !== 'high')
-      return null;
-    if (priority !== 'medium')
-      details.push(
-        `⚡ ${pick(context.locale, 'Priority', 'Prioritas')} ${priorityLabel(context.locale, priority)}`,
+  const heading =
+    entries.size === 1
+      ? pick(
+          context.locale,
+          `All set, your task has been ${verb}.`,
+          `Siap, tugasnya sudah ${verb}.`,
+        )
+      : pick(
+          context.locale,
+          `All set, ${entries.size} tasks have been ${verb}.`,
+          `Siap, ${entries.size} tugas sudah ${verb}.`,
+        );
+
+  return `${heading}\n\n${[...entries.values()].join('\n')}`;
+}
+
+/** Escape user text before adding Markdown; entity pills match rendered text. */
+function escapeReceiptMarkdown(value: string): string {
+  return value.replace(/([\\`*_[\]<>!#|~])/g, '\\$1');
+}
+
+type ReceiptItem = {
+  subject: string;
+  id?: string;
+  details: string[];
+  /** A legacy file without entity identity still needs an accessible URL. */
+  url?: string;
+};
+type ReceiptDefinition = {
+  noun: [en: string, enPlural: string, id: string];
+  verb: [en: string, id: string];
+  /** Group creation may reuse an existing group, so confirm availability. */
+  available?: boolean;
+  items: (
+    context: TerminalResponseContext,
+    result: unknown,
+  ) => ReceiptItem[] | null;
+};
+
+const RECEIPTS = {
+  delete_reminder: {
+    noun: ['reminder', 'reminders', 'pengingat'],
+    verb: ['deleted', 'dihapus'],
+    items: deletedReminderItems,
+  },
+  create_contact_group: {
+    noun: ['contact group', 'contact groups', 'grup kontak'],
+    verb: ['ready', 'tersedia'],
+    available: true,
+    items: groupItems,
+  },
+  create_reminder: {
+    noun: ['reminder', 'reminders', 'pengingat'],
+    verb: ['created', 'dibuat'],
+    items: reminderItems,
+  },
+  update_reminder: {
+    noun: ['reminder', 'reminders', 'pengingat'],
+    verb: ['updated', 'diperbarui'],
+    items: updatedReminderItems,
+  },
+  save_contact: {
+    noun: ['contact', 'contacts', 'kontak'],
+    verb: ['saved', 'disimpan'],
+    items: contactItems,
+  },
+  update_contact_group: {
+    noun: ['contact group', 'contact groups', 'grup kontak'],
+    verb: ['updated', 'diperbarui'],
+    items: groupItems,
+  },
+  delete_contact_group: {
+    noun: ['contact group', 'contact groups', 'grup kontak'],
+    verb: ['deleted', 'dihapus'],
+    items: deletedGroupItems,
+  },
+  assign_contact_groups: {
+    noun: ['contact', 'contacts', 'kontak'],
+    verb: ['updated', 'diperbarui'],
+    items: assignedGroupItems,
+  },
+  save_attached_files: {
+    noun: ['file', 'files', 'file'],
+    verb: ['saved', 'disimpan'],
+    items: savedFileItems,
+  },
+  send_file: {
+    noun: ['file', 'files', 'file'],
+    verb: ['sent', 'dikirim'],
+    items: sentFileItems,
+  },
+  create_calendar_event: {
+    noun: ['event', 'events', 'acara'],
+    verb: ['created', 'dibuat'],
+    items: eventItems,
+  },
+  update_calendar_event: {
+    noun: ['event', 'events', 'acara'],
+    verb: ['updated', 'diperbarui'],
+    items: eventItems,
+  },
+  cancel_calendar_event: {
+    noun: ['event', 'events', 'acara'],
+    verb: ['cancelled', 'dibatalkan'],
+    items: cancelledEventItems,
+  },
+} satisfies Record<string, ReceiptDefinition>;
+
+type ReceiptToolName = keyof typeof RECEIPTS;
+
+function isReceiptTool(name: string): name is ReceiptToolName {
+  return Object.hasOwn(RECEIPTS, name);
+}
+
+/** Validates the whole batch before emitting a confirmation; latest IDs count once. */
+function receiptAck(
+  context: TerminalResponseContext,
+  name: ReceiptToolName,
+  results: readonly unknown[],
+): string | null {
+  const definition: ReceiptDefinition = RECEIPTS[name];
+  const entries = new Map<string, ReceiptItem>();
+
+  for (const result of results) {
+    const items = definition.items(context, result);
+    if (!items || items.length === 0) return null;
+    for (const item of items)
+      entries.set(
+        item.id ? `entity:${item.id}` : `legacy:${entries.size}`,
+        item,
       );
   }
 
-  const categories =
-    object.categories === null || object.categories === undefined
-      ? []
-      : namedValues(object.categories);
+  if (entries.size === 0) return null;
+  const [en, plural, id] = definition.noun;
+  const [enVerb, idVerb] = definition.verb;
+  const heading =
+    entries.size === 1
+      ? pick(
+          context.locale,
+          definition.available
+            ? `All set, your ${en} is ready.`
+            : `All set, your ${en} has been ${enVerb}.`,
+          `Siap, ${id}nya sudah ${idVerb}.`,
+        )
+      : pick(
+          context.locale,
+          definition.available
+            ? `All set, ${entries.size} ${plural} are ready.`
+            : `All set, ${entries.size} ${plural} have been ${enVerb}.`,
+          `Siap, ${entries.size} ${id} sudah ${idVerb}.`,
+        );
 
-  if (!categories) return null;
-  if (categories.length > 0) details.push(`🏷️ ${joined(categories)}`);
+  const rich = context.channel === undefined;
+  const rows = [...entries.values()].map((item) => {
+    const title = rich ? escapeReceiptMarkdown(item.subject) : item.subject;
+    const subject = rich
+      ? item.url
+        ? `[${title}](${item.url.replace(/\(/g, '%28').replace(/\)/g, '%29')})`
+        : `**${title}**`
+      : title;
 
-  return renderAcknowledgement(context, name, { subject: title, details });
+    const details = item.details.map((detail) =>
+      rich ? escapeReceiptMarkdown(detail) : detail,
+    );
+
+    return `- ${subject}${details.length ? ` — ${details.join(' · ')}` : ''}`;
+  });
+
+  return `${heading}\n\n${rows.join('\n')}`;
+}
+
+/** Preserve full names so rendered titles still match existing entity pills. */
+function receiptItem(
+  object: Record<string, unknown>,
+  field: string,
+  idField = 'id',
+): ReceiptItem | null {
+  const subject = asText(object[field], Infinity);
+  if (!subject) return null;
+  const id =
+    object[idField] === undefined ? undefined : asText(object[idField]);
+
+  if (object[idField] !== undefined && !id) return null;
+
+  return { subject, ...(id ? { id } : {}), details: [] };
+}
+
+function receiptDate(
+  context: TerminalResponseContext,
+  value: unknown,
+  zone: string | undefined,
+  time = true,
+): string | null {
+  const instant = instantOf(value);
+  if (!instant) return null;
+  const label = new Intl.DateTimeFormat(
+    context.locale === 'id' ? 'id-ID' : 'en-GB',
+    {
+      timeZone: zone ?? 'UTC',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      ...(time
+        ? ({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const)
+        : {}),
+    },
+  ).format(instant);
+
+  return zone ? label : `${label} UTC`;
+}
+
+function reminderItem(
+  context: TerminalResponseContext,
+  object: Record<string, unknown>,
+): ReceiptItem | null {
+  const item = receiptItem(object, 'title');
+  const zone =
+    context.timezone ??
+    (typeof object.timezone === 'string' ? object.timezone : undefined);
+
+  const at = receiptDate(context, object.scheduledAt, zone);
+  if (!item || !at) return null;
+  item.details.push(pick(context.locale, `At ${at}`, `Pada ${at}`));
+
+  if (object.recurrence != null) {
+    const repeat = recurrencePhrase(context.locale, object.recurrence);
+    if (!repeat) return null;
+    item.details.push(repeat);
+    const rule = asRecord(object.recurrence)!;
+
+    if (rule.endsAt != null) {
+      const end = receiptDate(context, rule.endsAt, zone);
+      if (!end) return null;
+      item.details.push(pick(context.locale, `Until ${end}`, `Hingga ${end}`));
+    }
+  }
+
+  return item;
+}
+
+function reminderItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const record = asRecord(result);
+  const reminders = record ? asList(record.reminders) : null;
+  if (!reminders) return null;
+  const items: ReceiptItem[] = [];
+
+  for (const value of reminders) {
+    const object = asRecord(value);
+    const item = object ? reminderItem(context, object) : null;
+    if (!item) return null;
+    items.push(item);
+  }
+
+  return items;
+}
+
+function updatedReminderItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = wrappedObject(result, 'reminder');
+  const item = object ? reminderItem(context, object) : null;
+
+  return item ? [item] : null;
+}
+
+function deletedReminderItems(
+  _context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = asRecord(result);
+  if (!object || object.deleted !== true) return null;
+  const item = receiptItem(object, 'title', 'reminderId');
+  if (!item?.id) return null;
+
+  return [item];
+}
+
+function contactItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = wrappedObject(result, 'contact');
+  const item = object ? receiptItem(object, 'name') : null;
+  if (!object || !item) return null;
+
+  for (const field of ['email', 'phone']) {
+    if (object[field] == null) continue;
+    const value = asText(object[field]);
+    if (!value) return null;
+    item.details.push(value);
+  }
+
+  if (object.groups != null) {
+    const groups = namedValues(object.groups);
+    if (!groups) return null;
+    if (groups.length)
+      item.details.push(
+        `${pick(context.locale, 'Groups', 'Grup')}: ${joined(groups)}`,
+      );
+  }
+
+  return [item];
+}
+
+function groupItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = wrappedObject(result, 'contact_group');
+  const item = object ? receiptItem(object, 'name') : null;
+  if (!object || !item) return null;
+
+  if (object.contactCount != null) {
+    const count = object.contactCount;
+    if (typeof count !== 'number' || !Number.isInteger(count) || count < 0)
+      return null;
+    item.details.push(
+      pick(
+        context.locale,
+        `${count} ${count === 1 ? 'contact' : 'contacts'}`,
+        `${count} kontak`,
+      ),
+    );
+  }
+
+  return [item];
+}
+
+function deletedGroupItems(
+  _context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = wrappedObject(result, 'contact_group');
+  const item = object ? receiptItem(object, 'name') : null;
+
+  return item ? [item] : null;
+}
+
+function assignedGroupItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const items = contactItems(context, result);
+  const object = wrappedObject(result, 'contact');
+  if (!items || !object) return null;
+  const groups = namedValues(object.groups);
+  if (!groups) return null;
+  // Membership updates show the resulting groups, without unrelated contact data.
+  items[0]!.details = [
+    groups.length
+      ? `${pick(context.locale, 'Groups', 'Grup')}: ${joined(groups)}`
+      : pick(context.locale, 'No groups', 'Tanpa grup'),
+  ];
+
+  return items;
+}
+
+function fileDetails(
+  context: TerminalResponseContext,
+  object: Record<string, unknown>,
+): string[] | null {
+  const details: string[] = [];
+
+  if (object.mimeType != null) {
+    const mime = asText(object.mimeType);
+    if (!mime) return null;
+    const formats: Record<string, string> = {
+      'application/pdf': 'PDF',
+      'image/jpeg': 'JPEG',
+      'image/png': 'PNG',
+      'text/plain': 'TXT',
+      'text/csv': 'CSV',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        'DOCX',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+        'XLSX',
+    };
+
+    details.push(formats[mime] ?? mime);
+  }
+
+  if (object.size != null) {
+    const size = object.size;
+    if (typeof size !== 'number' || !Number.isFinite(size) || size < 0)
+      return null;
+    const exponent =
+      size < 1024
+        ? 0
+        : Math.min(3, Math.floor(Math.log(size) / Math.log(1024)));
+
+    const value = new Intl.NumberFormat(
+      context.locale === 'id' ? 'id-ID' : 'en-GB',
+      { maximumFractionDigits: 1 },
+    ).format(size / 1024 ** exponent);
+
+    details.push(`${value} ${['B', 'KB', 'MB', 'GB'][exponent]}`);
+  }
+
+  if (object.status != null) {
+    if (object.status === 'processing')
+      details.push(pick(context.locale, 'Processing', 'Sedang diproses'));
+    else if (object.status === 'failed')
+      details.push(
+        pick(context.locale, 'Processing failed', 'Pemrosesan gagal'),
+      );
+    else if (object.status !== 'ready') return null;
+  }
+
+  return details;
+}
+
+function savedFileItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const record = asRecord(result);
+  const objects =
+    record?.objectType === 'documents' ? asList(record.objects) : null;
+
+  if (!objects) return null;
+  const items: ReceiptItem[] = [];
+
+  for (const value of objects) {
+    const object = asRecord(value);
+    const item = object ? receiptItem(object, 'filename') : null;
+    const details = object ? fileDetails(context, object) : null;
+    if (!item || !details) return null;
+    item.details = details;
+    items.push(item);
+  }
+
+  return items;
+}
+
+function sentFileItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = wrappedObject(result, 'file');
+  const item = object ? receiptItem(object, 'filename', 'documentId') : null;
+  if (!object || !item) return null;
+
+  if (object.url == null) {
+    if (object.providerMessageId == null) return null;
+    item.details.push(
+      pick(
+        context.locale,
+        'Sent as an attachment',
+        'Terkirim sebagai lampiran',
+      ),
+    );
+  } else {
+    const url = httpUrl(object.url);
+    if (!url) return null;
+    // On web, an identified file already has a pill with download access.
+    if (context.channel !== undefined) item.details.push(url);
+    else if (!item.id) item.url = url;
+  }
+
+  return [item];
+}
+
+function eventItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = wrappedObject(result, 'calendar_event');
+  const item = object ? receiptItem(object, 'title') : null;
+  if (!object || !item) return null;
+  const zone =
+    context.timezone ??
+    (typeof object.timezone === 'string' ? object.timezone : undefined);
+
+  const from = instantOf(object.startAt);
+  const to = instantOf(object.endAt);
+  if (!from || !to || to <= from) return null;
+  const start = receiptDate(context, from, zone);
+  const end = receiptDate(context, to, zone);
+  if (!start || !end) return null;
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: zone ?? 'UTC' });
+  const clock = new Intl.DateTimeFormat(
+    context.locale === 'id' ? 'id-ID' : 'en-GB',
+    {
+      timeZone: zone ?? 'UTC',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    },
+  );
+
+  const sameDay = day.format(from) === day.format(to);
+  const range = sameDay
+    ? `${start.replace(/ UTC$/, '')}–${clock.format(to)}${zone ? '' : ' UTC'}`
+    : `${start}–${end}`;
+
+  item.details.push(range);
+
+  if (object.location != null) {
+    const location = asText(object.location);
+    if (!location) return null;
+    item.details.push(location);
+  }
+
+  return [item];
+}
+
+function cancelledEventItems(
+  context: TerminalResponseContext,
+  result: unknown,
+): ReceiptItem[] | null {
+  const object = wrappedObject(result, 'calendar_event');
+  if (!object || object.status !== 'cancelled') return null;
+  // Legacy cancellation results can contain only identity and confirmed status.
+  if (object.startAt != null || object.endAt != null)
+    return eventItems(context, result);
+  const item = receiptItem(object, 'title');
+
+  return item ? [item] : null;
 }
 
 function categoryAck(
@@ -673,57 +1245,6 @@ function categoryAck(
   if (!label) return null;
 
   return renderAcknowledgement(context, name, { subject: label });
-}
-
-function createReminderAck(
-  context: TerminalResponseContext,
-  result: unknown,
-): string | null {
-  const record = asRecord(result);
-  const reminders = record ? asList(record.reminders) : null;
-  if (!reminders || reminders.length === 0) return null;
-
-  const entries: Array<{ title: string; time: string }> = [];
-
-  for (const item of reminders) {
-    const reminder = asRecord(item);
-    const title = reminder ? asText(reminder.title) : null;
-    const time = reminder ? reminderTime(context.locale, reminder) : null;
-    if (!title || !time) return null;
-
-    entries.push({ title, time });
-  }
-
-  if (entries.length === 1) {
-    const only = entries[0]!;
-
-    return renderAcknowledgement(context, 'create_reminder', {
-      subject: only.title,
-      details: [`🗓️ ${only.time}`],
-    });
-  }
-
-  return renderAcknowledgement(context, 'create_reminder', {
-    count: entries.length,
-    details: entries.map((entry) => `⏰ ${entry.title} · ${entry.time}`),
-  });
-}
-
-function updateReminderAck(
-  context: TerminalResponseContext,
-  result: unknown,
-): string | null {
-  const object = wrappedObject(result, 'reminder');
-  if (!object) return null;
-
-  const title = asText(object.title);
-  const time = reminderTime(context.locale, object);
-  if (!title || !time) return null;
-
-  return renderAcknowledgement(context, 'update_reminder', {
-    subject: title,
-    details: [`🗓️ ${time}`],
-  });
 }
 
 function revealLinkAck(
@@ -755,214 +1276,6 @@ function revealLinkAck(
   });
 }
 
-function contactAck(
-  context: TerminalResponseContext,
-  result: unknown,
-): string | null {
-  const object = wrappedObject(result, 'contact');
-  if (!object) return null;
-
-  const name = asText(object.name);
-  if (!name) return null;
-
-  const details: string[] = [];
-  const email =
-    object.email === null || object.email === undefined
-      ? null
-      : asText(object.email);
-
-  const phone =
-    object.phone === null || object.phone === undefined
-      ? null
-      : asText(object.phone);
-
-  if (object.email != null && !email) return null;
-  if (object.phone != null && !phone) return null;
-  if (email) details.push(`📧 ${email}`);
-  if (phone) details.push(`📞 ${phone}`);
-
-  const groups =
-    object.groups === null || object.groups === undefined
-      ? []
-      : namedValues(object.groups);
-
-  if (!groups) return null;
-  if (groups.length > 0) details.push(`👥 ${joined(groups)}`);
-
-  return renderAcknowledgement(context, 'save_contact', {
-    subject: name,
-    details,
-  });
-}
-
-function contactGroupAck(
-  context: TerminalResponseContext,
-  name: 'update_contact_group' | 'delete_contact_group',
-  result: unknown,
-): string | null {
-  const object = wrappedObject(result, 'contact_group');
-  if (!object) return null;
-
-  const label = asText(object.name);
-  if (!label) return null;
-
-  return renderAcknowledgement(context, name, { subject: label });
-}
-
-function assignGroupsAck(
-  context: TerminalResponseContext,
-  result: unknown,
-): string | null {
-  const object = wrappedObject(result, 'contact');
-  if (!object) return null;
-
-  const name = asText(object.name);
-  if (!name) return null;
-
-  const groups = namedValues(object.groups);
-  if (!groups) return null;
-
-  return renderAcknowledgement(context, 'assign_contact_groups', {
-    subject: name,
-    details: [
-      groups.length === 0
-        ? `👥 ${pick(context.locale, 'No groups', 'Tanpa grup')}`
-        : `👥 ${joined(groups)}`,
-    ],
-  });
-}
-
-function documentNames(result: unknown): string[] | null {
-  const record = asRecord(result);
-  const objects = record ? asList(record.objects) : null;
-  if (!objects || objects.length === 0) return null;
-
-  const names: string[] = [];
-
-  for (const item of objects) {
-    const document = asRecord(item);
-    const filename = document ? asText(document.filename) : null;
-    if (!filename) return null;
-    names.push(filename);
-  }
-
-  return names;
-}
-
-function saveAttachedFilesAck(
-  context: TerminalResponseContext,
-  result: unknown,
-): string | null {
-  const record = asRecord(result);
-  if (!record || record.objectType !== 'documents') return null;
-
-  const names = documentNames(result);
-  if (!names) return null;
-
-  if (names.length === 1)
-    return renderAcknowledgement(context, 'save_attached_files', {
-      subject: names[0]!,
-    });
-
-  return renderAcknowledgement(context, 'save_attached_files', {
-    count: names.length,
-    details: names.map((name) => `📄 ${name}`),
-  });
-}
-
-function sendFileAck(
-  context: TerminalResponseContext,
-  result: unknown,
-): string | null {
-  const object = wrappedObject(result, 'file');
-  if (!object) return null;
-
-  const filename = asText(object.filename);
-  if (!filename) return null;
-
-  // A channel send returns the provider's message id and no url; the web result
-  // carries the link instead. The shape decides the branch, so a result can
-  // never claim a link it does not have.
-  if (object.url === undefined || object.url === null) {
-    if (
-      object.providerMessageId === undefined ||
-      object.providerMessageId === null
-    )
-      return null;
-
-    return renderAcknowledgement(context, 'send_file', {
-      subject: filename,
-      details: [
-        `📌 ${pick(context.locale, 'Sent as an attachment', 'Terkirim sebagai lampiran')}`,
-      ],
-    });
-  }
-
-  const url = httpUrl(object.url);
-  if (!url) return null;
-
-  // Only the web chat renders markdown, so a channel gets the bare url rather
-  // than a link whose brackets would show up literally in the message.
-  if (context.channel !== undefined)
-    return renderAcknowledgement(context, 'send_file', {
-      subject: filename,
-      details: [`🔗 ${url}`],
-    });
-
-  // Markdown link text must not close its own brackets.
-  const linkText = filename
-    .replace(/[[\]()]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!linkText) return null;
-
-  return renderAcknowledgement(context, 'send_file', {
-    subject: filename,
-    details: [`🔗 [${linkText}](${url})`],
-  });
-}
-
-function calendarEventAck(
-  context: TerminalResponseContext,
-  name: 'create_calendar_event' | 'update_calendar_event',
-  result: unknown,
-): string | null {
-  const object = wrappedObject(result, 'calendar_event');
-  if (!object) return null;
-
-  const title = asText(object.title);
-  const range = rangeLabel(object.startAt, object.endAt, object.timezone);
-  if (!title || !range) return null;
-
-  const details = [`🗓️ ${range}`];
-  const location =
-    object.location === null || object.location === undefined
-      ? null
-      : asText(object.location);
-
-  if (object.location != null && !location) return null;
-  if (location) details.push(`📍 ${location}`);
-
-  return renderAcknowledgement(context, name, { subject: title, details });
-}
-
-function cancelCalendarEventAck(
-  context: TerminalResponseContext,
-  result: unknown,
-): string | null {
-  const object = wrappedObject(result, 'calendar_event');
-  if (!object || object.status !== 'cancelled') return null;
-
-  const title = asText(object.title);
-  if (!title) return null;
-
-  return renderAcknowledgement(context, 'cancel_calendar_event', {
-    subject: title,
-    details: [`📌 ${pick(context.locale, 'Cancelled', 'Dibatalkan')}`],
-  });
-}
-
 function writeDailyNoteAck(
   context: TerminalResponseContext,
   result: unknown,
@@ -978,14 +1291,20 @@ function writeDailyNoteAck(
 }
 
 const FORMATTER_ENTRIES: Readonly<Record<string, Formatter>> = {
-  create_task: (context, result) => taskAck(context, 'create_task', result),
-  update_task: (context, result) => taskAck(context, 'update_task', result),
+  delete_reminder: (context, result) =>
+    receiptAck(context, 'delete_reminder', [result]),
+  create_contact_group: (context, result) =>
+    receiptAck(context, 'create_contact_group', [result]),
+  create_task: (context, result) => taskAck(context, 'create_task', [result]),
+  update_task: (context, result) => taskAck(context, 'update_task', [result]),
   update_category: (context, result) =>
     categoryAck(context, 'update_category', result),
   delete_category: (context, result) =>
     categoryAck(context, 'delete_category', result),
-  create_reminder: createReminderAck,
-  update_reminder: updateReminderAck,
+  create_reminder: (context, result) =>
+    receiptAck(context, 'create_reminder', [result]),
+  update_reminder: (context, result) =>
+    receiptAck(context, 'update_reminder', [result]),
   store_secret: (context, result) => {
     const object = wrappedObject(result, 'secret');
     const label = object ? asText(object.label) : null;
@@ -995,18 +1314,22 @@ const FORMATTER_ENTRIES: Readonly<Record<string, Formatter>> = {
       : null;
   },
   create_secret_reveal_link: revealLinkAck,
-  save_contact: contactAck,
+  save_contact: (context, result) =>
+    receiptAck(context, 'save_contact', [result]),
   update_contact_group: (context, result) =>
-    contactGroupAck(context, 'update_contact_group', result),
+    receiptAck(context, 'update_contact_group', [result]),
   delete_contact_group: (context, result) =>
-    contactGroupAck(context, 'delete_contact_group', result),
-  assign_contact_groups: assignGroupsAck,
-  save_attached_files: saveAttachedFilesAck,
-  send_file: sendFileAck,
+    receiptAck(context, 'delete_contact_group', [result]),
+  assign_contact_groups: (context, result) =>
+    receiptAck(context, 'assign_contact_groups', [result]),
+  save_attached_files: (context, result) =>
+    receiptAck(context, 'save_attached_files', [result]),
+  send_file: (context, result) => receiptAck(context, 'send_file', [result]),
   create_calendar_event: (context, result) =>
-    calendarEventAck(context, 'create_calendar_event', result),
+    receiptAck(context, 'create_calendar_event', [result]),
   update_calendar_event: (context, result) =>
-    calendarEventAck(context, 'update_calendar_event', result),
-  cancel_calendar_event: cancelCalendarEventAck,
+    receiptAck(context, 'update_calendar_event', [result]),
+  cancel_calendar_event: (context, result) =>
+    receiptAck(context, 'cancel_calendar_event', [result]),
   write_daily_note: writeDailyNoteAck,
 } satisfies Record<TerminalToolName, Formatter>;

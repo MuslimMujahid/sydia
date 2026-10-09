@@ -113,6 +113,160 @@ const invocations = records.map((record) =>
 const content =
   "Tugas **Baca buku** dibuat untuk hari ini. Pengingat Minum obat dijadwalkan.\n\nBuka [Invoice.pdf](http://localhost:5000/documents/document-1/content). Acara Rapat tim tersimpan.\n\n`Baca buku` tetap berupa kode. [Baca buku](https://example.test) tetap berupa tautan.\n\n| Jenis | Item |\n| --- | --- |\n| Tugas | Baca buku |";
 
+// Snapshot of the task formatter's Indonesian web receipt. Metadata remains
+// ordinary message text; only saved task names become interactive entity pills.
+const taskReceipt =
+  "Siap, tugasnya sudah dibuat.\n\n- **Baca buku** — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi";
+
+const taskBatchReceipt =
+  "Siap, 3 tugas sudah dibuat.\n\n- **Baca buku** — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi\n- **Kirim proposal** — Tenggat 9 Okt 2026, 11.00\n- **Beli perlengkapan kantor**";
+
+// Representative model response following the task-list system policy.
+const taskList =
+  "Ada 3 tugas yang belum selesai:\n\n- **Baca buku** — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi · Sedang dikerjakan\n- **Kirim proposal** — Tenggat 9 Okt 2026, 11.00\n- **Beli perlengkapan kantor**";
+
+const taskListInvocations = [
+  invocation("list-tasks", "list_tasks", {
+    tasks: [
+      { ...records[0].output.object, status: "doing", priority: "high" },
+      {
+        id: "task-2",
+        title: "Kirim proposal",
+        status: "inbox",
+        dueAt: "2026-10-09T03:00:00.000Z",
+        priority: "medium",
+      },
+      {
+        id: "task-3",
+        title: "Beli perlengkapan kantor",
+        status: "inbox",
+        dueAt: null,
+        priority: "medium",
+      },
+    ],
+  }),
+];
+
+const taskReceiptInvocations = [
+  invocation("receipt-task-1", "create_task", {
+    objectType: "task",
+    object: { ...records[0].output.object, priority: "high" },
+  }),
+  invocation("receipt-task-2", "create_task", {
+    objectType: "task",
+    object: {
+      id: "task-2",
+      title: "Kirim proposal",
+      status: "inbox",
+      dueAt: "2026-10-09T03:00:00.000Z",
+      priority: "medium",
+    },
+  }),
+  invocation("receipt-task-3", "create_task", {
+    objectType: "task",
+    object: {
+      id: "task-3",
+      title: "Beli perlengkapan kantor",
+      status: "inbox",
+      dueAt: null,
+      priority: "medium",
+    },
+  }),
+];
+
+const compactReminder = {
+  id: "reminder-1",
+  title: "Minum obat",
+  scheduledAt: "2026-10-13T09:00:00.000Z",
+  timezone: "Asia/Makassar",
+  recurrence: { frequency: "weekly", interval: 1, daysOfWeek: [2, 4] },
+};
+
+const compactFile = {
+  id: "document-1",
+  filename: "Invoice.pdf",
+  mimeType: "application/pdf",
+  size: 153600,
+  status: "ready",
+};
+
+const compactContact = {
+  id: "contact-1",
+  name: "Bu Rina",
+  email: "rina@example.test",
+  phone: "+62 811 000",
+  groups: [{ id: "group-1", name: "Teman Kerja" }],
+};
+
+const compactGroup = { id: "group-1", name: "Teman Kerja", contactCount: 2 };
+
+// Snapshots of compact mutation receipts, and a representative model list reply.
+const compactRows = [
+  "- **Minum obat** — Pada 13 Okt 2026, 17.00 · mingguan pada Selasa, Kamis",
+  "- **Rapat tim** — 8 Okt 2026, 16.00–17.00 · Kantor",
+  "- **Invoice.pdf** — PDF · 150 KB",
+  "- **Bu Rina** — rina@example.test · +62 811 000 · Grup: Teman Kerja",
+  "- **Teman Kerja** — 2 kontak",
+];
+
+const compactReceipts = [
+  `Siap, pengingatnya sudah dibuat.\n\n${compactRows[0]}`,
+  `Siap, acaranya sudah dibuat.\n\n${compactRows[1]}`,
+  `Siap, filenya sudah disimpan.\n\n${compactRows[2]}`,
+  `Siap, kontaknya sudah disimpan.\n\n${compactRows[3]}`,
+  `Siap, grup kontaknya sudah diperbarui.\n\n${compactRows[4]}`,
+].join("\n\n");
+
+const compactLists = [
+  `Ada 1 pengingat:\n\n${compactRows[0]}`,
+  `Ada 1 acara:\n\n${compactRows[1]}`,
+  `Ada 1 file:\n\n${compactRows[2]}`,
+  `Ada 1 kontak:\n\n${compactRows[3]}`,
+  `Ada 1 grup kontak:\n\n${compactRows[4]}`,
+].join("\n\n");
+
+const compactReceiptInvocations = [
+  invocation("compact-reminder", "create_reminder", {
+    reminders: [compactReminder],
+  }),
+  invocation("compact-event", "create_calendar_event", records[3].output),
+  invocation("compact-file", "save_attached_files", {
+    objectType: "documents",
+    objects: [compactFile],
+  }),
+  invocation("compact-contact", "save_contact", {
+    objectType: "contact",
+    object: compactContact,
+  }),
+  invocation("compact-group", "update_contact_group", {
+    objectType: "contact_group",
+    object: compactGroup,
+  }),
+];
+
+const compactListInvocations = [
+  invocation("list-reminders", "list_reminders", {
+    reminders: [
+      {
+        id: compactReminder.id,
+        title: compactReminder.title,
+        date: "2026-10-13",
+        time: "17:00",
+        weekday: "Tuesday",
+        recurrence: compactReminder.recurrence,
+      },
+    ],
+  }),
+  invocation("list-events", "list_calendar_events", {
+    events: [records[3].output.object],
+  }),
+  invocation("list-files", "list_documents", { documents: [compactFile] }),
+  invocation("list-contacts", "list_contacts", { contacts: [compactContact] }),
+  invocation("list-groups", "list_contact_groups", {
+    contactGroups: [compactGroup],
+  }),
+];
+
 function CompactReminders() {
   const query = useQuery(remindersQueryOptions());
 
@@ -157,7 +311,20 @@ function Harness() {
     id: "answer-1",
     conversationId: "conversation-1",
     role: "assistant",
-    content: mode === "fallback" ? "Tugas dibuat." : content,
+    content:
+      mode === "compact-receipts"
+        ? compactReceipts
+        : mode === "compact-lists"
+          ? compactLists
+          : mode === "task-receipt"
+            ? taskReceipt
+            : mode === "task-batch"
+              ? taskBatchReceipt
+              : mode === "task-list"
+                ? taskList
+                : mode === "fallback"
+                  ? "Tugas dibuat."
+                  : content,
     createdAt: timestamp,
     attachments: [],
   };
@@ -198,11 +365,21 @@ function Harness() {
           },
         ]}
         toolInvocations={
-          mode === "fallback"
-            ? invocations.slice(0, 1)
-            : mode === "sources"
-              ? [...invocations, sources]
-              : [...invocations]
+          mode === "compact-receipts"
+            ? compactReceiptInvocations
+            : mode === "compact-lists"
+              ? compactListInvocations
+              : mode === "task-receipt"
+                ? taskReceiptInvocations.slice(0, 1)
+                : mode === "task-batch"
+                  ? taskReceiptInvocations
+                  : mode === "task-list"
+                    ? taskListInvocations
+                    : mode === "fallback"
+                      ? invocations.slice(0, 1)
+                      : mode === "sources"
+                        ? [...invocations, sources]
+                        : [...invocations]
         }
         isSending={false}
         onRetry={() => {
