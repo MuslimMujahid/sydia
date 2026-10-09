@@ -25,15 +25,10 @@ import {
 import { NotificationComposerService } from './notification-composer.service';
 import { NotificationService } from './notification.service';
 import { localeOf } from '../../shared/locale';
+import { renderBriefingBody } from './notification-formatting';
 
 const BRIEFING_MAX_OUTPUT_TOKENS = 400;
 const BRIEFING_TEMPERATURE = 0.5;
-
-function itemLines(items: readonly { title: string }[]): string {
-  return items.length
-    ? items.map((item) => `- ${item.title}`).join('\n')
-    : '- none';
-}
 
 @Injectable()
 export class DailyBriefingService {
@@ -110,12 +105,26 @@ export class DailyBriefingService {
         })),
     };
 
-    const content = await this.compose(user, snapshot);
+    const introduction = await this.compose(user, snapshot);
+    const format = { locale: localeOf(user.locale), timezone: user.timezone };
+    const contentByChannel = {
+      telegram: renderBriefingBody(
+        { ...format, rich: true },
+        snapshot,
+        introduction,
+      ),
+      whatsapp: renderBriefingBody(
+        { ...format, rich: false },
+        snapshot,
+        introduction,
+      ),
+    };
 
     const result = await this.notifications.enqueue({
       userId,
       kind: 'daily_briefing',
-      content,
+      content: contentByChannel.telegram,
+      contentByChannel,
       idempotencyKey: requestId
         ? `dev-briefing:${requestId}`
         : `briefing:${window.date}`,
@@ -132,9 +141,8 @@ export class DailyBriefingService {
   }
 
   /**
-   * Model first, template second. The deterministic version is not a degraded
-   * mode to avoid: when the provider is unconfigured, slow, or returns nothing
-   * usable, a correct plain briefing still reaches the user.
+   * Generate the persona introduction once. Degraded mode uses a localized
+   * introduction while retaining the same complete, formatted record lists.
    */
   private async compose(
     user: Pick<
@@ -143,7 +151,13 @@ export class DailyBriefingService {
     >,
     snapshot: BriefingSnapshot,
   ): Promise<string> {
-    if (!this.model) return this.fallback(snapshot);
+    if (!this.model) {
+      this.logger.warn(
+        'Briefing model is unconfigured; using deterministic introduction.',
+      );
+
+      return this.fallback(user, snapshot);
+    }
 
     try {
       const result = await this.model.generate({
@@ -158,27 +172,41 @@ export class DailyBriefingService {
         maxOutputTokens: BRIEFING_MAX_OUTPUT_TOKENS,
       });
 
-      return result.text.trim() || this.fallback(snapshot);
+      const introduction = result.text.trim();
+      if (introduction) return introduction;
+      this.logger.warn(
+        'Briefing model returned empty text; using deterministic introduction.',
+      );
+
+      return this.fallback(user, snapshot);
     } catch (error) {
       this.logger.warn(
         `Briefing generation failed, using the deterministic briefing: ${error instanceof Error ? error.message : String(error)}`,
       );
 
-      return this.fallback(snapshot);
+      return this.fallback(user, snapshot);
     }
   }
 
-  private fallback(snapshot: BriefingSnapshot): string {
-    const lines = (items: readonly { title: string }[]) => itemLines(items);
+  private fallback(
+    user: Pick<User, 'locale'>,
+    snapshot: BriefingSnapshot,
+  ): string {
+    const empty =
+      snapshot.events.length +
+        snapshot.tasksDueToday.length +
+        snapshot.overdueTasks.length +
+        snapshot.remindersToday.length ===
+      0;
 
-    return [
-      `Daily briefing for ${snapshot.date}`,
-      `Agenda (${snapshot.events.length}): ${snapshot.events.length ? snapshot.events.map((event) => event.title).join(', ') : 'none'}`,
-      `Tasks due today (${snapshot.tasksDueToday.length}):\n${lines(snapshot.tasksDueToday)}`,
-      `Overdue tasks (${snapshot.overdueTasks.length}):\n${lines(snapshot.overdueTasks)}`,
-      `Reminders today (${snapshot.remindersToday.length}):\n${lines(snapshot.remindersToday)}`,
-      'Reply with what you want to tackle first.',
-    ].join('\n\n');
+    if (localeOf(user.locale) === 'id')
+      return empty
+        ? 'Hari ini belum ada agenda, tugas jatuh tempo, atau pengingat.'
+        : `Ringkasan harian untuk ${snapshot.date}.`;
+
+    return empty
+      ? 'No agenda, tasks due, or reminders today.'
+      : `Daily briefing for ${snapshot.date}.`;
   }
 }
 
@@ -220,10 +248,12 @@ export class FollowUpService {
     if (dueTasks.length === 0)
       return { status: 'nothing_due' as const, deliveries: [] };
 
+    const contentByChannel = this.composer.followUpTasksBodies(user, dueTasks);
     const result = await this.notifications.enqueue({
       userId,
       kind: 'follow_up',
-      content: this.composer.followUpTasksBody(user, dueTasks),
+      content: contentByChannel.telegram,
+      contentByChannel,
       idempotencyKey: requestId
         ? `dev-follow-up:${requestId}`
         : `follow-up:${window.date}`,

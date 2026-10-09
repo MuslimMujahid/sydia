@@ -14,7 +14,6 @@ import { TasksModule } from '../tasks/tasks.module';
 import { NotificationService } from './notification.service';
 import { NotificationComposerService } from './notification-composer.service';
 import { ProactiveSchedulerService } from './proactive-scheduler.service';
-import { NOTIFICATION_RANDOM } from './notification-templates';
 import { DailyBriefingService, FollowUpService } from './proactive.service';
 import { DevNotificationsController } from './dev-notifications.controller';
 
@@ -27,7 +26,6 @@ import { DevNotificationsController } from './dev-notifications.controller';
       useClass: PrismaNotificationRepository,
     },
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
-    { provide: NOTIFICATION_RANDOM, useValue: () => Math.random() },
     NotificationService,
     NotificationComposerService,
     ProactiveSchedulerService,

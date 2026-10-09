@@ -74,6 +74,7 @@ function setup(storedPreferences: UserPreference | null) {
   return {
     service: new NotificationService(repository, queues),
     createDelivery,
+    findDeliveryByIdempotencyKey,
     whatsappAdd,
     telegramAdd,
   };
@@ -91,6 +92,58 @@ const intent = {
 };
 
 describe('NotificationService channel routing', () => {
+  test('persists and queues each channel layout', async () => {
+    const { service, createDelivery, whatsappAdd, telegramAdd } =
+      setup(preferences());
+
+    const formattedIntent = {
+      ...intent,
+      content: '- **Invoice**',
+      contentByChannel: { telegram: '- **Invoice**', whatsapp: '- Invoice' },
+    };
+
+    await service.enqueue(formattedIntent);
+
+    expect(createDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel: 'telegram',
+        content: '- **Invoice**',
+      }),
+    );
+    expect(createDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({ channel: 'whatsapp', content: '- Invoice' }),
+    );
+    expect(telegramAdd).toHaveBeenCalledWith(
+      'deliver',
+      expect.objectContaining({ content: '- **Invoice**' }),
+      expect.any(Object),
+    );
+    expect(whatsappAdd).toHaveBeenCalledWith(
+      'deliver',
+      expect.objectContaining({ content: '- Invoice' }),
+      expect.any(Object),
+    );
+  });
+
+  test('retry retains persisted content when a new enqueue has different text', async () => {
+    const { service, telegramAdd, findDeliveryByIdempotencyKey } = setup(
+      preferences({ whatsappNotificationsEnabled: false }),
+    );
+
+    findDeliveryByIdempotencyKey.mockResolvedValue({
+      ...delivery('telegram'),
+      content: 'Previously composed text',
+    });
+
+    await service.enqueue({ ...intent, content: 'Newly composed text' });
+
+    expect(telegramAdd).toHaveBeenCalledWith(
+      'deliver',
+      expect.objectContaining({ content: 'Previously composed text' }),
+      expect.any(Object),
+    );
+  });
+
   test('queues separate daily briefings for different users on the same channel', async () => {
     const { service, telegramAdd } = setup(preferences());
 

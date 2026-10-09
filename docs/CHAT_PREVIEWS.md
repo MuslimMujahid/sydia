@@ -40,6 +40,18 @@ the existing notification pipeline to enabled Telegram and WhatsApp channels,
 respect notification preferences, and only include due tasks in follow-ups.
 These actions send real notifications for that account.
 
+Daily briefs and follow-ups use compact bullet rows with a title followed by
+inline metadata (`—` and `·` separators). Telegram adds bold titles; WhatsApp
+keeps plain titles. Follow-ups use a fixed introduction in the account's locale
+with the task count; they do not use persona variants or a closing question.
+Daily briefs group overdue tasks first, followed by tasks due
+today, agenda, and reminders, omitting empty sections. Dates use the account's
+locale and timezone, and default task priority is omitted. A brief's persona
+introduction is generated once; if the model is unavailable or returns empty
+text, a warning records the use of a localized deterministic introduction.
+Record lists use the same formatter in either case. Each channel's final text is
+persisted before enqueue, and retries reuse that saved text.
+
 Run the delivery worker from `apps/backend`:
 
 ```sh
@@ -53,7 +65,7 @@ reuses its key to avoid duplicate delivery.
 Verify the toolbar from `apps/backend` and `apps/frontend`, respectively:
 
 ```sh
-bun run test --runInBand dev-notifications.controller.spec.ts notification.service.spec.ts
+bun run test --runInBand src/modules/notifications
 ```
 
 ```sh

@@ -121,7 +121,7 @@ function setup(
     users,
     tasks,
     notifications,
-    new NotificationComposerService(users, () => 0),
+    new NotificationComposerService(users),
   );
 
   const controller = new DevNotificationsController(
@@ -247,6 +247,68 @@ describe('manual development notifications', () => {
         kind: 'follow_up',
         idempotencyKey: `dev-follow-up:${requestId}`,
         content: expect.stringContaining('Pay invoice'),
+      }),
+    );
+  });
+
+  test.each([
+    ['telegram', '- **Pay invoice** — Due 8 Oct 2026, 10:00 · Priority high'],
+    ['whatsapp', '- Pay invoice — Due 8 Oct 2026, 10:00 · Priority high'],
+  ])('daily brief persists compact %s task rows', async (channel, row) => {
+    const { briefings, createDelivery, listTasks } = setup('development');
+    listTasks.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: 'task-1',
+        title: 'Pay invoice',
+        description: null,
+        dueAt: new Date('2026-10-08T02:00:00Z'),
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        status: 'doing',
+        priority: 'high',
+        categories: [],
+        source: { type: 'dashboard', label: null, messageId: null },
+      },
+    ]);
+
+    await briefings.run('owner', now);
+
+    expect(createDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel,
+        content: expect.stringContaining(row),
+      }),
+    );
+  });
+
+  test.each([
+    ['telegram', '- **Pay invoice** — Due 8 Oct 2026, 10:00 · Priority high'],
+    ['whatsapp', '- Pay invoice — Due 8 Oct 2026, 10:00 · Priority high'],
+  ])('follow-up persists compact %s task rows', async (channel, row) => {
+    const { followUps, createDelivery, listTasks } = setup('development');
+    listTasks.mockResolvedValue([
+      {
+        id: 'task-1',
+        title: 'Pay invoice',
+        description: null,
+        dueAt: new Date('2026-10-08T02:00:00Z'),
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        status: 'doing',
+        priority: 'high',
+        categories: [],
+        source: { type: 'dashboard', label: null, messageId: null },
+      },
+    ]);
+
+    await followUps.run('owner', now);
+
+    expect(createDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel,
+        content: expect.stringContaining(row),
       }),
     );
   });

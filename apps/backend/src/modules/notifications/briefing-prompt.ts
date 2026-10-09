@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type {
   AssistantPersona,
   SupportedLocale,
+  TaskPriority,
 } from '../../database/entities';
 import type { ModelMessage } from '../../infra/model-gateway';
 import { LANGUAGE_NAMES } from '../../shared/locale';
@@ -46,35 +47,26 @@ export type BriefingSnapshot = {
   events: Array<{ title: string; startAt: string; endAt: string }>;
   tasksDueToday: Array<{
     title: string;
-    priority: string;
+    priority: TaskPriority;
     dueAt: string | null;
   }>;
   overdueTasks: Array<{
     title: string;
-    priority: string;
+    priority: TaskPriority;
     dueAt: string | null;
   }>;
   remindersToday: Array<{ title: string; scheduledAt: string }>;
 };
 
-const BRIEFING_INSTRUCTIONS = `You write one user's daily briefing as a single chat message.
+const BRIEFING_INSTRUCTIONS = `You write the introduction to one user's daily briefing.
 
 Ground every statement in the supplied data. Never invent an item, a time, or a count, and never claim something was done when the data does not say so.
 
-Composition rules:
-- Lead with what actually matters today rather than walking the data in order.
-- Overdue work outranks work that is merely due today; surface it first.
-- Name the count when a category holds several items, and list titles compactly.
-- When a category is empty, do not mention it at all.
-- When the whole day is empty, say so in one short, warm line and stop.
-- Stay under 120 words.
+The application appends formatted lists of overdue tasks, tasks due today, calendar events, and reminders after your introduction. Do not repeat those lists, item titles, times, or category counts.
 
-Formatting rules:
-- Write plain text for a narrow chat window: no Markdown, no tables, no headings, no code blocks, no bold or italic markers.
-- Use literal Unicode emoji as visual anchors, sparingly and only where they aid scanning.
-- Use short paragraphs or simple bullets, whichever reads better.
+Write one short sentence that leads with what matters today. Overdue work outranks work merely due today. When the whole day is empty, say so in one short, warm line. Do not add a generic closing question.
 
-Close with one concrete next step drawn from the data, or with no closing question when none is warranted.`;
+Use plain text without Markdown, headings, tables, code blocks, or emphasis markers so the introduction works on every channel. Stay under 30 words.`;
 
 /**
  * Builds the briefing request. The day's records travel as JSON so the model

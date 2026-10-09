@@ -1,20 +1,4 @@
-import type {
-  AssistantPersona,
-  SupportedLocale,
-  TaskPriority,
-} from '../../database/entities';
-
-/**
- * Randomness source for template selection. Injected so tests can pin the
- * variant that a persona and locale resolve to.
- */
-export const NOTIFICATION_RANDOM = Symbol('NotificationRandom');
-export type Random = () => number;
-
-/** Persona- and locale-keyed variant lists, used by follow-up notifications. */
-export type PersonaTemplateRegistry = Readonly<
-  Record<AssistantPersona, Readonly<Record<SupportedLocale, readonly string[]>>>
->;
+import type { SupportedLocale } from '../../database/entities';
 
 /** One fixed template per locale, used by notifications that carry no persona. */
 export type LocalizedTemplateRegistry = Readonly<
@@ -25,21 +9,8 @@ export type TemplateRenderContext = {
   locale: SupportedLocale;
   title?: string;
   notes?: string | null;
-  items?: string;
   time?: Date | null;
   timezone: string;
-};
-
-export type PersonaTemplateContext = TemplateRenderContext & {
-  persona: AssistantPersona;
-};
-
-export const TASK_PRIORITY_LABELS: Record<
-  SupportedLocale,
-  Record<TaskPriority, string>
-> = {
-  en: { low: 'Low', medium: 'Medium', high: 'High' },
-  id: { low: 'Rendah', medium: 'Sedang', high: 'Tinggi' },
 };
 
 const PLACEHOLDER = /\{(\w+)\}/gu;
@@ -75,15 +46,6 @@ export function formatNotificationTime(
   }
 }
 
-function variantIndex(count: number, random: Random): number {
-  const value = random();
-  const bounded = Number.isFinite(value)
-    ? Math.min(Math.max(value, 0), 0.999_999)
-    : 0;
-
-  return Math.floor(bounded * count);
-}
-
 function lineSurvives(
   line: string,
   hasNotes: boolean,
@@ -116,7 +78,6 @@ export function renderTemplate(
       ? formatNotificationTime(context.time, context.timezone, context.locale)
       : '',
     notes: notes ?? '',
-    items: context.items ?? '',
   };
 
   const substitute = (line: string): string =>
@@ -145,25 +106,4 @@ export function renderTemplate(
     .join('\n')
     .replace(/\n{3,}/gu, '\n\n')
     .trim();
-}
-
-/**
- * Renders one variant of a persona+locale registry entry. Selection is uniform
- * over the variant list; a missing or malformed locale falls back to the `en`
- * list and a missing persona to `professional`, so a profile value can never
- * produce an empty notification body.
- */
-export function renderNotificationMessage(
-  registry: PersonaTemplateRegistry,
-  context: PersonaTemplateContext,
-  random: Random = Math.random,
-): string {
-  const localized = registry[context.persona]?.[context.locale];
-  const variants =
-    localized && localized.length > 0 ? localized : registry.professional.en;
-
-  const template =
-    variants[variantIndex(variants.length, random)] ?? variants[0] ?? '';
-
-  return renderTemplate(template, context);
 }

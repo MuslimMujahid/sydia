@@ -11,6 +11,8 @@ export type NotificationIntent = {
   userId: string;
   kind: string;
   content: string;
+  /** Optional channel layouts, rendered once before enqueue. */
+  contentByChannel?: { telegram: string; whatsapp: string };
   idempotencyKey: string;
   proactive: boolean;
   sourceId?: string;
@@ -69,11 +71,16 @@ export class NotificationService {
       channel,
     );
 
-    const job = { ...input, channel };
+    const { contentByChannel, ...intent } = input;
+    const content = contentByChannel
+      ? contentByChannel[channel]
+      : input.content;
+
+    const job = { ...intent, content, channel };
 
     if (existing) {
       if (existing.status !== 'delivered') {
-        await this.queueIntent(job);
+        await this.queueIntent({ ...job, content: existing.content });
       }
 
       return { delivery: existing, replayed: true };
@@ -82,7 +89,7 @@ export class NotificationService {
     const delivery = await this.notifications.createDelivery({
       userId: input.userId,
       kind: input.kind,
-      content: input.content,
+      content,
       idempotencyKey: input.idempotencyKey,
       channel,
       proactive: input.proactive,

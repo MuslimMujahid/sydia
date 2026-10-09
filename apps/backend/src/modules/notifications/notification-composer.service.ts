@@ -1,12 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Random } from './notification-templates';
-import {
-  NOTIFICATION_RANDOM,
-  TASK_PRIORITY_LABELS,
-  formatNotificationTime,
-  renderNotificationMessage,
-  renderTemplate,
-} from './notification-templates';
+import { renderTemplate } from './notification-templates';
 import { localeOf } from '../../shared/locale';
 import {
   USER_REPOSITORY,
@@ -15,22 +8,23 @@ import {
 } from '../../database/interfaces';
 import type { Task, User } from '../../database/entities';
 import { REMINDER_TEMPLATES } from './reminder.templates';
-import { FOLLOW_UP_TEMPLATES } from './follow-up.templates';
+import {
+  notificationTaskRow,
+  type NotificationBodies,
+} from './notification-formatting';
 
-type CompositionUser = Pick<User, 'persona' | 'locale' | 'timezone'>;
+type CompositionUser = Pick<User, 'locale' | 'timezone'>;
 
 /**
  * Turns stored domain records into the message a user actually receives.
  *
-A body is rendered exactly once per enqueue and then persisted on the
-delivery record, so every channel for a given notification shares one body
-instead of each consumer drawing its own variant.
+ * Compact rows are rendered for each channel before persistence.
+ * Retries retain the stored body.
  */
 @Injectable()
 export class NotificationComposerService {
   constructor(
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
-    @Inject(NOTIFICATION_RANDOM) private readonly random: Random,
   ) {}
 
   /** Reminder delivery text for one occurrence, rendered in the owner's locale. */
@@ -47,33 +41,23 @@ export class NotificationComposerService {
     });
   }
 
-  followUpTasksBody(user: CompositionUser, tasks: readonly Task[]): string {
+  followUpTasksBodies(
+    user: CompositionUser,
+    tasks: readonly Task[],
+  ): NotificationBodies {
     const locale = localeOf(user.locale);
-    const items = tasks
-      .map((task) => {
-        const segments = [task.title];
+    const introduction =
+      locale === 'id'
+        ? `Tugas yang perlu ditindaklanjuti (${tasks.length}).`
+        : `Tasks needing follow-up (${tasks.length}).`;
 
-        if (task.dueAt) {
-          segments.push(
-            `⏰ ${formatNotificationTime(task.dueAt, user.timezone, locale)}`,
-          );
-        }
+    const render = (rich: boolean) =>
+      `${introduction}\n\n${tasks
+        .map((task) =>
+          notificationTaskRow({ locale, timezone: user.timezone, rich }, task),
+        )
+        .join('\n')}`;
 
-        segments.push(TASK_PRIORITY_LABELS[locale][task.priority]);
-
-        return `- ${segments.join(' | ')}`;
-      })
-      .join('\n');
-
-    return renderNotificationMessage(
-      FOLLOW_UP_TEMPLATES,
-      {
-        persona: user.persona,
-        locale,
-        timezone: user.timezone,
-        items,
-      },
-      this.random,
-    );
+    return { telegram: render(true), whatsapp: render(false) };
   }
 }
