@@ -27,6 +27,39 @@ retries preserve message idempotency; failed assistant runs use the existing
 retry endpoint. Interrupted streams use the existing bounded reconciliation
 against persisted conversation state and log any degraded recovery.
 
+## Development toolbar
+
+In Vite development mode, signed-in pages with completed onboarding show a
+floating **Development tools** toggle at the bottom right. Open it to send a
+daily brief or follow-up, or follow **Chat previews** to `/chats`.
+
+Manual sends use `POST /dev/notifications/daily-brief` and
+`POST /dev/notifications/follow-up`. Both require backend
+`NODE_ENV=development` and use the current session's account. They send through
+the existing notification pipeline to enabled Telegram and WhatsApp channels,
+respect notification preferences, and only include due tasks in follow-ups.
+These actions send real notifications for that account.
+
+Run the delivery worker from `apps/backend`:
+
+```sh
+NODE_ENV=development bun run dev:worker
+```
+
+A queued result confirms queue acceptance, not actual delivery. Each deliberate
+send receives a distinct request key; retrying a failed send of the same kind
+reuses its key to avoid duplicate delivery.
+
+Verify the toolbar from `apps/backend` and `apps/frontend`, respectively:
+
+```sh
+bun run test --runInBand dev-notifications.controller.spec.ts notification.service.spec.ts
+```
+
+```sh
+bunx playwright test --config playwright.entities.config.ts dev-toolbar.spec.ts --workers 2
+```
+
 ## Rendering behavior
 
 - Web chat uses the existing Markdown and entity renderer. Entity popovers show

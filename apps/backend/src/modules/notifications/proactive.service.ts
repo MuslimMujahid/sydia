@@ -53,7 +53,7 @@ export class DailyBriefingService {
     private readonly model: LanguageModelGateway | null = null,
   ) {}
 
-  async run(userId: string, now = new Date()) {
+  async run(userId: string, now = new Date(), requestId?: string) {
     const user = await this.users.findById(userId);
     if (!user) return { status: 'skipped_user_missing' as const };
     const preferences = await this.preferences.getPreferences(userId);
@@ -116,13 +116,15 @@ export class DailyBriefingService {
       userId,
       kind: 'daily_briefing',
       content,
-      idempotencyKey: `briefing:${window.date}`,
+      idempotencyKey: requestId
+        ? `dev-briefing:${requestId}`
+        : `briefing:${window.date}`,
       proactive: true,
       sourceId: window.date,
     });
 
     return {
-      status: 'queued',
+      status: result.policyOutcome,
       deliveries: result.deliveries,
       replayed: result.replayed,
       date: window.date,
@@ -189,7 +191,7 @@ export class FollowUpService {
     private readonly composer: NotificationComposerService,
   ) {}
 
-  async run(userId: string, now = new Date()) {
+  async run(userId: string, now = new Date(), requestId?: string) {
     const user = await this.users.findById(userId);
     if (!user)
       return { status: 'skipped_user_missing' as const, deliveries: [] };
@@ -222,7 +224,9 @@ export class FollowUpService {
       userId,
       kind: 'follow_up',
       content: this.composer.followUpTasksBody(user, dueTasks),
-      idempotencyKey: `follow-up:${window.date}`,
+      idempotencyKey: requestId
+        ? `dev-follow-up:${requestId}`
+        : `follow-up:${window.date}`,
       proactive: true,
       sourceId: window.date,
     });
@@ -230,8 +234,9 @@ export class FollowUpService {
     const deliveries = result.deliveries;
 
     return {
-      status: deliveries.length ? 'queued' : 'nothing_due',
+      status: result.policyOutcome,
       deliveries,
+      replayed: result.replayed,
     } as const;
   }
 }

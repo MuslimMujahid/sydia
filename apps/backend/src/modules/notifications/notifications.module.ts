@@ -16,9 +16,11 @@ import { NotificationComposerService } from './notification-composer.service';
 import { ProactiveSchedulerService } from './proactive-scheduler.service';
 import { NOTIFICATION_RANDOM } from './notification-templates';
 import { DailyBriefingService, FollowUpService } from './proactive.service';
+import { DevNotificationsController } from './dev-notifications.controller';
 
 @Module({
   imports: [CalendarModule, RemindersModule, TasksModule, ModelGatewayModule],
+  controllers: [DevNotificationsController],
   providers: [
     {
       provide: NOTIFICATION_REPOSITORY,

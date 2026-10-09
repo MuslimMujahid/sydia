@@ -2,6 +2,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ErrorState, LoadingState } from "@/components/app-states";
 import { requireCompletedOnboarding } from "@/lib/auth";
+import { DevToolbar } from "@/components/dev/dev-toolbar";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: ({ context, location }) =>
@@ -21,6 +22,8 @@ function AppLayout() {
   return (
     <DashboardShell user={user}>
       <Outlet />
+      {/* eslint-disable-next-line turbo/no-undeclared-env-vars -- Vite build-time constant. */}
+      {import.meta.env.DEV ? <DevToolbar locale={user.locale} /> : null}
     </DashboardShell>
   );
 }
