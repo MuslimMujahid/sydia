@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -19,6 +20,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils/cn";
 import type { SendMessageVariables } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import {
@@ -75,6 +77,12 @@ async function waitForDocument(documentId: string, locale: SupportedLocale) {
   }
 }
 
+function fitTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return;
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
 function AttachmentIcon({ kind }: { kind: FileKind }) {
   const Icon =
     kind === "audio" ? FileAudio : kind === "image" ? FileImage : FileText;
@@ -97,6 +105,7 @@ export function ChatComposer({
   const [content, setContent] = useState("");
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadMutation = useUploadDocument();
   const libraryDocument = useQuery(
     documentQueryOptions(initialAttachmentId ?? "")
@@ -105,6 +114,19 @@ export function ChatComposer({
   const lastSubmission = useRef<
     { signature: string; idempotencyKey: string } | undefined
   >(undefined);
+
+  // Grow with the draft so the message box never scrolls internally.
+  useLayoutEffect(() => {
+    fitTextarea(textareaRef.current);
+  }, [content]);
+
+  // Line wrapping changes with the width, so refit when the window resizes.
+  useEffect(() => {
+    const refit = () => fitTextarea(textareaRef.current);
+    window.addEventListener("resize", refit);
+
+    return () => window.removeEventListener("resize", refit);
+  }, []);
 
   useEffect(() => {
     if (!initialAttachmentId) return;
@@ -305,16 +327,44 @@ export function ChatComposer({
     }
   }
 
+  // The home message box keeps its status line below it. The docked box sits
+  // near the bottom edge, so its status line goes above it, small and centered.
+  const composerState = (
+    <div
+      id="composer-state"
+      className={
+        embedded ? "mt-2 min-h-5 text-sm" : "text-center text-xs has-[p]:mb-2"
+      }
+      aria-live="polite"
+    >
+      {errorMessage ? (
+        <p className="text-destructive" role="alert">
+          {errorMessage}{" "}
+          {locale === "en"
+            ? "Press send to try again."
+            : "Tekan kirim untuk mencoba lagi."}
+        </p>
+      ) : hasPendingUpload ? (
+        <p className="text-ink-muted">
+          {locale === "en"
+            ? "Wait until all attachments finish uploading."
+            : "Tunggu hingga semua lampiran selesai diunggah."}
+        </p>
+      ) : disabledReason ? (
+        <p className="text-ink-muted">{disabledReason}</p>
+      ) : null}
+    </div>
+  );
+
   return (
     <form
       className={
-        embedded
-          ? "bg-transparent"
-          : "border-t border-surface-1 bg-canvas px-4 py-4 sm:px-6"
+        embedded ? "bg-transparent" : "bg-canvas px-4 pt-2 pb-3 sm:px-6"
       }
       onSubmit={handleSubmit}
     >
       <div className={embedded ? "w-full" : "mx-auto max-w-3xl"}>
+        {embedded ? null : composerState}
         {attachments.length ? (
           <ul
             className="mb-3 flex flex-wrap gap-2"
@@ -391,7 +441,8 @@ export function ChatComposer({
             ))}
           </ul>
         ) : null}
-        <div className="flex items-end gap-2 rounded-lg border border-ink/16 bg-canvas p-2 shadow-card focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
+        {/* 52px tall (1px border + 8px padding + 34px row) with a 26px radius gives perfect half-circle ends. */}
+        <div className="flex items-end gap-1 rounded-[26px] border border-hairline bg-surface-1 p-2 focus-within:border-ink/16">
           <input
             ref={fileInputRef}
             type="file"
@@ -403,7 +454,7 @@ export function ChatComposer({
             type="button"
             variant="ghost"
             size="icon"
-            className="mb-0.5"
+            className="size-8.5 rounded-full"
             aria-label={locale === "en" ? "Add file" : "Tambahkan file"}
             disabled={disabled || isSending}
             onClick={() => fileInputRef.current?.click()}
@@ -411,6 +462,7 @@ export function ChatComposer({
             <Paperclip />
           </Button>
           <Textarea
+            ref={textareaRef}
             rows={1}
             value={content}
             aria-label={
@@ -429,12 +481,17 @@ export function ChatComposer({
               lastSubmission.current = undefined;
             }}
             onKeyDown={handleKeyDown}
-            className="max-h-40 min-h-11 resize-none border-0 px-2 py-2.5 shadow-none focus-visible:border-transparent focus-visible:ring-0"
+            className={cn(
+              "min-h-8.5 resize-none border-0 bg-transparent px-2 py-1.25 shadow-none hover:border-transparent focus-visible:border-transparent focus-visible:ring-0 disabled:bg-transparent",
+              // The home message box grows freely; the docked one is capped so
+              // a very long draft cannot push the conversation off screen.
+              embedded ? "overflow-hidden" : "max-h-[40vh] overflow-y-auto"
+            )}
           />
           <Button
             type="submit"
             size="icon"
-            className="mb-0.5"
+            className="size-8.5 rounded-full"
             aria-label={
               isSending
                 ? locale === "en"
@@ -449,28 +506,7 @@ export function ChatComposer({
             <SendHorizontal />
           </Button>
         </div>
-        <div
-          id="composer-state"
-          className="mt-2 min-h-5 text-sm"
-          aria-live="polite"
-        >
-          {errorMessage ? (
-            <p className="text-destructive" role="alert">
-              {errorMessage}{" "}
-              {locale === "en"
-                ? "Press send to try again."
-                : "Tekan kirim untuk mencoba lagi."}
-            </p>
-          ) : hasPendingUpload ? (
-            <p className="text-ink-muted">
-              {locale === "en"
-                ? "Wait until all attachments finish uploading."
-                : "Tunggu hingga semua lampiran selesai diunggah."}
-            </p>
-          ) : disabledReason ? (
-            <p className="text-ink-muted">{disabledReason}</p>
-          ) : null}
-        </div>
+        {embedded ? composerState : null}
         <p id="composer-help" className="sr-only">
           {locale === "en"
             ? "Press Enter to send. Press Shift and Enter for a new line. Use the add file button to attach a document, image, or audio."

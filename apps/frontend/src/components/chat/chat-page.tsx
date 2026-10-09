@@ -224,12 +224,11 @@ export function ChatPage({
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col bg-canvas">
       {conversationId ? (
-        <header className="flex min-h-16 items-center border-b border-surface-1 px-5 sm:px-8">
-          <h1 className="truncate font-display text-base font-semibold">
-            {conversationQuery.data?.conversation.title?.trim() ||
-              (locale === "en" ? "Conversation" : "Percakapan")}
-          </h1>
-        </header>
+        // Visually hidden so the page keeps its heading for screen readers.
+        <h1 className="sr-only">
+          {conversationQuery.data?.conversation.title?.trim() ||
+            (locale === "en" ? "Conversation" : "Percakapan")}
+        </h1>
       ) : null}
 
       <div
@@ -239,7 +238,7 @@ export function ChatPage({
         {isNewConversation && !isSending ? (
           <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8">
             <div className="w-full max-w-3xl -translate-y-[4vh] text-center">
-              <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em] sm:text-[32px]">
+              <h1 className="font-display text-[22px] leading-[1.22] font-normal tracking-[-0.018em] sm:text-[26px]">
                 {locale === "en"
                   ? "What would you like to do today?"
                   : "Ingin melakukan apa hari ini?"}

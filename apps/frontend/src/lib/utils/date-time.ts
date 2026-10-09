@@ -1,3 +1,5 @@
+import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
+
 const DATE_TIME_FORMAT = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -113,6 +115,65 @@ export function getDayRangeInZone(timeZone: string, dayCount: number) {
       timeZone
     ).toISOString(),
   };
+}
+
+/** "yyyy-MM-dd" calendar day of an instant in the supplied time zone. */
+export function dayKeyInZone(value: string | Date, timeZone: string): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const parts = new Map(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value])
+  );
+
+  return `${parts.get("year")}-${parts.get("month")}-${parts.get("day")}`;
+}
+
+function dayKeyToEpochDay(dayKey: string): number {
+  const [year = 0, month = 1, day = 1] = dayKey.split("-").map(Number);
+
+  return Date.UTC(year, month - 1, day) / 86_400_000;
+}
+
+/**
+ * Section label for the calendar day of `value` in the supplied time zone:
+ * "Hari ini", "Kemarin", "2 hari yang lalu" up to six days back, then the
+ * date itself ("1 Oktober", with the year when it is not the current one).
+ */
+export function formatConversationDay(
+  value: string | Date,
+  timeZone: string,
+  locale: SupportedLocale,
+  now: Date = new Date()
+): string {
+  const dayKey = dayKeyInZone(value, timeZone);
+  const todayKey = dayKeyInZone(now, timeZone);
+
+  if (!dayKey || !todayKey) return "";
+
+  const daysAgo = dayKeyToEpochDay(todayKey) - dayKeyToEpochDay(dayKey);
+
+  if (daysAgo <= 0) return locale === "en" ? "Today" : "Hari ini";
+  if (daysAgo === 1) return locale === "en" ? "Yesterday" : "Kemarin";
+  if (daysAgo < 7)
+    return locale === "en"
+      ? `${daysAgo} days ago`
+      : `${daysAgo} hari yang lalu`;
+
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "long",
+    year: dayKey.slice(0, 4) === todayKey.slice(0, 4) ? undefined : "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${dayKey}T12:00:00Z`));
 }
 
 export function formatRelativeDay(value: string, now = new Date()): string {

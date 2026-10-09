@@ -8,6 +8,7 @@ import type {
   ToolInvocation,
 } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
+import { dayKeyInZone, formatConversationDay } from "@/lib/utils/date-time";
 import { formatFileSize } from "@/lib/utils/format";
 import { AssistantMarkdown } from "./assistant-markdown";
 import { collectChatEntities, type ChatEntity } from "./chat-entities";
@@ -209,9 +210,21 @@ function documentSources(
   return [...grouped.values()];
 }
 
-type TimelineEntry =
+type ConversationEntry =
   | { type: "message"; timestamp: string; message: ConversationMessage }
   | { type: "run"; timestamp: string; run: AssistantRun };
+
+type TimelineEntry =
+  ConversationEntry | { type: "day"; dayKey: string; label: string };
+
+function DaySeparator({ dayKey, label }: { dayKey: string; label: string }) {
+  // mb-6 tightens the list's 48px gap so the label stays with its own day.
+  return (
+    <li className="mb-6 text-center text-xs font-medium text-ink-muted">
+      <time dateTime={dayKey}>{label}</time>
+    </li>
+  );
+}
 
 function currentActivity(
   run: AssistantRun,
@@ -424,8 +437,8 @@ export function MessageHistory({
     }
   }, [entitiesByRunId]);
 
-  const timeline = useMemo<TimelineEntry[]>(() => {
-    const entries: TimelineEntry[] = messages.map((message) => ({
+  const { timeline, lastDayKey } = useMemo(() => {
+    const entries: ConversationEntry[] = messages.map((message) => ({
       type: "message",
       message,
       timestamp: message.createdAt,
@@ -437,10 +450,47 @@ export function MessageHistory({
       }
     }
 
-    return entries.sort((left, right) =>
+    entries.sort((left, right) =>
       left.timestamp.localeCompare(right.timestamp)
     );
-  }, [assistantRuns, messages]);
+
+    // Start each calendar day, in the user's time zone, with a label entry.
+    const sectioned: TimelineEntry[] = [];
+    let currentDayKey = "";
+
+    for (const entry of entries) {
+      const dayKey = dayKeyInZone(entry.timestamp, timezone);
+
+      if (dayKey && dayKey !== currentDayKey) {
+        currentDayKey = dayKey;
+        sectioned.push({
+          type: "day",
+          dayKey,
+          label: formatConversationDay(entry.timestamp, timezone, locale),
+        });
+      }
+
+      sectioned.push(entry);
+    }
+
+    return { timeline: sectioned, lastDayKey: currentDayKey };
+  }, [assistantRuns, locale, messages, timezone]);
+
+  // A message that is still sending belongs to today, which may be a new day
+  // for a conversation that was last used earlier.
+  const optimisticDay = (() => {
+    if (!optimisticMessage) return null;
+
+    const now = new Date();
+    const dayKey = dayKeyInZone(now, timezone);
+
+    return dayKey && dayKey !== lastDayKey
+      ? {
+          dayKey,
+          label: formatConversationDay(now, timezone, locale, now),
+        }
+      : null;
+  })();
 
   const hasActiveRun = assistantRuns.some(
     (run) => run.status === "queued" || run.status === "running"
@@ -449,6 +499,16 @@ export function MessageHistory({
   return (
     <ol className="mx-auto max-w-3xl space-y-12 px-4 py-8 sm:px-6 sm:py-10">
       {timeline.map((entry) => {
+        if (entry.type === "day") {
+          return (
+            <DaySeparator
+              key={`day-${entry.dayKey}`}
+              dayKey={entry.dayKey}
+              label={entry.label}
+            />
+          );
+        }
+
         if (entry.type === "run") {
           if (entry.run.status === "failed") {
             return (
@@ -640,6 +700,13 @@ export function MessageHistory({
           </li>
         );
       })}
+
+      {optimisticDay ? (
+        <DaySeparator
+          dayKey={optimisticDay.dayKey}
+          label={optimisticDay.label}
+        />
+      ) : null}
 
       {optimisticMessage ? (
         <li className="flex justify-end">
