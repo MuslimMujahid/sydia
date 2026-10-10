@@ -27,6 +27,7 @@ export const TOOL_GROUPS = {
   ],
   calendar: [
     'list_calendar_events',
+    'get_calendar_sync_status',
     'create_calendar_event',
     'update_calendar_event',
     'cancel_calendar_event',

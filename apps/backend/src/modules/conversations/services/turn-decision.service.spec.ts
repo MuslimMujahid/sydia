@@ -145,7 +145,7 @@ test.each([
   ],
   [
     'group_calendar',
-    'Does responding to the latest message in this conversation require any of these tools: list_calendar_events, create_calendar_event, update_calendar_event, cancel_calendar_event?',
+    'Does responding to the latest message in this conversation require any of these tools: list_calendar_events, get_calendar_sync_status, create_calendar_event, update_calendar_event, cancel_calendar_event?',
   ],
   [
     'group_reminders',
@@ -390,9 +390,9 @@ test.each([
     expect(await service.decide('user', input)).toEqual(expected);
   },
 );
-test('registry covers 38 distinct tools and rejects missing prerequisites', () => {
+test('registry covers 39 distinct tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(38);
+  expect(names).toHaveLength(39);
   expect(() => validateToolGroups(names)).not.toThrow();
   expect(() => validateToolGroups(names.slice(1))).toThrow();
 });

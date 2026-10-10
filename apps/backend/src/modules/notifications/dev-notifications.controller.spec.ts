@@ -5,12 +5,13 @@ import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { validate } from 'class-validator';
 import type { Task, User } from '../../database/entities';
 import type {
-  ICalendarRepository,
   INotificationRepository,
   IReminderRepository,
   ITaskRepository,
   IUserRepository,
 } from '../../database/interfaces';
+import type { CalendarReadRepository } from '../calendar/calendar-read.service.js';
+import { CalendarReadService } from '../calendar/calendar-read.service.js';
 import type { QueueService } from '../../infra/queue';
 import {
   DevNotificationDto,
@@ -104,9 +105,20 @@ function setup(
     list: jest.fn<IReminderRepository['list']>().mockResolvedValue([]),
   } as unknown as IReminderRepository;
 
-  const calendar = {
-    list: jest.fn<ICalendarRepository['list']>().mockResolvedValue([]),
-  } as unknown as ICalendarRepository;
+  const calendarRepository: CalendarReadRepository = {
+    list: jest.fn<CalendarReadRepository['list']>().mockResolvedValue([]),
+    listCancelledRecurringInstances: jest
+      .fn<CalendarReadRepository['listCancelledRecurringInstances']>()
+      .mockResolvedValue([]),
+    findById: jest
+      .fn<CalendarReadRepository['findById']>()
+      .mockResolvedValue(null),
+    materializeLocalOccurrence: jest
+      .fn<CalendarReadRepository['materializeLocalOccurrence']>()
+      .mockResolvedValue(null),
+  };
+
+  const calendar = new CalendarReadService(calendarRepository);
 
   const briefings = new DailyBriefingService(
     users,

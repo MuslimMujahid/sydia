@@ -1,11 +1,9 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
-  CALENDAR_REPOSITORY,
   NOTIFICATION_REPOSITORY,
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
-  type ICalendarRepository,
   type INotificationRepository,
   type IReminderRepository,
   type ITaskRepository,
@@ -26,6 +24,7 @@ import { NotificationComposerService } from './notification-composer.service';
 import { NotificationService } from './notification.service';
 import { localeOf } from '../../shared/locale';
 import { renderBriefingBody } from './notification-formatting';
+import { CalendarReadService } from '../calendar/calendar-read.service';
 
 const BRIEFING_MAX_OUTPUT_TOKENS = 400;
 const BRIEFING_TEMPERATURE = 0.5;
@@ -41,7 +40,7 @@ export class DailyBriefingService {
     @Inject(TASK_REPOSITORY) private readonly tasks: ITaskRepository,
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
-    @Inject(CALENDAR_REPOSITORY) private readonly calendar: ICalendarRepository,
+    private readonly calendar: CalendarReadService,
     private readonly notifications: NotificationService,
     @Optional()
     @Inject(LANGUAGE_MODEL)
@@ -82,11 +81,24 @@ export class DailyBriefingService {
       date: window.date,
       timezone: user.timezone,
       instant: now.toISOString(),
-      events: events.map((event) => ({
-        title: event.title,
-        startAt: event.startAt.toISOString(),
-        endAt: event.endAt.toISOString(),
-      })),
+      events: events.map((event) => {
+        if (event.allDayStartDate && event.allDayEndDate)
+          return {
+            title: event.title,
+            kind: 'all_day' as const,
+            startDate: event.allDayStartDate.toISOString().slice(0, 10),
+            endDate: event.allDayEndDate.toISOString().slice(0, 10),
+          };
+        if (event.startAt && event.endAt)
+          return {
+            title: event.title,
+            kind: 'timed' as const,
+            startAt: event.startAt.toISOString(),
+            endAt: event.endAt.toISOString(),
+          };
+
+        throw new Error(`Calendar event ${event.id} has no valid date shape.`);
+      }),
       tasksDueToday: todayTasks.map((task) => ({
         title: task.title,
         priority: task.priority,

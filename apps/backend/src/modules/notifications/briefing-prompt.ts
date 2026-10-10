@@ -44,7 +44,10 @@ export type BriefingSnapshot = {
   date: string;
   timezone: string;
   instant: string;
-  events: Array<{ title: string; startAt: string; endAt: string }>;
+  events: Array<
+    | { title: string; kind: 'timed'; startAt: string; endAt: string }
+    | { title: string; kind: 'all_day'; startDate: string; endDate: string }
+  >;
   tasksDueToday: Array<{
     title: string;
     priority: TaskPriority;

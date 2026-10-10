@@ -18,7 +18,8 @@ import type { LanguageModelGateway } from '../../src/infra/model-gateway';
 import { ObservabilityService } from '../../src/infra/observability';
 import type { QueueService } from '../../src/infra/queue';
 import { SecretCipher, TokenCipher } from '../../src/infra/crypto';
-import { GoogleCalendarService } from '../../src/infra/calendar';
+import { GoogleCalendarService } from '../../src/infra/calendar/google-calendar.service';
+import type { GoogleCalendarRequestLimiter } from '../../src/infra/calendar/google-calendar-request-limiter.service';
 import { StorageService } from '../../src/infra/storage';
 import {
   DocumentParserService,
@@ -49,6 +50,8 @@ import { HindsightBackfillService } from '../../src/modules/memories/hindsight-b
 import { HindsightDeliveryService } from '../../src/modules/memories/hindsight-delivery.service';
 import { MemoryDreamSchedulerService } from '../../src/modules/memories/memory-dream-scheduler.service';
 import { CalendarService } from '../../src/modules/calendar/calendar.service';
+import { CalendarReadService } from '../../src/modules/calendar/calendar-read.service';
+import { CalendarSyncService } from '../../src/modules/calendar/calendar-sync.service';
 import { DailyNoteService } from '../../src/modules/daily-notes/daily-note.service';
 import { DocumentService } from '../../src/modules/documents/document.service';
 import { ReminderSchedulerService } from '../../src/modules/reminders/reminder-scheduler.service';
@@ -284,7 +287,21 @@ type Turn = {
           ),
         ),
         calendars,
-        new CalendarService(calendars, new GoogleCalendarService(config)),
+        new CalendarService(calendars, queues),
+        new CalendarReadService(calendars),
+        new CalendarSyncService(
+          calendars,
+          new GoogleCalendarService(config, {
+            acquire: () =>
+              Promise.resolve({
+                id: 'memory-chat-live',
+                keys: ['', '', '', '', '', ''],
+              }),
+            release: () => Promise.resolve(),
+          } as unknown as GoogleCalendarRequestLimiter),
+          queues,
+          config,
+        ),
         new SecretsService(
           new PrismaSecretRepository(prisma),
           conversations,

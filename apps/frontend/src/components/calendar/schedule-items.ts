@@ -81,8 +81,11 @@ export function buildScheduleItems(
 
   for (const event of events) {
     if (event.status === "cancelled") continue;
-    const start = toTime(event.startAt);
-    const end = toTime(event.endAt);
+    const startValue = event.allDayStartDate ?? event.startAt;
+    const endValue = event.allDayEndDate ?? event.endAt;
+    if (!startValue || !endValue) continue;
+    const start = toTime(startValue);
+    const end = toTime(endValue);
     if (Number.isNaN(start) || Number.isNaN(end)) continue;
     items.push({
       kind: "event",
@@ -123,6 +126,24 @@ function compareItems(left: ScheduleItem, right: ScheduleItem): number {
 
 /** Day keys an item covers in the page time zone. */
 export function getItemDayKeys(item: ScheduleItem, timeZone: string): DayKey[] {
+  if (
+    item.kind === "event" &&
+    item.event.allDayStartDate &&
+    item.event.allDayEndDate
+  ) {
+    const firstKey = item.event.allDayStartDate.slice(0, 10);
+    const endExclusive = item.event.allDayEndDate.slice(0, 10);
+    const keys: DayKey[] = [];
+    let key = firstKey;
+
+    for (let guard = 0; guard < 370 && key < endExclusive; guard += 1) {
+      keys.push(key);
+      key = addDays(key, 1);
+    }
+
+    return keys;
+  }
+
   const firstKey = dayKeyInZone(new Date(item.start), timeZone);
   if (item.end <= item.start) return [firstKey];
   const lastKey = dayKeyInZone(new Date(item.end - 1), timeZone);
@@ -167,6 +188,14 @@ export function isAllDayOn(
   timeZone: string
 ): boolean {
   if (item.kind !== "event") return false;
+
+  if (item.event.allDayStartDate && item.event.allDayEndDate) {
+    return (
+      item.event.allDayStartDate.slice(0, 10) <= dayKey &&
+      dayKey < item.event.allDayEndDate.slice(0, 10)
+    );
+  }
+
   if (item.end - item.start >= DAY_MS) return true;
 
   return (
@@ -304,6 +333,9 @@ export function taskStatusOf(
 /** "09.00–10.30" for events, "09.00" for tasks, in the page time zone. */
 export function itemTimeLabel(item: ScheduleItem, timeZone: string): string {
   if (item.kind === "task") return taskTimeLabel(item, timeZone);
+  if (item.event.allDayStartDate && item.event.allDayEndDate)
+    return "Sepanjang hari";
+  if (!item.event.startAt || !item.event.endAt) return "";
 
   return `${formatTimeInZone(item.event.startAt, timeZone)}–${formatTimeInZone(
     item.event.endAt,
@@ -314,6 +346,9 @@ export function itemTimeLabel(item: ScheduleItem, timeZone: string): string {
 /** "09.00 – 10.30" for events, "10.00" for tasks, as printed on cards. */
 export function itemRangeLabel(item: ScheduleItem, timeZone: string): string {
   if (item.kind === "task") return taskTimeLabel(item, timeZone);
+  if (item.event.allDayStartDate && item.event.allDayEndDate)
+    return "Sepanjang hari";
+  if (!item.event.startAt || !item.event.endAt) return "";
 
   return `${formatTimeInZone(item.event.startAt, timeZone)} – ${formatTimeInZone(
     item.event.endAt,
@@ -327,6 +362,7 @@ export function itemStartTimeLabel(
   timeZone: string
 ): string {
   if (item.kind === "task") return taskTimeLabel(item, timeZone);
+  if (!item.event.startAt) return "Sepanjang hari";
 
   return formatTimeInZone(new Date(item.start).toISOString(), timeZone);
 }
@@ -336,6 +372,19 @@ export function itemStartTimeLabel(
  * 11.00", "1 Okt – 2 Okt · Sepanjang hari", or "30 Sep, 23.00 – 1 Okt, 01.00".
  */
 export function itemWhenLabel(item: ScheduleItem, timeZone: string): string {
+  if (
+    item.kind === "event" &&
+    item.event.allDayStartDate &&
+    item.event.allDayEndDate
+  ) {
+    const firstKey = item.event.allDayStartDate.slice(0, 10);
+    const lastKey = addDays(item.event.allDayEndDate.slice(0, 10), -1);
+
+    return firstKey === lastKey
+      ? `${formatDayKeyLabel(firstKey)} · Sepanjang hari`
+      : `${formatShortDate(firstKey)} – ${formatShortDate(lastKey)} · Sepanjang hari`;
+  }
+
   const startKey = dayKeyInZone(new Date(item.start), timeZone);
 
   if (item.kind === "task")
@@ -358,6 +407,8 @@ export function itemWhenLabel(item: ScheduleItem, timeZone: string): string {
 
   if (startKey === lastKey)
     return `${formatDayKeyLabel(startKey)} · ${itemTimeLabel(item, timeZone)}`;
+  if (!item.event.startAt || !item.event.endAt)
+    return itemTimeLabel(item, timeZone);
 
   return `${formatShortDate(startKey)}, ${formatTimeInZone(
     item.event.startAt,

@@ -1,0 +1,173 @@
+rule_files:
+  - google-calendar-sync-rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: sydia_calendar_sync_operations_pending
+        values: 1+0x1441
+      - series: sydia_calendar_sync_operation_oldest_age_milliseconds
+        values: 300001+0x1441
+      - series: sydia_calendar_sync_bindings_active
+        values: 1+0x1441
+      - series: sydia_calendar_sync_pull_oldest_age_milliseconds
+        values: 3600001+0x1441
+      - series: sydia_calendar_sync_bindings_never_synced
+        values: 1+0x1441
+      - series: sydia_calendar_sync_bindings_never_synced_oldest_age_milliseconds
+        values: 3600001+0x1441
+      - series: sydia_calendar_sync_watch_cleanup_pending
+        values: 1+0x1441
+      - series: sydia_calendar_sync_watch_cleanup_oldest_age_milliseconds
+        values: 86400001+0x1441
+      - series: sydia_calendar_sync_operational_snapshot_failures_total
+        values: 0+1x1441
+      - series: sydia_calendar_sync_retry_exhausted_total
+        values: 0+1x1441
+      - series: sydia_calendar_sync_token_revocation_failures_total
+        values: 0+1x1441
+    alert_rule_test:
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncOutboxBehind
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: Google Calendar outbound changes are waiting too long
+              description: The oldest pending Sydia calendar operation is older than five minutes.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#quota-exhaustion-or-provider-throttling
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncPullStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: An active Google Calendar binding has stale data
+              description: The stalest successful pull for an active binding is older than one hour.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#redis-outage
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncInitialImportStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: A Google Calendar initial import has not completed
+              description: At least one active binding has never completed a pull and is older than the provisional one-hour threshold. Calibrate this threshold against staging import profiles before paging on it.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#failed-or-stalled-import
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncWatchCleanupStuck
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: A Google Calendar watch channel has not been cleaned up
+              description: A channel has remained in pending cleanup for more than 24 hours.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#watch-renewal-failure
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncMetricsSnapshotFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: Calendar sync operational metrics cannot read their database snapshot
+              description: The calendar sync metrics callback has failed during the last ten minutes; database-backed gauges may be missing.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#metrics-export
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncRetryBudgetExhausted
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: Google Calendar operations exhausted automatic retries
+              description: At least one calendar operation exhausted its automatic retry budget in the last ten minutes and may need a user retry or reconnect.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#quota-exhaustion-or-provider-throttling
+      - eval_time: 24h1m
+        alertname: SydiaCalendarTokenRevocationFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: Google Calendar authorization revocation failed
+              description: A user disconnect or concurrent OAuth cleanup could not revoke its Google authorization. Sync remains fenced; check the user's pending disconnect and retry it after resolving provider issues.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#token-rejection-or-revoked-google-consent
+
+  - interval: 1m
+    input_series:
+      - series: sydia_calendar_sync_operations_pending
+        values: 0+0x1441
+      - series: sydia_calendar_sync_operation_oldest_age_milliseconds
+        values: 86400001+0x1441
+      - series: sydia_calendar_sync_bindings_active
+        values: 0+0x1441
+      - series: sydia_calendar_sync_pull_oldest_age_milliseconds
+        values: 86400001+0x1441
+      - series: sydia_calendar_sync_bindings_never_synced
+        values: 0+0x1441
+      - series: sydia_calendar_sync_bindings_never_synced_oldest_age_milliseconds
+        values: 86400001+0x1441
+      - series: sydia_calendar_sync_watch_cleanup_pending
+        values: 0+0x1441
+      - series: sydia_calendar_sync_watch_cleanup_oldest_age_milliseconds
+        values: 86400001+0x1441
+      - series: sydia_calendar_sync_operational_snapshot_failures_total
+        values: 0+0x1441
+      - series: sydia_calendar_sync_retry_exhausted_total
+        values: 0+0x1441
+      - series: sydia_calendar_sync_token_revocation_failures_total
+        values: 0+0x1441
+    alert_rule_test:
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncOutboxBehind
+        exp_alerts: []
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncPullStale
+        exp_alerts: []
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncInitialImportStalled
+        exp_alerts: []
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncWatchCleanupStuck
+        exp_alerts: []
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncMetricsSnapshotFailing
+        exp_alerts: []
+      - eval_time: 24h1m
+        alertname: SydiaCalendarSyncRetryBudgetExhausted
+        exp_alerts: []
+      - eval_time: 24h1m
+        alertname: SydiaCalendarTokenRevocationFailing
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'sydia_calendar_sync_jobs_total{kind="retention",outcome="failed"}'
+        values: 0+1x30
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: SydiaCalendarRetentionCleanupFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: google-calendar-sync
+            exp_annotations:
+              summary: Calendar retention cleanup is failing
+              description: Calendar retention cleanup has failed recently; expired records remain in PostgreSQL. Check database errors and recovery workers without deleting unfinished operations.
+              runbook: docs/runbooks/GOOGLE_CALENDAR_SYNC.md#retention-cleanup
+
+  - interval: 1m
+    input_series:
+      - series: 'sydia_calendar_sync_jobs_total{kind="retention",outcome="failed"}'
+        values: 0+0x30
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: SydiaCalendarRetentionCleanupFailing
+        exp_alerts: []

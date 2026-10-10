@@ -85,6 +85,7 @@ export class ObservabilityService
   private readonly publicKey?: string;
   private readonly secretKey?: string;
   private readonly baseUrl: string;
+  private readonly metricsExporterConfigured: boolean;
 
   constructor(config: ConfigService) {
     this.publicKey =
@@ -94,6 +95,24 @@ export class ObservabilityService
     this.baseUrl =
       config.get<string>('BACKEND_LANGFUSE_BASE_URL')?.trim() ||
       DEFAULT_BASE_URL;
+    const metricsExporters = config
+      .get<string>('OTEL_METRICS_EXPORTER')
+      ?.split(',')
+      .map((exporter) => exporter.trim())
+      .filter(Boolean);
+
+    if (
+      metricsExporters?.some(
+        (exporter) =>
+          !['otlp', 'prometheus', 'console', 'none'].includes(exporter),
+      )
+    )
+      throw new Error(
+        'OTEL_METRICS_EXPORTER contains an unsupported exporter. Use otlp, prometheus, console, or none.',
+      );
+
+    this.metricsExporterConfigured =
+      Boolean(metricsExporters?.length) && !metricsExporters?.includes('none');
   }
 
   static disabled(): ObservabilityService {
@@ -105,22 +124,32 @@ export class ObservabilityService
   }
 
   onModuleInit(): void {
-    if (!this.enabled || ObservabilityService.started) return;
+    if (
+      (!this.enabled && !this.metricsExporterConfigured) ||
+      ObservabilityService.started
+    )
+      return;
 
     try {
-      const processor = new LangfuseSpanProcessor({
-        publicKey: this.publicKey,
-        secretKey: this.secretKey,
-        baseUrl: this.baseUrl,
+      const processor = this.enabled
+        ? new LangfuseSpanProcessor({
+            publicKey: this.publicKey,
+            secretKey: this.secretKey,
+            baseUrl: this.baseUrl,
+          })
+        : undefined;
+
+      const sdk = new NodeSDK({
+        spanProcessors: processor ? [processor] : [],
+        ...(!this.metricsExporterConfigured ? { metricReaders: [] } : {}),
       });
 
-      const sdk = new NodeSDK({ spanProcessors: [processor] });
       sdk.start();
       ObservabilityService.processor = processor;
       ObservabilityService.sdk = sdk;
       ObservabilityService.started = true;
     } catch (error) {
-      this.logger.warn(`Langfuse observability disabled: ${errorName(error)}`);
+      this.logger.warn(`OpenTelemetry startup failed: ${errorName(error)}`);
     }
   }
 
@@ -132,7 +161,7 @@ export class ObservabilityService
         await ObservabilityService.processor?.forceFlush();
         await ObservabilityService.sdk?.shutdown();
       } catch (error) {
-        this.logger.warn(`Langfuse shutdown failed: ${errorName(error)}`);
+        this.logger.warn(`OpenTelemetry shutdown failed: ${errorName(error)}`);
       } finally {
         ObservabilityService.processor = undefined;
         ObservabilityService.sdk = undefined;

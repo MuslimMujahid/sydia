@@ -44,6 +44,15 @@ export function notificationDate(
   }).format(new Date(value));
 }
 
+function allDayDate(format: NotificationFormat, value: string): string {
+  return new Intl.DateTimeFormat(format.locale === 'id' ? 'id-ID' : 'en-GB', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${value}T12:00:00.000Z`));
+}
+
 export function notificationTaskRow(
   format: NotificationFormat,
   task: { title: string; dueAt: string | Date | null; priority: TaskPriority },
@@ -97,6 +106,18 @@ export function renderBriefingBody(
     'Agenda',
     'Agenda',
     snapshot.events.map((event) => {
+      if (event.kind === 'all_day') {
+        const lastDate = new Date(`${event.endDate}T12:00:00.000Z`);
+        lastDate.setUTCDate(lastDate.getUTCDate() - 1);
+        const lastDateKey = lastDate.toISOString().slice(0, 10);
+        const range =
+          event.startDate === lastDateKey
+            ? allDayDate(format, event.startDate)
+            : `${allDayDate(format, event.startDate)}–${allDayDate(format, lastDateKey)}`;
+
+        return notificationRow(format, event.title, [range]);
+      }
+
       const day = new Intl.DateTimeFormat('en-CA', {
         timeZone: format.timezone,
       });

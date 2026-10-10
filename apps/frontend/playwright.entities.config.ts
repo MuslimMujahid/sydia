@@ -7,6 +7,7 @@ export default defineConfig({
     "entity-renderer.spec.ts",
     "chat-previews.spec.ts",
     "dev-toolbar.spec.ts",
+    "calendar-sync.spec.ts",
   ],
   fullyParallel: true,
   retries: 0,

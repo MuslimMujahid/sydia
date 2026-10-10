@@ -31,6 +31,9 @@ function setup(storage: StorageService) {
   };
 
   const calendars = {
+    privacyExport: jest
+      .fn<ICalendarRepository['privacyExport']>()
+      .mockResolvedValue({ connection: null, events: [], conflicts: [] }),
     integrationCredentials: jest
       .fn<ICalendarRepository['integrationCredentials']>()
       .mockResolvedValue(null),
@@ -45,20 +48,50 @@ function setup(storage: StorageService) {
       .mockResolvedValue(true),
   };
 
+  const memoryArchive = {
+    export: jest
+      .fn<MemoryArchiveService['export']>()
+      .mockResolvedValue({ version: 1, sources: [] }),
+  };
+
   return {
     privacy,
+    calendars,
     service: new UserPrivacyService(
       privacy as unknown as IUserPrivacyRepository,
       calendars as unknown as ICalendarRepository,
       whatsapp as unknown as IWhatsAppRepository,
       {} as GoogleCalendarService,
       storage,
-      {} as MemoryArchiveService,
+      memoryArchive as unknown as MemoryArchiveService,
     ),
   };
 }
 
 describe('UserPrivacyService document artifacts', () => {
+  test('includes Google Calendar data without exporting credentials', async () => {
+    const { service, calendars } = setup({} as StorageService);
+    const googleCalendar = {
+      connection: {
+        status: 'disconnected',
+        googleEmail: 'user@example.com',
+        calendarId: 'primary',
+        scope: 'calendar.events',
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      events: [],
+      conflicts: [],
+    };
+
+    calendars.privacyExport.mockResolvedValue(googleCalendar);
+
+    const result = await service.export('user-1');
+
+    expect(result.googleCalendar).toEqual(googleCalendar);
+    expect(JSON.stringify(result.googleCalendar)).not.toContain('accessToken');
+    expect(JSON.stringify(result.googleCalendar)).not.toContain('refreshToken');
+  });
+
   test('removes original and checkpoint files, including a late worker write', async () => {
     const root = await mkdtemp(join(tmpdir(), 'privacy-document-artifacts-'));
     const storage = new StorageService(

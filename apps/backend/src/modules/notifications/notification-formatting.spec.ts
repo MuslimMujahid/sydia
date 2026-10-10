@@ -98,6 +98,7 @@ describe('proactive notification formatting', () => {
           events: [
             {
               title: 'Planning',
+              kind: 'timed',
               startAt: '2026-10-09T03:00:00Z',
               endAt: '2026-10-09T04:00:00Z',
             },
@@ -120,6 +121,7 @@ describe('proactive notification formatting', () => {
           events: [
             {
               title: 'Night shift',
+              kind: 'timed',
               startAt: '2026-10-09T15:00:00Z',
               endAt: '2026-10-09T18:00:00Z',
             },
@@ -128,5 +130,24 @@ describe('proactive notification formatting', () => {
         'Your day ahead.',
       ),
     ).toContain('- **Night shift** — 9 Oct 2026, 23:00–10 Oct 2026, 02:00');
+  });
+
+  test('all-day agenda uses date-only boundaries and treats the end as exclusive', () => {
+    expect(
+      renderBriefingBody(
+        format,
+        snapshot({
+          events: [
+            {
+              title: 'Conference',
+              kind: 'all_day',
+              startDate: '2026-10-09',
+              endDate: '2026-10-11',
+            },
+          ],
+        }),
+        'Your day ahead.',
+      ),
+    ).toContain('- **Conference** — 9 Oct 2026–10 Oct 2026');
   });
 });

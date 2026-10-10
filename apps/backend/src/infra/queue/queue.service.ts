@@ -40,6 +40,11 @@ export type FollowUpJob =
   { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
 export type DailyNoteIndexJob =
   { kind: 'index'; userId: string; date: string } | { kind: 'recover' };
+export type CalendarSyncJob =
+  | { kind: 'operation'; operationId: string }
+  | { kind: 'pull'; bindingId: string; connectionGeneration: number }
+  | { kind: 'renew-watch'; bindingId: string; connectionGeneration: number }
+  | { kind: 'recover' };
 @Injectable()
 export class QueueService implements OnModuleDestroy {
   readonly reminders: Queue<ReminderJob>;
@@ -53,6 +58,7 @@ export class QueueService implements OnModuleDestroy {
   readonly briefings: Queue<BriefingJob>;
   readonly followUps: Queue<FollowUpJob>;
   readonly dailyNoteIndexes: Queue<DailyNoteIndexJob>;
+  readonly calendarSync: Queue<CalendarSyncJob>;
   constructor(config: ConfigService) {
     const connection = {
       url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
@@ -112,6 +118,14 @@ export class QueueService implements OnModuleDestroy {
       connection,
       defaultJobOptions,
     });
+    this.calendarSync = new Queue<CalendarSyncJob>('calendar-sync', {
+      connection,
+      defaultJobOptions: {
+        attempts: 1,
+        removeOnComplete: 1000,
+        removeOnFail: 1000,
+      },
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -127,6 +141,7 @@ export class QueueService implements OnModuleDestroy {
       this.briefings.close(),
       this.followUps.close(),
       this.dailyNoteIndexes.close(),
+      this.calendarSync.close(),
     ]);
   }
 }

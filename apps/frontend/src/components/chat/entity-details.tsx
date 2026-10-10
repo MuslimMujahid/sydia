@@ -34,6 +34,7 @@ const STATUS_LABELS = {
     done: "Completed",
     cancelled: "Cancelled",
     confirmed: "Confirmed",
+    tentative: "Tentative",
     processing: "Processing",
     ready: "Ready",
     failed: "Processing failed",
@@ -44,6 +45,7 @@ const STATUS_LABELS = {
     done: "Selesai",
     cancelled: "Dibatalkan",
     confirmed: "Dikonfirmasi",
+    tentative: "Sementara",
     processing: "Diproses",
     ready: "Siap digunakan",
     failed: "Pemrosesan gagal",
@@ -349,6 +351,7 @@ function FileDetails({ entity, locale }: DetailsProps) {
 function EventDetails({
   entity,
   locale,
+  timezone,
 }: DetailsProps & { entity: Extract<ChatEntity, { kind: "event" }> }) {
   // Refresh this event from its recorded range; a moved/deleted event is visibly unavailable.
   const query = useQuery({
@@ -397,10 +400,22 @@ function EventDetails({
         {STATUS_LABELS[locale][event.status]}
       </p>
       <p className="mt-1 text-sm text-ink-muted">
-        {when(event.startAt, locale, event.timezone)} –{" "}
-        {when(event.endAt, locale, event.timezone)}
+        {event.allDayStartDate && event.allDayEndDate
+          ? `${new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+              dateStyle: "medium",
+              timeZone: "UTC",
+            }).format(
+              new Date(`${event.allDayStartDate.slice(0, 10)}T12:00:00.000Z`)
+            )} · ${locale === "en" ? "All day" : "Sepanjang hari"}`
+          : event.startAt && event.endAt
+            ? `${when(event.startAt, locale, event.timezone ?? timezone)} – ${when(event.endAt, locale, event.timezone ?? timezone)}`
+            : locale === "en"
+              ? "Time unavailable"
+              : "Waktu tidak tersedia"}
       </p>
-      <p className="mt-1 text-sm text-ink-muted">{event.timezone}</p>
+      {event.timezone ? (
+        <p className="mt-1 text-sm text-ink-muted">{event.timezone}</p>
+      ) : null}
       {event.location ? (
         <p className="mt-1 break-words text-sm text-ink-muted">
           {event.location}
@@ -416,7 +431,14 @@ function EventDetails({
           <Link
             to="/calendar"
             search={{
-              date: dayKeyInZone(new Date(event.startAt), event.timezone),
+              date:
+                event.allDayStartDate?.slice(0, 10) ??
+                (event.startAt
+                  ? dayKeyInZone(
+                      new Date(event.startAt),
+                      event.timezone ?? timezone
+                    )
+                  : undefined),
               view: "day",
             }}
           />

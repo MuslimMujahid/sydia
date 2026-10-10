@@ -1,16 +1,15 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
-  CALENDAR_REPOSITORY,
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
-  type ICalendarRepository,
   type IReminderRepository,
   type ITaskRepository,
   type IUserRepository,
 } from '../../database/interfaces';
 import { dayWindow } from '../../shared/date-time';
+import { CalendarReadService } from '../calendar/calendar-read.service';
 
 @Roles(['user'])
 @Controller('today')
@@ -20,7 +19,7 @@ export class TodayController {
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
-    @Inject(CALENDAR_REPOSITORY) private readonly calendar: ICalendarRepository,
+    private readonly calendar: CalendarReadService,
   ) {}
 
   @Get() async get(@Session() s: UserSession) {

@@ -823,6 +823,100 @@ function isReceiptTool(name: string): name is ReceiptToolName {
   return Object.hasOwn(RECEIPTS, name);
 }
 
+function calendarEventHeading(
+  locale: SupportedLocale,
+  name: ReceiptToolName,
+  count: number,
+): string | null {
+  switch (name) {
+    case 'create_calendar_event':
+      return count === 1
+        ? pick(
+            locale,
+            'All set, your event is saved in Sydia.',
+            'Siap, acara sudah disimpan di Sydia.',
+          )
+        : pick(
+            locale,
+            `All set, ${count} events are saved in Sydia.`,
+            `Siap, ${count} acara sudah disimpan di Sydia.`,
+          );
+    case 'update_calendar_event':
+      return count === 1
+        ? pick(
+            locale,
+            'All set, your event changes are saved in Sydia.',
+            'Siap, perubahan acara sudah disimpan di Sydia.',
+          )
+        : pick(
+            locale,
+            `All set, changes to ${count} events are saved in Sydia.`,
+            `Siap, perubahan pada ${count} acara sudah disimpan di Sydia.`,
+          );
+    case 'cancel_calendar_event':
+      return count === 1
+        ? pick(
+            locale,
+            'All set, the event was cancelled in Sydia.',
+            'Siap, acara sudah dibatalkan di Sydia.',
+          )
+        : pick(
+            locale,
+            `All set, ${count} events were cancelled in Sydia.`,
+            `Siap, ${count} acara sudah dibatalkan di Sydia.`,
+          );
+    default:
+      return null;
+  }
+}
+
+function calendarSyncDetail(locale: SupportedLocale, state: unknown): string {
+  switch (state) {
+    case 'local':
+      return pick(
+        locale,
+        'Sydia only; this event is not synced with Google.',
+        'Khusus di Sydia; acara ini tidak disinkronkan ke Google.',
+      );
+    case 'pending':
+      return pick(
+        locale,
+        'Google Calendar sync is pending.',
+        'Sinkronisasi Google Calendar masih menunggu.',
+      );
+    case 'synced':
+      return pick(
+        locale,
+        'The latest change is synced with Google Calendar.',
+        'Perubahan terakhir sudah disinkronkan ke Google Calendar.',
+      );
+    case 'conflict':
+      return pick(
+        locale,
+        'Google Calendar sync is paused for conflict review.',
+        'Sinkronisasi Google Calendar dijeda untuk meninjau konflik.',
+      );
+    case 'error':
+      return pick(
+        locale,
+        'Google Calendar sync failed.',
+        'Sinkronisasi Google Calendar gagal.',
+      );
+    case 'reconnect_required':
+      return pick(
+        locale,
+        'Reconnect Google Calendar to resume sync.',
+        'Hubungkan kembali Google Calendar untuk melanjutkan sinkronisasi.',
+      );
+    default:
+      return pick(
+        locale,
+        'Google Calendar delivery status is unavailable; it is not confirmed.',
+        'Status pengiriman ke Google Calendar tidak tersedia; belum terkonfirmasi.',
+      );
+  }
+}
+
 /** Validates the whole batch before emitting a confirmation; latest IDs count once. */
 function receiptAck(
   context: TerminalResponseContext,
@@ -846,7 +940,8 @@ function receiptAck(
   const [en, plural, id] = definition.noun;
   const [enVerb, idVerb] = definition.verb;
   const heading =
-    entries.size === 1
+    calendarEventHeading(context.locale, name, entries.size) ??
+    (entries.size === 1
       ? pick(
           context.locale,
           definition.available
@@ -860,7 +955,7 @@ function receiptAck(
             ? `All set, ${entries.size} ${plural} are ready.`
             : `All set, ${entries.size} ${plural} have been ${enVerb}.`,
           `Siap, ${entries.size} ${id} sudah ${idVerb}.`,
-        );
+        ));
 
   const rich = context.channel !== 'whatsapp';
   const rows = [...entries.values()].map((item) => {
@@ -1176,6 +1271,43 @@ function sentFileItems(
   return [item];
 }
 
+function calendarDay(value: unknown): string | null {
+  const instant = instantOf(value);
+
+  return instant ? instant.toISOString().slice(0, 10) : null;
+}
+
+function calendarDayLabel(
+  context: TerminalResponseContext,
+  day: string,
+): string {
+  return new Intl.DateTimeFormat(context.locale === 'id' ? 'id-ID' : 'en-GB', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${day}T00:00:00.000Z`));
+}
+
+function allDayEventRange(
+  context: TerminalResponseContext,
+  startValue: unknown,
+  endValue: unknown,
+): string | null {
+  const startDay = calendarDay(startValue);
+  const endDay = calendarDay(endValue);
+  if (!startDay || !endDay || endDay <= startDay) return null;
+
+  const lastInclusiveDay = new Date(`${endDay}T00:00:00.000Z`);
+  lastInclusiveDay.setUTCDate(lastInclusiveDay.getUTCDate() - 1);
+  const lastDay = lastInclusiveDay.toISOString().slice(0, 10);
+  const startLabel = calendarDayLabel(context, startDay);
+  const endLabel = calendarDayLabel(context, lastDay);
+  const dates = startDay === lastDay ? startLabel : `${startLabel}–${endLabel}`;
+
+  return pick(context.locale, `All day: ${dates}`, `Sehari penuh: ${dates}`);
+}
+
 function eventItems(
   context: TerminalResponseContext,
   result: unknown,
@@ -1187,35 +1319,52 @@ function eventItems(
     context.timezone ??
     (typeof object.timezone === 'string' ? object.timezone : undefined);
 
-  const from = instantOf(object.startAt);
-  const to = instantOf(object.endAt);
-  if (!from || !to || to <= from) return null;
-  const start = receiptDate(context, from, zone);
-  const end = receiptDate(context, to, zone);
-  if (!start || !end) return null;
-  const day = new Intl.DateTimeFormat('en-CA', { timeZone: zone ?? 'UTC' });
-  const clock = new Intl.DateTimeFormat(
-    context.locale === 'id' ? 'id-ID' : 'en-GB',
-    {
-      timeZone: zone ?? 'UTC',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    },
-  );
+  const hasAllDayDates =
+    object.allDayStartDate != null || object.allDayEndDate != null;
 
-  const sameDay = day.format(from) === day.format(to);
-  const range = sameDay
-    ? `${start.replace(/ UTC$/, '')}–${clock.format(to)}${zone ? '' : ' UTC'}`
-    : `${start}–${end}`;
+  if (hasAllDayDates) {
+    if (object.startAt != null || object.endAt != null) return null;
+    const range = allDayEventRange(
+      context,
+      object.allDayStartDate,
+      object.allDayEndDate,
+    );
 
-  item.details.push(range);
+    if (!range) return null;
+    item.details.push(range);
+  } else {
+    const from = instantOf(object.startAt);
+    const to = instantOf(object.endAt);
+    if (!from || !to || to <= from) return null;
+    const start = receiptDate(context, from, zone);
+    const end = receiptDate(context, to, zone);
+    if (!start || !end) return null;
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: zone ?? 'UTC' });
+    const clock = new Intl.DateTimeFormat(
+      context.locale === 'id' ? 'id-ID' : 'en-GB',
+      {
+        timeZone: zone ?? 'UTC',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      },
+    );
+
+    const sameDay = day.format(from) === day.format(to);
+    const range = sameDay
+      ? `${start.replace(/ UTC$/, '')}–${clock.format(to)}${zone ? '' : ' UTC'}`
+      : `${start}–${end}`;
+
+    item.details.push(range);
+  }
 
   if (object.location != null) {
     const location = asText(object.location);
     if (!location) return null;
     item.details.push(location);
   }
+
+  item.details.push(calendarSyncDetail(context.locale, object.syncState));
 
   return [item];
 }
@@ -1230,8 +1379,10 @@ function cancelledEventItems(
   if (object.startAt != null || object.endAt != null)
     return eventItems(context, result);
   const item = receiptItem(object, 'title');
+  if (!item) return null;
+  item.details.push(calendarSyncDetail(context.locale, object.syncState));
 
-  return item ? [item] : null;
+  return [item];
 }
 
 function categoryAck(

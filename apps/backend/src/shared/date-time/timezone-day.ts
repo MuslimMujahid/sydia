@@ -51,8 +51,8 @@ export function zonedParts(instant: Date, timeZone: string): ZonedParts {
  *
  * The offset is read back from the zone itself rather than assumed, so the
  * result is correct for any offset, including zones with daylight saving at the
- * moment of the call. A wall clock that the zone skips or repeats is resolved
- * to the first instant that matches it.
+ * moment of the call. Repeated wall clocks resolve to their earlier instant;
+ * skipped wall clocks move forward by the size of the gap.
  */
 export function zonedInstant(parts: ZonedParts, timeZone: string): Date {
   const estimate = Date.UTC(
@@ -64,17 +64,56 @@ export function zonedInstant(parts: ZonedParts, timeZone: string): Date {
     parts.second,
   );
 
-  const observed = partsAt(new Date(estimate), timeZone);
-  const represented = Date.UTC(
-    observed.year ?? parts.year,
-    (observed.month ?? parts.month) - 1,
-    observed.day ?? parts.day,
-    observed.hour ?? parts.hour,
-    observed.minute ?? parts.minute,
-    observed.second ?? parts.second,
-  );
+  const wallMilliseconds = (observed: Record<string, number>): number => {
+    const { year, month, day, hour, minute, second } = observed;
+    if (
+      year === undefined ||
+      month === undefined ||
+      day === undefined ||
+      hour === undefined ||
+      minute === undefined ||
+      second === undefined
+    )
+      throw new Error(
+        `Time zone ${timeZone} returned incomplete calendar fields.`,
+      );
 
-  return new Date(estimate - (represented - estimate));
+    return Date.UTC(year, month - 1, day, hour, minute, second);
+  };
+
+  // Sample both sides of nearby transitions. A single offset observation can
+  // select the wrong side of a DST change when the estimated instant is near it.
+  const offsets = new Set<number>();
+
+  for (const hours of [-36, -18, 0, 18, 36]) {
+    const sample = estimate + hours * 60 * 60 * 1000;
+    offsets.add(wallMilliseconds(partsAt(new Date(sample), timeZone)) - sample);
+  }
+
+  const candidates = [...offsets]
+    .map((offset) => new Date(estimate - offset))
+    .map((instant) => ({
+      instant,
+      represented: wallMilliseconds(partsAt(instant, timeZone)),
+    }))
+    .sort((left, right) => left.instant.getTime() - right.instant.getTime());
+
+  const exact = candidates.find(({ represented }) => represented === estimate);
+  if (exact) return exact.instant;
+
+  // A skipped wall time has no exact instant. Resolve it to the nearest wall
+  // time after the gap (for example, 02:30 becomes 03:30 at a 02:00→03:00 jump).
+  const afterGap = candidates
+    .filter(({ represented }) => represented > estimate)
+    .sort(
+      (left, right) =>
+        left.represented - right.represented ||
+        left.instant.getTime() - right.instant.getTime(),
+    )[0];
+
+  if (afterGap) return afterGap.instant;
+
+  throw new Error(`Could not resolve wall time in time zone ${timeZone}.`);
 }
 
 function zonedMidnight(

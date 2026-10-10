@@ -44,11 +44,9 @@ export class TokenCipher {
   }
 
   decrypt(payload: string): string {
-    if (!payload.startsWith('v1.')) return payload;
-
     const parts = payload.split('.');
 
-    if (parts.length !== 4) {
+    if (parts.length !== 4 || parts[0] !== 'v1') {
       throw new Error('Invalid token cipher payload');
     }
 

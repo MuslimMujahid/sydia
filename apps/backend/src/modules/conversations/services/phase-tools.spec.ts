@@ -6,6 +6,8 @@ import type {
   IUserRepository,
 } from '../../../database/interfaces';
 import type { CalendarService } from '../../calendar/calendar.service';
+import type { CalendarReadService } from '../../calendar/calendar-read.service';
+import type { CalendarSyncService } from '../../calendar/calendar-sync.service';
 import type { DocumentService } from '../../documents/document.service';
 import { createPhaseTools } from './phase-tools';
 
@@ -16,6 +18,8 @@ function tools(
     documents: DocumentService;
     calendars: ICalendarRepository;
     calendarService: CalendarService;
+    calendarRead: CalendarReadService;
+    calendarSync: CalendarSyncService;
     users: IUserRepository;
   }> = {},
 ) {
@@ -25,6 +29,8 @@ function tools(
     documents: {} as DocumentService,
     calendars: {} as ICalendarRepository,
     calendarService: {} as CalendarService,
+    calendarRead: {} as CalendarReadService,
+    calendarSync: {} as CalendarSyncService,
     users: {
       findById: jest
         .fn<() => Promise<{ timezone: string }>>()
@@ -770,17 +776,35 @@ describe('phase 5 and 6 assistant tools', () => {
   test('creates, updates, and cancels calendar events through service', async () => {
     const event = { id: 'event-1', title: 'Review' };
     const create = jest
-      .fn<(userId: string, input: unknown) => Promise<typeof event>>()
+      .fn<
+        (
+          userId: string,
+          input: unknown,
+          destination: string,
+          idempotencyKey: string,
+        ) => Promise<typeof event>
+      >()
       .mockResolvedValue(event);
 
     const update = jest
       .fn<
-        (userId: string, id: string, input: unknown) => Promise<typeof event>
+        (
+          userId: string,
+          id: string,
+          input: unknown,
+          idempotencyKey: string,
+        ) => Promise<typeof event>
       >()
       .mockResolvedValue(event);
 
     const cancel = jest
-      .fn<(userId: string, id: string) => Promise<typeof event>>()
+      .fn<
+        (
+          userId: string,
+          id: string,
+          idempotencyKey: string,
+        ) => Promise<typeof event>
+      >()
       .mockResolvedValue(event);
 
     const available = tools({
@@ -820,8 +844,238 @@ describe('phase 5 and 6 assistant tools', () => {
       'user-1',
       'event-1',
       expect.objectContaining({ title: 'Review final' }),
+      'two',
     );
-    expect(cancel).toHaveBeenCalledWith('user-1', 'event-1');
+    expect(cancel).toHaveBeenCalledWith('user-1', 'event-1', 'three');
+  });
+
+  test('creates all-day calendar events with an exclusive date end', async () => {
+    const saved = { id: 'event-all-day', title: 'Conference' };
+    const create = jest
+      .fn<
+        (
+          userId: string,
+          input: unknown,
+          destination: string,
+          idempotencyKey: string,
+        ) => Promise<typeof saved>
+      >()
+      .mockResolvedValue(saved);
+
+    const findById = jest
+      .fn<(userId: string) => Promise<{ timezone: string } | null>>()
+      .mockResolvedValue(null);
+
+    const available = tools({
+      calendarService: { create } as unknown as CalendarService,
+      users: { findById } as unknown as IUserRepository,
+    });
+
+    const result = await available
+      .find((tool) => tool.definition.name === 'create_calendar_event')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-all-day',
+        idempotencyKey: 'all-day-create',
+        arguments: {
+          title: 'Conference',
+          allDayStartDate: '2026-09-22',
+          allDayEndDate: '2026-09-24',
+        },
+      });
+
+    expect(create).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        title: 'Conference',
+        allDayStartDate: new Date('2026-09-22T00:00:00.000Z'),
+        allDayEndDate: new Date('2026-09-24T00:00:00.000Z'),
+      }),
+      'auto',
+      'all-day-create',
+    );
+    expect(findById).not.toHaveBeenCalled();
+    expect(result).toEqual({ objectType: 'calendar_event', object: saved });
+  });
+
+  test.each([
+    {
+      title: 'rejects invalid date-only values',
+      arguments: {
+        title: 'Conference',
+        allDayStartDate: '2026-02-30',
+        allDayEndDate: '2026-03-02',
+      },
+      message: 'allDayStartDate must be a valid calendar date.',
+    },
+    {
+      title: 'rejects an all-day range without its exclusive end',
+      arguments: { title: 'Conference', allDayStartDate: '2026-09-22' },
+      message: 'The all-day end date must be after the all-day start date.',
+    },
+    {
+      title: 'rejects mixed timed and all-day fields',
+      arguments: {
+        title: 'Conference',
+        startAt: '2026-09-22T10:00:00.000Z',
+        endAt: '2026-09-22T11:00:00.000Z',
+        allDayStartDate: '2026-09-22',
+        allDayEndDate: '2026-09-23',
+      },
+      message:
+        'Provide either startAt/endAt for a timed event or allDayStartDate/allDayEndDate for an all-day event.',
+    },
+  ])('$title before saving', async ({ arguments: input, message }) => {
+    const create = jest.fn();
+    const available = tools({
+      calendarService: { create } as unknown as CalendarService,
+    });
+
+    await expect(
+      available
+        .find((tool) => tool.definition.name === 'create_calendar_event')
+        ?.execute({
+          userId: 'user-1',
+          sourceMessageId: 'invalid-all-day',
+          idempotencyKey: 'invalid-all-day',
+          arguments: input,
+        }),
+    ).rejects.toThrow(message);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  test('updates all-day dates and requires a complete exclusive range', async () => {
+    const update = jest
+      .fn<
+        (
+          userId: string,
+          eventId: string,
+          input: unknown,
+          idempotencyKey: string,
+        ) => Promise<{ id: string }>
+      >()
+      .mockResolvedValue({ id: 'event-1' });
+
+    const available = tools({
+      calendarService: { update } as unknown as CalendarService,
+    });
+
+    const tool = available.find(
+      (candidate) => candidate.definition.name === 'update_calendar_event',
+    );
+
+    await tool?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'update-all-day',
+      idempotencyKey: 'update-all-day',
+      arguments: {
+        id: 'event-1',
+        allDayStartDate: '2026-09-22',
+        allDayEndDate: '2026-09-23',
+      },
+    });
+    expect(update).toHaveBeenCalledWith(
+      'user-1',
+      'event-1',
+      {
+        title: undefined,
+        description: undefined,
+        location: undefined,
+        allDayStartDate: new Date('2026-09-22T00:00:00.000Z'),
+        allDayEndDate: new Date('2026-09-23T00:00:00.000Z'),
+      },
+      'update-all-day',
+    );
+
+    await expect(
+      tool?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'update-incomplete-all-day',
+        idempotencyKey: 'update-incomplete-all-day',
+        arguments: { id: 'event-1', allDayStartDate: '2026-09-22' },
+      }),
+    ).rejects.toThrow(
+      'The all-day end date must be after the all-day start date.',
+    );
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  test('resolves local recurring occurrences before assistant edits', async () => {
+    const series = { provider: 'local' };
+    const occurrence = { id: 'local-exception-1' };
+    const updated = { id: occurrence.id, title: 'Review final' };
+    const findById = jest
+      .fn<(userId: string, id: string) => Promise<typeof series | null>>()
+      .mockResolvedValue(series);
+
+    const resolveLocalOccurrenceForMutation = jest
+      .fn<
+        (
+          userId: string,
+          seriesEventId: string,
+          occurrenceKey: string,
+        ) => Promise<typeof occurrence | null>
+      >()
+      .mockResolvedValue(occurrence);
+
+    const resolveGoogleOccurrenceForMutation = jest
+      .fn<() => Promise<null>>()
+      .mockResolvedValue(null);
+
+    const update = jest
+      .fn<
+        (
+          userId: string,
+          id: string,
+          input: unknown,
+          idempotencyKey: string,
+        ) => Promise<typeof updated>
+      >()
+      .mockResolvedValue(updated);
+
+    const available = tools({
+      calendars: { findById } as unknown as ICalendarRepository,
+      calendarRead: {
+        resolveLocalOccurrenceForMutation,
+      } as unknown as CalendarReadService,
+      calendarSync: {
+        resolveGoogleOccurrenceForMutation,
+      } as unknown as CalendarSyncService,
+      calendarService: { update } as unknown as CalendarService,
+    });
+
+    const result = await available
+      .find((tool) => tool.definition.name === 'update_calendar_event')
+      ?.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-4',
+        idempotencyKey: 'local-occurrence-edit',
+        arguments: {
+          id: 'occurrence:local-series:2026-01-05T14%3A00%3A00.000Z',
+          scope: 'occurrence',
+          seriesEventId: 'local-series',
+          occurrenceKey: '2026-01-05T14:00:00.000Z',
+          title: 'Review final',
+        },
+      });
+
+    expect(findById).toHaveBeenCalledWith('user-1', 'local-series');
+    expect(resolveLocalOccurrenceForMutation).toHaveBeenCalledWith(
+      'user-1',
+      'local-series',
+      '2026-01-05T14:00:00.000Z',
+    );
+    expect(resolveGoogleOccurrenceForMutation).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      'user-1',
+      occurrence.id,
+      expect.objectContaining({ title: 'Review final' }),
+      'local-occurrence-edit',
+    );
+    expect(result).toEqual({
+      objectType: 'calendar_event',
+      object: updated,
+    });
   });
 
   test('documents every phase tool and parameter in English', () => {
@@ -843,12 +1097,17 @@ describe('phase 5 and 6 assistant tools', () => {
       if (schema.items) visit(schema.items);
     };
 
-    expect(available).toHaveLength(17);
+    expect(available).toHaveLength(18);
 
     for (const assistantTool of available) {
-      expect(assistantTool.definition.description).toMatch(
-        /^Use this tool to [\s\S]+\n\nUse it when [\s\S]+\n\nDo not use it [\s\S]+\n\n[\s\S]+$/,
-      );
+      if (assistantTool.definition.name === 'get_calendar_sync_status')
+        expect(assistantTool.definition.description).toMatch(
+          /^Use this tool when [\s\S]+\n\nDo not use it [\s\S]+$/,
+        );
+      else
+        expect(assistantTool.definition.description).toMatch(
+          /^Use this tool to [\s\S]+\n\nUse it when [\s\S]+\n\nDo not use it [\s\S]+\n\n[\s\S]+$/,
+        );
       visit(assistantTool.definition.parameters, true);
     }
   });

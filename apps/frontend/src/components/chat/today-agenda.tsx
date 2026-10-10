@@ -115,11 +115,20 @@ export function TodayAgenda() {
                 {event.title}
               </span>
               <time
-                dateTime={event.startAt}
+                dateTime={event.startAt ?? event.allDayStartDate ?? undefined}
                 className="flex shrink-0 items-center gap-1 text-xs text-ink-muted"
               >
-                <Clock3 className="size-3.5" aria-hidden="true" />
-                {formatDateTimeInZone(event.startAt, event.timezone)}
+                {event.allDayStartDate ? (
+                  <>{"Sepanjang hari"}</>
+                ) : event.startAt ? (
+                  <>
+                    <Clock3 className="size-3.5" aria-hidden="true" />
+                    {formatDateTimeInZone(
+                      event.startAt,
+                      event.timezone ?? timezone
+                    )}
+                  </>
+                ) : null}
               </time>
             </Link>
           </li>

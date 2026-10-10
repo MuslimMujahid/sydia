@@ -30,10 +30,15 @@ export class UserPrivacyService {
   async export(userId: string) {
     const data = await this.privacy.exportData(userId);
     if (!data) throw this.notFound();
+    const [googleCalendar, hindsightMemory] = await Promise.all([
+      this.calendars.privacyExport(userId),
+      this.memoryArchive.export(userId),
+    ]);
 
     return {
       ...data,
-      hindsightMemory: await this.memoryArchive.export(userId),
+      googleCalendar,
+      hindsightMemory,
     };
   }
 

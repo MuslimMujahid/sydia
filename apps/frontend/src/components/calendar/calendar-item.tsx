@@ -18,6 +18,7 @@ import {
   STATUS_ICONS,
   STATUS_LABELS,
 } from "@/components/tasks/task-view";
+import type { CalendarEvent } from "@/lib/services/api/calendar/calendar.api";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -104,6 +105,23 @@ export function itemAccessibleLabel(
     : `Tugas: ${item.title}, tenggat ${time}${done ? ", selesai" : ""}`;
 }
 
+function calendarSyncLabel(syncState: CalendarEvent["syncState"]): string {
+  switch (syncState) {
+    case "local":
+      return "Tersimpan di Sydia saja";
+    case "pending":
+      return "Menunggu sinkronisasi ke Google";
+    case "synced":
+      return "Tersinkron ke Google";
+    case "conflict":
+      return "Perlu ditinjau di Integrasi";
+    case "error":
+      return "Sinkronisasi gagal; lihat Integrasi";
+    case "reconnect_required":
+      return "Hubungkan ulang Google di Integrasi";
+  }
+}
+
 const DONE_TITLE_CLASS = "line-through decoration-current/40";
 
 type DetailRowProps = { icon: LucideIcon; children: ReactNode };
@@ -157,6 +175,24 @@ function ItemDetails({ item, timeZone, done }: ItemDetailsProps) {
         <DetailRow icon={CalendarDays}>
           <span className="text-ink-muted">
             {event.provider === "google" ? "Google Calendar" : "Sydia"}
+          </span>
+          <span aria-hidden="true"> · </span>
+          <span
+            className={cn(
+              "font-medium",
+              ["conflict", "error", "reconnect_required"].includes(
+                event.syncState
+              ) && "text-destructive"
+            )}
+            role={
+              ["conflict", "error", "reconnect_required"].includes(
+                event.syncState
+              )
+                ? "alert"
+                : "status"
+            }
+          >
+            {calendarSyncLabel(event.syncState)}
           </span>
         </DetailRow>
       </ul>

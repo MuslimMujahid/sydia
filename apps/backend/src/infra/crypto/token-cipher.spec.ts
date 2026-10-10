@@ -22,12 +22,14 @@ describe('TokenCipher', () => {
     expect(cipher.encrypt('same-token')).not.toBe(cipher.encrypt('same-token'));
   });
 
-  it('passes through legacy plaintext values', () => {
+  it('rejects unversioned legacy plaintext values', () => {
     const cipher = new TokenCipher(
       new ConfigService({ BACKEND_TOKEN_ENCRYPTION_KEY: 'token-key' }),
     );
 
-    expect(cipher.decrypt('legacy-access-token')).toBe('legacy-access-token');
+    expect(() => cipher.decrypt('legacy-access-token')).toThrow(
+      'Invalid token cipher payload',
+    );
   });
 
   it('falls back to the auth secret when no dedicated key is configured', () => {

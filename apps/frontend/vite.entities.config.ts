@@ -11,7 +11,8 @@ const entityFixture: Plugin = {
       if (
         fixture !== "/e2e/entity-renderer.html" &&
         fixture !== "/e2e/chat-previews.html" &&
-        fixture !== "/e2e/dev-toolbar.html"
+        fixture !== "/e2e/dev-toolbar.html" &&
+        fixture !== "/e2e/calendar-sync.html"
       )
         return next();
 

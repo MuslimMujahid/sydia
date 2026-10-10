@@ -21,49 +21,51 @@ enum AssistantPersona {
 }
 
 model User {
-  id                     String                 @id
-  name                   String
-  email                  String                 @unique
-  emailVerified          Boolean                @default(false)
-  image                  String?
-  role                   String                 @default("user")
-  banned                 Boolean                @default(false)
-  banReason              String?
-  banExpires             DateTime?
-  timezone               String                 @default("Asia/Jakarta")
-  locale                 String                 @default("id")
-  onboardingCompleted    Boolean                @default(false)
-  automaticMemoryEnabled Boolean                @default(true)
-  persona                AssistantPersona       @default(professional)
-  preferredAddress       String?
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @default(now()) @updatedAt
-  sessions               Session[]
-  accounts               Account[]
-  externalIdentities     ExternalIdentity[]
-  auditEvents            AuditEvent[]
-  conversations          Conversation[]
-  messages               Message[]
-  tasks                  Task[]
-  categories             Category[]
-  reminders              Reminder[]
-  memories               Memory[]
-  memoryDreamRuns        MemoryDreamRun[]
-  memoryDeletionMarkers  MemoryDeletionMarker[]
-  fileAssets             FileAsset[]
-  documents              Document[]
-  contacts               Contact[]
-  contactGroups          ContactGroup[]
-  calendarIntegrations   CalendarIntegration[]
-  calendarEvents         CalendarEvent[]
-  whatsappLinkCodes      WhatsAppLinkCode[]
-  telegramLinkTokens     TelegramLinkToken[]
-  notificationDeliveries NotificationDelivery[]
-  userPreference         UserPreference?
-  secrets                Secret[]
-  secretRevealTokens     SecretRevealToken[]
-  secretVaultUnlocks     SecretVaultUnlock[]
-  dailyNotes             DailyNote[]
+  id                       String                    @id
+  name                     String
+  email                    String                    @unique
+  emailVerified            Boolean                   @default(false)
+  image                    String?
+  role                     String                    @default("user")
+  banned                   Boolean                   @default(false)
+  banReason                String?
+  banExpires               DateTime?
+  timezone                 String                    @default("Asia/Jakarta")
+  locale                   String                    @default("id")
+  onboardingCompleted      Boolean                   @default(false)
+  automaticMemoryEnabled   Boolean                   @default(true)
+  persona                  AssistantPersona          @default(professional)
+  preferredAddress         String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @default(now()) @updatedAt
+  sessions                 Session[]
+  accounts                 Account[]
+  externalIdentities       ExternalIdentity[]
+  auditEvents              AuditEvent[]
+  conversations            Conversation[]
+  messages                 Message[]
+  tasks                    Task[]
+  categories               Category[]
+  reminders                Reminder[]
+  memories                 Memory[]
+  memoryDreamRuns          MemoryDreamRun[]
+  memoryDeletionMarkers    MemoryDeletionMarker[]
+  fileAssets               FileAsset[]
+  documents                Document[]
+  contacts                 Contact[]
+  contactGroups            ContactGroup[]
+  calendarIntegrations     CalendarIntegration[]
+  calendarEvents           CalendarEvent[]
+  calendarOAuthRequests    CalendarOAuthRequest[]
+  calendarMutationReceipts CalendarMutationReceipt[]
+  whatsappLinkCodes        WhatsAppLinkCode[]
+  telegramLinkTokens       TelegramLinkToken[]
+  notificationDeliveries   NotificationDelivery[]
+  userPreference           UserPreference?
+  secrets                  Secret[]
+  secretRevealTokens       SecretRevealToken[]
+  secretVaultUnlocks       SecretVaultUnlock[]
+  dailyNotes               DailyNote[]
 
   @@index([role])
   @@index([banned])
@@ -762,43 +764,253 @@ model ContactGroupMember {
 }
 
 model CalendarIntegration {
-  id                   String    @id @default(cuid())
-  userId               String
-  provider             String    @default("google")
-  status               String    @default("disconnected")
-  accessToken          String?
-  refreshToken         String?
-  accessTokenExpiresAt DateTime?
-  scope                String?
-  calendarId           String?   @default("primary")
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @default(now()) @updatedAt
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                       String            @id @default(cuid())
+  userId                   String
+  provider                 String            @default("google")
+  status                   String            @default("disconnected")
+  accessToken              String?
+  refreshToken             String?
+  accessTokenExpiresAt     DateTime?
+  scope                    String?
+  calendarId               String?           @default("primary")
+  googleSubject            String?
+  googleEmail              String?
+  connectionGeneration     Int               @default(0)
+  credentialGeneration     Int               @default(0)
+  credentialLeaseOwner     String?
+  credentialLeaseExpiresAt DateTime?
+  activeBindingId          String?           @unique
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @default(now()) @updatedAt
+  user                     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bindings                 CalendarBinding[] @relation("CalendarIntegrationBindings")
+  activeBinding            CalendarBinding?  @relation("CalendarIntegrationActiveBinding", fields: [activeBindingId], references: [id], onDelete: SetNull)
 
   @@unique([userId, provider])
   @@map("calendar_integration")
 }
 
-model CalendarEvent {
-  id              String   @id @default(cuid())
-  userId          String
-  provider        String   @default("local")
-  providerEventId String?
-  title           String
-  description     String?
-  location        String?
-  startAt         DateTime
-  endAt           DateTime
-  timezone        String
-  attendees       String[] @default([])
-  status          String   @default("confirmed")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now()) @updatedAt
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model CalendarBinding {
+  id                           String                  @id @default(cuid())
+  integrationId                String
+  googleSubject                String
+  calendarId                   String
+  calendarName                 String
+  timezone                     String
+  state                        String                  @default("initializing")
+  queryVersion                 String                  @default("events-default-v1")
+  syncToken                    String?
+  nextPageToken                String?
+  pendingFullImportSyncToken   String?
+  fullImportFinalizationCursor String?
+  dirtyRevision                Int                     @default(1)
+  syncedRevision               Int                     @default(0)
+  pullTargetRevision           Int                     @default(0)
+  fullImportGeneration         Int                     @default(0)
+  lastSyncedAt                 DateTime?
+  nextSyncAt                   DateTime?
+  leaseOwner                   String?
+  leaseExpiresAt               DateTime?
+  leaseEpoch                   Int                     @default(0)
+  lastErrorCode                String?
+  lastErrorMessage             String?
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @default(now()) @updatedAt
+  integration                  CalendarIntegration     @relation("CalendarIntegrationBindings", fields: [integrationId], references: [id], onDelete: Cascade)
+  activeForIntegration         CalendarIntegration?    @relation("CalendarIntegrationActiveBinding")
+  eventLinks                   CalendarEventLink[]
+  operations                   CalendarSyncOperation[]
+  conflicts                    CalendarSyncConflict[]
+  watchChannels                CalendarWatchChannel[]
 
-  @@unique([userId, provider, providerEventId])
+  @@index([integrationId, state])
+  @@index([state, nextSyncAt])
+  @@index([leaseExpiresAt])
+  @@map("calendar_binding")
+}
+
+model CalendarEvent {
+  id                             String                  @id @default(cuid())
+  userId                         String
+  provider                       String                  @default("local")
+  providerEventId                String?
+  title                          String
+  description                    String?
+  location                       String?
+  startAt                        DateTime?
+  endAt                          DateTime?
+  timezone                       String?
+  allDayStartDate                DateTime?               @db.Date
+  allDayEndDate                  DateTime?               @db.Date
+  recurrence                     String[]                @default([])
+  recurrenceOverrideFields       String[]                @default([])
+  recurringParentProviderEventId String?
+  recurringParentEventId         String?
+  recurrenceExceptionKey         String?
+  originalStartAt                DateTime?
+  originalStartDate              DateTime?               @db.Date
+  attendees                      String[]                @default([])
+  status                         String                  @default("confirmed")
+  syncState                      String                  @default("local")
+  revision                       Int                     @default(1)
+  lastSyncedAt                   DateTime?
+  syncErrorCode                  String?
+  createdAt                      DateTime                @default(now())
+  updatedAt                      DateTime                @default(now()) @updatedAt
+  user                           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurringParentEvent           CalendarEvent?          @relation("CalendarLocalRecurrence", fields: [recurringParentEventId], references: [id], onDelete: Cascade)
+  recurrenceExceptions           CalendarEvent[]         @relation("CalendarLocalRecurrence")
+  providerLink                   CalendarEventLink?      @relation("CalendarLinkedEvent")
+  syncOperations                 CalendarSyncOperation[]
+
+  @@unique([recurringParentEventId, recurrenceExceptionKey])
+  @@index([recurringParentEventId, originalStartAt])
+  @@index([recurringParentEventId, originalStartDate])
   @@index([userId, startAt, status])
+  @@index([userId, allDayStartDate, status])
+  @@index([userId, syncState, updatedAt])
+  @@index([userId, provider, providerEventId], map: "calendar_event_legacy_lookup_idx")
   @@map("calendar_event")
+}
+
+model CalendarEventLink {
+  id                             String                 @id @default(cuid())
+  bindingId                      String
+  calendarEventId                String?                @unique
+  googleEventId                  String
+  recurringParentProviderEventId String?
+  originalStartAt                DateTime?
+  originalStartDate              DateTime?              @db.Date
+  etag                           String?
+  remoteSnapshot                 Json?
+  commonSnapshot                 Json?
+  syncedRevision                 Int?
+  lastSeenFullImportGeneration   Int?
+  tombstoneAt                    DateTime?
+  createdAt                      DateTime               @default(now())
+  updatedAt                      DateTime               @default(now()) @updatedAt
+  binding                        CalendarBinding        @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  calendarEvent                  CalendarEvent?         @relation("CalendarLinkedEvent", fields: [calendarEventId], references: [id], onDelete: SetNull)
+  conflicts                      CalendarSyncConflict[]
+
+  @@unique([bindingId, googleEventId])
+  @@index([bindingId, tombstoneAt])
+  @@index([tombstoneAt, id], map: "calendar_event_link_retention_idx")
+  @@index([bindingId, recurringParentProviderEventId, originalStartAt], map: "calendar_event_link_parent_original_at_idx")
+  @@index([bindingId, recurringParentProviderEventId, originalStartDate], map: "calendar_event_link_parent_original_date_idx")
+  @@map("calendar_event_link")
+}
+
+model CalendarSyncOperation {
+  id                   String          @id @default(cuid())
+  bindingId            String
+  calendarEventId      String?
+  operationKey         String          @unique
+  kind                 String
+  state                String          @default("pending")
+  connectionGeneration Int
+  eventRevision        Int
+  payload              Json
+  baseSnapshot         Json?
+  stableGoogleEventId  String?
+  attempts             Int             @default(0)
+  retryBudgetAttempts  Int             @default(0)
+  firstAttemptAt       DateTime?
+  nextAttemptAt        DateTime        @default(now())
+  claimedUntil         DateTime?
+  claimToken           String?
+  claimEpoch           Int             @default(0)
+  lastErrorCode        String?
+  lastErrorMessage     String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @default(now()) @updatedAt
+  binding              CalendarBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  calendarEvent        CalendarEvent?  @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+
+  @@index([state, nextAttemptAt])
+  @@index([state, updatedAt, id], map: "calendar_sync_operation_retention_idx")
+  @@index([bindingId, state, createdAt])
+  @@index([calendarEventId, eventRevision])
+  @@map("calendar_sync_operation")
+}
+
+model CalendarSyncConflict {
+  id                String            @id @default(cuid())
+  bindingId         String
+  eventLinkId       String
+  localRevision     Int
+  baseSnapshot      Json?
+  localSnapshot     Json?
+  remoteSnapshot    Json?
+  conflictingFields String[]          @default([])
+  state             String            @default("open")
+  resolution        String?
+  resolvedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @default(now()) @updatedAt
+  binding           CalendarBinding   @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  eventLink         CalendarEventLink @relation(fields: [eventLinkId], references: [id], onDelete: Cascade)
+
+  @@index([bindingId, state, createdAt])
+  @@index([eventLinkId, state])
+  @@map("calendar_sync_conflict")
+}
+
+model CalendarWatchChannel {
+  id                   String          @id @default(cuid())
+  bindingId            String
+  connectionGeneration Int             @default(-1)
+  channelId            String          @unique
+  tokenHash            String
+  resourceId           String?
+  resourceUri          String?
+  state                String          @default("registering")
+  expiresAt            DateTime?
+  lastMessageNumber    BigInt?
+  createdAt            DateTime        @default(now())
+  stoppedAt            DateTime?
+  cleanupRequestedAt   DateTime?
+  binding              CalendarBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+
+  @@index([bindingId, state, expiresAt])
+  @@index([bindingId, connectionGeneration, state, expiresAt], map: "calendar_watch_generation_due_idx")
+  @@index([state, expiresAt])
+  @@index([cleanupRequestedAt, expiresAt], map: "calendar_watch_cleanup_pending_idx")
+  @@map("calendar_watch_channel")
+}
+
+model CalendarOAuthRequest {
+  id               String    @id @default(cuid())
+  userId           String
+  sessionId        String
+  stateHash        String    @unique
+  browserNonceHash String
+  idTokenNonceHash String
+  returnTo         String
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, consumedAt])
+  @@map("calendar_oauth_request")
+}
+
+model CalendarMutationReceipt {
+  id                 String   @id @default(cuid())
+  userId             String
+  requestKey         String
+  requestFingerprint String
+  resultEventId      String?
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestKey])
+  @@index([expiresAt])
+  @@index([resultEventId, expiresAt], map: "calendar_mutation_receipt_result_expiry_idx")
+  @@map("calendar_mutation_receipt")
 }
 
 model Secret {

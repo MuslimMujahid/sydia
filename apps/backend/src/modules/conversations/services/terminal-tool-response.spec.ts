@@ -355,10 +355,11 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         endAt: new Date('2026-09-22T03:30:00.000Z'),
         timezone: 'Asia/Jakarta',
         location: 'Ruang rapat 2',
+        syncState: 'pending',
       },
     },
-    'All set, your event has been created.\n\n- Rapat — 22 Sept 2026, 09:00–10:30 · Ruang rapat 2',
-    'Siap, acaranya sudah dibuat.\n\n- Rapat — 22 Sep 2026, 09.00–10.30 · Ruang rapat 2',
+    'All set, your event is saved in Sydia.\n\n- Rapat — 22 Sept 2026, 09:00–10:30 · Ruang rapat 2 · Google Calendar sync is pending.',
+    'Siap, acara sudah disimpan di Sydia.\n\n- Rapat — 22 Sep 2026, 09.00–10.30 · Ruang rapat 2 · Sinkronisasi Google Calendar masih menunggu.',
   ],
   [
     'update_calendar_event',
@@ -369,19 +370,20 @@ const PLAIN_BLOCKS: Array<[string, unknown, string, string]> = [
         startAt: new Date('2026-09-22T02:00:00.000Z'),
         endAt: new Date('2026-09-23T03:00:00.000Z'),
         timezone: 'Asia/Jakarta',
+        syncState: 'synced',
       },
     },
-    'All set, your event has been updated.\n\n- Rapat — 22 Sept 2026, 09:00–23 Sept 2026, 10:00',
-    'Siap, acaranya sudah diperbarui.\n\n- Rapat — 22 Sep 2026, 09.00–23 Sep 2026, 10.00',
+    'All set, your event changes are saved in Sydia.\n\n- Rapat — 22 Sept 2026, 09:00–23 Sept 2026, 10:00 · The latest change is synced with Google Calendar.',
+    'Siap, perubahan acara sudah disimpan di Sydia.\n\n- Rapat — 22 Sep 2026, 09.00–23 Sep 2026, 10.00 · Perubahan terakhir sudah disinkronkan ke Google Calendar.',
   ],
   [
     'cancel_calendar_event',
     {
       objectType: 'calendar_event',
-      object: { title: 'Rapat', status: 'cancelled' },
+      object: { title: 'Rapat', status: 'cancelled', syncState: 'pending' },
     },
-    'All set, your event has been cancelled.\n\n- Rapat',
-    'Siap, acaranya sudah dibatalkan.\n\n- Rapat',
+    'All set, the event was cancelled in Sydia.\n\n- Rapat — Google Calendar sync is pending.',
+    'Siap, acara sudah dibatalkan di Sydia.\n\n- Rapat — Sinkronisasi Google Calendar masih menunggu.',
   ],
   [
     'write_daily_note',
@@ -504,20 +506,20 @@ const RICH_BLOCKS: Array<[string, unknown, string, string]> = [
   [
     'create_calendar_event',
     PLAIN_BLOCKS[15]![1],
-    'All set, your event has been created.\n\n- **Rapat** — 22 Sept 2026, 09:00–10:30 · Ruang rapat 2',
-    'Siap, acaranya sudah dibuat.\n\n- **Rapat** — 22 Sep 2026, 09.00–10.30 · Ruang rapat 2',
+    'All set, your event is saved in Sydia.\n\n- **Rapat** — 22 Sept 2026, 09:00–10:30 · Ruang rapat 2 · Google Calendar sync is pending.',
+    'Siap, acara sudah disimpan di Sydia.\n\n- **Rapat** — 22 Sep 2026, 09.00–10.30 · Ruang rapat 2 · Sinkronisasi Google Calendar masih menunggu.',
   ],
   [
     'update_calendar_event',
     PLAIN_BLOCKS[16]![1],
-    'All set, your event has been updated.\n\n- **Rapat** — 22 Sept 2026, 09:00–23 Sept 2026, 10:00',
-    'Siap, acaranya sudah diperbarui.\n\n- **Rapat** — 22 Sep 2026, 09.00–23 Sep 2026, 10.00',
+    'All set, your event changes are saved in Sydia.\n\n- **Rapat** — 22 Sept 2026, 09:00–23 Sept 2026, 10:00 · The latest change is synced with Google Calendar.',
+    'Siap, perubahan acara sudah disimpan di Sydia.\n\n- **Rapat** — 22 Sep 2026, 09.00–23 Sep 2026, 10.00 · Perubahan terakhir sudah disinkronkan ke Google Calendar.',
   ],
   [
     'cancel_calendar_event',
     PLAIN_BLOCKS[17]![1],
-    'All set, your event has been cancelled.\n\n- **Rapat**',
-    'Siap, acaranya sudah dibatalkan.\n\n- **Rapat**',
+    'All set, the event was cancelled in Sydia.\n\n- **Rapat** — Google Calendar sync is pending.',
+    'Siap, acara sudah dibatalkan di Sydia.\n\n- **Rapat** — Sinkronisasi Google Calendar masih menunggu.',
   ],
   [
     'write_daily_note',
@@ -626,6 +628,7 @@ describe('terminal tool response', () => {
             endAt: '2026-09-22T11:00:00Z',
             timezone: 'UTC',
             location: 'Kantor',
+            syncState: 'pending',
           },
         }),
         execution('create_calendar_event', {
@@ -636,14 +639,148 @@ describe('terminal tool response', () => {
             startAt: LATER,
             endAt: '2026-09-24T10:00:00Z',
             timezone: 'UTC',
+            syncState: 'pending',
           },
         }),
       ],
     );
 
     expect(result).toBe(
-      'Siap, 2 acara sudah dibuat.\n\n- **Rapat tim** — 22 Sep 2026, 18.00–19.00 · Kantor\n- **Lokakarya** — 23 Sep 2026, 18.00–24 Sep 2026, 18.00',
+      'Siap, 2 acara sudah disimpan di Sydia.\n\n- **Rapat tim** — 22 Sep 2026, 18.00–19.00 · Kantor · Sinkronisasi Google Calendar masih menunggu.\n- **Lokakarya** — 23 Sep 2026, 18.00–24 Sep 2026, 18.00 · Sinkronisasi Google Calendar masih menunggu.',
     );
+  });
+
+  it('renders all-day events with an exclusive end across Web, Telegram, and WhatsApp', () => {
+    const result = {
+      objectType: 'calendar_event',
+      object: {
+        title: 'Conference',
+        allDayStartDate: new Date('2026-09-22T00:00:00.000Z'),
+        allDayEndDate: new Date('2026-09-24T00:00:00.000Z'),
+        syncState: 'pending',
+      },
+    };
+
+    for (const locale of ['en', 'id'] as const) {
+      const heading =
+        locale === 'en'
+          ? 'All set, your event is saved in Sydia.'
+          : 'Siap, acara sudah disimpan di Sydia.';
+
+      const details =
+        locale === 'en'
+          ? 'All day: 22 Sept 2026–23 Sept 2026 · Google Calendar sync is pending.'
+          : 'Sehari penuh: 22 Sep 2026–23 Sep 2026 · Sinkronisasi Google Calendar masih menunggu.';
+
+      for (const channel of ['web', 'telegram', 'whatsapp'] as const) {
+        const rendered =
+          channel === 'web'
+            ? web(locale, [execution('create_calendar_event', result)])
+            : chat(
+                locale,
+                [execution('create_calendar_event', result)],
+                channel,
+              );
+
+        const title = channel === 'whatsapp' ? 'Conference' : '**Conference**';
+
+        expect(rendered).toBe(`${heading}\n\n- ${title} — ${details}`);
+      }
+    }
+  });
+
+  it.each([
+    {
+      state: 'local',
+      en: 'Sydia only; this event is not synced with Google.',
+      id: 'Khusus di Sydia; acara ini tidak disinkronkan ke Google.',
+    },
+    {
+      state: 'pending',
+      en: 'Google Calendar sync is pending.',
+      id: 'Sinkronisasi Google Calendar masih menunggu.',
+    },
+    {
+      state: 'synced',
+      en: 'The latest change is synced with Google Calendar.',
+      id: 'Perubahan terakhir sudah disinkronkan ke Google Calendar.',
+    },
+    {
+      state: 'conflict',
+      en: 'Google Calendar sync is paused for conflict review.',
+      id: 'Sinkronisasi Google Calendar dijeda untuk meninjau konflik.',
+    },
+    {
+      state: 'error',
+      en: 'Google Calendar sync failed.',
+      id: 'Sinkronisasi Google Calendar gagal.',
+    },
+    {
+      state: 'reconnect_required',
+      en: 'Reconnect Google Calendar to resume sync.',
+      id: 'Hubungkan kembali Google Calendar untuk melanjutkan sinkronisasi.',
+    },
+  ])(
+    'reports $state calendar delivery accurately on every channel',
+    ({ state, en, id }) => {
+      for (const locale of ['en', 'id'] as const) {
+        const syncDetail = locale === 'en' ? en : id;
+        const heading =
+          locale === 'en'
+            ? 'All set, your event is saved in Sydia.'
+            : 'Siap, acara sudah disimpan di Sydia.';
+
+        const date =
+          locale === 'en'
+            ? '22 Sept 2026, 10:00–11:00 UTC'
+            : '22 Sep 2026, 10.00–11.00 UTC';
+
+        const result = {
+          objectType: 'calendar_event',
+          object: {
+            title: 'Rapat',
+            startAt: AT,
+            endAt: new Date('2026-09-22T11:00:00.000Z'),
+            syncState: state,
+          },
+        };
+
+        for (const channel of ['web', 'telegram', 'whatsapp'] as const) {
+          const rendered =
+            channel === 'web'
+              ? web(locale, [execution('create_calendar_event', result)])
+              : chat(
+                  locale,
+                  [execution('create_calendar_event', result)],
+                  channel,
+                );
+
+          const title = channel === 'whatsapp' ? 'Rapat' : '**Rapat**';
+
+          expect(rendered).toBe(
+            `${heading}\n\n- ${title} — ${date} · ${syncDetail}`,
+          );
+        }
+      }
+    },
+  );
+
+  it('does not infer Google delivery when a calendar result lacks sync state', () => {
+    const result = web('en', [
+      execution('create_calendar_event', {
+        objectType: 'calendar_event',
+        object: {
+          title: 'Rapat',
+          startAt: AT,
+          endAt: new Date('2026-09-22T11:00:00.000Z'),
+        },
+      }),
+    ]);
+
+    expect(result).toContain(
+      'Google Calendar delivery status is unavailable; it is not confirmed.',
+    );
+    expect(result).not.toContain('synced with Google Calendar');
   });
 
   it('batches contacts without altering punctuation in their details', () => {
@@ -1529,9 +1666,13 @@ describe('terminal tool response', () => {
         'cancel_calendar_event',
         {
           objectType: 'calendar_event',
-          object: { title: 'Rapat laporan.', status: 'cancelled' },
+          object: {
+            title: 'Rapat laporan.',
+            status: 'cancelled',
+            syncState: 'local',
+          },
         },
-        'All set, your event has been cancelled.\n\n- Rapat laporan.',
+        'All set, the event was cancelled in Sydia.\n\n- Rapat laporan. — Sydia only; this event is not synced with Google.',
       ],
       [
         'store_secret',

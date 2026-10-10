@@ -8,6 +8,8 @@ import type {
   IUserRepository,
 } from '../../../database/interfaces';
 import { CalendarService } from '../../calendar/calendar.service';
+import type { CalendarReadService } from '../../calendar/calendar-read.service';
+import type { CalendarSyncService } from '../../calendar/calendar-sync.service';
 import { DocumentService } from '../../documents/document.service';
 import type { AssistantTool } from './tool-executor.service';
 
@@ -109,16 +111,96 @@ function date(
   return parsed;
 }
 
+function dateOnly(
+  value: Record<string, unknown>,
+  key: string,
+  required = true,
+): Date | undefined {
+  const raw = text(value, key, required);
+  if (!raw) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(raw))
+    throw new Error(`${key} must be a date in YYYY-MM-DD format.`);
+
+  const parsed = new Date(`${raw}T00:00:00.000Z`);
+  if (
+    Number.isNaN(parsed.valueOf()) ||
+    parsed.toISOString().slice(0, 10) !== raw
+  )
+    throw new Error(`${key} must be a valid calendar date.`);
+
+  return parsed;
+}
+
 export function createPhaseTools(deps: {
   contacts: IContactRepository;
   contactGroups: IContactGroupRepository;
   documents: DocumentService;
   calendars: ICalendarRepository;
   calendarService: CalendarService;
+  calendarRead: CalendarReadService;
+  calendarSync: CalendarSyncService;
   users: IUserRepository;
 }): AssistantTool[] {
   const parseArguments = (value: unknown): Prisma.InputJsonValue =>
     record(value) as Prisma.InputJsonValue;
+
+  const calendarEventIdForMutation = async (
+    userId: string,
+    value: Record<string, unknown>,
+  ): Promise<string> => {
+    const eventId = text(value, 'id')!;
+    const scope = text(value, 'scope', false);
+    const seriesEventId = text(value, 'seriesEventId', false);
+    const occurrenceKey = text(value, 'occurrenceKey', false);
+    const instanceEventId = text(value, 'instanceEventId', false);
+
+    if (scope === 'occurrence') {
+      if (!seriesEventId || !occurrenceKey)
+        throw new Error(
+          'A recurring occurrence needs its series id and occurrence key.',
+        );
+      const series = await deps.calendars.findById(userId, seriesEventId);
+      if (!series) throw new Error('Event not found.');
+
+      const occurrence =
+        series.provider === 'local'
+          ? await deps.calendarRead.resolveLocalOccurrenceForMutation(
+              userId,
+              seriesEventId,
+              occurrenceKey,
+            )
+          : await deps.calendarSync.resolveGoogleOccurrenceForMutation(userId, {
+              seriesEventId,
+              occurrenceKey,
+              ...(instanceEventId ? { instanceEventId } : {}),
+            });
+
+      if (!occurrence)
+        throw new Error(
+          'The selected recurring occurrence changed or no longer exists. Refresh the calendar and choose it again.',
+        );
+
+      return occurrence.id;
+    }
+
+    if (scope === 'series') {
+      if (!seriesEventId)
+        throw new Error('A recurring series id is required for this action.');
+
+      return seriesEventId;
+    }
+
+    if (scope !== undefined)
+      throw new Error('Recurring event scope must be occurrence or series.');
+    if (eventId.startsWith('occurrence:'))
+      throw new Error(
+        'Ask whether the user means this occurrence or the entire series.',
+      );
+    if (seriesEventId || occurrenceKey || instanceEventId)
+      throw new Error('Recurring scope details require an explicit scope.');
+
+    return eventId;
+  };
 
   return [
     {
@@ -745,11 +827,41 @@ from and to are required and parsed as ISO datetimes; the current user's events 
         const a = record(raw);
 
         return {
-          events: await deps.calendars.list(
+          events: await deps.calendarRead.list(
             userId,
             date(a, 'from')!,
             date(a, 'to')!,
           ),
+        };
+      },
+    },
+    {
+      definition: {
+        name: 'get_calendar_sync_status',
+        label: 'Check calendar sync status',
+        description: `Use this tool when the user asks whether calendar changes reached Google Calendar, or asks about a sync problem.
+
+Do not use it to list, create, update, or cancel events. A pending operation means Sydia saved the change and is still syncing it; do not say Google has accepted it yet. A last error or reconnect-required state must be reported as a sync issue, not a successful sync.`,
+        parameters: schema({}),
+      },
+      readOnly: true,
+      parseArguments,
+      execute: async ({ userId }) => {
+        const status = await deps.calendars.syncStatus(userId);
+
+        return {
+          syncStatus: status ?? {
+            connectionStatus: 'disconnected',
+            googleEmail: null,
+            calendarId: null,
+            calendarName: null,
+            bindingState: null,
+            lastSyncedAt: null,
+            lastErrorCode: null,
+            pendingOperationCount: 0,
+            openConflictCount: 0,
+            watchExpiresAt: null,
+          },
         };
       },
     },
@@ -763,7 +875,7 @@ Use it when the user asks to schedule a new event with a title and time range.
 
 Do not use it to change or cancel an existing event, or when the end is not after the start.
 
-title, startAt, and endAt are required; description, location, and attendees are optional. Times are ISO, the user's timezone or Asia/Jakarta is used, and non-string attendees are ignored.`,
+title is required. For a timed event, provide startAt and endAt as ISO datetimes; the user's timezone or Asia/Jakarta is used. For an all-day event, provide allDayStartDate and allDayEndDate as YYYY-MM-DD values, with the exclusive end after the start. Do not mix timed and all-day fields. Description, location, and attendees are optional, and non-string attendees are ignored. The returned event has syncState: local, pending, synced, conflict, error, or reconnect_required. Report it accurately: local means saved only in Sydia; pending means saved in Sydia and waiting to sync; synced means Google accepted the latest change; conflict, error, and reconnect_required mean the Google write is not confirmed. Do not use global sync status to infer whether this specific event synced.`,
         parameters: schema(
           {
             title: {
@@ -781,12 +893,23 @@ title, startAt, and endAt are required; description, location, and attendees are
             },
             startAt: {
               ...string,
-              description: 'Required event start as an ISO datetime.',
+              description:
+                'Timed event start as an ISO datetime; provide it with endAt, or use the all-day date pair instead.',
             },
             endAt: {
               ...string,
               description:
-                'Required event end as an ISO datetime; must be after startAt.',
+                'Timed event end as an ISO datetime; must be after startAt.',
+            },
+            allDayStartDate: {
+              ...string,
+              description:
+                'All-day event start as YYYY-MM-DD; provide it with allDayEndDate instead of timed values.',
+            },
+            allDayEndDate: {
+              ...string,
+              description:
+                'Exclusive all-day event end as YYYY-MM-DD; must be after allDayStartDate.',
             },
             attendees: {
               type: 'array',
@@ -797,31 +920,81 @@ title, startAt, and endAt are required; description, location, and attendees are
               },
             },
           },
-          ['title', 'startAt', 'endAt'],
+          ['title'],
         ),
       },
       parseArguments,
-      execute: async ({ userId, arguments: raw }) => {
+      execute: async ({ userId, idempotencyKey, arguments: raw }) => {
         const a = record(raw);
-        const input: CalendarEventWrite = {
+        const hasTimedDates = a.startAt !== undefined || a.endAt !== undefined;
+        const hasAllDayDates =
+          a.allDayStartDate !== undefined || a.allDayEndDate !== undefined;
+
+        if (hasTimedDates === hasAllDayDates)
+          throw new Error(
+            'Provide either startAt/endAt for a timed event or allDayStartDate/allDayEndDate for an all-day event.',
+          );
+
+        const common = {
           title: text(a, 'title')!,
           description: text(a, 'description', false) ?? null,
           location: text(a, 'location', false) ?? null,
-          startAt: date(a, 'startAt')!,
-          endAt: date(a, 'endAt')!,
-          timezone:
-            (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta',
           attendees: Array.isArray(a.attendees)
             ? a.attendees.filter((v): v is string => typeof v === 'string')
             : [],
         };
 
-        if (input.endAt <= input.startAt)
+        if (hasAllDayDates) {
+          const allDayStartDate = dateOnly(a, 'allDayStartDate', false);
+          const allDayEndDate = dateOnly(a, 'allDayEndDate', false);
+
+          if (
+            !allDayStartDate ||
+            !allDayEndDate ||
+            allDayEndDate <= allDayStartDate
+          )
+            throw new Error(
+              'The all-day end date must be after the all-day start date.',
+            );
+
+          const input: CalendarEventWrite = {
+            ...common,
+            allDayStartDate,
+            allDayEndDate,
+          };
+
+          return {
+            objectType: 'calendar_event',
+            object: await deps.calendarService.create(
+              userId,
+              input,
+              'auto',
+              idempotencyKey,
+            ),
+          };
+        }
+
+        const startAt = date(a, 'startAt', false);
+        const endAt = date(a, 'endAt', false);
+        if (!startAt || !endAt || endAt <= startAt)
           throw new Error('The end time must be after the start time.');
+
+        const input: CalendarEventWrite = {
+          ...common,
+          startAt,
+          endAt,
+          timezone:
+            (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta',
+        };
 
         return {
           objectType: 'calendar_event',
-          object: await deps.calendarService.create(userId, input),
+          object: await deps.calendarService.create(
+            userId,
+            input,
+            'auto',
+            idempotencyKey,
+          ),
         };
       },
     },
@@ -835,7 +1008,7 @@ Use it when the user asks to change an event and provides its event id.
 
 Do not use it to create or cancel an event, or when the event is not identified by id.
 
-id is required and the other fields are optional; only supplied fields are passed on, and startAt/endAt must be ISO. A missing event raises an error.`,
+id is required and the other fields are optional; only supplied fields are passed on. Timed date values must be ISO datetimes. To change an event to all-day, provide both allDayStartDate and allDayEndDate as YYYY-MM-DD values, with the exclusive end after the start; do not mix them with timed fields. A missing event raises an error. If the id belongs to a listed recurring occurrence, ask whether to update that occurrence or the entire series. For one Google occurrence, pass scope='occurrence' with its seriesEventId, occurrenceKey, and instanceEventId from the listed result. For a local-only occurrence, pass scope='occurrence' with its seriesEventId and occurrenceKey; use scope='series' and its seriesEventId for the whole series. The returned event has syncState: local, pending, synced, conflict, error, or reconnect_required. Report it accurately: local means saved only in Sydia; pending means saved in Sydia and waiting to sync; synced means Google accepted the latest change; conflict, error, and reconnect_required mean the Google write is not confirmed. Do not use global sync status to infer whether this specific event synced.`,
         parameters: schema(
           {
             id: {
@@ -863,23 +1036,85 @@ id is required and the other fields are optional; only supplied fields are passe
               ...string,
               description: 'Optional replacement end as an ISO datetime.',
             },
+            allDayStartDate: {
+              ...string,
+              description:
+                'Optional all-day replacement start as YYYY-MM-DD; provide it with allDayEndDate, not timed fields.',
+            },
+            allDayEndDate: {
+              ...string,
+              description:
+                'Optional exclusive all-day replacement end as YYYY-MM-DD; must be after allDayStartDate.',
+            },
+            scope: {
+              type: 'string',
+              enum: ['occurrence', 'series'],
+              description: 'Chosen scope for a recurring event mutation.',
+            },
+            seriesEventId: {
+              ...string,
+              description: 'Series event id from the listed occurrence.',
+            },
+            occurrenceKey: {
+              ...string,
+              description: 'Original occurrence key from the listed result.',
+            },
+            instanceEventId: {
+              ...string,
+              description: 'Google instance id from the listed result.',
+            },
           },
           ['id'],
         ),
       },
       parseArguments,
-      execute: async ({ userId, arguments: raw }) => {
+      execute: async ({ userId, idempotencyKey, arguments: raw }) => {
         const a = record(raw);
+        const eventId = await calendarEventIdForMutation(userId, a);
+        const hasTimedDates = a.startAt !== undefined || a.endAt !== undefined;
+        const hasAllDayDates =
+          a.allDayStartDate !== undefined || a.allDayEndDate !== undefined;
+
+        if (hasTimedDates && hasAllDayDates)
+          throw new Error(
+            'Provide a timed range or an all-day range, not both.',
+          );
+
+        const temporalInput = hasAllDayDates
+          ? (() => {
+              const allDayStartDate = dateOnly(a, 'allDayStartDate', false);
+              const allDayEndDate = dateOnly(a, 'allDayEndDate', false);
+
+              if (
+                !allDayStartDate ||
+                !allDayEndDate ||
+                allDayEndDate <= allDayStartDate
+              )
+                throw new Error(
+                  'The all-day end date must be after the all-day start date.',
+                );
+
+              return { allDayStartDate, allDayEndDate };
+            })()
+          : {
+              ...(a.startAt !== undefined
+                ? { startAt: date(a, 'startAt', false) }
+                : {}),
+              ...(a.endAt !== undefined
+                ? { endAt: date(a, 'endAt', false) }
+                : {}),
+            };
+
         const updated = await deps.calendarService.update(
           userId,
-          text(a, 'id')!,
+          eventId,
           {
             title: text(a, 'title', false),
             description: text(a, 'description', false),
             location: text(a, 'location', false),
-            startAt: date(a, 'startAt', false),
-            endAt: date(a, 'endAt', false),
+            ...temporalInput,
           },
+          idempotencyKey,
         );
 
         if (!updated) throw new Error('Event not found.');
@@ -897,22 +1132,42 @@ Use it when the user explicitly asks to cancel an event and provides its id.
 
 Do not use it to create or edit an event, or when the event is not identified by id.
 
-Cancels for the current user; a missing event raises an error.`,
+Cancels for the current user; a missing event raises an error. If the id belongs to a listed recurring occurrence, ask whether to cancel that occurrence or the entire series. For one Google occurrence, pass scope='occurrence' with its seriesEventId, occurrenceKey, and instanceEventId. For a local-only occurrence, pass scope='occurrence' with its seriesEventId and occurrenceKey; use scope='series' and its seriesEventId to cancel the entire series. The returned event has syncState: local, pending, synced, conflict, error, or reconnect_required. Report it accurately: local means saved only in Sydia; pending means saved in Sydia and waiting to sync; synced means Google accepted the latest change; conflict, error, and reconnect_required mean the Google write is not confirmed. Do not use global sync status to infer whether this specific event synced.`,
         parameters: schema(
           {
             id: {
               ...string,
               description: 'Required identifier of the event to cancel.',
             },
+            scope: {
+              type: 'string',
+              enum: ['occurrence', 'series'],
+              description: 'Chosen scope for a recurring event mutation.',
+            },
+            seriesEventId: {
+              ...string,
+              description: 'Series event id from the listed occurrence.',
+            },
+            occurrenceKey: {
+              ...string,
+              description: 'Original occurrence key from the listed result.',
+            },
+            instanceEventId: {
+              ...string,
+              description: 'Google instance id from the listed result.',
+            },
           },
           ['id'],
         ),
       },
       parseArguments,
-      execute: async ({ userId, arguments: raw }) => {
+      execute: async ({ userId, idempotencyKey, arguments: raw }) => {
+        const a = record(raw);
+        const eventId = await calendarEventIdForMutation(userId, a);
         const cancelled = await deps.calendarService.cancel(
           userId,
-          text(record(raw), 'id')!,
+          eventId,
+          idempotencyKey,
         );
 
         if (!cancelled) throw new Error('Event not found.');

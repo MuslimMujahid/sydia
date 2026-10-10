@@ -17,6 +17,7 @@ import {
   type ConversationSummaryJob,
   type DailyNoteIndexJob,
   type FollowUpJob,
+  type CalendarSyncJob,
   type MemoryDreamJob,
   type MemoryDeliveryJob,
   type MemoryIngestionJob,
@@ -28,6 +29,7 @@ import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-sch
 import { HindsightDeliveryService } from './modules/memories/hindsight-delivery.service';
 import { HindsightIngestionService } from './modules/memories/hindsight-ingestion.service';
 import { MemoryEngineService } from './modules/memories/memory-engine.service';
+import { CalendarSyncService } from './modules/calendar/calendar-sync.service';
 import { DailyNoteService } from './modules/daily-notes/daily-note.service';
 import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
 import {
@@ -57,6 +59,7 @@ async function bootstrap(): Promise<void> {
   const followUps = context.get(FollowUpService);
   const composer = context.get(NotificationComposerService);
   const scheduler = context.get(ProactiveSchedulerService);
+  const calendarSync = context.get(CalendarSyncService);
   const connection = {
     url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
   };
@@ -191,6 +194,21 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
+  const calendarSyncWorker = new Worker<CalendarSyncJob>(
+    'calendar-sync',
+    (job) => calendarSync.process(job.data),
+    {
+      connection,
+      concurrency: config.get<number>('BACKEND_CALENDAR_SYNC_CONCURRENCY', 4),
+    },
+  );
+
+  await queues.calendarSync.upsertJobScheduler(
+    'calendar-sync-recovery',
+    { every: 30_000 },
+    { name: 'recover', data: { kind: 'recover' } },
+  );
+
   const conversationSummaryWorker = new Worker<ConversationSummaryJob>(
     'conversation-summaries',
     async (job) => {
@@ -233,6 +251,7 @@ async function bootstrap(): Promise<void> {
       briefingWorker.close(),
       conversationSummaryWorker.close(),
       followUpWorker.close(),
+      calendarSyncWorker.close(),
     ]);
     await context.close();
   };

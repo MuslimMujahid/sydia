@@ -18,6 +18,8 @@ import {
 import { MemoryAccessService } from '../../memories/memory-access.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
 import { CalendarService } from '../../calendar/calendar.service';
+import { CalendarReadService } from '../../calendar/calendar-read.service';
+import { CalendarSyncService } from '../../calendar/calendar-sync.service';
 import { SecretsService } from '../../secrets/secrets.service';
 import { DocumentService } from '../../documents/document.service';
 import { DailyNoteService } from '../../daily-notes/daily-note.service';
@@ -43,6 +45,8 @@ export class DomainToolsProvider {
     documents: DocumentService,
     @Inject(CALENDAR_REPOSITORY) calendars: ICalendarRepository,
     calendarService: CalendarService,
+    calendarRead: CalendarReadService,
+    calendarSync: CalendarSyncService,
     secrets: SecretsService,
     dailyNotes: DailyNoteService,
   ) {
@@ -62,6 +66,8 @@ export class DomainToolsProvider {
         documents,
         calendars,
         calendarService,
+        calendarRead,
+        calendarSync,
         users,
       }),
       ...createDailyNoteTools({ dailyNotes }),

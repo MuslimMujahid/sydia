@@ -34,6 +34,8 @@ export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
       documents: unavailable(),
       calendars: unavailable(),
       calendarService: unavailable(),
+      calendarRead: unavailable(),
+      calendarSync: unavailable(),
       users: unavailable(),
     }),
     ...createDailyNoteTools({ dailyNotes: unavailable() }),

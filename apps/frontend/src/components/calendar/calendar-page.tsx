@@ -1,21 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
 import { Clock3, Plus } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   DomainInlineError,
   DomainPageHeader,
 } from "@/components/domain/domain-page";
 import { TaskEditor, TaskEditorLoader } from "@/components/tasks/task-editor";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import type { CalendarEvent } from "@/lib/services/api/calendar/calendar.api";
-import { getGoogleCalendarAuthorizationUrl } from "@/lib/services/api/calendar/calendar.api";
+import {
+  getCalendarEvent,
+  getGoogleCalendarAuthorizationUrl,
+} from "@/lib/services/api/calendar/calendar.api";
 import {
   calendarEventsQueryOptions,
   calendarStatusQueryOptions,
   useDeleteCalendarEvent,
   useDisconnectCalendar,
+  useResolveCalendarOccurrence,
 } from "@/lib/services/api/calendar/calendar.queries";
 import {
   tasksQueryOptions,
@@ -76,7 +85,16 @@ type EditorState =
   | { mode: "edit-event"; event: CalendarEvent }
   | ({ mode: "new" } & NewItemDraft);
 
+type RecurrenceAction = {
+  mode: "edit" | "delete";
+  event: CalendarEvent;
+};
+
 const CLOCK_TICK_MS = 60_000;
+
+function isRecurringOccurrence(event: CalendarEvent): boolean {
+  return event.isOccurrence === true;
+}
 
 function CalendarSkeleton() {
   return (
@@ -114,8 +132,14 @@ export function CalendarPage({
 }: CalendarPageProps) {
   const [now, setNow] = useState(() => new Date());
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [recurrenceAction, setRecurrenceAction] =
+    useState<RecurrenceAction | null>(null);
+
+  const [recurrenceError, setRecurrenceError] = useState<string | null>(null);
+  const [isResolvingRecurrence, setIsResolvingRecurrence] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const deleteEventKeys = useRef(new Map<string, string>());
   const isDesktop = useMediaQuery("(min-width: 40rem)");
 
   // Keeps "today" and the current-time line fresh on a page left open.
@@ -143,6 +167,7 @@ export function CalendarPage({
   const disconnectMutation = useDisconnectCalendar();
   const statusMutation = useSetTaskStatus();
   const deleteEventMutation = useDeleteCalendarEvent();
+  const resolveOccurrenceMutation = useResolveCalendarOccurrence();
   const deleteTaskMutation = useDeleteTask();
 
   const pendingStatus = statusMutation.isPending
@@ -183,8 +208,10 @@ export function CalendarPage({
     deleteTaskMutation.reset();
 
     if (item.kind === "event") {
-      if (!window.confirm(`Batalkan acara “${item.title}”?`)) return;
-      deleteEventMutation.mutate(item.event.id);
+      if (isRecurringOccurrence(item.event)) {
+        setRecurrenceError(null);
+        setRecurrenceAction({ mode: "delete", event: item.event });
+      } else cancelEvent(item.event);
 
       return;
     }
@@ -219,9 +246,66 @@ export function CalendarPage({
   }
 
   function editItem(item: ScheduleItem) {
-    if (item.kind === "event")
-      setEditor({ mode: "edit-event", event: item.event });
-    else onTaskIdChange(item.task.id);
+    if (item.kind === "event") {
+      if (isRecurringOccurrence(item.event)) {
+        setRecurrenceError(null);
+        setRecurrenceAction({ mode: "edit", event: item.event });
+      } else setEditor({ mode: "edit-event", event: item.event });
+    } else onTaskIdChange(item.task.id);
+  }
+
+  function cancelEvent(event: CalendarEvent) {
+    if (!window.confirm(`Batalkan acara “${event.title}”?`)) return;
+    const idempotencyKey =
+      deleteEventKeys.current.get(event.id) ?? crypto.randomUUID();
+
+    deleteEventKeys.current.set(event.id, idempotencyKey);
+    deleteEventMutation.mutate(
+      { eventId: event.id, idempotencyKey },
+      { onSuccess: () => deleteEventKeys.current.delete(event.id) }
+    );
+  }
+
+  async function chooseRecurrenceScope(scope: "occurrence" | "series") {
+    const action = recurrenceAction;
+    const seriesEventId = action?.event.seriesEventId;
+    const occurrenceKey = action?.event.occurrenceKey;
+    if (!action) return;
+
+    if (!seriesEventId || !occurrenceKey) {
+      setRecurrenceError(
+        "Kejadian ini tidak memiliki identitas yang dapat disinkronkan. Muat ulang kalender dan coba lagi."
+      );
+
+      return;
+    }
+
+    setRecurrenceError(null);
+    setIsResolvingRecurrence(true);
+    resolveOccurrenceMutation.reset();
+
+    try {
+      const event =
+        scope === "series"
+          ? await getCalendarEvent(seriesEventId)
+          : await resolveOccurrenceMutation.mutateAsync({
+              seriesEventId,
+              occurrenceKey,
+              instanceEventId: action.event.instanceEventId,
+            });
+
+      setRecurrenceAction(null);
+      if (action.mode === "edit") setEditor({ mode: "edit-event", event });
+      else cancelEvent(event);
+    } catch (error) {
+      setRecurrenceError(
+        error instanceof Error
+          ? error.message
+          : "Perubahan acara berulang tidak dapat dimulai."
+      );
+    } finally {
+      setIsResolvingRecurrence(false);
+    }
   }
 
   /**
@@ -487,6 +571,7 @@ export function CalendarPage({
           <EventEditor
             key={editor.event.id}
             event={editor.event}
+            googleConnected={statusQuery.data?.connected === true}
             timezone={timezone}
             onClose={() => setEditor(null)}
           />
@@ -494,6 +579,7 @@ export function CalendarPage({
           editor.kind === "event" ? (
             <EventEditor
               key={`new-event-${editor.startAt ?? "blank"}`}
+              googleConnected={statusQuery.data?.connected === true}
               initialStartAt={editor.startAt}
               initialEndAt={editor.endAt}
               timezone={timezone}
@@ -506,6 +592,81 @@ export function CalendarPage({
               onClose={() => setEditor(null)}
             />
           )
+        ) : null}
+      </Dialog>
+      <Dialog
+        open={recurrenceAction !== null}
+        onOpenChange={(open) => {
+          if (!open && !isResolvingRecurrence) {
+            setRecurrenceAction(null);
+            setRecurrenceError(null);
+          }
+        }}
+      >
+        {recurrenceAction ? (
+          <DialogContent variant="sheet" className="sm:max-w-lg">
+            <DialogTitle>Acara berulang</DialogTitle>
+            <DialogDescription className="mt-2">
+              {recurrenceAction.mode === "edit"
+                ? "Pilih bagian acara yang ingin Anda ubah."
+                : "Pilih bagian acara yang ingin Anda batalkan."}
+            </DialogDescription>
+            <div className="mt-6 grid gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={
+                  isResolvingRecurrence ||
+                  !["google", "local"].includes(
+                    recurrenceAction.event.provider
+                  ) ||
+                  (recurrenceAction.event.provider === "google" &&
+                    statusQuery.data?.connected !== true)
+                }
+                onClick={() => void chooseRecurrenceScope("occurrence")}
+              >
+                {recurrenceAction.mode === "edit"
+                  ? "Ubah kejadian ini"
+                  : "Batalkan kejadian ini"}
+              </Button>
+              {recurrenceAction.event.provider === "local" ? (
+                <p className="text-sm text-ink-muted">
+                  Perubahan ini hanya berlaku untuk kejadian di Sydia.
+                </p>
+              ) : recurrenceAction.event.provider !== "google" ? (
+                <p className="text-sm text-ink-muted">
+                  Perubahan satu kejadian belum tersedia untuk rangkaian ini.
+                </p>
+              ) : statusQuery.data?.connected !== true ? (
+                <p className="text-sm text-ink-muted">
+                  Hubungkan kembali Google Calendar untuk mengubah satu
+                  kejadian.
+                </p>
+              ) : null}
+              <Button
+                type="button"
+                variant="dark-outline"
+                disabled={isResolvingRecurrence}
+                onClick={() => void chooseRecurrenceScope("series")}
+              >
+                {recurrenceAction.mode === "edit"
+                  ? "Ubah seluruh rangkaian"
+                  : "Batalkan seluruh rangkaian"}
+              </Button>
+            </div>
+            {isResolvingRecurrence ? (
+              <p role="status" className="mt-4 text-sm text-ink-muted">
+                {recurrenceAction.event.provider === "google"
+                  ? "Memeriksa acara di Google Calendar…"
+                  : "Menyiapkan kejadian di Sydia…"}
+              </p>
+            ) : null}
+            {recurrenceError ? (
+              <p role="alert" className="mt-4 text-sm text-destructive">
+                {recurrenceError}
+              </p>
+            ) : null}
+          </DialogContent>
         ) : null}
       </Dialog>
       <Dialog

@@ -73,6 +73,44 @@ describe('ObservabilityService', () => {
     expect(service).toBeInstanceOf(ObservabilityService);
   });
 
+  it('starts a metrics-only SDK when an exporter is explicitly configured', async () => {
+    const previousMetricsExporter = process.env.OTEL_METRICS_EXPORTER;
+    const previousTraceExporter = process.env.OTEL_TRACES_EXPORTER;
+    const previousLogExporter = process.env.OTEL_LOGS_EXPORTER;
+    process.env.OTEL_METRICS_EXPORTER = 'console';
+    process.env.OTEL_TRACES_EXPORTER = 'none';
+    process.env.OTEL_LOGS_EXPORTER = 'none';
+    const service = new ObservabilityService(
+      new ConfigService({ OTEL_METRICS_EXPORTER: 'console' }),
+    );
+
+    try {
+      service.onModuleInit();
+
+      expect(Reflect.get(ObservabilityService, 'started')).toBe(true);
+    } finally {
+      await service.onModuleDestroy();
+      if (previousMetricsExporter === undefined)
+        delete process.env.OTEL_METRICS_EXPORTER;
+      else process.env.OTEL_METRICS_EXPORTER = previousMetricsExporter;
+      if (previousTraceExporter === undefined)
+        delete process.env.OTEL_TRACES_EXPORTER;
+      else process.env.OTEL_TRACES_EXPORTER = previousTraceExporter;
+      if (previousLogExporter === undefined)
+        delete process.env.OTEL_LOGS_EXPORTER;
+      else process.env.OTEL_LOGS_EXPORTER = previousLogExporter;
+    }
+  });
+
+  it('rejects unsupported explicit metrics exporter names', () => {
+    expect(
+      () =>
+        new ObservabilityService(
+          new ConfigService({ OTEL_METRICS_EXPORTER: 'unknown' }),
+        ),
+    ).toThrow('OTEL_METRICS_EXPORTER contains an unsupported exporter');
+  });
+
   it('captures generation input and successful output when tracing is enabled', async () => {
     const service = new ObservabilityService(
       new ConfigService({
