@@ -26,6 +26,7 @@ import type {
   CalendarMutationResult,
   CalendarRetryOperationResult,
   CalendarPrivacyExport,
+  CalendarPollRequestResult,
   CalendarOAuthRequestInput,
   CalendarSyncOperationClaim,
   CalendarSyncOperationalSnapshot,
@@ -111,6 +112,7 @@ type DatabaseTimedCalendarSyncPageInput = SaveCalendarSyncPageInput & {
   now: Date;
 };
 const CALENDAR_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const CALENDAR_PAGE_REFRESH_COOLDOWN_MS = 30_000;
 const MAX_LEGACY_EVENT_CANDIDATES_PER_PAGE = 500;
 const FULL_IMPORT_FINALIZATION_BATCH_SIZE = 100;
 
@@ -4094,6 +4096,92 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       });
 
       return reset.count === 1;
+    });
+  }
+
+  async requestPoll(userId: string): Promise<CalendarPollRequestResult> {
+    return this.prisma.$transaction(async (tx) => {
+      if (!(await this.lockUser(tx, userId))) return { status: 'not_ready' };
+
+      const integration = await tx.calendarIntegration.findFirst({
+        where: {
+          userId,
+          provider: 'google',
+          status: 'connected',
+          accessToken: { not: null },
+        },
+        select: {
+          connectionGeneration: true,
+          activeBinding: {
+            select: {
+              id: true,
+              calendarId: true,
+              state: true,
+              dirtyRevision: true,
+              syncedRevision: true,
+              leaseExpiresAt: true,
+              lastSyncedAt: true,
+              lastErrorCode: true,
+              nextSyncAt: true,
+            },
+          },
+        },
+      });
+
+      const binding = integration?.activeBinding;
+      if (
+        !integration ||
+        !binding ||
+        !['active', 'initializing'].includes(binding.state)
+      )
+        return { status: 'not_ready' };
+
+      const result = {
+        bindingId: binding.id,
+        connectionGeneration: integration.connectionGeneration,
+        calendarId: binding.calendarId,
+        lastSyncedAt: binding.lastSyncedAt,
+      };
+
+      const now = await this.databaseNow(tx);
+
+      // Coalesce reloads with existing work and preserve provider retry backoff.
+      if (
+        binding.state === 'initializing' ||
+        binding.dirtyRevision > binding.syncedRevision ||
+        (binding.leaseExpiresAt && binding.leaseExpiresAt > now) ||
+        (binding.lastErrorCode &&
+          binding.nextSyncAt &&
+          binding.nextSyncAt > now)
+      )
+        return { status: 'pending', ...result };
+
+      if (
+        binding.lastSyncedAt &&
+        now.getTime() - binding.lastSyncedAt.getTime() <
+          CALENDAR_PAGE_REFRESH_COOLDOWN_MS
+      )
+        return { status: 'fresh', ...result };
+
+      const changed = await tx.calendarBinding.updateMany({
+        where: {
+          id: binding.id,
+          state: 'active',
+          dirtyRevision: binding.dirtyRevision,
+          lastSyncedAt: binding.lastSyncedAt,
+          OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }],
+          integration: {
+            is: {
+              status: 'connected',
+              activeBindingId: binding.id,
+              connectionGeneration: integration.connectionGeneration,
+            },
+          },
+        },
+        data: { dirtyRevision: { increment: 1 }, nextSyncAt: now },
+      });
+
+      return { status: changed.count === 1 ? 'queued' : 'pending', ...result };
     });
   }
 

@@ -4,6 +4,11 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
+import { useEffect } from "react";
+import {
+  refreshCalendarOnMount,
+  waitForCalendarStatus,
+} from "./calendar-refresh";
 import { conversationQueryKeys } from "../conversations/conversations.queries";
 import { todayQueryKeys } from "../today/today.queries";
 import {
@@ -17,6 +22,7 @@ import {
   retryCalendarEventSync,
   getCalendarConflicts,
   getCalendarStatus,
+  requestCalendarPoll,
   getGoogleCalendars,
   resolveCalendarConflict,
   selectGoogleCalendar,
@@ -37,7 +43,7 @@ export const calendarQueryKeys = {
 export const calendarStatusQueryOptions = () =>
   queryOptions({
     queryKey: calendarQueryKeys.status(),
-    queryFn: getCalendarStatus,
+    queryFn: ({ signal }) => getCalendarStatus(signal),
     staleTime: 30_000,
     refetchInterval: 30_000,
   });
@@ -173,4 +179,47 @@ export function useSelectGoogleCalendar() {
     mutationFn: selectGoogleCalendar,
     meta: { invalidateQueries: invalidatedKeys },
   });
+}
+
+export function useRefreshCalendarOnMount(connected: boolean) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (signal: AbortSignal) =>
+      refreshCalendarOnMount(
+        {
+          requestPoll: requestCalendarPoll,
+          readStatus: getCalendarStatus,
+          wait: waitForCalendarStatus,
+        },
+        signal
+      ),
+    onSuccess: async (result) => {
+      if (result.status === "cancelled") return;
+      queryClient.setQueryData(
+        calendarQueryKeys.status(),
+        result.calendarStatus
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: calendarQueryKeys.events() }),
+        queryClient.invalidateQueries({
+          queryKey: calendarQueryKeys.conflicts(),
+        }),
+        queryClient.invalidateQueries({ queryKey: todayQueryKeys.all }),
+      ]);
+    },
+    onError: (error) =>
+      console.error("Google Calendar page refresh failed", error),
+  });
+
+  const { mutate } = mutation;
+
+  useEffect(() => {
+    if (!connected) return;
+    const controller = new AbortController();
+    mutate(controller.signal);
+
+    return () => controller.abort();
+  }, [connected, mutate]);
+
+  return mutation;
 }

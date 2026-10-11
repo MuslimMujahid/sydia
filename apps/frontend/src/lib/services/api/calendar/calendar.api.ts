@@ -29,6 +29,12 @@ export type CalendarDisconnectResult = {
   cleanupPending: boolean;
 };
 
+export type CalendarPollResult = {
+  status: "queued" | "pending" | "fresh" | "deferred";
+  calendarId: string;
+  lastSyncedAt: string | null;
+};
+
 export type CalendarEventStatus = "confirmed" | "tentative" | "cancelled";
 
 export type CalendarEvent = {
@@ -213,12 +219,35 @@ const getCalendarEventsServer = createServerFn({ method: "GET" })
     }
   });
 
-export async function getCalendarStatus(): Promise<CalendarStatus> {
+export async function requestCalendarPoll(
+  signal: AbortSignal
+): Promise<CalendarPollResult> {
+  try {
+    const response = await api.post<ApiResponse<CalendarPollResult>>(
+      "/calendar/google/poll",
+      undefined,
+      { signal }
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw toApiError(
+      error,
+      "Google Calendar tidak dapat disinkronkan. Muat ulang untuk mencoba lagi."
+    );
+  }
+}
+
+export async function getCalendarStatus(
+  signal?: AbortSignal
+): Promise<CalendarStatus> {
   if (typeof window === "undefined") return getCalendarStatusServer();
 
   try {
-    const response =
-      await api.get<ApiResponse<CalendarStatus>>("/calendar/status");
+    const response = await api.get<ApiResponse<CalendarStatus>>(
+      "/calendar/status",
+      { signal }
+    );
 
     return response.data.data;
   } catch (error) {

@@ -93,6 +93,11 @@ bun run dev
 
 Open the frontend at [http://localhost:3000](http://localhost:3000). The backend listens on [http://localhost:5000](http://localhost:5000).
 
+For optional two-way Google Calendar sync on localhost, follow the
+[local Calendar setup guide](./docs/runbooks/GOOGLE_CALENDAR_LOCAL_SETUP.md).
+It uses a backend OAuth callback and periodic polling without a public tunnel;
+keep the background worker running alongside the frontend and HTTP backend.
+
 ## Common commands
 
 Run these commands from the repository root:

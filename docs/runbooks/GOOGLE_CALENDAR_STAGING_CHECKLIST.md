@@ -1,5 +1,9 @@
 # Google Calendar staging preparation and smoke checks
 
+For localhost development without a public webhook, use
+[the local setup guide](./GOOGLE_CALENDAR_LOCAL_SETUP.md). The procedure below
+also covers staging push delivery and broader provider checks.
+
 Before starting the updated backend and workers, apply migration
 `20261010230000_calendar_import_finalization` (and all earlier migrations).
 It adds the durable checkpoint used by batched full-import finalization.

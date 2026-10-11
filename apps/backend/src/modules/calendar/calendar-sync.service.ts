@@ -753,6 +753,52 @@ export class CalendarSyncService {
     }
   }
 
+  async requestPoll(userId: string): Promise<{
+    status: 'queued' | 'pending' | 'fresh' | 'deferred';
+    calendarId: string;
+    lastSyncedAt: Date | null;
+  }> {
+    if (!this.google.available())
+      throw new ApiException({
+        code: ErrorCodes.SERVICE_UNAVAILABLE,
+        message: 'Sinkronisasi Google Calendar tidak tersedia di server ini.',
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+      });
+
+    const result = await this.calendars.requestPoll(userId);
+    if (result.status === 'not_ready')
+      throw new ApiException({
+        code: ErrorCodes.CONFLICT,
+        message: 'Hubungkan kembali Google Calendar sebelum menyinkronkan.',
+        status: HttpStatus.CONFLICT,
+      });
+
+    const response = {
+      calendarId: result.calendarId,
+      lastSyncedAt: result.lastSyncedAt,
+    };
+
+    if (result.status !== 'queued')
+      return { status: result.status, ...response };
+
+    try {
+      await this.queues.calendarSync.add('calendar-page-refresh', {
+        kind: 'pull',
+        bindingId: result.bindingId,
+        connectionGeneration: result.connectionGeneration,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Calendar page refresh for binding ${result.bindingId} is durable but queue dispatch failed; recovery will enqueue it.`,
+        error instanceof Error ? error.stack : undefined,
+      );
+
+      return { status: 'deferred', ...response };
+    }
+
+    return { status: 'queued', ...response };
+  }
+
   async requestFullResync(
     userId: string,
   ): Promise<

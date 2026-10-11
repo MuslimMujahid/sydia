@@ -10,6 +10,16 @@ export type CalendarDisconnectPreparation = {
   channels: Array<{ channelId: string; resourceId: string | null }>;
 };
 
+export type CalendarPollRequestResult =
+  | {
+      status: 'queued' | 'pending' | 'fresh';
+      bindingId: string;
+      connectionGeneration: number;
+      calendarId: string;
+      lastSyncedAt: Date | null;
+    }
+  | { status: 'not_ready' };
+
 export type CalendarRequestFence =
   | {
       kind: 'operation';
@@ -223,6 +233,7 @@ export interface ICalendarRepository {
       }
     | { status: 'missing' | 'not_ready' | 'busy' }
   >;
+  requestPoll(userId: string): Promise<CalendarPollRequestResult>;
   dueBindingIds(
     limit: number,
   ): Promise<Array<{ id: string; connectionGeneration: number }>>;

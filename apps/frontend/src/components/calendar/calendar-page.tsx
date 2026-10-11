@@ -25,6 +25,7 @@ import {
   useDeleteCalendarEvent,
   useDisconnectCalendar,
   useResolveCalendarOccurrence,
+  useRefreshCalendarOnMount,
 } from "@/lib/services/api/calendar/calendar.queries";
 import {
   tasksQueryOptions,
@@ -158,6 +159,10 @@ export function CalendarPage({
   );
 
   const statusQuery = useQuery(calendarStatusQueryOptions());
+  const refreshMutation = useRefreshCalendarOnMount(
+    statusQuery.data?.connected === true
+  );
+
   const eventsQuery = useQuery({
     ...calendarEventsQueryOptions(range),
     placeholderData: (previous) => previous,
@@ -361,6 +366,7 @@ export function CalendarPage({
   const titleId = "calendar-view-title";
   const selectedItems = itemsByDay[anchor] ?? [];
   const actionError =
+    refreshMutation.error?.message ??
     disconnectMutation.error?.message ??
     connectError ??
     statusMutation.error?.message ??
@@ -490,6 +496,11 @@ export function CalendarPage({
             navigateTo({ date: shiftAnchor(view, anchor, delta) })
           }
         />
+        {refreshMutation.isPending ? (
+          <p className="text-sm text-ink-muted" role="status">
+            Menyinkronkan Google Calendar…
+          </p>
+        ) : null}
         {actionError ? (
           <p className="text-sm text-destructive" role="alert">
             {actionError}

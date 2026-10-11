@@ -79,6 +79,9 @@ type CalendarMocks = {
   connectCount: number;
   disconnectCount: number;
   retryCount: number;
+  pollCount: number;
+  pollPending: boolean;
+  lastSyncedAt: string;
   updateRequest: Partial<CalendarEventWriteInput> | null;
   resolutionRequest: {
     resolution: "keep_sydia" | "use_google";
@@ -101,7 +104,7 @@ function connectedStatus(mocks: CalendarMocks) {
     calendarName: mocks.connected ? "Kalender utama" : null,
     googleEmail: mocks.connected ? "user@example.test" : null,
     bindingState: mocks.connected ? "active" : null,
-    lastSyncedAt: null,
+    lastSyncedAt: mocks.lastSyncedAt,
     lastErrorCode: null,
     pendingOperationCount: 0,
     openConflictCount: mocks.connected && mocks.conflictOpen ? 1 : 0,
@@ -126,6 +129,9 @@ async function mockCalendarApi(
     connectCount: 0,
     disconnectCount: 0,
     retryCount: 0,
+    pollCount: 0,
+    pollPending: false,
+    lastSyncedAt: timestamp,
     updateRequest: null,
     resolutionRequest: null,
   };
@@ -136,6 +142,21 @@ async function mockCalendarApi(
 
     if (pathname === "/calendar/status")
       return route.fulfill({ json: { data: connectedStatus(mocks) } });
+
+    if (pathname === "/calendar/google/poll") {
+      mocks.pollCount += 1;
+
+      return route.fulfill({
+        status: 202,
+        json: {
+          data: {
+            status: mocks.pollPending ? "queued" : "fresh",
+            calendarId: "primary",
+            lastSyncedAt: mocks.lastSyncedAt,
+          },
+        },
+      });
+    }
 
     if (pathname === "/calendar/google/calendars")
       return route.fulfill({
@@ -285,6 +306,83 @@ function googleCardStatus(page: Page, label: string) {
     .locator("..")
     .getByText(label, { exact: true });
 }
+
+test("reload requests one Google pull and replaces events after the worker completes", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.pollPending = true;
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await expect.poll(() => mocks.pollCount).toBe(1);
+  await expect(page.getByText("Rapat sinkron", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Menyinkronkan Google Calendar" })
+  ).toBeVisible();
+
+  mocks.event = { ...mocks.event, title: "Rapat terbaru dari Google" };
+  mocks.lastSyncedAt = "2026-10-08T08:01:00.000Z";
+  await expect(
+    page.getByText("Rapat terbaru dari Google", { exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByText("Menyinkronkan Google Calendar…", { exact: true })
+  ).not.toBeVisible();
+
+  mocks.pollPending = false;
+  await page.reload();
+  await expect.poll(() => mocks.pollCount).toBe(2);
+  await expect(
+    page.getByText("Rapat terbaru dari Google", { exact: true })
+  ).toBeVisible();
+});
+
+test("calendar reload skips Google polls for a disconnected account", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await expect(
+    page.getByRole("button", { name: "Hubungkan Google" })
+  ).toBeVisible();
+  expect(mocks.pollCount).toBe(0);
+});
+
+test("a failed refresh shows the error and logs the failed sync request", async ({
+  page,
+}) => {
+  await mockCalendarApi(page, { connected: true });
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.route("http://localhost:5000/calendar/google/poll", (route) =>
+    route.fulfill({
+      status: 503,
+      json: {
+        error: {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Google Calendar sementara tidak tersedia.",
+        },
+      },
+    })
+  );
+
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Google Calendar sementara tidak tersedia." })
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      errors.some((message) =>
+        message.includes("Google Calendar page refresh failed")
+      )
+    )
+    .toBe(true);
+});
 
 test("connects through a mocked Google authorization return", async ({
   page,

@@ -195,6 +195,12 @@ export class CalendarController {
     };
   }
 
+  @Post('google/poll')
+  @HttpCode(HttpStatus.ACCEPTED)
+  poll(@Session() session: UserSession) {
+    return this.sync.requestPoll(session.user.id);
+  }
+
   @Get('events') list(
     @Session() session: UserSession,
     @Query() range: CalendarRangeDto,
