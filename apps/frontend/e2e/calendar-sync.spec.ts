@@ -2,7 +2,6 @@ import { expect, test, type Page } from "@playwright/test";
 import type {
   CalendarEvent,
   CalendarEventWriteInput,
-  CalendarSyncConflict,
 } from "../src/lib/services/api/calendar/calendar.api";
 
 const timestamp = "2026-10-08T08:00:00.000Z";
@@ -33,48 +32,10 @@ const googleEvent: CalendarEvent = {
   updatedAt: timestamp,
 };
 
-const conflict: CalendarSyncConflict = {
-  id: "conflict-1",
-  eventId: googleEvent.id,
-  title: googleEvent.title,
-  localRevision: 3,
-  remoteEtag: "etag-google-2",
-  fields: ["title"],
-  local: {
-    title: "Rapat versi Sydia",
-    description: null,
-    location: googleEvent.location,
-    startAt: googleEvent.startAt,
-    endAt: googleEvent.endAt,
-    timezone: googleEvent.timezone,
-    allDayStartDate: null,
-    allDayEndDate: null,
-    recurrence: [],
-    attendees: [],
-    status: "confirmed",
-  },
-  remote: {
-    title: "Rapat versi Google",
-    description: null,
-    location: googleEvent.location,
-    startAt: googleEvent.startAt,
-    endAt: googleEvent.endAt,
-    timezone: googleEvent.timezone,
-    allDayStartDate: null,
-    allDayEndDate: null,
-    recurrence: [],
-    attendees: [],
-    status: "confirmed",
-  },
-  remoteDeleted: false,
-  createdAt: timestamp,
-};
-
 type CalendarMocks = {
   connected: boolean;
   disconnectPending: boolean;
   disconnectFailuresRemaining: number;
-  conflictOpen: boolean;
   event: CalendarEvent;
   connectCount: number;
   disconnectCount: number;
@@ -83,11 +44,6 @@ type CalendarMocks = {
   pollPending: boolean;
   lastSyncedAt: string;
   updateRequest: Partial<CalendarEventWriteInput> | null;
-  resolutionRequest: {
-    resolution: "keep_sydia" | "use_google";
-    expectedLocalRevision: number;
-    expectedRemoteEtag: string | null;
-  } | null;
 };
 
 function connectedStatus(mocks: CalendarMocks) {
@@ -107,7 +63,7 @@ function connectedStatus(mocks: CalendarMocks) {
     lastSyncedAt: mocks.lastSyncedAt,
     lastErrorCode: null,
     pendingOperationCount: 0,
-    openConflictCount: mocks.connected && mocks.conflictOpen ? 1 : 0,
+    openConflictCount: 0,
     available: true,
   };
 }
@@ -116,7 +72,6 @@ async function mockCalendarApi(
   page: Page,
   options: {
     connected?: boolean;
-    conflictOpen?: boolean;
     disconnectFailuresRemaining?: number;
   } = {}
 ): Promise<CalendarMocks> {
@@ -124,7 +79,6 @@ async function mockCalendarApi(
     connected: options.connected ?? false,
     disconnectPending: false,
     disconnectFailuresRemaining: options.disconnectFailuresRemaining ?? 0,
-    conflictOpen: options.conflictOpen ?? false,
     event: googleEvent,
     connectCount: 0,
     disconnectCount: 0,
@@ -133,7 +87,6 @@ async function mockCalendarApi(
     pollPending: false,
     lastSyncedAt: timestamp,
     updateRequest: null,
-    resolutionRequest: null,
   };
 
   await page.route("http://localhost:5000/calendar/**", async (route) => {
@@ -173,11 +126,6 @@ async function mockCalendarApi(
         },
       });
 
-    if (pathname === "/calendar/conflicts")
-      return route.fulfill({
-        json: { data: mocks.conflictOpen ? [conflict] : [] },
-      });
-
     if (pathname === "/calendar/events")
       return route.fulfill({ json: { data: [mocks.event] } });
 
@@ -213,7 +161,6 @@ async function mockCalendarApi(
 
       mocks.connected = false;
       mocks.disconnectPending = false;
-      mocks.conflictOpen = false;
 
       return route.fulfill({
         json: {
@@ -224,14 +171,6 @@ async function mockCalendarApi(
           },
         },
       });
-    }
-
-    if (pathname === `/calendar/conflicts/${conflict.id}/resolve`) {
-      const body = request.postDataJSON() as CalendarMocks["resolutionRequest"];
-      mocks.resolutionRequest = body;
-      mocks.conflictOpen = false;
-
-      return route.fulfill({ json: { data: mocks.event } });
     }
 
     if (
@@ -298,13 +237,6 @@ async function mockCalendarApi(
   );
 
   return mocks;
-}
-
-function googleCardStatus(page: Page, label: string) {
-  return page
-    .getByRole("heading", { name: "Google Calendar" })
-    .locator("..")
-    .getByText(label, { exact: true });
 }
 
 test("reload requests one Google pull and replaces events after the worker completes", async ({
@@ -390,35 +322,53 @@ test("connects through a mocked Google authorization return", async ({
   const mocks = await mockCalendarApi(page);
 
   await page.goto("/e2e/calendar-sync.html?mode=integrations");
-  await expect(googleCardStatus(page, "Belum terhubung")).toBeVisible();
-  await page.getByRole("button", { name: "Hubungkan Google" }).click();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).not.toBeChecked();
+  await page
+    .getByRole("switch", { name: "Google Calendar", exact: true })
+    .click();
 
   await expect.poll(() => mocks.connectCount).toBe(1);
   await page.waitForURL(/oauthReturn=success/);
-  await expect(googleCardStatus(page, "Terhubung")).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).toBeChecked();
 });
 
-test("sends the compared revision and ETag when resolving a conflict", async ({
+test("keeps the Google description visible with the account in the title despite sync metadata", async ({
   page,
 }) => {
-  const mocks = await mockCalendarApi(page, {
-    connected: true,
-    conflictOpen: true,
-  });
+  const mocks = await mockCalendarApi(page, { connected: true });
+  await page.route("http://localhost:5000/calendar/status", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          ...connectedStatus(mocks),
+          bindingState: "initializing",
+          pendingOperationCount: 3,
+          openConflictCount: 2,
+          lastErrorCode: "TEMPORARY_PROVIDER_ERROR",
+        },
+      },
+    })
+  );
 
   await page.goto("/e2e/calendar-sync.html?mode=integrations");
-  await expect(page.getByText("Rapat versi Sydia")).toBeVisible();
-  await page.getByRole("button", { name: "Pertahankan versi Sydia" }).click();
-
-  await expect
-    .poll(() => mocks.resolutionRequest?.resolution)
-    .toBe("keep_sydia");
-  expect(mocks.resolutionRequest).toMatchObject({
-    resolution: "keep_sydia",
-    expectedLocalRevision: 3,
-    expectedRemoteEtag: "etag-google-2",
-  });
-  await expect(page.getByText("Rapat versi Sydia")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", {
+      name: "Google Calendar user@example.test",
+      exact: true,
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", {
+      name: "Google Calendar user@example.test",
+      exact: true,
+    })
+  ).toHaveText(
+    /^Google Calendar\s*user@example\.test\s*Sinkronkan agenda dengan akun Google Anda\.$/
+  );
 });
 
 test("retries a failed Google event sync from its editor", async ({ page }) => {
@@ -455,11 +405,16 @@ test("disconnects Google Calendar and returns to the local agenda state", async 
   const mocks = await mockCalendarApi(page, { connected: true });
 
   await page.goto("/e2e/calendar-sync.html?mode=integrations");
-  await expect(googleCardStatus(page, "Terhubung")).toBeVisible();
-  await page.getByRole("button", { name: "Putuskan" }).click();
-  await page.getByRole("button", { name: "Ya, putuskan" }).click();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).toBeChecked();
+  await page
+    .getByRole("switch", { name: "Google Calendar", exact: true })
+    .click();
 
-  await expect(googleCardStatus(page, "Belum terhubung")).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).not.toBeChecked();
   expect(mocks.disconnectCount).toBe(1);
 });
 
@@ -472,13 +427,19 @@ test("keeps Google sync suspended and allows retry when token revocation is pend
   });
 
   await page.goto("/e2e/calendar-sync.html?mode=integrations");
-  await expect(googleCardStatus(page, "Terhubung")).toBeVisible();
-  await page.getByRole("button", { name: "Putuskan" }).click();
-  await page.getByRole("button", { name: "Ya, putuskan" }).click();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).toBeChecked();
+  await page
+    .getByRole("switch", { name: "Google Calendar", exact: true })
+    .click();
 
   await expect(
-    googleCardStatus(page, "Pencabutan izin tertunda")
-  ).toBeVisible();
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Coba cabut izin lagi" })
   ).toBeVisible();
@@ -487,7 +448,339 @@ test("keeps Google sync suspended and allows retry when token revocation is pend
 
   await page.getByRole("button", { name: "Coba cabut izin lagi" }).click();
 
-  await expect(googleCardStatus(page, "Belum terhubung")).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).not.toBeChecked();
   expect(mocks.connected).toBe(false);
   expect(mocks.disconnectCount).toBe(2);
+});
+
+type TelegramMocks = {
+  linked: boolean;
+  failConnect: boolean;
+  failUnlink: boolean;
+};
+
+async function mockTelegramApi(
+  page: Page,
+  linked = false
+): Promise<TelegramMocks> {
+  const mocks = { linked, failConnect: false, failUnlink: false };
+  await page.clock.install({ time: new Date("2026-10-12T08:00:00Z") });
+  await page.route("http://localhost:5000/telegram/status", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          available: true,
+          linked: mocks.linked,
+          externalId: "telegram-user",
+          username: mocks.linked ? "ayu" : null,
+          firstName: "Ayu",
+          botUsername: "sydia_bot",
+          notice: null,
+          lastInboundAt: null,
+        },
+      },
+    })
+  );
+  await page.route("http://localhost:5000/telegram/link", (route) => {
+    const unlinking = route.request().method() === "DELETE";
+    if (unlinking ? mocks.failUnlink : mocks.failConnect)
+      return route.fulfill({
+        status: 503,
+        json: {
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Telegram sementara tidak tersedia.",
+          },
+        },
+      });
+
+    if (unlinking) {
+      mocks.linked = false;
+
+      return route.fulfill({ status: 204 });
+    }
+
+    return route.fulfill({
+      json: {
+        data: {
+          url: `${baseURL}/telegram-authorize`,
+          expiresAt: "2026-10-12T08:05:00Z",
+        },
+      },
+    });
+  });
+  await page.context().route(`${baseURL}/telegram-authorize`, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<p>Telegram authorization fixture</p>",
+    })
+  );
+
+  return mocks;
+}
+
+test("Telegram switch opens authorization and stays off until confirmation", async ({
+  page,
+}) => {
+  await mockCalendarApi(page);
+  const mocks = await mockTelegramApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+  const telegram = page.getByRole("switch", { name: "Telegram", exact: true });
+  await expect(telegram).toBeEnabled();
+  const popupPromise = page.waitForEvent("popup");
+  await telegram.focus();
+  await page.keyboard.press("Space");
+  const popup = await popupPromise;
+  await popup.waitForURL(`${baseURL}/telegram-authorize`);
+  await expect(telegram).not.toBeChecked();
+  await expect(telegram).toBeDisabled();
+  await expect(
+    page.getByText("Selesaikan penghubungan akun di Telegram.", {
+      exact: false,
+    })
+  ).toBeVisible();
+
+  mocks.linked = true;
+  await expect(telegram).toBeChecked();
+  await expect(telegram).toBeEnabled();
+  await expect(page.getByText("@ayu", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Buka Telegram|Putuskan/ })
+  ).toHaveCount(0);
+  await popup.close();
+});
+
+test("keeps the Telegram description visible with the account in the title until disconnected", async ({
+  page,
+}) => {
+  await mockCalendarApi(page);
+  await mockTelegramApi(page, true);
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+
+  await expect(
+    page.getByRole("heading", { name: "Telegram @ayu", exact: true })
+  ).toBeVisible();
+  const description = page.getByText(
+    "Mengobrol dan menerima pengingat melalui Telegram.",
+    { exact: true }
+  );
+
+  await expect(description).toBeVisible();
+  const telegram = page.getByRole("switch", { name: "Telegram", exact: true });
+  await telegram.click();
+
+  await expect(telegram).not.toBeChecked();
+  await expect(page.getByText("@ayu", { exact: true })).toHaveCount(0);
+  await expect(description).toBeVisible();
+});
+
+test("blocked Telegram authorization popup offers an inline continuation link", async ({
+  page,
+}) => {
+  await mockCalendarApi(page);
+  await mockTelegramApi(page);
+  await page.addInitScript(() => {
+    window.open = () => null;
+  });
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+  await page.getByRole("switch", { name: "Telegram", exact: true }).click();
+
+  await expect(
+    page.getByRole("link", { name: "lanjutkan di Telegram" })
+  ).toHaveAttribute("href", `${baseURL}/telegram-authorize`);
+  await expect(
+    page.getByRole("switch", { name: "Telegram", exact: true })
+  ).not.toBeChecked();
+});
+
+test("failed Telegram linking leaves the switch off and ready to retry", async ({
+  page,
+}) => {
+  await mockCalendarApi(page);
+  const mocks = await mockTelegramApi(page);
+  mocks.failConnect = true;
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+  const telegram = page.getByRole("switch", { name: "Telegram", exact: true });
+  const popupPromise = page.waitForEvent("popup");
+  await telegram.click();
+  const popup = await popupPromise;
+
+  await expect(page.getByRole("alert")).toContainText(
+    "Telegram sementara tidak tersedia."
+  );
+  await expect(telegram).not.toBeChecked();
+  await expect(telegram).toBeEnabled();
+  await expect.poll(() => popup.isClosed()).toBe(true);
+});
+
+test("Telegram disconnect failure keeps the switch on and allows another attempt", async ({
+  page,
+}) => {
+  await mockCalendarApi(page);
+  const mocks = await mockTelegramApi(page, true);
+  mocks.failUnlink = true;
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+  const telegram = page.getByRole("switch", { name: "Telegram", exact: true });
+  await expect(telegram).toBeChecked();
+  await telegram.click();
+
+  await expect(page.getByRole("alert")).toContainText(
+    "Telegram sementara tidak tersedia."
+  );
+  await expect(telegram).toBeChecked();
+  await expect(telegram).toBeEnabled();
+  mocks.failUnlink = false;
+  await telegram.click();
+  await expect(telegram).not.toBeChecked();
+});
+
+test("unavailable Telegram connection has a disabled switch", async ({
+  page,
+}) => {
+  await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+  await expect(
+    page.getByRole("switch", { name: "Telegram", exact: true })
+  ).toBeDisabled();
+  await expect(
+    page.getByText("Integrasi Telegram belum tersedia di server ini.")
+  ).toBeVisible();
+});
+
+async function mockWhatsAppApi(page: Page) {
+  const mocks = {
+    linked: false,
+    blocked: false,
+    failConnect: false,
+    failUnlink: false,
+  };
+
+  await page.clock.install({ time: new Date("2026-10-12T08:00:00Z") });
+  await page.route("http://localhost:5000/whatsapp/status", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          linked: mocks.linked,
+          externalId: mocks.linked ? "628123456789@s.whatsapp.net" : null,
+          contact: null,
+          gateway: {
+            status: mocks.blocked ? "enforced" : "connected",
+            registrationReady: true,
+            profileReady: true,
+            sendingPaused: mocks.blocked,
+            enforcementCode: null,
+            enforcementReason: mocks.blocked
+              ? "Pengiriman dijeda oleh WhatsApp."
+              : null,
+            recoveryReason: null,
+            lastConnectedAt: null,
+            lastEventAt: null,
+          },
+        },
+      },
+    })
+  );
+  await page.route("http://localhost:5000/whatsapp/link-code", (route) =>
+    mocks.failConnect
+      ? route.fulfill({
+          status: 503,
+          json: {
+            error: {
+              code: "SERVICE_UNAVAILABLE",
+              message: "Kode WhatsApp belum dapat dibuat.",
+            },
+          },
+        })
+      : route.fulfill({
+          json: {
+            data: { code: "SYDIA-1234", expiresAt: "2026-10-12T08:05:00Z" },
+          },
+        })
+  );
+  await page.route("http://localhost:5000/whatsapp/link", (route) => {
+    if (mocks.failUnlink)
+      return route.fulfill({
+        status: 503,
+        json: {
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Tautan WhatsApp belum dapat diputuskan.",
+          },
+        },
+      });
+    mocks.linked = false;
+
+    return route.fulfill({ status: 204 });
+  });
+
+  return mocks;
+}
+
+test("WhatsApp switch creates a code and turns on only after linking is confirmed", async ({
+  page,
+}) => {
+  const mocks = await mockWhatsAppApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
+  const whatsapp = page.getByRole("switch", { name: "WhatsApp", exact: true });
+  await whatsapp.click();
+
+  await expect(page.getByText("SYDIA-1234", { exact: true })).toBeVisible();
+  await expect(whatsapp).not.toBeChecked();
+  await expect(whatsapp).toBeDisabled();
+  mocks.linked = true;
+  await expect(whatsapp).toBeChecked();
+  await expect(page.getByText("628123456789", { exact: true })).toBeVisible();
+});
+
+test("WhatsApp link-code failure leaves the switch off and ready to retry", async ({
+  page,
+}) => {
+  const mocks = await mockWhatsAppApi(page);
+  mocks.failConnect = true;
+  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
+  const whatsapp = page.getByRole("switch", { name: "WhatsApp", exact: true });
+  await whatsapp.click();
+
+  await expect(page.getByRole("alert")).toContainText(
+    "Kode WhatsApp belum dapat dibuat."
+  );
+  await expect(whatsapp).not.toBeChecked();
+  await expect(whatsapp).toBeEnabled();
+});
+
+test("WhatsApp disconnect failure keeps the switch on and allows another attempt", async ({
+  page,
+}) => {
+  const mocks = await mockWhatsAppApi(page);
+  mocks.linked = true;
+  mocks.failUnlink = true;
+  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
+  const whatsapp = page.getByRole("switch", { name: "WhatsApp", exact: true });
+  await expect(whatsapp).toBeChecked();
+  await whatsapp.click();
+
+  await expect(page.getByRole("alert")).toContainText(
+    "Tautan WhatsApp belum dapat diputuskan."
+  );
+  await expect(whatsapp).toBeChecked();
+  await expect(whatsapp).toBeEnabled();
+  mocks.failUnlink = false;
+  await whatsapp.click();
+  await expect(whatsapp).not.toBeChecked();
+});
+
+test("WhatsApp enforcement disables new links and exposes the reason", async ({
+  page,
+}) => {
+  const mocks = await mockWhatsAppApi(page);
+  mocks.blocked = true;
+  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
+  await expect(
+    page.getByRole("switch", { name: "WhatsApp", exact: true })
+  ).toBeDisabled();
+  await expect(page.getByRole("alert")).toContainText(
+    "Pengiriman dijeda oleh WhatsApp."
+  );
 });

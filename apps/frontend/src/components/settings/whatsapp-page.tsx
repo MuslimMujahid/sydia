@@ -1,24 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import {
-  CheckCircle2,
-  Link2,
-  MessageSquareText,
-  ShieldAlert,
-  Unplug,
-} from "lucide-react";
+import { CheckCircle2, Link2, ShieldAlert } from "lucide-react";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { FormError } from "@/components/forms/form-fields";
 import {
   useCreateWhatsAppLinkCode,
@@ -32,6 +19,7 @@ import type {
   WhatsAppLinkCode,
   WhatsAppStatus,
 } from "@/lib/services/api/whatsapp/whatsapp.api";
+import { IntegrationRow } from "./integration-row";
 import { SettingsPageHeader } from "./settings-nav";
 
 const GATEWAY_LABELS: Record<
@@ -267,7 +255,6 @@ function SydiaNumberSetupCard({ status }: { status: WhatsAppStatus }) {
 
 export function WhatsAppIntegrationCard() {
   const [linkCode, setLinkCode] = useState<WhatsAppLinkCode | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const unlinkMutation = useUnlinkWhatsApp();
   const linkCodeMutation = useCreateWhatsAppLinkCode();
@@ -277,7 +264,7 @@ export function WhatsAppIntegrationCard() {
 
   const statusQuery = useQuery(whatsappStatusQueryOptions(codeAwaitingLink));
   const status = statusQuery.data;
-  const linked = status?.linked ?? false;
+  const linked = status?.linked === true;
   const codeBlocked = status
     ? status.gateway.sendingPaused ||
       status.gateway.status === "enforced" ||
@@ -291,88 +278,46 @@ export function WhatsAppIntegrationCard() {
     return () => window.clearInterval(timer);
   }, [codeAwaitingLink]);
 
-  async function handleUnlink() {
-    await unlinkMutation.mutateAsync();
-    setDialogOpen(false);
-  }
-
-  async function handleCreateCode() {
-    setLinkCode(await linkCodeMutation.mutateAsync());
+  function handleCreateCode() {
+    linkCodeMutation.mutate(undefined, {
+      onSuccess: (code) => {
+        setNow(Date.now());
+        setLinkCode(code);
+      },
+    });
   }
 
   return (
-    <Card className="p-6 sm:p-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-xl">
-          <div className="flex items-center gap-3">
-            <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold">
-              <MessageSquareText className="size-5 text-brand-deep" /> WhatsApp
-            </h2>
-            {status ? (
-              <Badge dot={linked ? "brand" : "ink-weak"}>
-                {linked ? "Tertaut" : "Belum tertaut"}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="mt-2 text-sm leading-[1.6] text-ink-muted">
-            Tautkan nomor WhatsApp pribadi Anda untuk mengobrol dan menerima
-            pengingat. Sydia memakai satu nomor layanan yang sama untuk semua
-            pengguna — tautan hanya mengaitkan pesan dari nomor Anda dengan
-            akun ini.
-          </p>
-        </div>
-        {status?.linked ? (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger
-              render={
-                <Button variant="dark-outline" size="sm" className="shrink-0" />
-              }
-            >
-              <Unplug /> Putuskan tautan
-            </DialogTrigger>
-            <DialogContent>
-              <DialogTitle>Putuskan tautan WhatsApp?</DialogTitle>
-              <DialogDescription className="mt-3">
-                Sydia berhenti mengaitkan pesan dari nomor pribadi ini dengan
-                akun Anda dan tidak akan mengirim pesan proaktif ke nomor
-                tersebut. Nomor layanan Sydia tetap sama dan tetap tersedia
-                bagi pengguna lain. Anda dapat menautkan ulang kapan pun dengan
-                kode baru.
-              </DialogDescription>
-              {unlinkMutation.error ? (
-                <div className="mt-4">
-                  <FormError message={unlinkMutation.error.message} />
-                </div>
-              ) : null}
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={unlinkMutation.isPending}
-                  onClick={() => setDialogOpen(false)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={unlinkMutation.isPending}
-                  onClick={() => void handleUnlink()}
-                >
-                  {unlinkMutation.isPending
-                    ? "Memutuskan…"
-                    : "Ya, putuskan tautan"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        ) : null}
-      </div>
-      {statusQuery.isPending ? (
-        <p className="mt-3 text-sm text-ink-muted" role="status">
-          Memeriksa koneksi…
-        </p>
-      ) : null}
+    <IntegrationRow
+      id="integration-whatsapp"
+      title="WhatsApp"
+      checked={linked}
+      disabled={
+        !status ||
+        statusQuery.isError ||
+        unlinkMutation.isPending ||
+        linkCodeMutation.isPending ||
+        (!linked && (codeBlocked || codeAwaitingLink))
+      }
+      onCheckedChange={(checked) => {
+        if (checked) handleCreateCode();
+        else
+          unlinkMutation.mutate(undefined, {
+            onSuccess: () => setLinkCode(null),
+          });
+      }}
+      description={
+        statusQuery.isPending ? (
+          <p role="status">Memeriksa koneksi…</p>
+        ) : linkCodeMutation.isPending ? (
+          <p role="status">Membuat kode tautan…</p>
+        ) : linked && status?.externalId ? (
+          phoneFromJid(status.externalId)
+        ) : (
+          "Mengobrol dan menerima pengingat melalui WhatsApp."
+        )
+      }
+    >
       {statusQuery.isError ? (
         <div className="mt-4">
           <p className="text-sm text-destructive" role="alert">
@@ -388,10 +333,13 @@ export function WhatsAppIntegrationCard() {
           </Button>
         </div>
       ) : null}
-      {status ? (
+      {status &&
+      (status.gateway.enforcementReason ||
+        status.gateway.recoveryReason ||
+        status.contact?.optedOutAt ||
+        (!linked && linkCode)) ? (
         <>
-          {status.gateway.enforcementReason ||
-          status.gateway.recoveryReason ? (
+          {status.gateway.enforcementReason || status.gateway.recoveryReason ? (
             <div className="mt-6 space-y-3">
               {status.gateway.enforcementReason ? (
                 <div
@@ -424,26 +372,6 @@ export function WhatsAppIntegrationCard() {
               ) : null}
             </div>
           ) : null}
-          {linked && status.externalId ? (
-            <dl className="mt-6 space-y-3 text-[15px]">
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                <dt className="text-ink-muted">Nomor WhatsApp</dt>
-                <dd className="font-semibold text-ink">
-                  {phoneFromJid(status.externalId)}
-                </dd>
-              </div>
-              {status.contact?.lastInboundAt ? (
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <dt className="text-ink-muted">Pesan masuk terakhir</dt>
-                  <dd className="text-ink">
-                    <time dateTime={status.contact.lastInboundAt}>
-                      {formatDateTime(status.contact.lastInboundAt)}
-                    </time>
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          ) : null}
           {status.contact?.optedOutAt ? (
             <div
               className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3"
@@ -457,12 +385,9 @@ export function WhatsAppIntegrationCard() {
               </p>
             </div>
           ) : null}
-          {!linked ? (
-            <div className="mt-6 border-t border-surface-1 pt-6">
-              <h3 className="text-[15px] font-semibold text-ink">
-                Tautkan akun WhatsApp Anda
-              </h3>
-              <ol className="mt-3 list-decimal space-y-2 pl-5 text-[15px] text-ink-muted">
+          {!linked && linkCode ? (
+            <div className="mt-4">
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-ink-muted">
                 <li>Buat kode tautan sekali pakai.</li>
                 <li>
                   Kirim kode sebagai pesan WhatsApp dari nomor Anda ke nomor
@@ -471,8 +396,8 @@ export function WhatsAppIntegrationCard() {
                 <li>Status diperbarui otomatis begitu kode diterima.</li>
               </ol>
               <p className="mt-3 text-sm text-ink-muted">
-                Demi keamanan, kode hanya berlaku beberapa menit dan hanya
-                dapat dipakai dari pesan masuk WhatsApp — bukan dari web.
+                Demi keamanan, kode hanya berlaku beberapa menit dan hanya dapat
+                dipakai dari pesan masuk WhatsApp — bukan dari web.
               </p>
               {codeAwaitingLink && linkCode ? (
                 <div className="mt-5 space-y-3" aria-live="polite">
@@ -493,29 +418,9 @@ export function WhatsAppIntegrationCard() {
               ) : null}
               {linkCode && !codeAwaitingLink ? (
                 <p className="mt-5 text-sm text-ink-muted" role="status">
-                  Kode sebelumnya kedaluwarsa. Buat kode baru untuk
-                  melanjutkan.
+                  Kode kedaluwarsa. Aktifkan kembali untuk membuat kode baru.
                 </p>
               ) : null}
-              <div className="mt-5 flex flex-wrap items-center gap-4">
-                <Button
-                  size="sm"
-                  disabled={linkCodeMutation.isPending || codeBlocked}
-                  onClick={() => void handleCreateCode()}
-                >
-                  <Link2 />
-                  {linkCodeMutation.isPending
-                    ? "Membuat kode…"
-                    : codeAwaitingLink
-                      ? "Buat kode baru"
-                      : "Buat kode tautan"}
-                </Button>
-                {codeBlocked ? (
-                  <p className="text-sm text-ink-muted">
-                    Pembuatan kode dijeda selama penegakan aktif.
-                  </p>
-                ) : null}
-              </div>
               {linkCodeMutation.error ? (
                 <div className="mt-4">
                   <FormError message={linkCodeMutation.error.message} />
@@ -525,7 +430,18 @@ export function WhatsAppIntegrationCard() {
           ) : null}
         </>
       ) : null}
-    </Card>
+      {codeBlocked && !linked ? (
+        <p className="text-sm text-ink-muted" role="status">
+          Pembuatan kode dijeda selama penegakan aktif.
+        </p>
+      ) : null}
+      {linkCodeMutation.error && !linkCode ? (
+        <FormError message={linkCodeMutation.error.message} />
+      ) : null}
+      {unlinkMutation.error ? (
+        <FormError message={unlinkMutation.error.message} />
+      ) : null}
+    </IntegrationRow>
   );
 }
 
