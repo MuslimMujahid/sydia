@@ -125,6 +125,8 @@ type TimePickerProps = {
   value: string;
   /** Whether the time can be removed ("Hapus jam"). */
   clearable?: boolean;
+  /** Fits inline date and time ranges without repeating the row's clock icon. */
+  compact?: boolean;
   /** Shown when there is no time. */
   emptyLabel?: string;
   /** Hint in the popover while there is no time, e.g. what "no time" means. */
@@ -145,6 +147,7 @@ export function TimePicker({
   label,
   value,
   clearable = false,
+  compact = false,
   emptyLabel = "Pilih jam",
   emptyHint,
   disabled = false,
@@ -191,9 +194,17 @@ export function TimePicker({
         aria-label={`${label}, ${value || emptyLabel.toLowerCase()}`}
         aria-describedby={describedBy}
         aria-invalid={invalid || undefined}
-        className="flex h-11 w-full min-w-0 items-center gap-2 rounded-sm border border-ink/16 bg-canvas px-3 text-left font-sans text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:pointer-events-none disabled:bg-ink/4 disabled:opacity-40 aria-invalid:border-destructive data-[popup-open]:border-brand"
+        className={cn(
+          "flex h-11 w-full min-w-0 items-center gap-2 rounded-sm border border-ink/16 bg-canvas text-left font-sans text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:pointer-events-none disabled:bg-ink/4 disabled:opacity-40 aria-invalid:border-destructive data-[popup-open]:border-brand",
+          compact ? "justify-center px-2" : "px-3"
+        )}
       >
-        <Clock3 className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+        {!compact ? (
+          <Clock3
+            className="size-4 shrink-0 text-ink-muted"
+            aria-hidden="true"
+          />
+        ) : null}
         <span
           className={cn("truncate", value ? "font-mono" : "text-ink-muted")}
         >

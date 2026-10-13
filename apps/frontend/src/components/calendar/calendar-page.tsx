@@ -23,7 +23,6 @@ import {
   calendarEventsQueryOptions,
   calendarStatusQueryOptions,
   useDeleteCalendarEvent,
-  useDisconnectCalendar,
   useResolveCalendarOccurrence,
   useRefreshCalendarOnMount,
 } from "@/lib/services/api/calendar/calendar.queries";
@@ -169,7 +168,6 @@ export function CalendarPage({
   });
 
   const tasksQuery = useQuery(tasksQueryOptions());
-  const disconnectMutation = useDisconnectCalendar();
   const statusMutation = useSetTaskStatus();
   const deleteEventMutation = useDeleteCalendarEvent();
   const resolveOccurrenceMutation = useResolveCalendarOccurrence();
@@ -337,16 +335,6 @@ export function CalendarPage({
     });
   }
 
-  async function handleDisconnect() {
-    if (
-      !window.confirm(
-        "Putuskan Google Calendar? Acara lokal di Sydia tetap tersimpan."
-      )
-    )
-      return;
-    await disconnectMutation.mutateAsync();
-  }
-
   async function handleConnect() {
     setConnectError(null);
     setIsConnecting(true);
@@ -367,7 +355,6 @@ export function CalendarPage({
   const selectedItems = itemsByDay[anchor] ?? [];
   const actionError =
     refreshMutation.error?.message ??
-    disconnectMutation.error?.message ??
     connectError ??
     statusMutation.error?.message ??
     deleteEventMutation.error?.message ??
@@ -409,7 +396,9 @@ export function CalendarPage({
             onOpenDay={openDay}
             onEditItem={editItem}
             onDeleteItem={deleteItem}
-            onCreateForDay={(dayKey) => openCreate(dayKey)}
+            onCreateForDay={(dayKey, kind) =>
+              openCreate(dayKey, undefined, kind)
+            }
           />
         );
         break;
@@ -444,6 +433,18 @@ export function CalendarPage({
         break;
     }
 
+  const calendarConnection = (
+    <CalendarConnection
+      isPending={statusQuery.isPending}
+      error={statusQuery.error?.message ?? null}
+      connected={statusQuery.data?.connected}
+      googleEmail={statusQuery.data?.googleEmail}
+      available={statusQuery.data?.available}
+      isConnecting={isConnecting}
+      onConnect={() => void handleConnect()}
+    />
+  );
+
   return (
     // From `lg` the page fills the panel's height and the active view takes
     // whatever the header and toolbar leave.
@@ -471,31 +472,33 @@ export function CalendarPage({
           </div>
         }
         action={
-          <CalendarConnection
-            isPending={statusQuery.isPending}
-            error={statusQuery.error?.message ?? null}
-            connected={statusQuery.data?.connected}
-            available={statusQuery.data?.available}
-            isConnecting={isConnecting}
-            isDisconnecting={disconnectMutation.isPending}
-            onConnect={() => void handleConnect()}
-            onDisconnect={() => void handleDisconnect()}
-          />
+          statusQuery.data?.connected ? (
+            <div className="lg:hidden">{calendarConnection}</div>
+          ) : (
+            calendarConnection
+          )
         }
       />
       <section
         aria-labelledby={titleId}
         className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
       >
-        <CalendarToolbar
-          view={view}
-          title={formatViewTitle(view, anchor)}
-          titleId={titleId}
-          onToday={() => navigateTo({ date: todayKey })}
-          onStep={(delta) =>
-            navigateTo({ date: shiftAnchor(view, anchor, delta) })
-          }
-        />
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <CalendarToolbar
+              view={view}
+              title={formatViewTitle(view, anchor)}
+              titleId={titleId}
+              onToday={() => navigateTo({ date: todayKey })}
+              onStep={(delta) =>
+                navigateTo({ date: shiftAnchor(view, anchor, delta) })
+              }
+            />
+          </div>
+          {statusQuery.data?.connected ? (
+            <div className="hidden min-w-0 lg:block">{calendarConnection}</div>
+          ) : null}
+        </div>
         {refreshMutation.isPending ? (
           <p className="text-sm text-ink-muted" role="status">
             Menyinkronkan Google Calendar…

@@ -1,3 +1,4 @@
+import { googleMeetDetails } from '../../infra/calendar';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -90,9 +91,18 @@ function parseEventWrite(value: unknown): CalendarEventWrite {
     throw new Error('Calendar sync payload is not an object.');
   const common: Pick<
     CalendarEventWrite,
-    'title' | 'status' | 'description' | 'location' | 'recurrence' | 'attendees'
+    | 'title'
+    | 'status'
+    | 'description'
+    | 'location'
+    | 'recurrence'
+    | 'attendees'
+    | 'createGoogleMeet'
   > = {
     title: requiredString(value.title, 'title'),
+    ...(typeof value.createGoogleMeet === 'boolean'
+      ? { createGoogleMeet: value.createGoogleMeet }
+      : {}),
     ...(value.status === 'confirmed' || value.status === 'tentative'
       ? { status: value.status }
       : {}),
@@ -1702,7 +1712,19 @@ export class CalendarSyncService {
       if (result.status === 'conflict')
         throw new CalendarUpdateConflictError(inbound, result.fields);
 
-      return result.patch;
+      const meet = googleMeetDetails(resource);
+      const needsConferenceChange =
+        payload.createGoogleMeet === true
+          ? !meet.googleMeetUrl && meet.googleMeetStatus !== 'pending'
+          : payload.createGoogleMeet === false &&
+            (meet.googleMeetUrl !== null || meet.googleMeetStatus !== null);
+
+      return {
+        ...result.patch,
+        ...(needsConferenceChange
+          ? { createGoogleMeet: payload.createGoogleMeet }
+          : {}),
+      };
     };
 
     const context = this.requestContext(

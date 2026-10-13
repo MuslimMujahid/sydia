@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
+import { isCalendarView } from "../src/components/calendar/calendar-date";
 import { CalendarPage } from "../src/components/calendar/calendar-page";
 import { IntegrationSettingsPage } from "../src/components/settings/integrations-page";
 import { WhatsAppIntegrationCard } from "../src/components/settings/whatsapp-page";
@@ -8,7 +9,9 @@ import { createQueryClient } from "../src/lib/query-client";
 import "../src/styles/globals.css";
 
 function CalendarSyncFixture() {
-  const mode = new URLSearchParams(window.location.search).get("mode");
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get("mode");
+  const view = params.get("view");
 
   if (mode === "whatsapp")
     return (
@@ -21,7 +24,7 @@ function CalendarSyncFixture() {
     return (
       <CalendarPage
         timezone="Asia/Makassar"
-        view="schedule"
+        view={isCalendarView(view) ? view : "schedule"}
         date="2026-10-08"
         modeSwitch={null}
         onNavigate={() => {}}

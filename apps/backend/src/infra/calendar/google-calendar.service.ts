@@ -423,13 +423,14 @@ export class GoogleCalendarService {
   ): Promise<GoogleEventResource> {
     const body = this.eventBody(input);
     body.id = eventId;
+    this.setConferenceRequest(body, input.createGoogleMeet, operationId);
     body.extendedProperties = {
       private: { sydiaOperationId: operationId },
     };
 
     return this.calendar(
       token,
-      `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${sendUpdates}`,
+      `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${sendUpdates}&conferenceDataVersion=1`,
       'POST',
       body,
       undefined,
@@ -451,10 +452,11 @@ export class GoogleCalendarService {
       throw new Error('A Google event update requires a current ETag.');
     const body = this.eventBody(input);
     body.extendedProperties = { private: { sydiaOperationId: operationId } };
+    this.setConferenceRequest(body, input.createGoogleMeet, operationId);
 
     return this.calendar(
       token,
-      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=${sendUpdates}`,
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=${sendUpdates}&conferenceDataVersion=1`,
       'PATCH',
       body,
       { 'If-Match': etag },
@@ -555,6 +557,22 @@ export class GoogleCalendarService {
         'revoke_failed',
         retryAfterMs(response),
       );
+  }
+
+  private setConferenceRequest(
+    body: GoogleEventResource,
+    enabled: boolean | undefined,
+    operationId: string,
+  ): void {
+    if (enabled === undefined) return;
+    body.conferenceData = enabled
+      ? {
+          createRequest: {
+            requestId: operationId,
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
+          },
+        }
+      : null;
   }
 
   private eventBody(

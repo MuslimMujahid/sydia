@@ -93,7 +93,7 @@ describe('GoogleCalendarService conditional updates', () => {
         context,
       );
       expect(fetchSpy).toHaveBeenCalledWith(
-        'https://www.googleapis.com/calendar/v3/calendars/calendar-1/events/event-1?sendUpdates=all',
+        'https://www.googleapis.com/calendar/v3/calendars/calendar-1/events/event-1?sendUpdates=all&conferenceDataVersion=1',
         expect.objectContaining({
           method: 'PATCH',
           headers: expect.objectContaining({ 'If-Match': 'etag-1' }),
@@ -250,4 +250,98 @@ describe('GoogleCalendarService refresh fencing', () => {
       fetchSpy.mockRestore();
     }
   });
+});
+
+function meetRequestHarness() {
+  const service = new GoogleCalendarService(
+    new ConfigService({
+      BACKEND_GOOGLE_CALENDAR_SYNC_ENABLED: 'true',
+      BACKEND_GOOGLE_CLIENT_ID: 'synthetic-client',
+      BACKEND_GOOGLE_CLIENT_SECRET: 'synthetic-secret',
+      BACKEND_GOOGLE_REDIRECT_URI:
+        'https://example.test/calendar/google/callback',
+    }),
+    {
+      acquire: jest
+        .fn<GoogleCalendarRequestLimiter['acquire']>()
+        .mockResolvedValue({
+          id: 'lease',
+          keys: ['project', 'subject', 'calendar', 'outbound', 'pull', 'watch'],
+        }),
+      release: jest
+        .fn<GoogleCalendarRequestLimiter['release']>()
+        .mockResolvedValue(undefined),
+    } as unknown as GoogleCalendarRequestLimiter,
+  );
+
+  const context: GoogleCalendarRequestContext = {
+    googleSubject: 'subject',
+    calendarId: 'primary',
+    lane: 'outbound',
+  };
+
+  return { service, context };
+}
+
+test('creating a Meet conference sends a stable request id and conference version', async () => {
+  const { service, context } = meetRequestHarness();
+  const fetchSpy = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue(new Response('{"id":"event-1"}'));
+
+  try {
+    await service.createEvent(
+      'synthetic-token',
+      'primary',
+      'event-1',
+      'operation-1',
+      {
+        title: 'Meeting',
+        startAt: new Date('2026-10-12T01:00:00Z'),
+        endAt: new Date('2026-10-12T02:00:00Z'),
+        timezone: 'Asia/Makassar',
+        createGoogleMeet: true,
+      },
+      context,
+    );
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toEqual(expect.stringContaining('conferenceDataVersion=1'));
+    expect(typeof init?.body).toBe('string');
+    expect(JSON.parse(init?.body as string)).toMatchObject({
+      conferenceData: {
+        createRequest: {
+          requestId: 'operation-1',
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
+      },
+    });
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
+test('disabling Google Meet explicitly clears provider conference data', async () => {
+  const { service, context } = meetRequestHarness();
+  const fetchSpy = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue(new Response('{"id":"event-1"}'));
+
+  try {
+    await service.updateEvent(
+      'synthetic-token',
+      'primary',
+      'event-1',
+      'operation-2',
+      { createGoogleMeet: false },
+      'etag-1',
+      context,
+    );
+    const body = fetchSpy.mock.calls[0]![1]?.body;
+    expect(typeof body).toBe('string');
+    expect(JSON.parse(body as string)).toMatchObject({
+      conferenceData: null,
+    });
+  } finally {
+    fetchSpy.mockRestore();
+  }
 });

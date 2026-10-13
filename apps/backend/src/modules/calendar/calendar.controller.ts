@@ -51,6 +51,7 @@ type CalendarWriteFields = {
   location?: string | null;
   attendees?: string[];
   recurrence?: string[];
+  createGoogleMeet?: boolean;
 };
 
 function temporalInputError(): ApiException {
@@ -70,6 +71,9 @@ function commonWriteFields(input: CalendarWriteFields) {
     ...(input.location !== undefined ? { location: input.location } : {}),
     ...(input.attendees !== undefined ? { attendees: input.attendees } : {}),
     ...(input.recurrence !== undefined ? { recurrence: input.recurrence } : {}),
+    ...(input.createGoogleMeet !== undefined
+      ? { createGoogleMeet: input.createGoogleMeet }
+      : {}),
   };
 }
 

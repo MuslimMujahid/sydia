@@ -1,13 +1,22 @@
-import { LoaderCircle } from "lucide-react";
+import {
+  CalendarDays,
+  Clock3,
+  LoaderCircle,
+  MapPin,
+  AlignLeft,
+  Users,
+  Video,
+} from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
 import { DateTimeField } from "@/components/forms/date-time-field";
 import {
   FieldShell,
+  fieldErrorMessages,
   FormError,
-  SelectField,
   TextField,
 } from "@/components/forms/form-fields";
+import { TimePicker } from "@/components/forms/time-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -15,7 +24,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { EventNotesEditor, eventNotesSummary } from "./event-notes";
 import { useAppForm } from "@/lib/hooks/forms";
 import type {
   CalendarEvent,
@@ -29,25 +38,35 @@ import {
   useRetryCalendarEventSync,
   useUpdateCalendarEvent,
 } from "@/lib/services/api/calendar/calendar.queries";
-import {
-  fromDateTimeLocal,
-  splitDateTimeLocal,
-  toDateTimeLocal,
-} from "@/lib/utils/date-time";
+import { splitDateTimeLocal } from "@/lib/utils/date-time";
 import { addDays } from "./calendar-date";
 import { changedEventValues } from "./calendar-event-write";
+import { eventTimeInZone, eventTimeToIso } from "./event-time";
+import { EventEditorRow } from "./event-editor-row";
+import { EventRecurrenceField } from "./event-recurrence-field";
+import { REPEAT_LABELS, recurrencePreset } from "./event-recurrence";
+import { formatShortDayKey } from "@/lib/utils/date-time";
 
 const eventSchema = z
   .object({
     title: z.string().trim().min(2, "Masukkan judul minimal 2 karakter."),
     isAllDay: z.boolean(),
-    startAt: z.string().min(1, "Pilih waktu mulai."),
-    endAt: z.string().min(1, "Pilih waktu selesai."),
+    startAt: z.string(),
+    endAt: z.string(),
     allDayStartDate: z.string(),
     allDayEndDate: z.string(),
     location: z.string(),
     description: z.string(),
-    attendees: z.string(),
+    attendees: z.string().refine(
+      (value) =>
+        value
+          .split(",")
+          .map((email) => email.trim())
+          .filter(Boolean)
+          .every((email) => z.email().safeParse(email).success),
+      "Masukkan alamat email peserta yang valid."
+    ),
+    recurrence: z.array(z.string()),
   })
   .superRefine((value, context) => {
     if (value.isAllDay) {
@@ -102,8 +121,8 @@ const eventSchema = z
   });
 
 const EVENT_TIME_FIELDS = [
-  { name: "startAt", id: "event-start", label: "Mulai", defaultTime: "09:00" },
-  { name: "endAt", id: "event-end", label: "Selesai", defaultTime: "10:00" },
+  { name: "startAt", id: "event-start", label: "Mulai" },
+  { name: "endAt", id: "event-end", label: "Selesai" },
 ] as const;
 
 /** "yyyy-MM-ddTHH:mm" from its parts; empty while the date is missing. */
@@ -132,9 +151,32 @@ export function EventEditor({
   header,
   onClose,
 }: EventEditorProps) {
+  const eventTimezone = event?.timezone ?? timezone;
   const [destination, setDestination] = useState<"google" | "local">(
     googleConnected ? "google" : "local"
   );
+
+  const [expanded, setExpanded] = useState({
+    time: false,
+    attendees: false,
+    location: false,
+    description: false,
+    meet: false,
+  });
+
+  const [createGoogleMeet, setCreateGoogleMeet] = useState<boolean | undefined>(
+    undefined
+  );
+
+  const [recurrenceValid, setRecurrenceValid] = useState(true);
+  const [submitError, setSubmitError] = useState<string | undefined>();
+  const googleActive = event
+    ? event.provider === "google"
+    : googleConnected && destination === "google";
+
+  function toggleRow(row: keyof typeof expanded) {
+    setExpanded((current) => ({ ...current, [row]: !current[row] }));
+  }
 
   const destinationTouched = useRef(false);
   const idempotencyRef = useRef<{ fingerprint: string; key: string } | null>(
@@ -171,9 +213,11 @@ export function EventEditor({
       title: event?.title ?? "",
       isAllDay: Boolean(event?.allDayStartDate && event.allDayEndDate),
       startAt: event?.startAt
-        ? toDateTimeLocal(event.startAt)
+        ? eventTimeInZone(event.startAt, eventTimezone)
         : (initialStartAt ?? ""),
-      endAt: event?.endAt ? toDateTimeLocal(event.endAt) : (initialEndAt ?? ""),
+      endAt: event?.endAt
+        ? eventTimeInZone(event.endAt, eventTimezone)
+        : (initialEndAt ?? ""),
       allDayStartDate:
         event?.allDayStartDate?.slice(0, 10) ??
         initialStartAt?.slice(0, 10) ??
@@ -184,11 +228,16 @@ export function EventEditor({
       location: event?.location ?? "",
       description: event?.description ?? "",
       attendees: event?.attendees.join(", ") ?? "",
+      recurrence: event?.recurrence ?? [],
     },
     validators: { onChange: eventSchema },
     onSubmit: async ({ value }) => {
       const common = {
         title: value.title.trim(),
+        recurrence: value.recurrence,
+        ...(googleActive && createGoogleMeet !== undefined
+          ? { createGoogleMeet }
+          : {}),
         location: value.location.trim() || null,
         description: value.description.trim() || null,
         attendees: [
@@ -211,10 +260,10 @@ export function EventEditor({
           allDayEndDate: addDays(value.allDayEndDate, 1),
         };
       } else {
-        const startAt = fromDateTimeLocal(value.startAt);
-        const endAt = fromDateTimeLocal(value.endAt);
+        const startAt = eventTimeToIso(value.startAt, eventTimezone);
+        const endAt = eventTimeToIso(value.endAt, eventTimezone);
         if (!startAt || !endAt) return;
-        values = { ...common, startAt, endAt, timezone };
+        values = { ...common, startAt, endAt, timezone: eventTimezone };
       }
 
       const writeValues = event ? changedEventValues(event, values) : values;
@@ -333,233 +382,477 @@ export function EventEditor({
   return (
     <DialogContent
       variant="sheet"
-      className="sm:max-h-[90dvh] sm:max-w-2xl sm:overflow-y-auto"
+      className="flex flex-col overflow-hidden sm:max-h-[90dvh] sm:max-w-lg"
     >
       {header}
-      <DialogTitle>{event ? "Edit acara" : "Acara baru"}</DialogTitle>
-      <DialogDescription className="mt-2">
-        {event
-          ? event.provider === "google"
-            ? "Perubahan akan tersimpan di Sydia dan dijadwalkan untuk disinkronkan ke Google."
-            : "Perubahan hanya akan tersimpan di Sydia."
-          : destination === "google"
-            ? "Acara akan tersimpan di Sydia dan dijadwalkan untuk disinkronkan ke Google."
-            : "Acara akan tersimpan hanya di Sydia."}
+      <DialogTitle className="sr-only">
+        {event ? "Edit acara" : "Acara baru"}
+      </DialogTitle>
+      <DialogDescription className="sr-only">
+        Isi judul dan waktu acara, lalu tambahkan detail yang diperlukan.
       </DialogDescription>
       <form
-        className="mt-7 space-y-5"
+        className="flex min-h-0 flex-1 flex-col pt-5"
         noValidate
         onSubmit={(formEvent) => {
           formEvent.preventDefault();
           mutation.reset();
-          void form.handleSubmit();
+          setSubmitError(undefined);
+          if (!form.state.isValid)
+            setExpanded((current) => ({
+              ...current,
+              time: true,
+              attendees: true,
+            }));
+          void form.handleSubmit().catch((error: unknown) => {
+            console.error("Calendar event submission failed", error);
+            setSubmitError(
+              error instanceof Error
+                ? error.message
+                : "Acara tidak dapat disimpan. Coba lagi."
+            );
+          });
         }}
       >
-        {!event && googleConnected ? (
-          <FieldShell
-            id="event-destination"
-            label="Simpan acara di"
-            description="Acara Google Calendar tetap tersedia di Sydia."
-          >
-            {({ describedBy }) => (
-              <SelectField
-                id="event-destination"
-                value={destination}
-                aria-describedby={describedBy}
-                onChange={(inputEvent) => {
-                  destinationTouched.current = true;
-                  setDestination(
-                    inputEvent.target.value === "google" ? "google" : "local"
-                  );
-                }}
-              >
-                <option value="google">Google Calendar</option>
-                <option value="local">Sydia saja</option>
-              </SelectField>
-            )}
-          </FieldShell>
-        ) : null}
-        <form.Field name="title">
-          {(field) => (
-            <FieldShell
-              id="event-title"
-              label="Judul"
-              errors={field.state.meta.errors}
-            >
-              {({ describedBy, invalid }) => (
+        <div className="mb-4 shrink-0 pl-10.5 pr-6">
+          <form.Field name="title">
+            {(field) => (
+              <>
                 <TextField
                   id="event-title"
+                  aria-label="Judul"
                   autoFocus
+                  placeholder="Tambahkan judul"
+                  className="h-12 rounded-none border-0 border-b border-ink/16 bg-transparent px-0 font-display text-2xl shadow-none focus-visible:ring-0"
                   value={field.state.value}
-                  aria-describedby={describedBy}
-                  aria-invalid={invalid}
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  aria-describedby={
+                    field.state.meta.errors.length
+                      ? "event-title-error"
+                      : undefined
+                  }
                   onBlur={field.handleBlur}
                   onChange={(inputEvent) =>
                     field.handleChange(inputEvent.target.value)
                   }
                 />
-              )}
-            </FieldShell>
-          )}
-        </form.Field>
-        <form.Field name="isAllDay">
-          {(field) => (
-            <label className="flex min-h-9 items-center gap-2 text-sm text-ink">
-              <Checkbox
-                checked={field.state.value}
-                disabled={Boolean(event)}
-                onCheckedChange={(checked) =>
-                  field.handleChange(checked === true)
-                }
-              />
-              Sepanjang hari
-              {event ? (
-                <span className="text-xs text-ink-muted">
-                  Jenis waktu acara yang tersimpan tidak dapat diubah.
-                </span>
-              ) : null}
-            </label>
-          )}
-        </form.Field>
-        <form.Subscribe selector={(state) => state.values.isAllDay}>
-          {(isAllDay) =>
-            isAllDay ? (
-              <div className="grid gap-5 sm:grid-cols-2">
-                {(
-                  [
-                    {
-                      name: "allDayStartDate",
-                      id: "event-start-date",
-                      label: "Mulai",
-                    },
-                    {
-                      name: "allDayEndDate",
-                      id: "event-end-date",
-                      label: "Selesai",
-                    },
-                  ] as const
-                ).map(({ name, id, label }) => (
-                  <form.Field key={name} name={name}>
-                    {(field) => (
-                      <FieldShell
-                        id={id}
-                        label={label}
-                        errors={field.state.meta.errors}
-                      >
-                        {({ describedBy, invalid }) => (
-                          <TextField
-                            id={id}
-                            type="date"
-                            value={field.state.value}
-                            aria-describedby={describedBy}
-                            aria-invalid={invalid}
-                            onBlur={field.handleBlur}
-                            onChange={(inputEvent) =>
-                              field.handleChange(inputEvent.target.value)
-                            }
-                          />
-                        )}
-                      </FieldShell>
-                    )}
-                  </form.Field>
-                ))}
-              </div>
-            ) : (
-              EVENT_TIME_FIELDS.map(({ name, id, label, defaultTime }) => (
-                <form.Field key={name} name={name}>
-                  {(field) => {
-                    const { date, time } = splitDateTimeLocal(
-                      field.state.value
-                    );
+                {field.state.meta.errors.length ? (
+                  <p
+                    id="event-title-error"
+                    role="alert"
+                    className="mt-1 text-xs text-destructive"
+                  >
+                    Masukkan judul minimal 2 karakter.
+                  </p>
+                ) : null}
+              </>
+            )}
+          </form.Field>
+        </div>
+        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain">
+          <form.Subscribe selector={(state) => state.values}>
+            {(values) => {
+              const start = values.isAllDay
+                ? values.allDayStartDate
+                : values.startAt.slice(0, 10);
 
-                    return (
+              const end = values.isAllDay
+                ? values.allDayEndDate
+                : values.endAt.slice(0, 10);
+
+              const date = start
+                ? formatShortDayKey(start)
+                : "Pilih tanggal dan waktu";
+
+              const endDate =
+                end && end !== start ? ` – ${formatShortDayKey(end)}` : "";
+
+              const time = values.isAllDay
+                ? " · Sepanjang hari"
+                : values.startAt && values.endAt
+                  ? ` · ${values.startAt.slice(11)}–${values.endAt.slice(11)}`
+                  : "";
+
+              return (
+                <EventEditorRow
+                  icon={Clock3}
+                  label="Ubah tanggal dan waktu"
+                  summary={`${date}${endDate}${time}`}
+                  detail={`${eventTimezone.replaceAll("_", " ")} · ${REPEAT_LABELS[recurrencePreset(values.recurrence)]}`}
+                  open={expanded.time}
+                  onToggle={() => toggleRow("time")}
+                >
+                  {values.isAllDay ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {(
+                        [
+                          {
+                            name: "allDayStartDate",
+                            id: "event-start-date",
+                            label: "Mulai",
+                          },
+                          {
+                            name: "allDayEndDate",
+                            id: "event-end-date",
+                            label: "Selesai",
+                          },
+                        ] as const
+                      ).map(({ name, id, label }) => (
+                        <form.Field key={name} name={name}>
+                          {(field) => (
+                            <FieldShell
+                              id={id}
+                              label={label}
+                              errors={field.state.meta.errors}
+                            >
+                              {({ describedBy, invalid }) => (
+                                <TextField
+                                  id={id}
+                                  type="date"
+                                  value={field.state.value}
+                                  aria-describedby={describedBy}
+                                  aria-invalid={invalid}
+                                  onBlur={field.handleBlur}
+                                  onChange={(inputEvent) =>
+                                    field.handleChange(inputEvent.target.value)
+                                  }
+                                />
+                              )}
+                            </FieldShell>
+                          )}
+                        </form.Field>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_auto_4.5rem] items-start gap-1.5">
                       <DateTimeField
-                        id={id}
-                        label={label}
-                        date={date}
-                        time={time}
-                        errors={field.state.meta.errors}
-                        onDateChange={(nextDate) =>
-                          field.handleChange(
-                            joinDateTimeLocal(nextDate, time || defaultTime)
+                        id="event"
+                        label="Acara"
+                        date={values.startAt.slice(0, 10)}
+                        time={values.startAt.slice(11)}
+                        dateOnly
+                        hideLabel
+                        onDateChange={(nextDate) => {
+                          form.setFieldValue(
+                            "startAt",
+                            joinDateTimeLocal(
+                              nextDate,
+                              values.startAt.slice(11) || "09:00"
+                            )
+                          );
+                          form.setFieldValue(
+                            "endAt",
+                            joinDateTimeLocal(
+                              nextDate,
+                              values.endAt.slice(11) || "10:00"
+                            )
+                          );
+                        }}
+                        onTimeChange={(nextTime) =>
+                          form.setFieldValue(
+                            "startAt",
+                            joinDateTimeLocal(
+                              values.startAt.slice(0, 10),
+                              nextTime
+                            )
                           )
                         }
-                        onTimeChange={(nextTime) =>
-                          field.handleChange(joinDateTimeLocal(date, nextTime))
-                        }
-                        onBlur={field.handleBlur}
                       />
-                    );
-                  }}
-                </form.Field>
-              ))
-            )
-          }
-        </form.Subscribe>
-        <form.Field name="location">
-          {(field) => (
-            <FieldShell id="event-location" label="Lokasi">
-              {() => (
+                      {EVENT_TIME_FIELDS.map(({ name, id, label }) => (
+                        <form.Field key={name} name={name}>
+                          {(field) => {
+                            const { date: fieldDate, time: fieldTime } =
+                              splitDateTimeLocal(field.state.value);
+
+                            const messages = fieldErrorMessages(
+                              field.state.meta.errors
+                            );
+
+                            const errorId = messages.length
+                              ? `${id}-error`
+                              : undefined;
+
+                            return (
+                              <>
+                                {name === "endAt" ? (
+                                  <span
+                                    className="flex h-11 items-center text-ink-muted"
+                                    aria-hidden="true"
+                                  >
+                                    –
+                                  </span>
+                                ) : null}
+                                <div className="min-w-0">
+                                  <TimePicker
+                                    id={`${id}-time`}
+                                    label={`Jam ${label.toLowerCase()}`}
+                                    value={fieldTime}
+                                    compact
+                                    disabled={!values.startAt}
+                                    invalid={messages.length > 0}
+                                    describedBy={errorId}
+                                    onChange={(nextTime) =>
+                                      field.handleChange(
+                                        joinDateTimeLocal(fieldDate, nextTime)
+                                      )
+                                    }
+                                    onBlur={field.handleBlur}
+                                  />
+                                  {messages.length ? (
+                                    <p
+                                      id={errorId}
+                                      role="alert"
+                                      className="mt-1 text-xs text-destructive"
+                                    >
+                                      {messages.join(" ")}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </>
+                            );
+                          }}
+                        </form.Field>
+                      ))}
+                    </div>
+                  )}
+                  <form.Field name="isAllDay">
+                    {(field) => (
+                      <label className="flex min-h-9 items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={field.state.value}
+                          disabled={Boolean(event)}
+                          onCheckedChange={(checked) => {
+                            field.handleChange(checked === true);
+
+                            if (checked) {
+                              form.setFieldValue(
+                                "allDayStartDate",
+                                values.startAt.slice(0, 10)
+                              );
+                              form.setFieldValue(
+                                "allDayEndDate",
+                                values.endAt.slice(0, 10)
+                              );
+                            } else {
+                              form.setFieldValue(
+                                "startAt",
+                                joinDateTimeLocal(
+                                  values.allDayStartDate,
+                                  values.startAt.slice(11) || "09:00"
+                                )
+                              );
+                              form.setFieldValue(
+                                "endAt",
+                                joinDateTimeLocal(
+                                  values.allDayStartDate,
+                                  values.endAt.slice(11) || "10:00"
+                                )
+                              );
+                            }
+                          }}
+                        />{" "}
+                        Sepanjang hari
+                      </label>
+                    )}
+                  </form.Field>
+                  {event ? (
+                    <p className="text-xs text-ink-muted">
+                      Jenis waktu acara yang tersimpan tidak dapat diubah.
+                    </p>
+                  ) : null}
+                  <form.Field name="recurrence">
+                    {(field) => (
+                      <EventRecurrenceField
+                        value={field.state.value}
+                        startDate={start}
+                        allDay={values.isAllDay}
+                        timezone={eventTimezone}
+                        disabled={Boolean(
+                          event?.recurringParentEventId ||
+                          event?.recurringParentProviderEventId
+                        )}
+                        onChange={field.handleChange}
+                        onValidityChange={setRecurrenceValid}
+                      />
+                    )}
+                  </form.Field>
+                  {event?.recurringParentEventId ||
+                  event?.recurringParentProviderEventId ? (
+                    <p className="text-xs text-ink-muted">
+                      Ubah seluruh rangkaian untuk mengganti pengulangan.
+                    </p>
+                  ) : null}
+                </EventEditorRow>
+              );
+            }}
+          </form.Subscribe>
+          <form.Field name="attendees">
+            {(field) => (
+              <EventEditorRow
+                icon={Users}
+                label="Ubah peserta"
+                summary={field.state.value || "Tambahkan peserta"}
+                open={expanded.attendees}
+                onToggle={() => toggleRow("attendees")}
+              >
+                <FieldShell
+                  id="event-attendees"
+                  label="Peserta"
+                  description="Pisahkan alamat email dengan koma."
+                  errors={field.state.meta.errors}
+                >
+                  {({ describedBy, invalid }) => (
+                    <TextField
+                      id="event-attendees"
+                      value={field.state.value}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid}
+                      placeholder="nama@email.com"
+                      onBlur={field.handleBlur}
+                      onChange={(inputEvent) =>
+                        field.handleChange(inputEvent.target.value)
+                      }
+                    />
+                  )}
+                </FieldShell>
+              </EventEditorRow>
+            )}
+          </form.Field>
+          <form.Field name="location">
+            {(field) => (
+              <EventEditorRow
+                icon={MapPin}
+                label="Ubah lokasi"
+                summary={field.state.value || "Tambahkan lokasi"}
+                open={expanded.location}
+                onToggle={() => toggleRow("location")}
+              >
                 <TextField
                   id="event-location"
+                  aria-label="Lokasi"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(inputEvent) =>
                     field.handleChange(inputEvent.target.value)
                   }
                 />
+              </EventEditorRow>
+            )}
+          </form.Field>
+          <form.Field name="description">
+            {(field) => (
+              <EventEditorRow
+                icon={AlignLeft}
+                label="Ubah catatan"
+                summary={
+                  eventNotesSummary(field.state.value) || "Tambahkan catatan"
+                }
+                open={expanded.description}
+                onToggle={() => toggleRow("description")}
+              >
+                <EventNotesEditor
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={field.handleChange}
+                />
+              </EventEditorRow>
+            )}
+          </form.Field>
+          <div className="flex min-h-11 items-center gap-4 px-2 py-2.5 text-sm">
+            <CalendarDays
+              className="size-4.5 shrink-0 text-ink-muted"
+              aria-hidden="true"
+            />
+            <div className="min-w-0">
+              {!event ? (
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={googleConnected && destination === "google"}
+                    disabled={!googleConnected}
+                    onCheckedChange={(checked) => {
+                      destinationTouched.current = true;
+                      setDestination(checked === true ? "google" : "local");
+                    }}
+                  />
+                  Buat kalender Google
+                </label>
+              ) : (
+                <span>
+                  {event.provider === "google"
+                    ? "Google Calendar"
+                    : "Kalender Sydia"}
+                </span>
               )}
-            </FieldShell>
-          )}
-        </form.Field>
-        <form.Field name="attendees">
-          {(field) => (
-            <FieldShell
-              id="event-attendees"
-              label="Peserta"
-              description="Pisahkan beberapa alamat email dengan koma."
+              {!event && !googleConnected ? (
+                <p className="mt-1 text-xs text-ink-muted">
+                  Hubungkan Google Calendar di Pengaturan untuk mengaktifkan.
+                </p>
+              ) : null}
+            </div>
+          </div>
+          {googleActive ? (
+            <EventEditorRow
+              icon={Video}
+              label="Ubah Google Meet"
+              summary={
+                event?.googleMeetUrl && createGoogleMeet !== false
+                  ? "Google Meet"
+                  : createGoogleMeet || event?.googleMeetStatus === "pending"
+                    ? "Google Meet akan dibuat"
+                    : "Tambahkan konferensi video Google Meet"
+              }
+              open={expanded.meet}
+              onToggle={() => toggleRow("meet")}
             >
-              {() => (
-                <TextField
-                  id="event-attendees"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(inputEvent) =>
-                    field.handleChange(inputEvent.target.value)
+              {event?.googleMeetUrl && createGoogleMeet !== false ? (
+                <a
+                  href={event.googleMeetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block break-all text-sm underline underline-offset-4"
+                >
+                  {event.googleMeetUrl}
+                </a>
+              ) : null}
+              <label className="flex min-h-9 items-center gap-2 text-sm">
+                <Checkbox
+                  checked={
+                    createGoogleMeet ??
+                    Boolean(
+                      event?.googleMeetUrl ||
+                      event?.googleMeetStatus === "pending"
+                    )
+                  }
+                  onCheckedChange={(checked) =>
+                    setCreateGoogleMeet(checked === true)
                   }
                 />
-              )}
-            </FieldShell>
-          )}
-        </form.Field>
-        <form.Field name="description">
-          {(field) => (
-            <FieldShell id="event-description" label="Catatan">
-              {() => (
-                <Textarea
-                  id="event-description"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(inputEvent) =>
-                    field.handleChange(inputEvent.target.value)
-                  }
-                />
-              )}
-            </FieldShell>
-          )}
-        </form.Field>
-        <p className="text-sm text-ink-muted">
-          Zona waktu: {timezone.replaceAll("_", " ")}
-        </p>
+                Tambahkan Google Meet
+              </label>
+              {!event?.googleMeetUrl || createGoogleMeet === false ? (
+                <p className="text-xs text-ink-muted">
+                  Tautan tersedia setelah acara disimpan dan disinkronkan.
+                </p>
+              ) : null}
+              {event?.googleMeetStatus === "failure" ? (
+                <p role="alert" className="text-xs text-destructive">
+                  Google Meet gagal dibuat. Aktifkan kembali lalu simpan untuk
+                  mencoba lagi.
+                </p>
+              ) : null}
+            </EventEditorRow>
+          ) : null}
+        </div>
         <FormError
           message={
+            submitError ??
             mutation.error?.message ??
             retrySyncMutation.error?.message ??
             deleteMutation.error?.message ??
             exportMutation.error?.message
           }
         />
-        <div className="flex flex-col-reverse gap-3 border-t border-surface-1 pt-5 sm:flex-row sm:justify-between">
+        <div className="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-surface-1 pt-4">
           <div className="flex flex-wrap gap-2">
             {event?.provider === "google" && event.syncState === "error" ? (
               <Button
@@ -605,14 +898,18 @@ export function EventEditor({
             ) : null}
           </div>
           <div className="flex gap-3 sm:justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Tutup
             </Button>
             <form.Subscribe
               selector={(state) => [state.canSubmit, state.isSubmitting]}
             >
               {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit || isSubmitting}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!canSubmit || isSubmitting || !recurrenceValid}
+                >
                   {isSubmitting ? (
                     <LoaderCircle className="animate-spin motion-reduce:animate-none" />
                   ) : null}

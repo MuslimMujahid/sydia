@@ -8,6 +8,7 @@ const DropdownMenuSubmenu = MenuPrimitive.SubmenuRoot;
 const DropdownMenuRadioGroup = MenuPrimitive.RadioGroup;
 
 type DropdownMenuContentProps = MenuPrimitive.Popup.Props & {
+  anchor?: MenuPrimitive.Positioner.Props["anchor"];
   side?: MenuPrimitive.Positioner.Props["side"];
   align?: MenuPrimitive.Positioner.Props["align"];
   sideOffset?: MenuPrimitive.Positioner.Props["sideOffset"];
@@ -20,11 +21,13 @@ function DropdownMenuContent({
   align = "start",
   sideOffset = 6,
   collisionAvoidance,
+  anchor,
   ...props
 }: DropdownMenuContentProps) {
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
+        anchor={anchor}
         side={side}
         align={align}
         sideOffset={sideOffset}

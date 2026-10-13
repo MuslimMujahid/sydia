@@ -25,6 +25,13 @@ export function changedEventValues(
   values: CalendarEventWriteInput
 ): Partial<CalendarEventWriteInput> {
   const common = {
+    ...(values.recurrence &&
+    JSON.stringify(values.recurrence) !== JSON.stringify(event.recurrence)
+      ? { recurrence: values.recurrence }
+      : {}),
+    ...(values.createGoogleMeet !== undefined
+      ? { createGoogleMeet: values.createGoogleMeet }
+      : {}),
     ...(values.title !== event.title ? { title: values.title } : {}),
     ...(values.description !== event.description
       ? { description: values.description }

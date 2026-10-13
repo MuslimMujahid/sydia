@@ -596,3 +596,60 @@ test("lists reminders without a status filter or a status query parameter", asyn
   expect(requestedStatus).toBeNull();
   await expect(page.getByText("Terjadwal", { exact: true })).toHaveCount(0);
 });
+
+test("multi-day chat references load their full all-day range", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  await page.route("**/calendar/events?*", (route) => {
+    requests.push(route.request().url());
+
+    return route.fulfill({
+      json: {
+        data: [
+          {
+            ...event,
+            id: "event-all-day",
+            title: "Libur tim",
+            startAt: null,
+            endAt: null,
+            timezone: null,
+            allDayStartDate: "2026-10-20T00:00:00.000Z",
+            allDayEndDate: "2026-10-23T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+  });
+  await page.goto("/e2e/entity-renderer.html?mode=all-day");
+  await page.getByRole("button", { name: "Acara: Libur tim" }).click();
+  await expect(
+    page.getByText("20 Okt 2026 – 22 Okt 2026 · Sepanjang hari", {
+      exact: true,
+    })
+  ).toBeVisible();
+  expect(new URL(requests[0]!).searchParams.get("from")).toBe(
+    "2026-10-20T00:00:00.000Z"
+  );
+  expect(new URL(requests[0]!).searchParams.get("to")).toBe(
+    "2026-10-23T00:00:00.000Z"
+  );
+});
+
+test("multi-day preview references display included dates without fetching user data", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/calendar/events"))
+      requests.push(request.url());
+  });
+  await page.goto("/e2e/entity-renderer.html?mode=all-day-preview");
+  await page.getByRole("button", { name: "Acara: Libur tim" }).click();
+  await expect(
+    page.getByText("20 Okt 2026 – 22 Okt 2026 · Sepanjang hari", {
+      exact: true,
+    })
+  ).toBeVisible();
+  expect(requests).toEqual([]);
+});

@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { CalendarCreateMenu } from "./calendar-create-menu";
+import type { ScheduleItemKind } from "./schedule-items";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { cn } from "@/lib/utils/cn";
 import {
   formatDayKeyLabel,
@@ -42,7 +44,7 @@ export type TimeGridViewProps = {
   onOpenDay: (dayKey: DayKey) => void;
   onEditItem: (item: ScheduleItem) => void;
   onDeleteItem: (item: ScheduleItem) => void;
-  onCreateAt: (dayKey: DayKey, minute: number) => void;
+  onCreateAt: (dayKey: DayKey, minute: number, kind: ScheduleItemKind) => void;
 };
 
 type DayColumnProps = {
@@ -53,7 +55,7 @@ type DayColumnProps = {
   isDone: (item: ScheduleItem) => boolean;
   onEditItem: (item: ScheduleItem) => void;
   onDeleteItem: (item: ScheduleItem) => void;
-  onCreateAt: (dayKey: DayKey, minute: number) => void;
+  onCreateAt: (dayKey: DayKey, minute: number, kind: ScheduleItemKind) => void;
 };
 
 function DayColumn({
@@ -71,17 +73,23 @@ function DayColumn({
     [items, dayKey, timeZone]
   );
 
-  // Clicking empty grid space starts a new item at that time. Keyboard users
-  // create items with the page's create button.
-  function handleBackgroundClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target !== event.currentTarget) return;
+  const [createMinute, setCreateMinute] = useState(9 * 60);
+  const createPoint = useRef<DOMRect | null>(null);
+  const menuAnchor = useMemo(
+    () => ({
+      getBoundingClientRect: () => createPoint.current ?? new DOMRect(),
+    }),
+    []
+  );
+
+  function selectCreateTime(event: PointerEvent<HTMLButtonElement>) {
     const bounds = event.currentTarget.getBoundingClientRect();
+    createPoint.current = new DOMRect(event.clientX, event.clientY, 0, 0);
     const ratio = (event.clientY - bounds.top) / bounds.height;
     const minute =
       Math.floor((ratio * MINUTES_PER_DAY) / SNAP_MINUTES) * SNAP_MINUTES;
 
-    onCreateAt(
-      dayKey,
+    setCreateMinute(
       Math.min(Math.max(minute, 0), MINUTES_PER_DAY - SNAP_MINUTES)
     );
   }
@@ -91,8 +99,30 @@ function DayColumn({
       role="presentation"
       className="relative min-w-0 cursor-cell border-l border-hairline"
       style={{ height: remFor(MINUTES_PER_DAY) }}
-      onClick={handleBackgroundClick}
     >
+      <CalendarCreateMenu
+        anchor={menuAnchor}
+        onCreate={(kind) => onCreateAt(dayKey, createMinute, kind)}
+      >
+        <button
+          type="button"
+          aria-label={`Buat pada ${formatDayKeyLabel(dayKey)}`}
+          className="absolute inset-0 cursor-cell outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/50"
+          onPointerDown={selectCreateTime}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              const bounds = event.currentTarget.getBoundingClientRect();
+              createPoint.current = new DOMRect(
+                bounds.x + bounds.width / 2,
+                Math.max(bounds.top, 0) + 12,
+                0,
+                0
+              );
+              setCreateMinute(9 * 60);
+            }
+          }}
+        />
+      </CalendarCreateMenu>
       {HOURS.slice(1).map((hour) => (
         <div
           key={hour}

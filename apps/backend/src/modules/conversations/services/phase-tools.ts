@@ -871,11 +871,19 @@ Do not use it to list, create, update, or cancel events. A pending operation mea
         label: 'Create calendar event',
         description: `Use this tool to create a calendar event.
 
-Use it when the user asks to schedule a new event with a title and time range.
+Use it when the user asks to create or schedule an event and its title and date/time range are known. Call the tool to save the event; only confirm creation after it succeeds.
 
 Do not use it to change or cancel an existing event, or when the end is not after the start.
 
-title is required. For a timed event, provide startAt and endAt as ISO datetimes; the user's timezone or Asia/Jakarta is used. For an all-day event, provide allDayStartDate and allDayEndDate as YYYY-MM-DD values, with the exclusive end after the start. Do not mix timed and all-day fields. Description, location, and attendees are optional, and non-string attendees are ignored. The returned event has syncState: local, pending, synced, conflict, error, or reconnect_required. Report it accurately: local means saved only in Sydia; pending means saved in Sydia and waiting to sync; synced means Google accepted the latest change; conflict, error, and reconnect_required mean the Google write is not confirmed. Do not use global sync status to infer whether this specific event synced.`,
+title is required. For a timed event, provide startAt and endAt as ISO datetimes with an explicit UTC offset. A normal timed event uses one calendar date and two times; preserve an explicitly requested overnight range. timezone is the IANA timezone for the event and its recurrence; omit it to use the user's timezone or Asia/Jakarta. Ask for missing times rather than inventing them.
+
+For a whole-day event or a multi-day date range without times, use allDayStartDate and allDayEndDate as YYYY-MM-DD values and omit startAt, endAt, and timezone. The end date is exclusive: convert the user's inclusive last day to the following calendar day, including for a single-day event. Confirm the user's inclusive date range, not the exclusive stored end. Do not mix timed and all-day fields.
+
+Description (Catatan), location, and attendees are optional. Notes may contain basic HTML for requested rich text formatting; otherwise use plain text and omit notes when there are no extra details. Non-string attendees are ignored. For a repeating event, pass recurrence as an array of RFC 5545 recurrence lines, usually one RRULE, preserving the requested frequency, interval, weekdays, and ending condition. Omit recurrence for a one-time event; use the first occurrence's date/time range for the event.
+
+destination='local' saves only in Sydia; use it when the user declines Google Calendar. destination='google' creates the event in the user's connected Google Calendar and requires a writable connection. Omit destination or use 'auto' to keep the usual connection-based choice. This creates an event, not a new Google calendar. For a requested Google Meet video conference, set createGoogleMeet=true and destination='google'; Google Meet cannot be added to a Sydia-only event. Omit createGoogleMeet unless requested. The video link is generated asynchronously: only share a returned googleMeetUrl, never invent one or claim it is ready while pending.
+
+The returned event has syncState: local, pending, synced, conflict, error, or reconnect_required. Report it accurately: local means saved only in Sydia; pending means saved in Sydia and waiting to sync; synced means Google accepted the latest change; conflict, error, and reconnect_required mean the Google write is not confirmed. Do not use global sync status to infer whether this specific event synced.`,
         parameters: schema(
           {
             title: {
@@ -885,7 +893,7 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
             description: {
               ...string,
               description:
-                'Optional extended event details that add information beyond the title and the other supplied fields; never restate those fields. Omit it when there are no extra details.',
+                'Optional Catatan notes as plain text or basic HTML for requested rich text formatting. Add details beyond the title and other fields; omit when there are no extra details.',
             },
             location: {
               ...string,
@@ -894,7 +902,7 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
             startAt: {
               ...string,
               description:
-                'Timed event start as an ISO datetime; provide it with endAt, or use the all-day date pair instead.',
+                'Timed event start as an ISO datetime with UTC offset; provide it with endAt, or use the all-day date pair instead.',
             },
             endAt: {
               ...string,
@@ -909,7 +917,33 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
             allDayEndDate: {
               ...string,
               description:
-                'Exclusive all-day event end as YYYY-MM-DD; must be after allDayStartDate.',
+                "Exclusive all-day event end as YYYY-MM-DD: the calendar day after the user's inclusive last day. For a single-day event, use the day after allDayStartDate.",
+            },
+            timezone: {
+              ...string,
+              description:
+                "Optional IANA timezone for timed events and their recurrence. Defaults to the user's timezone or Asia/Jakarta. Omit for all-day events.",
+            },
+            recurrence: {
+              type: 'array',
+              description:
+                'Optional RFC 5545 recurrence lines for a repeating event. Omit for a one-time event. Use the event dates for the first occurrence.',
+              items: {
+                ...string,
+                description:
+                  'A recurrence line, such as RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=6. UNTIL is inclusive; use a UTC datetime for timed events or YYYYMMDD for all-day events. Do not combine COUNT and UNTIL.',
+              },
+            },
+            destination: {
+              type: 'string',
+              enum: ['auto', 'local', 'google'],
+              description:
+                "local saves only in Sydia; google requires the connected Google Calendar; auto (default) uses the existing connection choice. Respect the user's Google Calendar preference.",
+            },
+            createGoogleMeet: {
+              type: 'boolean',
+              description:
+                'Set true only when the user requests a Google Meet video conference, with destination=google. The link becomes available after Google processes the event; omit otherwise.',
             },
             attendees: {
               type: 'array',
@@ -935,10 +969,32 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
             'Provide either startAt/endAt for a timed event or allDayStartDate/allDayEndDate for an all-day event.',
           );
 
+        const createGoogleMeet = a.createGoogleMeet;
+        if (
+          createGoogleMeet !== undefined &&
+          typeof createGoogleMeet !== 'boolean'
+        )
+          throw new Error('createGoogleMeet must be a boolean.');
+
+        const destination =
+          text(a, 'destination', false) ??
+          (createGoogleMeet ? 'google' : 'auto');
+
+        if (
+          destination !== 'auto' &&
+          destination !== 'local' &&
+          destination !== 'google'
+        )
+          throw new Error('destination must be auto, local, or google.');
+        if (createGoogleMeet && destination === 'local')
+          throw new Error('Google Meet requires a Google Calendar event.');
+
         const common = {
           title: text(a, 'title')!,
           description: text(a, 'description', false) ?? null,
           location: text(a, 'location', false) ?? null,
+          recurrence: texts(a, 'recurrence'),
+          ...(createGoogleMeet !== undefined ? { createGoogleMeet } : {}),
           attendees: Array.isArray(a.attendees)
             ? a.attendees.filter((v): v is string => typeof v === 'string')
             : [],
@@ -968,7 +1024,7 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
             object: await deps.calendarService.create(
               userId,
               input,
-              'auto',
+              destination,
               idempotencyKey,
             ),
           };
@@ -979,12 +1035,18 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
         if (!startAt || !endAt || endAt <= startAt)
           throw new Error('The end time must be after the start time.');
 
+        const timezone =
+          text(a, 'timezone', false) ??
+          (await deps.users.findById(userId))?.timezone ??
+          'Asia/Jakarta';
+
+        new Intl.DateTimeFormat('en', { timeZone: timezone });
+
         const input: CalendarEventWrite = {
           ...common,
           startAt,
           endAt,
-          timezone:
-            (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta',
+          timezone,
         };
 
         return {
@@ -992,7 +1054,7 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
           object: await deps.calendarService.create(
             userId,
             input,
-            'auto',
+            destination,
             idempotencyKey,
           ),
         };

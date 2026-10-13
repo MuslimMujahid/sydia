@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDate,
   IsIn,
   IsInt,
@@ -26,6 +27,7 @@ export class CreateCalendarEventDto {
   @IsOptional() @Type(() => Date) @IsDate() allDayEndDate?: Date;
   @IsOptional() @IsArray() @IsString({ each: true }) attendees?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) recurrence?: string[];
+  @IsOptional() @IsBoolean() createGoogleMeet?: boolean;
   @IsOptional() @IsIn(['auto', 'local', 'google']) destination?:
     'auto' | 'local' | 'google';
 }
@@ -40,6 +42,7 @@ export class UpdateCalendarEventDto {
   @IsOptional() @Type(() => Date) @IsDate() allDayEndDate?: Date;
   @IsOptional() @IsArray() @IsString({ each: true }) attendees?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) recurrence?: string[];
+  @IsOptional() @IsBoolean() createGoogleMeet?: boolean;
 }
 
 export class ResolveCalendarConflictDto {

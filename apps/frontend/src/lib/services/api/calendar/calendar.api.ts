@@ -50,6 +50,8 @@ export type CalendarEvent = {
   allDayStartDate: string | null;
   allDayEndDate: string | null;
   recurrence: string[];
+  googleMeetUrl?: string | null;
+  googleMeetStatus?: "pending" | "success" | "failure" | null;
   recurrenceOverrideFields?: string[];
   recurringParentProviderEventId: string | null;
   recurringParentEventId: string | null;
@@ -115,6 +117,7 @@ type CalendarEventCommonWriteInput = {
   location?: string | null;
   attendees?: string[];
   recurrence?: string[];
+  createGoogleMeet?: boolean;
 };
 
 export type CalendarEventWriteInput =

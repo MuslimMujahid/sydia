@@ -5,6 +5,7 @@ import { z } from "zod";
 import { DomainListSkeleton } from "@/components/domain/domain-page";
 import { DateTimeField } from "@/components/forms/date-time-field";
 import {
+  fieldErrorMessages,
   FieldShell,
   FormError,
   SelectField,
@@ -195,14 +196,16 @@ export function TaskEditor({
       className={cn(TASK_SHEET_CLASS, TASK_EDITOR_SHEET_CLASS)}
     >
       {header}
-      <DialogTitle>{task ? "Rincian tugas" : "Tugas baru"}</DialogTitle>
-      <DialogDescription className="mt-2">
+      <DialogTitle className="sr-only">
+        {task ? "Rincian tugas" : "Tugas baru"}
+      </DialogTitle>
+      <DialogDescription className="sr-only">
         {task
           ? "Periksa dan koreksi tugas yang tersimpan."
           : "Tambahkan tugas terstruktur untuk ditindaklanjuti."}
       </DialogDescription>
       <form
-        className="mt-7 space-y-5"
+        className="space-y-5 pt-5"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -214,27 +217,35 @@ export function TaskEditor({
           <div className="space-y-5">
             <form.Field name="title">
               {(field) => (
-                <FieldShell
-                  id="task-title"
-                  label="Judul"
-                  errors={field.state.meta.errors}
-                >
-                  {({ describedBy, invalid }) => (
-                    <TextField
-                      id="task-title"
-                      // Only new tasks grab focus, so opening details on a phone
-                      // does not pop the keyboard over the content.
-                      autoFocus={!task}
-                      value={field.state.value}
-                      aria-describedby={describedBy}
-                      aria-invalid={invalid}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                    />
-                  )}
-                </FieldShell>
+                <div>
+                  <TextField
+                    id="task-title"
+                    aria-label="Judul"
+                    placeholder="Tambahkan judul"
+                    className="h-12 rounded-none border-0 border-b border-ink/16 bg-transparent px-0 font-display text-2xl shadow-none focus-visible:ring-0"
+                    // Only new tasks grab focus, so opening details on a phone
+                    // does not pop the keyboard over the content.
+                    autoFocus={!task}
+                    value={field.state.value}
+                    aria-describedby={
+                      field.state.meta.errors.length
+                        ? "task-title-error"
+                        : undefined
+                    }
+                    aria-invalid={field.state.meta.errors.length > 0}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                  {field.state.meta.errors.length ? (
+                    <p
+                      id="task-title-error"
+                      role="alert"
+                      className="mt-1 text-xs text-destructive"
+                    >
+                      {fieldErrorMessages(field.state.meta.errors).join(" ")}
+                    </p>
+                  ) : null}
+                </div>
               )}
             </form.Field>
             <form.Field name="description">

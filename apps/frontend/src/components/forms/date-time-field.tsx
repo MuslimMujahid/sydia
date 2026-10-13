@@ -30,6 +30,9 @@ type DateTimeFieldProps = {
   time: string;
   /** TanStack Form errors for the combined value. */
   errors?: unknown[];
+  /** Show only the date picker when a parent supplies separate time fields. */
+  dateOnly?: boolean;
+  hideLabel?: boolean;
   /**
    * Whether the value is optional: the date can be cleared and the time
    * removed. Labels for those states come from `clearDateLabel`,
@@ -55,6 +58,8 @@ export function DateTimeField({
   date,
   time,
   errors = [],
+  dateOnly = false,
+  hideLabel = false,
   clearable = false,
   clearDateLabel = "Hapus tanggal",
   emptyTimeLabel,
@@ -100,11 +105,26 @@ export function DateTimeField({
   }
 
   return (
-    <fieldset className="space-y-2" aria-describedby={errorId}>
-      <legend className="block font-sans text-sm font-semibold text-ink">
+    <fieldset
+      className={cn("min-w-0", !hideLabel && "space-y-2")}
+      aria-describedby={errorId}
+    >
+      <legend
+        className={cn(
+          "block font-sans text-sm font-semibold text-ink",
+          hideLabel && "sr-only"
+        )}
+      >
         {label}
       </legend>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,9rem)] items-center gap-2">
+      <div
+        className={cn(
+          "grid items-center gap-2",
+          dateOnly
+            ? "grid-cols-1"
+            : "grid-cols-[minmax(0,1fr)_auto_minmax(0,9rem)]"
+        )}
+      >
         <Popover open={open} onOpenChange={handleOpenChange}>
           <PopoverTrigger
             id={`${id}-date`}
@@ -115,12 +135,14 @@ export function DateTimeField({
             }
             aria-invalid={invalid || undefined}
             aria-describedby={errorId}
-            className={TRIGGER_CLASS}
+            className={cn(TRIGGER_CLASS, dateOnly && "px-2")}
           >
-            <CalendarDays
-              className="size-4 shrink-0 text-ink-muted"
-              aria-hidden="true"
-            />
+            {!dateOnly ? (
+              <CalendarDays
+                className="size-4 shrink-0 text-ink-muted"
+                aria-hidden="true"
+              />
+            ) : null}
             <span className={cn("truncate", !dateLabel && "text-ink-muted")}>
               {dateLabel || "Pilih tanggal"}
             </span>
@@ -170,23 +192,27 @@ export function DateTimeField({
             </div>
           </PopoverContent>
         </Popover>
-        <span className="text-ink-muted" aria-hidden="true">
-          –
-        </span>
-        <TimePicker
-          id={`${id}-time`}
-          label={`Jam ${lowerLabel}`}
-          clearable={clearable}
-          emptyLabel={emptyTimeLabel}
-          emptyHint={emptyTimeHint}
-          // A time only means something once a date is chosen.
-          disabled={!date}
-          value={time}
-          invalid={invalid}
-          describedBy={errorId}
-          onBlur={onBlur}
-          onChange={onTimeChange}
-        />
+        {!dateOnly ? (
+          <>
+            <span className="text-ink-muted" aria-hidden="true">
+              –
+            </span>
+            <TimePicker
+              id={`${id}-time`}
+              label={`Jam ${lowerLabel}`}
+              clearable={clearable}
+              emptyLabel={emptyTimeLabel}
+              emptyHint={emptyTimeHint}
+              // A time only means something once a date is chosen.
+              disabled={!date}
+              value={time}
+              invalid={invalid}
+              describedBy={errorId}
+              onBlur={onBlur}
+              onChange={onTimeChange}
+            />
+          </>
+        ) : null}
       </div>
       {invalid ? (
         <p id={errorId} className="text-sm text-destructive" role="alert">

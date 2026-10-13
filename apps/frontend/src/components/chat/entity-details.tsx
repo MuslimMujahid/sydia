@@ -20,7 +20,10 @@ import {
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { formatFileSize } from "@/lib/utils/format";
 import type { ChatEntity } from "./chat-entities";
-import { formatEntityRecurrence } from "./entity-format";
+import {
+  formatAllDayEventRange,
+  formatEntityRecurrence,
+} from "./entity-format";
 
 type DetailsProps = {
   entity: ChatEntity;
@@ -355,7 +358,10 @@ function EventDetails({
 }: DetailsProps & { entity: Extract<ChatEntity, { kind: "event" }> }) {
   // Refresh this event from its recorded range; a moved/deleted event is visibly unavailable.
   const query = useQuery({
-    ...calendarEventsQueryOptions({ from: entity.startAt, to: entity.endAt }),
+    ...calendarEventsQueryOptions({
+      from: entity.startAt ?? `${entity.allDayStartDate}T00:00:00.000Z`,
+      to: entity.endAt ?? `${entity.allDayEndDate}T00:00:00.000Z`,
+    }),
     retry: false,
   });
 
@@ -401,12 +407,11 @@ function EventDetails({
       </p>
       <p className="mt-1 text-sm text-ink-muted">
         {event.allDayStartDate && event.allDayEndDate
-          ? `${new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
-              dateStyle: "medium",
-              timeZone: "UTC",
-            }).format(
-              new Date(`${event.allDayStartDate.slice(0, 10)}T12:00:00.000Z`)
-            )} · ${locale === "en" ? "All day" : "Sepanjang hari"}`
+          ? formatAllDayEventRange(
+              event.allDayStartDate,
+              event.allDayEndDate,
+              locale
+            )
           : event.startAt && event.endAt
             ? `${when(event.startAt, locale, event.timezone ?? timezone)} – ${when(event.endAt, locale, event.timezone ?? timezone)}`
             : locale === "en"

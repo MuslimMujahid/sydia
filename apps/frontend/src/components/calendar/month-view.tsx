@@ -12,7 +12,12 @@ import {
   type MonthGridDay,
 } from "./calendar-date";
 import { ItemChip, KIND_STYLES } from "./calendar-item";
-import { isAllDayOn, type ScheduleItem } from "./schedule-items";
+import {
+  isAllDayOn,
+  type ScheduleItem,
+  type ScheduleItemKind,
+} from "./schedule-items";
+import { CalendarCreateMenu } from "./calendar-create-menu";
 
 /** Entries per cell until the grid has been measured. */
 const DEFAULT_ENTRY_SLOTS = 3;
@@ -32,7 +37,7 @@ export type MonthViewProps = {
   onOpenDay: (dayKey: DayKey) => void;
   onEditItem: (item: ScheduleItem) => void;
   onDeleteItem: (item: ScheduleItem) => void;
-  onCreateForDay: (dayKey: DayKey) => void;
+  onCreateForDay: (dayKey: DayKey, kind: ScheduleItemKind) => void;
 };
 
 type DayCellProps = {
@@ -48,7 +53,7 @@ type DayCellProps = {
   onOpenDay: (dayKey: DayKey) => void;
   onEditItem: (item: ScheduleItem) => void;
   onDeleteItem: (item: ScheduleItem) => void;
-  onCreateForDay: (dayKey: DayKey) => void;
+  onCreateForDay: (dayKey: DayKey, kind: ScheduleItemKind) => void;
 };
 
 function countLabel(items: ScheduleItem[]): string {
@@ -104,7 +109,7 @@ function DayCell({
       <button
         type="button"
         aria-label={`${dayLabel}${countLabel(items)}${isToday ? ", hari ini" : ""}`}
-        className="flex flex-col items-center gap-1 self-center rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-brand/50 sm:self-start"
+        className="relative z-10 flex flex-col items-center gap-1 self-center rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-brand/50 sm:self-start"
         onClick={() => onSelectDay(day.key)}
       >
         <span
@@ -143,7 +148,7 @@ function DayCell({
           </span>
         ) : null}
       </button>
-      <ul className="mt-1 hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
+      <ul className="relative z-10 mt-1 hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
         {ordered.slice(0, visibleCount).map((item) => (
           <li key={item.key} className="min-w-0">
             <ItemChip
@@ -168,14 +173,17 @@ function DayCell({
           </li>
         ) : null}
       </ul>
-      <button
-        type="button"
-        aria-label={`Buat pada ${dayLabel}`}
-        className="absolute top-1.5 right-1.5 hidden size-6 place-items-center rounded-pill text-ink-muted opacity-0 transition-opacity outline-none hover:bg-surface-1 hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-brand/50 sm:grid sm:group-hover:opacity-100"
-        onClick={() => onCreateForDay(day.key)}
-      >
-        <Plus className="size-3.5" />
-      </button>
+      <CalendarCreateMenu onCreate={(kind) => onCreateForDay(day.key, kind)}>
+        <button
+          type="button"
+          aria-label={`Buat pada ${dayLabel}`}
+          className="absolute inset-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/50"
+        >
+          <span className="absolute top-1.5 right-1.5 grid size-6 place-items-center rounded-pill text-ink-muted opacity-0 transition-opacity hover:bg-surface-1 group-hover:opacity-100 group-focus-within:opacity-100">
+            <Plus className="size-3.5" />
+          </span>
+        </button>
+      </CalendarCreateMenu>
     </div>
   );
 }

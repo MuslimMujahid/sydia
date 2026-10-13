@@ -76,3 +76,36 @@ describe("changedEventValues", () => {
     });
   });
 });
+
+test("a changed repeat rule is included in an event update", () => {
+  expect(
+    changedEventValues(
+      event(),
+      timedValues({ recurrence: ["RRULE:FREQ=WEEKLY"] })
+    )
+  ).toEqual({ recurrence: ["RRULE:FREQ=WEEKLY"] });
+});
+
+test("removing a series repeat rule sends an empty recurrence", () => {
+  expect(
+    changedEventValues(
+      event({ recurrence: ["RRULE:FREQ=DAILY"] }),
+      timedValues({ recurrence: [] })
+    )
+  ).toEqual({ recurrence: [] });
+});
+
+test("an unchanged repeat rule is omitted from an update", () => {
+  expect(
+    changedEventValues(
+      event({ recurrence: ["RRULE:FREQ=DAILY"] }),
+      timedValues({ recurrence: ["RRULE:FREQ=DAILY"] })
+    )
+  ).toEqual({});
+});
+
+test("a Meet request is sent even when other event fields are unchanged", () => {
+  expect(
+    changedEventValues(event(), timedValues({ createGoogleMeet: true }))
+  ).toEqual({ createGoogleMeet: true });
+});

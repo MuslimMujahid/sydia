@@ -7,6 +7,10 @@ import type {
 const timestamp = "2026-10-08T08:00:00.000Z";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3110";
 
+// A cold Vite fixture compiles the calendar and rich text dependencies on first
+// navigation. Keep assertion deadlines unchanged while allowing that startup.
+test.setTimeout(60_000);
+
 const googleEvent: CalendarEvent = {
   id: "event-1",
   provider: "google",
@@ -44,6 +48,7 @@ type CalendarMocks = {
   pollPending: boolean;
   lastSyncedAt: string;
   updateRequest: Partial<CalendarEventWriteInput> | null;
+  createRequest: (CalendarEventWriteInput & { destination: string }) | null;
 };
 
 function connectedStatus(mocks: CalendarMocks) {
@@ -87,6 +92,7 @@ async function mockCalendarApi(
     pollPending: false,
     lastSyncedAt: timestamp,
     updateRequest: null,
+    createRequest: null,
   };
 
   await page.route("http://localhost:5000/calendar/**", async (route) => {
@@ -125,6 +131,19 @@ async function mockCalendarApi(
           ],
         },
       });
+
+    if (pathname === "/calendar/events" && request.method() === "POST") {
+      mocks.createRequest =
+        request.postDataJSON() as CalendarEventWriteInput & {
+          destination: string;
+        };
+
+      return route.fulfill({
+        json: {
+          data: { ...googleEvent, ...mocks.createRequest, id: "created-event" },
+        },
+      });
+    }
 
     if (pathname === "/calendar/events")
       return route.fulfill({ json: { data: [mocks.event] } });
@@ -783,4 +802,361 @@ test("WhatsApp enforcement disables new links and exposes the reason", async ({
   await expect(page.getByRole("alert")).toContainText(
     "Pengiriman dijeda oleh WhatsApp."
   );
+});
+
+test("event fields stay collapsed until their icon row is clicked", async ({
+  page,
+}, testInfo) => {
+  await mockCalendarApi(page, { connected: true });
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await expect(page.getByLabel("Judul", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Lokasi", { exact: true })).toBeHidden();
+  await expect(
+    page.getByRole("combobox", { name: "Pengulangan", exact: true })
+  ).toBeHidden();
+  await expect(page.getByRole("tab")).toHaveCount(0);
+  await page.screenshot({
+    path: `/tmp/sydia-event-${testInfo.project.name}-compact.png`,
+  });
+  await page.getByRole("button", { name: "Ubah lokasi" }).click();
+  await expect(page.getByLabel("Lokasi", { exact: true })).toBeVisible();
+  await page.getByLabel("Lokasi", { exact: true }).fill("Kantor");
+  await page.getByRole("button", { name: "Ubah lokasi" }).click();
+  await expect(page.getByRole("button", { name: "Ubah lokasi" })).toContainText(
+    "Kantor"
+  );
+});
+
+test("Google destination controls whether Meet is offered and saved", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await page.getByLabel("Judul", { exact: true }).fill("Rapat mingguan");
+  await page.getByRole("checkbox", { name: "Buat kalender Google" }).uncheck();
+  await expect(
+    page.getByRole("button", { name: "Ubah Google Meet" })
+  ).toBeHidden();
+  await page.getByRole("checkbox", { name: "Buat kalender Google" }).check();
+  await page.getByRole("button", { name: "Ubah Google Meet" }).click();
+  await page.getByRole("checkbox", { name: "Tambahkan Google Meet" }).check();
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  await page
+    .getByRole("combobox", { name: "Pengulangan", exact: true })
+    .selectOption("weekly");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.createRequest)
+    .toMatchObject({
+      destination: "google",
+      createGoogleMeet: true,
+      recurrence: ["RRULE:FREQ=WEEKLY"],
+    });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("all-day recurring events save without hidden timed fields", async ({
+  page,
+}, testInfo) => {
+  const mocks = await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await page.getByLabel("Judul", { exact: true }).fill("Libur tim");
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  await page.getByRole("checkbox", { name: "Sepanjang hari" }).check();
+  await page
+    .getByRole("combobox", { name: "Pengulangan", exact: true })
+    .selectOption("custom");
+  await page.getByLabel("Satuan pengulangan").selectOption("MONTHLY");
+  await page
+    .getByRole("combobox", { name: "Berakhir", exact: true })
+    .selectOption("count");
+  await page.getByLabel("Jumlah pengulangan").fill("3");
+  await page.screenshot({
+    path: `/tmp/sydia-event-${testInfo.project.name}-expanded.png`,
+  });
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.createRequest)
+    .toMatchObject({
+      destination: "local",
+      allDayStartDate: "2026-10-08",
+      allDayEndDate: "2026-10-09",
+      recurrence: ["RRULE:FREQ=MONTHLY;INTERVAL=1;COUNT=3"],
+    });
+  expect(mocks.createRequest).not.toHaveProperty("startAt");
+});
+
+test("month cell offers separate event and task creation", async ({ page }) => {
+  await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar&view=month");
+  await page
+    .getByRole("button", { name: "Buat pada Jumat, 9 Oktober", exact: true })
+    .click({ position: { x: 5, y: 45 } });
+  await expect(
+    page.getByRole("menuitem", { name: "Buat Acara" })
+  ).toBeVisible();
+  await page.getByRole("menuitem", { name: "Buat Tugas" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tugas baru" })).toBeVisible();
+});
+
+test("time-grid slot opens the creation menu before the event editor", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar&view=day");
+  await page
+    .getByRole("button", { name: "Buat pada Kamis, 8 Oktober", exact: true })
+    .click({ position: { x: 30, y: 460 } });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await page.getByLabel("Judul", { exact: true }).fill("Acara dari kalender");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect.poll(() => mocks.createRequest?.timezone).toBe("Asia/Makassar");
+});
+
+test("editing shows the existing Google Meet link on disclosure", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.event = {
+    ...googleEvent,
+    googleMeetUrl: "https://meet.google.com/abc-defg-hij",
+    googleMeetStatus: "success",
+  };
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: /Acara: Rapat sinkron/ }).click();
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await page.getByRole("button", { name: "Ubah Google Meet" }).click();
+  await expect(
+    page.getByRole("link", { name: "https://meet.google.com/abc-defg-hij" })
+  ).toHaveAttribute("href", "https://meet.google.com/abc-defg-hij");
+});
+
+test("rich event notes keep formatting after saving and reopening", async ({
+  page,
+}, testInfo) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: /Acara: Rapat sinkron/ }).click();
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Catatan", exact: true })
+  ).toBeHidden();
+  await page.getByRole("button", { name: "Ubah catatan" }).click();
+  const notes = page.getByRole("textbox", { name: "Catatan", exact: true });
+  await page.getByRole("button", { name: "Tebal", exact: true }).click();
+  await notes.pressSequentially("Rencana peluncuran");
+  await expect(notes.locator("strong")).toHaveText("Rencana peluncuran");
+  await expect(
+    page.getByRole("button", { name: "Simpan acara" })
+  ).toBeInViewport();
+  await page.screenshot({
+    path: `/tmp/sydia-event-${testInfo.project.name}-rich-notes.png`,
+  });
+  await page.getByRole("button", { name: "Ubah catatan" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ubah catatan" })
+  ).toContainText("Rencana peluncuran");
+  await expect(
+    page.getByRole("button", { name: "Ubah catatan" })
+  ).not.toContainText("<strong>");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.updateRequest?.description)
+    .toBe("<p><strong>Rencana peluncuran</strong></p>");
+  await page.getByRole("button", { name: /Acara: Rapat sinkron/ }).click();
+  await expect(page.getByRole("dialog").locator("strong")).toHaveText(
+    "Rencana peluncuran"
+  );
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await page.getByRole("button", { name: "Ubah catatan" }).click();
+  await expect(
+    page
+      .getByRole("textbox", { name: "Catatan", exact: true })
+      .locator("strong")
+  ).toHaveText("Rencana peluncuran");
+});
+
+test("opening legacy plain-text notes does not rewrite them on an unrelated edit", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.event = { ...googleEvent, description: "Anggaran < 100\nHubungi tim" };
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: /Acara: Rapat sinkron/ }).click();
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await page.getByRole("button", { name: "Ubah catatan" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Catatan", exact: true })
+  ).toContainText("Anggaran < 100");
+  await page.getByLabel("Judul", { exact: true }).fill("Rapat terbaru");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.updateRequest)
+    .toMatchObject({ title: "Rapat terbaru" });
+  expect(mocks.updateRequest).not.toHaveProperty("description");
+});
+
+test("provider HTML notes render allowed formatting without executable markup", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.event = {
+    ...googleEvent,
+    description:
+      '<p><strong>Agenda rapat</strong></p><p><a href="javascript:alert(1)">Tautan</a></p><img src="x" onerror="alert(1)"><script>alert(1)</script>',
+  };
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: /Acara: Rapat sinkron/ }).click();
+  const details = page.getByRole("dialog");
+  await expect(details.locator("strong")).toHaveText("Agenda rapat");
+  await expect(
+    details.locator("script, img, [onerror], a[href^='javascript:']")
+  ).toHaveCount(0);
+});
+
+test("timed event fields show one date and two times on the same row", async ({
+  page,
+}, testInfo) => {
+  await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: /^Tanggal / })).toHaveCount(
+    1
+  );
+  await expect(dialog.getByRole("button", { name: /^Jam / })).toHaveCount(2);
+  await expect(
+    page.getByRole("checkbox", { name: "Sepanjang hari" })
+  ).not.toBeChecked();
+  const date = await dialog
+    .getByRole("button", { name: /^Tanggal / })
+    .boundingBox();
+
+  const start = await dialog
+    .getByRole("button", { name: /^Jam mulai/ })
+    .boundingBox();
+
+  const end = await dialog
+    .getByRole("button", { name: /^Jam selesai/ })
+    .boundingBox();
+
+  expect(date).not.toBeNull();
+  expect(start?.y).toBe(date?.y);
+  expect(end?.y).toBe(date?.y);
+  await page.screenshot({
+    path: `/tmp/sydia-event-${testInfo.project.name}-time.png`,
+  });
+});
+
+test("changing the shared event date moves both start and end times", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: /Acara: Rapat sinkron/ }).click();
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  await page.getByRole("button", { name: /^Tanggal acara/ }).click();
+  await page
+    .getByRole("gridcell", { name: "Jumat, 9 Oktober", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.updateRequest)
+    .toMatchObject({
+      startAt: "2026-10-09T08:00:00.000Z",
+      endAt: "2026-10-09T09:00:00.000Z",
+      timezone: "Asia/Makassar",
+    });
+});
+
+test("multi-day all-day events hide times and include the selected last day", async ({
+  page,
+}, testInfo) => {
+  const mocks = await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await page.getByLabel("Judul", { exact: true }).fill("Libur beberapa hari");
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  await page.getByRole("checkbox", { name: "Sepanjang hari" }).check();
+  await page.getByLabel("Mulai", { exact: true }).fill("2026-10-20");
+  await page.getByLabel("Selesai", { exact: true }).fill("2026-10-22");
+  await expect(
+    page.getByRole("dialog").locator('input[type="date"]')
+  ).toHaveCount(2);
+  await expect(page.getByRole("button", { name: /^Jam / })).toHaveCount(0);
+  await page.screenshot({
+    path: `/tmp/sydia-event-${testInfo.project.name}-date-range.png`,
+  });
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.createRequest)
+    .toMatchObject({
+      allDayStartDate: "2026-10-20",
+      allDayEndDate: "2026-10-23",
+    });
+  expect(mocks.createRequest).not.toHaveProperty("startAt");
+  expect(mocks.createRequest).not.toHaveProperty("endAt");
+});
+
+test("unchecking all-day collapses the date range to its selected start day", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await page.getByLabel("Judul", { exact: true }).fill("Rapat setelah libur");
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  await page.getByRole("checkbox", { name: "Sepanjang hari" }).check();
+  await page.getByLabel("Mulai", { exact: true }).fill("2026-10-20");
+  await page.getByLabel("Selesai", { exact: true }).fill("2026-10-22");
+  await page.getByRole("checkbox", { name: "Sepanjang hari" }).uncheck();
+  await expect(
+    page.getByRole("button", { name: /^Tanggal acara/ })
+  ).toContainText("20 Okt 2026");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.createRequest?.startAt?.slice(0, 10))
+    .toBe("2026-10-20");
+  expect(mocks.createRequest?.endAt?.slice(0, 10)).toBe("2026-10-20");
+  expect(mocks.createRequest).not.toHaveProperty("allDayStartDate");
+});
+
+test("an unrelated edit preserves an existing timed event spanning multiple days", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.event = { ...googleEvent, endAt: "2026-10-10T09:00:00.000Z" };
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page
+    .getByRole("listitem")
+    .filter({
+      has: page.getByRole("button", {
+        name: "Buka Kamis, 8 Oktober",
+        exact: true,
+      }),
+    })
+    .getByRole("button", { name: /Acara: Rapat sinkron/ })
+    .click();
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  await page.getByLabel("Judul", { exact: true }).fill("Judul terbaru");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.updateRequest)
+    .toMatchObject({ title: "Judul terbaru" });
+  expect(mocks.updateRequest).not.toHaveProperty("startAt");
+  expect(mocks.updateRequest).not.toHaveProperty("endAt");
 });

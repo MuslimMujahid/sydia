@@ -5,11 +5,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  type DropdownMenuContentProps,
 } from "@/components/ui/dropdown-menu";
 import type { ScheduleItemKind } from "./schedule-items";
 
 type CalendarCreateMenuProps = {
   children: ReactElement;
+  anchor?: DropdownMenuContentProps["anchor"];
   onCreate: (kind: ScheduleItemKind) => void;
 };
 
@@ -17,6 +19,7 @@ type CalendarCreateMenuProps = {
 export function CalendarCreateMenu({
   children,
   onCreate,
+  anchor,
 }: CalendarCreateMenuProps) {
   const creatingRef = useRef(false);
 
@@ -32,7 +35,11 @@ export function CalendarCreateMenu({
       }}
     >
       <DropdownMenuTrigger render={children} />
-      <DropdownMenuContent align="end" finalFocus={() => !creatingRef.current}>
+      <DropdownMenuContent
+        anchor={anchor}
+        align="end"
+        finalFocus={() => !creatingRef.current}
+      >
         <DropdownMenuItem onClick={() => create("event")}>
           <CalendarDays /> Buat Acara
         </DropdownMenuItem>

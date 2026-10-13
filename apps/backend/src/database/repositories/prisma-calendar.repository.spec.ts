@@ -6,6 +6,144 @@ import { PrismaCalendarRepository } from './prisma-calendar.repository.js';
 const USER_ID = 'user-1';
 const NOW = new Date('2026-10-10T12:00:00.000Z');
 
+function eventCreateHarness() {
+  const tx = {
+    $queryRaw: jest
+      .fn<(...args: unknown[]) => Promise<Array<{ id: string; now: Date }>>>()
+      .mockResolvedValue([{ id: USER_ID, now: NOW }]),
+    calendarMutationReceipt: {
+      findUnique: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+      create: jest.fn<() => Promise<void>>().mockResolvedValue(),
+    },
+    calendarIntegration: {
+      findUnique: jest
+        .fn<
+          () => Promise<{
+            status: string;
+            connectionGeneration: number;
+            activeBindingId: string;
+          }>
+        >()
+        .mockResolvedValue({
+          status: 'connected',
+          connectionGeneration: 3,
+          activeBindingId: 'binding-1',
+        }),
+    },
+    calendarBinding: {
+      findFirst: jest
+        .fn<() => Promise<{ id: string }>>()
+        .mockResolvedValue({ id: 'binding-1' }),
+    },
+    calendarEvent: {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ ...eventRow(), ...data }),
+      ),
+    },
+    calendarSyncOperation: {
+      create: jest
+        .fn<(args: unknown) => Promise<{ id: string }>>()
+        .mockResolvedValue({ id: 'operation-1' }),
+    },
+  };
+
+  const prisma = {
+    $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) =>
+      callback(tx),
+    ),
+  };
+
+  const repository = new PrismaCalendarRepository(
+    prisma as unknown as PrismaService,
+    {} as TokenCipher,
+  );
+
+  return { repository, tx };
+}
+
+test('a Google Meet request is persisted in the durable operation without becoming an event column', async () => {
+  const { repository, tx } = eventCreateHarness();
+  const result = await repository.createMutation(
+    USER_ID,
+    {
+      title: 'Video meeting',
+      startAt: new Date('2026-10-12T09:00:00Z'),
+      endAt: new Date('2026-10-12T10:00:00Z'),
+      timezone: 'UTC',
+      createGoogleMeet: true,
+    },
+    'google',
+    {
+      key: 'create-meet',
+      fingerprint: 'create-meet-fingerprint',
+      expiresAt: NOW,
+    },
+  );
+
+  expect(result).toMatchObject({ status: 'saved', operationId: 'operation-1' });
+  expect(tx.calendarEvent.create.mock.calls[0]![0].data).not.toHaveProperty(
+    'createGoogleMeet',
+  );
+  expect(tx.calendarSyncOperation.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({
+        payload: expect.objectContaining({ createGoogleMeet: true }),
+      }),
+    }),
+  );
+});
+
+test('a local-only event rejects a Google Meet request before writing', async () => {
+  const { repository, tx } = eventCreateHarness();
+  const result = await repository.createMutation(
+    USER_ID,
+    {
+      title: 'Video meeting',
+      startAt: new Date('2026-10-12T09:00:00Z'),
+      endAt: new Date('2026-10-12T10:00:00Z'),
+      timezone: 'UTC',
+      createGoogleMeet: true,
+    },
+    'local',
+    {
+      key: 'create-meet',
+      fingerprint: 'create-meet-fingerprint',
+      expiresAt: NOW,
+    },
+  );
+
+  expect(result).toEqual({ status: 'read_only' });
+  expect(tx.calendarEvent.create).not.toHaveBeenCalled();
+});
+
+test('reading an event exposes its saved Meet link without leaking its provider snapshot', async () => {
+  const prisma = {
+    calendarEvent: {
+      findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        ...eventRow(),
+        providerLink: {
+          remoteSnapshot: {
+            hangoutLink: 'https://meet.google.com/abc-defg-hij',
+          },
+        },
+      }),
+    },
+  };
+
+  const repository = new PrismaCalendarRepository(
+    prisma as unknown as PrismaService,
+    {} as TokenCipher,
+  );
+
+  const result = await repository.findById(USER_ID, 'event-1');
+
+  expect(result).toMatchObject({
+    googleMeetUrl: 'https://meet.google.com/abc-defg-hij',
+    googleMeetStatus: 'success',
+  });
+  expect(result).not.toHaveProperty('providerLink');
+});
+
 function eventRow() {
   return {
     id: 'event-1',

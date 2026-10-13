@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useRef, type ReactNode } from "react";
+import { EventNotes } from "./event-notes";
 import { CategoryIcon } from "@/components/tasks/category-icon";
 import {
   PRIORITY_LABELS,
@@ -167,9 +168,7 @@ function ItemDetails({ item, timeZone, done }: ItemDetailsProps) {
         ) : null}
         {event.description ? (
           <DetailRow icon={AlignLeft}>
-            <p className="line-clamp-6 whitespace-pre-line">
-              {event.description}
-            </p>
+            <EventNotes value={event.description} />
           </DetailRow>
         ) : null}
         <DetailRow icon={CalendarDays}>

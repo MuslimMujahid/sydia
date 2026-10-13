@@ -1,7 +1,10 @@
 import { PopoverTitle } from "@/components/ui/popover";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import type { ChatEntity } from "./chat-entities";
-import { formatEntityRecurrence } from "./entity-format";
+import {
+  formatAllDayEventRange,
+  formatEntityRecurrence,
+} from "./entity-format";
 
 /** Preview pills inspect confirmed tool snapshots without calling real-user APIs. */
 export function EntitySnapshotDetails({
@@ -36,9 +39,18 @@ export function EntitySnapshotDetails({
   }
 
   if (entity.kind === "event") {
-    details.push(
-      `${when(entity.startAt, entity.timezone)} – ${when(entity.endAt, entity.timezone)}`
-    );
+    if (entity.allDayStartDate && entity.allDayEndDate)
+      details.push(
+        formatAllDayEventRange(
+          entity.allDayStartDate,
+          entity.allDayEndDate,
+          locale
+        )
+      );
+    else if (entity.startAt && entity.endAt && entity.timezone)
+      details.push(
+        `${when(entity.startAt, entity.timezone)} – ${when(entity.endAt, entity.timezone)}`
+      );
     if (entity.location) details.push(entity.location);
   }
 

@@ -43,14 +43,39 @@ const fileSchema = z.object({
   url: z.url().optional(),
 });
 
-const eventSchema = z.object({
+const eventIdentity = {
   ...identity,
   status: z.enum(["confirmed", "cancelled"]).optional(),
-  startAt: instant,
-  endAt: instant,
-  timezone,
   location: z.string().nullable().optional(),
-});
+};
+
+const calendarDay = z
+  .union([z.iso.date(), instant])
+  .transform((value) => value.slice(0, 10));
+
+const eventSchema = z.union([
+  z.object({
+    ...eventIdentity,
+    startAt: instant,
+    endAt: instant,
+    timezone,
+    allDayStartDate: z.null().optional(),
+    allDayEndDate: z.null().optional(),
+  }),
+  z
+    .object({
+      ...eventIdentity,
+      startAt: z.null().optional(),
+      endAt: z.null().optional(),
+      timezone: timezone.nullable().optional(),
+      allDayStartDate: calendarDay,
+      allDayEndDate: calendarDay,
+    })
+    .refine(
+      (event) => event.allDayEndDate > event.allDayStartDate,
+      "All-day end date must be exclusive and after the start date"
+    ),
+]);
 
 type EntityContext = { mutation: boolean; observedAt: string };
 export type ChatEntity = EntityContext &

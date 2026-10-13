@@ -881,6 +881,7 @@ describe('phase 5 and 6 assistant tools', () => {
           title: 'Conference',
           allDayStartDate: '2026-09-22',
           allDayEndDate: '2026-09-24',
+          destination: 'local',
         },
       });
 
@@ -891,12 +892,138 @@ describe('phase 5 and 6 assistant tools', () => {
         allDayStartDate: new Date('2026-09-22T00:00:00.000Z'),
         allDayEndDate: new Date('2026-09-24T00:00:00.000Z'),
       }),
-      'auto',
+      'local',
       'all-day-create',
     );
     expect(findById).not.toHaveBeenCalled();
     expect(result).toEqual({ objectType: 'calendar_event', object: saved });
   });
+
+  test('creates a recurring timed event with the requested timezone and rich notes', async () => {
+    const create = jest.fn<CalendarService['create']>();
+    const tool = tools({
+      calendarService: { create } as unknown as CalendarService,
+    }).find(
+      (candidate) => candidate.definition.name === 'create_calendar_event',
+    );
+
+    await tool!.execute({
+      userId: 'user-1',
+      sourceMessageId: 'recurring-meeting',
+      idempotencyKey: 'recurring-meeting',
+      arguments: {
+        title: 'Weekly review',
+        startAt: '2026-10-19T09:00:00+08:00',
+        endAt: '2026-10-19T10:00:00+08:00',
+        timezone: 'Asia/Makassar',
+        recurrence: ['RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=4'],
+        description: '<p>Bring the <strong>draft</strong>.</p>',
+      },
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        startAt: new Date('2026-10-19T01:00:00Z'),
+        endAt: new Date('2026-10-19T02:00:00Z'),
+        timezone: 'Asia/Makassar',
+        recurrence: ['RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=4'],
+        description: '<p>Bring the <strong>draft</strong>.</p>',
+      }),
+      'auto',
+      'recurring-meeting',
+    );
+  });
+
+  test.each(['google', undefined])(
+    'creates Google Meet on Google Calendar when destination is %s',
+    async (destination) => {
+      const create = jest.fn<CalendarService['create']>();
+      const tool = tools({
+        calendarService: { create } as unknown as CalendarService,
+      }).find(
+        (candidate) => candidate.definition.name === 'create_calendar_event',
+      );
+
+      await tool!.execute({
+        userId: 'user-1',
+        sourceMessageId: 'meet-event',
+        idempotencyKey: 'meet-event',
+        arguments: {
+          title: 'Video review',
+          startAt: '2026-10-19T01:00:00Z',
+          endAt: '2026-10-19T02:00:00Z',
+          ...(destination ? { destination } : {}),
+          createGoogleMeet: true,
+        },
+      });
+
+      expect(create).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ createGoogleMeet: true }),
+        'google',
+        'meet-event',
+      );
+    },
+  );
+
+  test('exposes recurrence, calendar choice, timezone, and Meet to the model', () => {
+    const tool = tools().find(
+      (candidate) => candidate.definition.name === 'create_calendar_event',
+    );
+
+    expect(tool!.definition.parameters.properties).toMatchObject({
+      timezone: { type: 'string' },
+      recurrence: { type: 'array', items: { type: 'string' } },
+      destination: { type: 'string', enum: ['auto', 'local', 'google'] },
+      createGoogleMeet: { type: 'boolean' },
+    });
+  });
+
+  test.each([
+    {
+      arguments: { destination: 'other' },
+      message: 'destination must be auto, local, or google.',
+    },
+    {
+      arguments: { createGoogleMeet: 'yes' },
+      message: 'createGoogleMeet must be a boolean.',
+    },
+    {
+      arguments: { destination: 'local', createGoogleMeet: true },
+      message: 'Google Meet requires a Google Calendar event.',
+    },
+    {
+      arguments: { recurrence: 'daily' },
+      message: 'recurrence must be a list of text values.',
+    },
+    { arguments: { timezone: 'Invalid/Zone' }, message: 'Invalid time zone' },
+  ])(
+    'rejects invalid event options: $message',
+    async ({ arguments: options, message }) => {
+      const create = jest.fn<CalendarService['create']>();
+      const tool = tools({
+        calendarService: { create } as unknown as CalendarService,
+      }).find(
+        (candidate) => candidate.definition.name === 'create_calendar_event',
+      );
+
+      await expect(
+        tool!.execute({
+          userId: 'user-1',
+          sourceMessageId: 'invalid-options',
+          idempotencyKey: 'invalid-options',
+          arguments: {
+            title: 'Review',
+            startAt: '2026-10-19T01:00:00Z',
+            endAt: '2026-10-19T02:00:00Z',
+            ...options,
+          },
+        }),
+      ).rejects.toThrow(message);
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
 
   test.each([
     {

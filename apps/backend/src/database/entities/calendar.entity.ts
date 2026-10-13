@@ -39,6 +39,8 @@ export type CalendarEvent = Pick<
 > & {
   status: CalendarEventStatus;
   syncState: CalendarEventSyncState;
+  googleMeetUrl?: string | null;
+  googleMeetStatus?: 'pending' | 'success' | 'failure' | null;
 };
 
 // Read identity comes from the authoritative link; legacy unlinked rows have none.
@@ -51,6 +53,7 @@ type CalendarEventCommonWrite = {
   description?: string | null;
   location?: string | null;
   recurrence?: string[];
+  createGoogleMeet?: boolean;
   attendees?: string[];
   status?: Exclude<CalendarEventStatus, 'cancelled'>;
 };

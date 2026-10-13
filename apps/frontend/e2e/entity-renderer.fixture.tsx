@@ -16,6 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 import { remindersQueryOptions } from "../src/lib/services/api/reminders/reminders.queries";
 import { createQueryClient } from "../src/lib/query-client";
 import { MessageHistory } from "../src/components/chat/message-history";
+import { EntityPill } from "../src/components/chat/entity-pill";
+import { collectChatEntities } from "../src/components/chat/chat-entities";
 import type {
   ConversationMessage,
   ToolInvocation,
@@ -112,6 +114,20 @@ const invocations = records.map((record) =>
 
 const content =
   "Tugas **Baca buku** dibuat untuk hari ini. Pengingat Minum obat dijadwalkan.\n\nBuka [Invoice.pdf](http://localhost:5000/documents/document-1/content). Acara Rapat tim tersimpan.\n\n`Baca buku` tetap berupa kode. [Baca buku](https://example.test) tetap berupa tautan.\n\n| Jenis | Item |\n| --- | --- |\n| Tugas | Baca buku |";
+
+const allDayInvocation = invocation("all-day", "create_calendar_event", {
+  objectType: "calendar_event",
+  object: {
+    id: "event-all-day",
+    title: "Libur tim",
+    status: "confirmed",
+    startAt: null,
+    endAt: null,
+    timezone: null,
+    allDayStartDate: "2026-10-20T00:00:00.000Z",
+    allDayEndDate: "2026-10-23T00:00:00.000Z",
+  },
+});
 
 // Snapshot of the task formatter's Indonesian web receipt. Metadata remains
 // ordinary message text; only saved task names become interactive entity pills.
@@ -289,6 +305,24 @@ function Harness() {
       window.removeEventListener("entity-fixture-refresh", onRefresh);
   }, []);
   const mode = new URLSearchParams(window.location.search).get("mode");
+
+  if (mode === "all-day-preview") {
+    const entity = collectChatEntities([allDayInvocation]).entities[0];
+    if (!entity)
+      throw new Error("All-day fixture could not become a chat reference");
+
+    return (
+      <main className="p-6">
+        <EntityPill
+          entity={entity}
+          locale="id"
+          timezone="America/Los_Angeles"
+          snapshotOnly
+        />
+      </main>
+    );
+  }
+
   if (mode === "reminders")
     return (
       <main className="p-6">
@@ -312,19 +346,21 @@ function Harness() {
     conversationId: "conversation-1",
     role: "assistant",
     content:
-      mode === "compact-receipts"
-        ? compactReceipts
-        : mode === "compact-lists"
-          ? compactLists
-          : mode === "task-receipt"
-            ? taskReceipt
-            : mode === "task-batch"
-              ? taskBatchReceipt
-              : mode === "task-list"
-                ? taskList
-                : mode === "fallback"
-                  ? "Tugas dibuat."
-                  : content,
+      mode === "all-day"
+        ? "Siap, acara **Libur tim** disimpan untuk 20–22 Oktober 2026."
+        : mode === "compact-receipts"
+          ? compactReceipts
+          : mode === "compact-lists"
+            ? compactLists
+            : mode === "task-receipt"
+              ? taskReceipt
+              : mode === "task-batch"
+                ? taskBatchReceipt
+                : mode === "task-list"
+                  ? taskList
+                  : mode === "fallback"
+                    ? "Tugas dibuat."
+                    : content,
     createdAt: timestamp,
     attachments: [],
   };
@@ -365,21 +401,23 @@ function Harness() {
           },
         ]}
         toolInvocations={
-          mode === "compact-receipts"
-            ? compactReceiptInvocations
-            : mode === "compact-lists"
-              ? compactListInvocations
-              : mode === "task-receipt"
-                ? taskReceiptInvocations.slice(0, 1)
-                : mode === "task-batch"
-                  ? taskReceiptInvocations
-                  : mode === "task-list"
-                    ? taskListInvocations
-                    : mode === "fallback"
-                      ? invocations.slice(0, 1)
-                      : mode === "sources"
-                        ? [...invocations, sources]
-                        : [...invocations]
+          mode === "all-day"
+            ? [allDayInvocation]
+            : mode === "compact-receipts"
+              ? compactReceiptInvocations
+              : mode === "compact-lists"
+                ? compactListInvocations
+                : mode === "task-receipt"
+                  ? taskReceiptInvocations.slice(0, 1)
+                  : mode === "task-batch"
+                    ? taskReceiptInvocations
+                    : mode === "task-list"
+                      ? taskListInvocations
+                      : mode === "fallback"
+                        ? invocations.slice(0, 1)
+                        : mode === "sources"
+                          ? [...invocations, sources]
+                          : [...invocations]
         }
         isSending={false}
         onRetry={() => {

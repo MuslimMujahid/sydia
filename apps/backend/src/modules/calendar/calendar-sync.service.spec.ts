@@ -552,6 +552,63 @@ describe('CalendarSyncService outbound operations', () => {
     );
   });
 
+  test('a Meet-only update reaches Google and completes when conference creation is pending', async () => {
+    const {
+      service,
+      claim,
+      payload,
+      resource,
+      getEvent,
+      updateEvent,
+      completeOperation,
+      failOperation,
+    } = outboundOperationHarness('update');
+
+    claim.operation.payload = { ...payload, createGoogleMeet: true };
+    getEvent.mockResolvedValue(resource);
+    updateEvent.mockResolvedValue({
+      ...resource,
+      conferenceData: { createRequest: { status: { statusCode: 'pending' } } },
+    });
+
+    await service.processOperation('operation-1');
+
+    expect(updateEvent).toHaveBeenCalledWith(
+      'access-token',
+      'calendar-1',
+      'stable-google-event-id',
+      'operation-1',
+      { createGoogleMeet: true },
+      'etag-1',
+      expect.objectContaining({ lane: 'outbound' }),
+    );
+    expect(completeOperation).toHaveBeenCalled();
+    expect(failOperation).not.toHaveBeenCalled();
+  });
+
+  test('a pending Meet request is not recreated when its operation is retried', async () => {
+    const {
+      service,
+      claim,
+      payload,
+      resource,
+      getEvent,
+      updateEvent,
+      completeOperation,
+    } = outboundOperationHarness('update');
+
+    claim.operation.payload = { ...payload, createGoogleMeet: true };
+    getEvent.mockResolvedValue({
+      ...resource,
+      conferenceData: { createRequest: { status: { statusCode: 'pending' } } },
+    });
+
+    await service.processOperation('operation-1');
+
+    expect(updateEvent).not.toHaveBeenCalled();
+    expect(completeOperation).toHaveBeenCalled();
+  });
+
   test('updates merge an independent remote location without sending that field back', async () => {
     const { service, getEvent, resource, updateEvent, completeOperation } =
       outboundOperationHarness('update');

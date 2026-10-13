@@ -1,3 +1,4 @@
+import { googleMeetDetails } from '../../infra/calendar';
 import { Injectable } from '@nestjs/common';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import type {
@@ -102,7 +103,13 @@ const integrationSelect = {
   updatedAt: true,
 } as const;
 
-type EventRow = Pick<PrismaCalendarEvent, keyof typeof eventSelect>;
+type EventRow = Pick<PrismaCalendarEvent, keyof typeof eventSelect> & {
+  providerLink?: {
+    remoteSnapshot?: unknown;
+    bindingId?: string;
+    id?: string;
+  } | null;
+};
 type IntegrationRow = Pick<
   PrismaCalendarIntegration,
   keyof typeof integrationSelect
@@ -131,11 +138,23 @@ class CalendarSyncLeaseLostError extends Error {
 }
 
 function event(row: EventRow): CalendarEvent {
+  const { providerLink, ...fields } = row;
+
   return {
-    ...row,
+    ...fields,
+    ...googleMeetDetails(providerLink?.remoteSnapshot),
     status: row.status as CalendarEvent['status'],
     syncState: row.syncState as CalendarEvent['syncState'],
   };
+}
+
+function calendarPersistenceInput<T extends { createGoogleMeet?: boolean }>(
+  input: T,
+): Omit<T, 'createGoogleMeet'> {
+  const fields = { ...input };
+  delete fields.createGoogleMeet;
+
+  return fields;
 }
 
 function temporalMutationData(
@@ -1440,13 +1459,16 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           },
         ],
       },
-      select: { ...eventSelect, providerLink: { select: { bindingId: true } } },
+      select: {
+        ...eventSelect,
+        providerLink: { select: { bindingId: true, remoteSnapshot: true } },
+      },
       take: 5001,
     });
 
     return rows
       .map(({ providerLink, ...row }) => ({
-        ...event(row),
+        ...event({ ...row, providerLink }),
         providerBindingId: providerLink?.bindingId ?? null,
       }))
       .sort((left, right) => {
@@ -1511,7 +1533,10 @@ export class PrismaCalendarRepository implements ICalendarRepository {
   async findById(userId: string, id: string): Promise<CalendarEvent | null> {
     const row = await this.prisma.calendarEvent.findFirst({
       where: { id, userId },
-      select: eventSelect,
+      select: {
+        ...eventSelect,
+        providerLink: { select: { remoteSnapshot: true } },
+      },
     });
 
     return row ? event(row) : null;
@@ -1798,7 +1823,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
   ): Promise<CalendarEvent> {
     return event(
       await this.prisma.calendarEvent.create({
-        data: { userId, ...input },
+        data: { userId, ...calendarPersistenceInput(input) },
         select: eventSelect,
       }),
     );
@@ -1823,7 +1848,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     return event(
       await this.prisma.calendarEvent.update({
         where: { id },
-        data: input,
+        data: calendarPersistenceInput(input),
         select: eventSelect,
       }),
     );
@@ -1843,10 +1868,12 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       const target = await this.createTarget(tx, userId, destination);
       if (target.status !== 'ready') return { status: target.status };
 
+      const { createGoogleMeet, ...eventInput } = input;
+      if (createGoogleMeet && !target.binding) return { status: 'read_only' };
       const row = await tx.calendarEvent.create({
         data: {
           userId,
-          ...input,
+          ...eventInput,
           provider: target.binding ? 'google' : 'local',
           syncState: target.binding ? 'pending' : 'local',
           revision: 1,
@@ -1863,6 +1890,8 @@ export class PrismaCalendarRepository implements ICalendarRepository {
             'create',
             target.binding,
             request,
+            undefined,
+            createGoogleMeet,
           )
         : null;
 
@@ -2025,10 +2054,13 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           )
         : undefined;
 
+      const { createGoogleMeet, ...eventInput } = input;
+      if (createGoogleMeet !== undefined && !target.binding)
+        return { status: 'read_only' };
       const updated = await tx.calendarEvent.update({
         where: { id },
         data: {
-          ...input,
+          ...eventInput,
           ...temporalMutationData(input),
           ...(recurrenceOverrideFields ? { recurrenceOverrideFields } : {}),
           ...(status ? { status } : {}),
@@ -2049,6 +2081,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
             target.binding,
             request,
             eventPayload(current),
+            createGoogleMeet,
           )
         : null;
 
@@ -2283,6 +2316,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     binding: { bindingId: string; connectionGeneration: number },
     request: CalendarMutationRequest,
     baseSnapshot?: Prisma.InputJsonObject,
+    createGoogleMeet?: boolean,
   ): Promise<string> {
     const operation = await tx.calendarSyncOperation.create({
       data: {
@@ -2292,7 +2326,10 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         kind,
         connectionGeneration: binding.connectionGeneration,
         eventRevision: row.revision,
-        payload: eventPayload(row),
+        payload: {
+          ...eventPayload(row),
+          ...(createGoogleMeet !== undefined ? { createGoogleMeet } : {}),
+        },
         ...(baseSnapshot ? { baseSnapshot } : {}),
         ...(kind === 'create'
           ? { stableGoogleEventId: randomUUID().replaceAll('-', '') }

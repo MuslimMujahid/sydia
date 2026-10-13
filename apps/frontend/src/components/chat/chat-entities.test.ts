@@ -42,6 +42,53 @@ function task(id = "task-1", title = "Baca buku"): ChatEntity {
 }
 
 describe("collectChatEntities", () => {
+  it("recognizes multi-day all-day events with no timed fields", () => {
+    const result = collectChatEntities([
+      tool("create_calendar_event", {
+        objectType: "calendar_event",
+        object: {
+          id: "event-all-day",
+          title: "Libur tim",
+          startAt: null,
+          endAt: null,
+          timezone: null,
+          allDayStartDate: "2026-10-20T00:00:00.000Z",
+          allDayEndDate: "2026-10-23T00:00:00.000Z",
+        },
+      }),
+    ]);
+
+    assert.deepEqual(result.entities, [
+      {
+        kind: "event",
+        id: "event-all-day",
+        title: "Libur tim",
+        startAt: null,
+        endAt: null,
+        timezone: null,
+        allDayStartDate: "2026-10-20",
+        allDayEndDate: "2026-10-23",
+        mutation: true,
+        observedAt: timestamp,
+      },
+    ]);
+    assert.deepEqual(result.diagnostics, []);
+  });
+
+  it("rejects an all-day event missing its end date", () => {
+    const result = collectChatEntities([
+      tool("create_calendar_event", {
+        object: {
+          id: "event-all-day",
+          title: "Libur tim",
+          allDayStartDate: "2026-10-20T00:00:00.000Z",
+        },
+      }),
+    ]);
+
+    assert.deepEqual(result.entities, []);
+    assert.equal(result.diagnostics.length, 1);
+  });
   it("recognizes the nested task record without relying on convenience metadata", () => {
     const result = collectChatEntities([
       tool("create_task", {
