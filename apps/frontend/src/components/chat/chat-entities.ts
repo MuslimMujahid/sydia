@@ -24,7 +24,7 @@ const recurrence = z.object({
 const identity = { id: text, title: text };
 const taskSchema = z.object({
   ...identity,
-  status: z.enum(["inbox", "doing", "done", "cancelled"]).optional(),
+  status: z.enum(["inbox", "done", "cancelled"]).optional(),
   dueAt: instant.nullable().optional(),
 });
 

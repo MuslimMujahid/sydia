@@ -134,7 +134,7 @@ export class PrismaTaskRepository implements ITaskRepository {
         userId,
         ...(id ? { id } : {}),
         ...(query ? { title: { contains: query, mode: 'insensitive' } } : {}),
-        ...(!id ? { status: { in: ['inbox', 'doing'] } } : {}),
+        ...(!id ? { status: { in: ['inbox'] } } : {}),
       },
       orderBy: { updatedAt: 'desc' },
       select: taskSelect,

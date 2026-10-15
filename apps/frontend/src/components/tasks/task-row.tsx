@@ -6,7 +6,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { useId, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -135,27 +134,15 @@ function TaskCategoryChips({ categories, finished }: TaskCategoryChipsProps) {
   );
 }
 
-/** Only an in-progress task gets a badge; cancelled tasks have none. */
-function TaskStatusBadge({ status }: { status: TaskStatus }) {
-  if (status !== "doing") return null;
-
-  return (
-    <Badge dot="brand" className="px-2 py-0.5 text-xs">
-      {STATUS_LABELS[status]}
-    </Badge>
-  );
-}
-
 type TaskMetaProps = {
   task: Task;
-  status: TaskStatus;
   finished: boolean;
   overdue: boolean;
   now: Date;
 };
 
-/** From `sm`: status badge, categories, and due date inline in the row. */
-function TaskMeta({ task, status, finished, overdue, now }: TaskMetaProps) {
+/** From `sm`: categories and due date inline in the row. */
+function TaskMeta({ task, finished, overdue, now }: TaskMetaProps) {
   return (
     <span
       className={cn(
@@ -163,7 +150,6 @@ function TaskMeta({ task, status, finished, overdue, now }: TaskMetaProps) {
         finished && "text-ink/40"
       )}
     >
-      <TaskStatusBadge status={status} />
       <TaskCategoryChips categories={task.categories} finished={finished} />
       {/* A fixed, left-aligned column keeps every due date icon on the same
           vertical line, whatever the text length. Rows without a due date
@@ -241,7 +227,6 @@ type TaskDetailsPanelProps = {
   id: string;
   open: boolean;
   task: Task;
-  status: TaskStatus;
   finished: boolean;
   now: Date;
 };
@@ -250,13 +235,12 @@ type TaskDetailsPanelProps = {
  * Phones only. It wraps onto its own line under the title, indented past the
  * checkbox and flag so the details line up with the title. The full due date
  * (never flagged as late; the row's marker does that) and the categories sit
- * side by side, left-aligned, with the in-progress badge on a row below.
+ * side by side, left-aligned.
  */
 function TaskDetailsPanel({
   id,
   open,
   task,
-  status,
   finished,
   now,
 }: TaskDetailsPanelProps) {
@@ -287,7 +271,6 @@ function TaskDetailsPanel({
           ) : null}
         </div>
       ) : null}
-      <TaskStatusBadge status={status} />
     </div>
   );
 }
@@ -400,22 +383,15 @@ export function TaskRow({
 
   const priorityLabel = `Prioritas ${PRIORITY_LABELS[task.priority].toLowerCase()}`;
 
-  // Phones fold a task's details (status badge, categories, due date) into a
+  // Phones fold a task's details (categories and due date) into a
   // panel behind a chevron. A task with none has no panel and no chevron.
-  const hasDetails =
-    status === "doing" || task.categories.length > 0 || Boolean(task.dueAt);
+  const hasDetails = task.categories.length > 0 || Boolean(task.dueAt);
 
   return (
     <li
       aria-busy={pending || undefined}
       className="relative flex flex-wrap items-start gap-x-3 rounded-md py-1.5 pr-1 pl-2 transition-colors hover:bg-surface-1 sm:flex-nowrap sm:items-center sm:gap-x-4 sm:py-0"
     >
-      {status === "doing" ? (
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-2 left-0 w-0.75 rounded-full bg-brand"
-        />
-      ) : null}
       {/* The pseudo-element widens the tap target to ~44px on touch screens. */}
       <Checkbox
         checked={done}
@@ -453,13 +429,7 @@ export function TaskRow({
           {task.title}
           <span className="sr-only">, {priorityLabel.toLowerCase()}</span>
         </span>
-        <TaskMeta
-          task={task}
-          status={status}
-          finished={finished}
-          overdue={overdue}
-          now={now}
-        />
+        <TaskMeta task={task} finished={finished} overdue={overdue} now={now} />
       </button>
       {countdown ? (
         <TaskDueCountdown countdown={countdown} overdue={overdue} />
@@ -495,7 +465,6 @@ export function TaskRow({
           id={detailsPanelId}
           open={detailsOpen}
           task={task}
-          status={status}
           finished={finished}
           now={now}
         />

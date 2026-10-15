@@ -144,7 +144,7 @@ const taskList =
 const taskListInvocations = [
   invocation("list-tasks", "list_tasks", {
     tasks: [
-      { ...records[0].output.object, status: "doing", priority: "high" },
+      { ...records[0].output.object, status: "inbox", priority: "high" },
       {
         id: "task-2",
         title: "Kirim proposal",

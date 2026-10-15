@@ -5,7 +5,7 @@ import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 import type { Category } from "../categories/categories.api";
 
-export type TaskStatus = "inbox" | "doing" | "done" | "cancelled";
+export type TaskStatus = "inbox" | "done" | "cancelled";
 export type TaskPriority = "low" | "medium" | "high";
 export type TaskDueFilter = "today" | "upcoming" | "overdue" | "none";
 

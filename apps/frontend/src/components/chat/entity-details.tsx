@@ -33,7 +33,6 @@ type DetailsProps = {
 const STATUS_LABELS = {
   en: {
     inbox: "Inbox",
-    doing: "In progress",
     done: "Completed",
     cancelled: "Cancelled",
     confirmed: "Confirmed",
@@ -44,7 +43,6 @@ const STATUS_LABELS = {
   },
   id: {
     inbox: "Inbox",
-    doing: "Dikerjakan",
     done: "Selesai",
     cancelled: "Dibatalkan",
     confirmed: "Dikonfirmasi",

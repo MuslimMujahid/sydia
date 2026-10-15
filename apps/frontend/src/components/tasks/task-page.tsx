@@ -41,8 +41,8 @@ import { TaskFilterPanel } from "./task-filters";
 import { TASK_LIST_CARD_CLASS, TaskListSkeleton, TaskRow } from "./task-row";
 import {
   SORT_LABELS,
-  STATUS_LABELS,
-  groupTasksByStatus,
+  TASK_SECTION_LABELS,
+  groupTasksBySection,
   isTaskSortKey,
   sortTasks,
   type TaskSortKey,
@@ -451,7 +451,7 @@ export function TaskPage({
   // A task moves to its new section as soon as its status change is sent.
   const sections = useMemo(
     () =>
-      groupTasksByStatus(visibleTasks, (task) =>
+      groupTasksBySection(visibleTasks, (task) =>
         pendingStatusChange?.taskId === task.id
           ? pendingStatusChange.status
           : task.status
@@ -666,15 +666,22 @@ export function TaskPage({
             visibleTasks.length ? (
               <div className={TASK_LIST_CARD_CLASS}>
                 {sections.map((section) => {
-                  const headingId = `task-section-${section.status}`;
+                  const headingId = `task-section-${section.key}`;
 
                   return (
-                    <section key={section.status} aria-labelledby={headingId}>
+                    <section
+                      key={section.key}
+                      aria-labelledby={headingId}
+                      className={cn(
+                        section.key === "done" &&
+                          "mt-2 border-t border-ink/10 pt-1 first:mt-0 first:border-t-0 first:pt-0"
+                      )}
+                    >
                       <h3
                         id={headingId}
                         className="flex items-center gap-2 px-4 pt-3 pb-0.5 text-[11px] font-semibold text-ink-muted"
                       >
-                        {STATUS_LABELS[section.status]}
+                        {TASK_SECTION_LABELS[section.key]}
                         <span className="min-w-5 rounded-pill bg-surface-1 px-1.5 py-px text-center font-mono text-[11px] font-normal text-ink-soft tabular-nums">
                           {section.tasks.length}
                           <span className="sr-only"> tugas</span>

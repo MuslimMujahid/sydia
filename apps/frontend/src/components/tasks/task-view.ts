@@ -1,10 +1,4 @@
-import {
-  Ban,
-  CheckCircle2,
-  CircleDot,
-  Inbox,
-  type LucideIcon,
-} from "lucide-react";
+import { Ban, CheckCircle2, Inbox, type LucideIcon } from "lucide-react";
 import type {
   Task,
   TaskDueFilter,
@@ -14,7 +8,6 @@ import type {
 
 export const STATUS_ICONS: Record<TaskStatus, LucideIcon> = {
   inbox: Inbox,
-  doing: CircleDot,
   done: CheckCircle2,
   cancelled: Ban,
 };
@@ -29,9 +22,8 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   inbox: "Inbox",
-  doing: "Dikerjakan",
   done: "Selesai",
-  cancelled: "Dibatalkan",
+  cancelled: "Batal",
 };
 
 export function isTaskStatus(value: unknown): value is TaskStatus {
@@ -44,13 +36,21 @@ export function isTaskSortKey(value: unknown): value is TaskSortKey {
   return typeof value === "string" && Object.keys(SORT_LABELS).includes(value);
 }
 
-/** The order of the status sections in the task list. */
-export const STATUS_SECTIONS: TaskStatus[] = [
-  "inbox",
-  "doing",
+export const TASK_SECTION_KEYS = [
+  "scheduled",
+  "unscheduled",
   "done",
   "cancelled",
-];
+] as const;
+
+export type TaskSectionKey = (typeof TASK_SECTION_KEYS)[number];
+
+export const TASK_SECTION_LABELS: Record<TaskSectionKey, string> = {
+  scheduled: "Terjadwal",
+  unscheduled: "Belum terjadwal",
+  done: "Selesai",
+  cancelled: "Batal",
+};
 
 export const DUE_LABELS: Record<TaskDueFilter | "all", string> = {
   all: "Semua tenggat",
@@ -76,35 +76,41 @@ const PRIORITY_RANK: Record<TaskPriority, number> = {
 // Open work stays on top; finished and cancelled tasks sink to the bottom.
 const STATUS_RANK: Record<TaskStatus, number> = {
   inbox: 0,
-  doing: 0,
   done: 1,
   cancelled: 2,
 };
 
 const TITLE_COLLATOR = new Intl.Collator("id-ID", { sensitivity: "base" });
 
-export type TaskSection = { status: TaskStatus; tasks: Task[] };
+export type TaskSection = { key: TaskSectionKey; tasks: Task[] };
 
-/**
- * Splits tasks into status sections in `STATUS_SECTIONS` order, keeping each
- * section's input order and omitting empty sections. `statusOf` lets callers
- * place a task by its optimistic status while a change is being saved.
- */
-export function groupTasksByStatus(
+/** Group inbox tasks by deadline, preserving input order and optimistic status. */
+export function groupTasksBySection(
   tasks: Task[],
   statusOf: (task: Task) => TaskStatus = (task) => task.status
 ): TaskSection[] {
-  const groups = new Map<TaskStatus, Task[]>(
-    STATUS_SECTIONS.map((status) => [status, []])
+  const groups: Record<TaskSectionKey, Task[]> = {
+    scheduled: [],
+    unscheduled: [],
+    done: [],
+    cancelled: [],
+  };
+
+  for (const task of tasks) {
+    const status = statusOf(task);
+    const key =
+      status === "inbox"
+        ? task.dueAt === null
+          ? "unscheduled"
+          : "scheduled"
+        : status;
+
+    groups[key].push(task);
+  }
+
+  return TASK_SECTION_KEYS.flatMap((key) =>
+    groups[key].length ? [{ key, tasks: groups[key] }] : []
   );
-
-  for (const task of tasks) groups.get(statusOf(task))?.push(task);
-
-  return STATUS_SECTIONS.flatMap((status) => {
-    const sectionTasks = groups.get(status) ?? [];
-
-    return sectionTasks.length ? [{ status, tasks: sectionTasks }] : [];
-  });
 }
 
 function timeOf(value: string | null): number {

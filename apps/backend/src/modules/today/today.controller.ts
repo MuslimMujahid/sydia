@@ -28,7 +28,7 @@ export class TodayController {
     const window = dayWindow(now, timezone);
     const [tasks, reminders, events] = await Promise.all([
       this.tasks.list(s.user.id, {
-        status: ['inbox', 'doing'],
+        status: ['inbox'],
         due: 'today',
         now,
         timezone,

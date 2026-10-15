@@ -12,7 +12,7 @@ function dueTask(title = 'Pay invoice'): Task {
     completedAt: null,
     createdAt: new Date(0),
     updatedAt: new Date(0),
-    status: 'doing',
+    status: 'inbox',
     priority: 'high',
     categories: [],
     source: { type: 'dashboard', label: null, messageId: null },

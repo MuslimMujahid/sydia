@@ -1,7 +1,7 @@
 import type { Task as PrismaTask } from '../../generated/prisma/client';
 import type { Category } from './category.entity';
 
-export const TASK_STATUSES = ['inbox', 'doing', 'done', 'cancelled'] as const;
+export const TASK_STATUSES = ['inbox', 'done', 'cancelled'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export const TASK_PRIORITIES = ['low', 'medium', 'high'] as const;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];

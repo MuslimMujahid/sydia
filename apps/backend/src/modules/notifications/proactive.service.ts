@@ -58,13 +58,13 @@ export class DailyBriefingService {
     const [todayTasks, overdueTasks, todayReminders, events] =
       await Promise.all([
         this.tasks.list(userId, {
-          status: ['inbox', 'doing'],
+          status: ['inbox'],
           due: 'today',
           now,
           timezone: user.timezone,
         }),
         this.tasks.list(userId, {
-          status: ['inbox', 'doing'],
+          status: ['inbox'],
           due: 'overdue',
           now,
           timezone: user.timezone,
@@ -239,13 +239,13 @@ export class FollowUpService {
     const window = dayWindow(now, user.timezone);
     const [todayTasks, overdueTasks] = await Promise.all([
       this.tasks.list(userId, {
-        status: ['inbox', 'doing'],
+        status: ['inbox'],
         due: 'today',
         now,
         timezone: user.timezone,
       }),
       this.tasks.list(userId, {
-        status: ['inbox', 'doing'],
+        status: ['inbox'],
         due: 'overdue',
         now,
         timezone: user.timezone,

@@ -54,7 +54,7 @@ const TASK_EDITOR_SHEET_CLASS = "lg:max-w-5xl";
 const taskSchema = z.object({
   title: z.string().trim().min(1, "Masukkan judul tugas."),
   description: z.string().max(4000, "Catatan maksimal 4.000 karakter."),
-  status: z.enum(["inbox", "doing", "done", "cancelled"]),
+  status: z.enum(["inbox", "done", "cancelled"]),
   priority: z.enum(["low", "medium", "high"]),
   dueDate: z.string(),
   /** Empty means no time: the task is due at the end of `dueDate`. */

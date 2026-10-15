@@ -490,7 +490,7 @@ Identify the task with id or query. Only supplied fields change; categoryMode ad
           dueAt: nullableString,
           status: {
             type: 'string',
-            enum: ['inbox', 'doing', 'done', 'cancelled'],
+            enum: ['inbox', 'done', 'cancelled'],
           },
           categoryNames: {
             type: 'array',
@@ -557,12 +557,12 @@ Use it when the user asks what tasks exist or wants tasks filtered by text, stat
 
 Do not use it to search memories; use 'search_memories' instead.
 
-Filters combine. status is inbox, doing, done, or cancelled; due is today, upcoming, overdue, or none. Unmatched category names return no tasks.`,
+Filters combine. status is inbox, done, or cancelled; due is today, upcoming, overdue, or none. Unmatched category names return no tasks.`,
       parameters: schema({
         query: string,
         status: {
           type: 'string',
-          enum: ['inbox', 'doing', 'done', 'cancelled'],
+          enum: ['inbox', 'done', 'cancelled'],
         },
         due: { type: 'string', enum: ['today', 'upcoming', 'overdue', 'none'] },
         categoryNames: {

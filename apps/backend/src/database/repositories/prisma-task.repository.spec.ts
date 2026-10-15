@@ -75,13 +75,33 @@ describe('PrismaTaskRepository status transitions', () => {
       task: { findMany },
     } as unknown as PrismaService);
 
-    await repository.list('user-1', { status: ['inbox', 'doing'] });
+    await repository.list('user-1', { status: ['inbox', 'done'] });
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          status: { in: ['inbox', 'doing'] },
+          status: { in: ['inbox', 'done'] },
         }),
+      }),
+    );
+  });
+
+  test('finds active task references only in inbox', async () => {
+    const findFirst = jest.fn<(input: unknown) => Promise<null>>();
+    findFirst.mockResolvedValue(null);
+    const repository = new PrismaTaskRepository({
+      task: { findFirst },
+    } as unknown as PrismaService);
+
+    await repository.findReference('user-1', undefined, 'invoice');
+
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: 'user-1',
+          title: { contains: 'invoice', mode: 'insensitive' },
+          status: { in: ['inbox'] },
+        },
       }),
     );
   });

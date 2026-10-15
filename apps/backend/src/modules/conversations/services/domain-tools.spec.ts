@@ -487,6 +487,33 @@ describe('domain assistant tools', () => {
     });
   });
 
+  test.each(['update_task', 'list_tasks'])(
+    '%s offers only supported task statuses',
+    (name) => {
+      const available = createDomainTools({
+        tasks: {} as ITaskRepository,
+        categories: {} as ICategoryRepository,
+        reminders: {} as IReminderRepository,
+        memoryService: {} as MemoryAccessService,
+        scheduler: {} as ReminderSchedulerService,
+        users: {} as IUserRepository,
+      });
+
+      expect(
+        available.find((tool) => tool.definition.name === name)?.definition
+          .parameters,
+      ).toEqual(
+        expect.objectContaining({
+          properties: expect.objectContaining({
+            status: expect.objectContaining({
+              enum: ['inbox', 'done', 'cancelled'],
+            }),
+          }),
+        }),
+      );
+    },
+  );
+
   test('documents every domain tool and parameter in English', () => {
     const available = createDomainTools({
       tasks: {} as ITaskRepository,
