@@ -275,10 +275,18 @@ function asOccurrence(
       isLocalException && !overrides.has('status')
         ? series.status
         : event.status,
+    reminderMinutes:
+      isLocalException && !overrides.has('reminderMinutes')
+        ? series.reminderMinutes
+        : (event.reminderMinutes ?? series.reminderMinutes),
     id: occurrenceId(series.id, identity),
     startAt,
     endAt,
-    timezone: inheritsTime ? (series.timezone ?? 'UTC') : event.timezone,
+    timezone: inheritsTime
+      ? series.allDayStartDate
+        ? series.timezone
+        : (series.timezone ?? 'UTC')
+      : event.timezone,
     allDayStartDate,
     allDayEndDate,
     recurrence: [],

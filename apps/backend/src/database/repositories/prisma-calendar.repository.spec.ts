@@ -150,6 +150,7 @@ function eventRow() {
     provider: 'google',
     providerEventId: 'google-event-1',
     title: 'Sydia title',
+    reminderMinutes: null,
     description: null,
     location: null,
     startAt: new Date('2026-10-11T09:00:00.000Z'),
@@ -1077,5 +1078,54 @@ describe('PrismaCalendarRepository local recurrence exceptions', () => {
         recurrenceOverrideFields: ['time'],
       },
     });
+  });
+});
+
+test('new events receive a ten-minute reminder when none is specified', async () => {
+  const { repository } = eventCreateHarness();
+  const result = await repository.createMutation(
+    USER_ID,
+    {
+      title: 'Meeting',
+      startAt: new Date('2026-10-14T09:00:00Z'),
+      endAt: new Date('2026-10-14T10:00:00Z'),
+      timezone: 'UTC',
+    },
+    'local',
+    {
+      key: 'reminder-default',
+      fingerprint: 'default',
+      expiresAt: new Date('2026-10-15T00:00:00Z'),
+    },
+  );
+
+  expect(result).toMatchObject({
+    status: 'saved',
+    event: { reminderMinutes: 10 },
+  });
+});
+
+test('new events preserve the selected reminder lead time', async () => {
+  const { repository } = eventCreateHarness();
+  const result = await repository.createMutation(
+    USER_ID,
+    {
+      title: 'Meeting',
+      reminderMinutes: 60,
+      startAt: new Date('2026-10-14T09:00:00Z'),
+      endAt: new Date('2026-10-14T10:00:00Z'),
+      timezone: 'UTC',
+    },
+    'local',
+    {
+      key: 'reminder-selected',
+      fingerprint: 'selected',
+      expiresAt: new Date('2026-10-15T00:00:00Z'),
+    },
+  );
+
+  expect(result).toMatchObject({
+    status: 'saved',
+    event: { reminderMinutes: 60 },
   });
 });

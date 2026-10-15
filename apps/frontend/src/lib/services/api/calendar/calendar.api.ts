@@ -38,6 +38,7 @@ export type CalendarPollResult = {
 export type CalendarEventStatus = "confirmed" | "tentative" | "cancelled";
 
 export type CalendarEvent = {
+  reminderMinutes?: number | null;
   id: string;
   provider: string;
   providerEventId: string | null;
@@ -112,6 +113,7 @@ export type GoogleCalendarOption = {
 };
 
 type CalendarEventCommonWriteInput = {
+  reminderMinutes?: number;
   title: string;
   description?: string | null;
   location?: string | null;

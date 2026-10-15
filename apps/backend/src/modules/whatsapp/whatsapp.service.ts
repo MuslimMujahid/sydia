@@ -14,6 +14,7 @@ import type { WhatsAppContactState } from '../../database/entities';
 import { MessagingHandlerService } from '../messaging';
 import { DocumentService } from '../documents/document.service';
 import { NotificationService } from '../notifications';
+import type { CalendarReminderDispatch } from '../../infra/queue';
 import { OpenRouterMediaService } from '../../infra/model-gateway';
 import {
   WhatsAppGatewayService,
@@ -191,6 +192,7 @@ export class WhatsAppService implements OnModuleInit {
     idempotencyKey: string;
     proactive: boolean;
     sourceId?: string;
+    eventReminder?: CalendarReminderDispatch;
   }): Promise<{ status: string; providerMessageId?: string }> {
     const existing = await this.notifications.findByIdempotencyKey(
       input.userId,
@@ -208,6 +210,20 @@ export class WhatsAppService implements OnModuleInit {
     }
 
     if (existing.status === 'attempting') return { status: 'in_progress' };
+
+    if (
+      input.kind === 'event_reminder' &&
+      !(await this.notifications.eventReminderIsCurrent(input))
+    ) {
+      await this.notifications.recordOutcome({
+        userId: input.userId,
+        deliveryId: existing.id,
+        status: 'skipped_obsolete',
+        policyOutcome: 'blocked',
+      });
+
+      return { status: 'skipped_obsolete' };
+    }
 
     if (!(await this.notifications.claimDelivery(input.userId, existing.id))) {
       const current = await this.notifications.findByIdempotencyKey(

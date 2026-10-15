@@ -1,3 +1,5 @@
+import { CalendarReminderService } from '../calendar/calendar-reminder.service';
+import type { ICalendarRepository } from '../../database/interfaces';
 import { describe, expect, jest, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
@@ -97,7 +99,16 @@ function setup(
     whatsappNotifications: { add },
   } as unknown as QueueService;
 
-  const notifications = new NotificationService(notificationRepository, queues);
+  const notifications = new NotificationService(
+    notificationRepository,
+    queues,
+    new CalendarReminderService(
+      {} as ICalendarRepository,
+      new CalendarReadService({} as ICalendarRepository),
+      queues,
+    ),
+  );
+
   const listTasks = jest.fn<ITaskRepository['list']>().mockResolvedValue([]);
   const tasks = { list: listTasks } as unknown as ITaskRepository;
 

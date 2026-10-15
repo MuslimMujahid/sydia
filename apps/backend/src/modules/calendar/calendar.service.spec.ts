@@ -33,6 +33,7 @@ function savedEvent(): CalendarEvent {
     title: 'Project review',
     description: null,
     location: null,
+    reminderMinutes: null,
     startAt: new Date('2026-01-02T09:00:00.000Z'),
     endAt: new Date('2026-01-02T10:00:00.000Z'),
     timezone: 'UTC',

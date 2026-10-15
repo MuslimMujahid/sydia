@@ -18,6 +18,7 @@ const googleEvent: CalendarEvent = {
   title: "Rapat sinkron",
   description: null,
   location: "Ruang rapat",
+  reminderMinutes: 10,
   startAt: timestamp,
   endAt: "2026-10-08T09:00:00.000Z",
   timezone: "Asia/Makassar",
@@ -1160,3 +1161,65 @@ test("an unrelated edit preserves an existing timed event spanning multiple days
   expect(mocks.updateRequest).not.toHaveProperty("startAt");
   expect(mocks.updateRequest).not.toHaveProperty("endAt");
 });
+
+test("new events default to one ten-minute reminder", async ({
+  page,
+}, testInfo) => {
+  const mocks = await mockCalendarApi(page);
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  const reminderRow = page.getByRole("button", { name: "Ubah pengingat" });
+  await expect(reminderRow).toHaveAttribute("aria-expanded", "false");
+  await expect(reminderRow).toHaveText("10 menit sebelum acara");
+  await expect(page.getByLabel("Pengingat sebelum acara")).toBeHidden();
+  await reminderRow.click();
+  const reminder = page.getByLabel("Pengingat sebelum acara");
+  await expect(reminder).toHaveValue("10");
+  await expect(reminder.locator("option")).toHaveText([
+    "10 menit sebelumnya",
+    "15 menit sebelumnya",
+    "30 menit sebelumnya",
+    "1 jam sebelumnya",
+  ]);
+  await reminderRow.click();
+  await page
+    .getByLabel("Judul", { exact: true })
+    .fill("Acara dengan pengingat");
+  await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
+  await page.getByRole("checkbox", { name: "Sepanjang hari" }).check();
+  await page.screenshot({
+    path: `/tmp/sydia-event-reminder-${testInfo.project.name}.png`,
+  });
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect.poll(() => mocks.createRequest?.reminderMinutes).toBe(10);
+});
+
+for (const minutes of [15, 30, 60]) {
+  test(`an event saves its selected ${minutes}-minute reminder`, async ({
+    page,
+  }) => {
+    const mocks = await mockCalendarApi(page, { connected: true });
+    mocks.event = { ...googleEvent, reminderMinutes: 10, syncState: "synced" };
+    await page.goto("/e2e/calendar-sync.html?mode=calendar");
+    await page.getByRole("button", { name: /Acara: Rapat sinkron/ }).click();
+    await page.getByRole("button", { name: "Edit acara" }).click();
+    const reminderRow = page.getByRole("button", { name: "Ubah pengingat" });
+    await reminderRow.click();
+    await page
+      .getByLabel("Pengingat sebelum acara")
+      .selectOption(String(minutes));
+    await reminderRow.click();
+    await expect(reminderRow).toHaveText(
+      minutes === 60 ? "1 jam sebelum acara" : `${minutes} menit sebelum acara`
+    );
+    await reminderRow.click();
+    await expect(page.getByLabel("Pengingat sebelum acara")).toHaveValue(
+      String(minutes)
+    );
+    await page.getByRole("button", { name: "Simpan acara" }).click();
+    await expect
+      .poll(() => mocks.updateRequest)
+      .toEqual({ reminderMinutes: minutes });
+  });
+}

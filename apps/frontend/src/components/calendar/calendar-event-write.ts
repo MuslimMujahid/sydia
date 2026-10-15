@@ -25,6 +25,10 @@ export function changedEventValues(
   values: CalendarEventWriteInput
 ): Partial<CalendarEventWriteInput> {
   const common = {
+    ...(values.reminderMinutes !== undefined &&
+    values.reminderMinutes !== event.reminderMinutes
+      ? { reminderMinutes: values.reminderMinutes }
+      : {}),
     ...(values.recurrence &&
     JSON.stringify(values.recurrence) !== JSON.stringify(event.recurrence)
       ? { recurrence: values.recurrence }

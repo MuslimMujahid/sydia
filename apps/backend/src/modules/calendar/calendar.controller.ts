@@ -47,6 +47,7 @@ import {
 
 type CalendarWriteFields = {
   title?: string;
+  reminderMinutes?: number;
   description?: string | null;
   location?: string | null;
   attendees?: string[];
@@ -65,6 +66,9 @@ function temporalInputError(): ApiException {
 function commonWriteFields(input: CalendarWriteFields) {
   return {
     ...(input.title !== undefined ? { title: input.title } : {}),
+    ...(input.reminderMinutes !== undefined
+      ? { reminderMinutes: input.reminderMinutes }
+      : {}),
     ...(input.description !== undefined
       ? { description: input.description }
       : {}),

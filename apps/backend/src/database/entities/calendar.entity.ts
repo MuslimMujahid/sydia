@@ -16,6 +16,7 @@ export type CalendarEvent = Pick<
   | 'title'
   | 'description'
   | 'location'
+  | 'reminderMinutes'
   | 'startAt'
   | 'endAt'
   | 'timezone'
@@ -50,6 +51,7 @@ export type CalendarEventForRead = CalendarEvent & {
 
 type CalendarEventCommonWrite = {
   title: string;
+  reminderMinutes?: number;
   description?: string | null;
   location?: string | null;
   recurrence?: string[];

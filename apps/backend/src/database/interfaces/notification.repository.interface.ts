@@ -6,6 +6,11 @@ import type {
 } from '../entities';
 
 export interface INotificationRepository {
+  rearmEventReminder(
+    userId: string,
+    id: string,
+    content: string,
+  ): Promise<NotificationDelivery | null>;
   findDeliveryByIdempotencyKey(
     userId: string,
     idempotencyKey: string,

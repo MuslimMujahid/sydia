@@ -4,6 +4,8 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { AppModule } from './app.module';
+import { processCalendarReminderJob } from './modules/notifications/calendar-reminder-job.processor';
+import { CalendarReminderService } from './modules/calendar/calendar-reminder.service';
 import { processReminderJob } from './modules/reminders/reminder-job.processor';
 import {
   REMINDER_REPOSITORY,
@@ -18,6 +20,7 @@ import {
   type DailyNoteIndexJob,
   type FollowUpJob,
   type CalendarSyncJob,
+  type CalendarReminderJob,
   type MemoryDreamJob,
   type MemoryDeliveryJob,
   type MemoryIngestionJob,
@@ -60,6 +63,7 @@ async function bootstrap(): Promise<void> {
   const composer = context.get(NotificationComposerService);
   const scheduler = context.get(ProactiveSchedulerService);
   const calendarSync = context.get(CalendarSyncService);
+  const calendarReminders = context.get(CalendarReminderService);
   const connection = {
     url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
   };
@@ -72,6 +76,29 @@ async function bootstrap(): Promise<void> {
         job.data,
       ),
     { connection },
+  );
+
+  const calendarReminderWorker = new Worker<CalendarReminderJob>(
+    'calendar-reminders',
+    (job) =>
+      processCalendarReminderJob(
+        { calendarReminders, notifications, composer },
+        job.data,
+      ),
+    { connection },
+  );
+
+  calendarReminderWorker.on('failed', (job, error) => {
+    Logger.error(
+      `Event reminder job ${job?.id} failed: ${error.message}`,
+      error.stack,
+      'CalendarReminderWorker',
+    );
+  });
+  await queues.calendarReminders.upsertJobScheduler(
+    'calendar-reminder-sweep',
+    { every: 30_000 },
+    { name: 'sweep', data: { kind: 'sweep' } },
   );
 
   const documentWorker = new Worker<DocumentJob>(
@@ -243,6 +270,7 @@ async function bootstrap(): Promise<void> {
   const close = async () => {
     await Promise.all([
       reminderWorker.close(),
+      calendarReminderWorker.close(),
       documentWorker.close(),
       memoryDreamWorker.close(),
       memoryDeliveryWorker.close(),

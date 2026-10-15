@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  ValidateIf,
   IsBoolean,
   IsDate,
   IsIn,
@@ -27,6 +28,11 @@ export class CreateCalendarEventDto {
   @IsOptional() @Type(() => Date) @IsDate() allDayEndDate?: Date;
   @IsOptional() @IsArray() @IsString({ each: true }) attendees?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) recurrence?: string[];
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsInt()
+  @IsIn([10, 15, 30, 60])
+  reminderMinutes?: number;
+
   @IsOptional() @IsBoolean() createGoogleMeet?: boolean;
   @IsOptional() @IsIn(['auto', 'local', 'google']) destination?:
     'auto' | 'local' | 'google';
@@ -42,6 +48,11 @@ export class UpdateCalendarEventDto {
   @IsOptional() @Type(() => Date) @IsDate() allDayEndDate?: Date;
   @IsOptional() @IsArray() @IsString({ each: true }) attendees?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) recurrence?: string[];
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsInt()
+  @IsIn([10, 15, 30, 60])
+  reminderMinutes?: number;
+
   @IsOptional() @IsBoolean() createGoogleMeet?: boolean;
 }
 

@@ -15,6 +15,7 @@ import type { NormalizedInboundMessage } from '../../shared/messaging';
 import { DocumentService } from '../documents/document.service';
 import { MessagingHandlerService } from '../messaging';
 import { NotificationService } from '../notifications';
+import type { CalendarReminderDispatch } from '../../infra/queue';
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -100,6 +101,8 @@ export class TelegramService implements OnModuleInit {
   }
 
   async deliverNotification(input: {
+    kind?: string;
+    eventReminder?: CalendarReminderDispatch;
     userId: string;
     content: string;
     idempotencyKey: string;
@@ -120,6 +123,20 @@ export class TelegramService implements OnModuleInit {
     }
 
     if (existing.status === 'attempting') return { status: 'in_progress' };
+
+    if (
+      input.kind === 'event_reminder' &&
+      !(await this.notifications.eventReminderIsCurrent(input))
+    ) {
+      await this.notifications.recordOutcome({
+        userId: input.userId,
+        deliveryId: existing.id,
+        status: 'skipped_obsolete',
+        policyOutcome: 'blocked',
+      });
+
+      return { status: 'skipped_obsolete' };
+    }
 
     if (!(await this.notifications.claimDelivery(input.userId, existing.id))) {
       const current = await this.notifications.findByIdempotencyKey(

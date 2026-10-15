@@ -109,3 +109,21 @@ test("a Meet request is sent even when other event fields are unchanged", () => 
     changedEventValues(event(), timedValues({ createGoogleMeet: true }))
   ).toEqual({ createGoogleMeet: true });
 });
+
+test("changing an event reminder sends only the selected lead time", () => {
+  expect(
+    changedEventValues(
+      event({ reminderMinutes: 10 }),
+      timedValues({ reminderMinutes: 30 })
+    )
+  ).toEqual({ reminderMinutes: 30 });
+});
+
+test("an unchanged event reminder is omitted from occurrence overrides", () => {
+  expect(
+    changedEventValues(
+      event({ reminderMinutes: 15 }),
+      timedValues({ reminderMinutes: 15 })
+    )
+  ).toEqual({});
+});

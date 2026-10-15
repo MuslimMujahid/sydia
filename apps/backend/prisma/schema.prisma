@@ -830,6 +830,7 @@ model CalendarBinding {
 }
 
 model CalendarEvent {
+  reminderMinutes                Int?
   id                             String                  @id @default(cuid())
   userId                         String
   provider                       String                  @default("local")

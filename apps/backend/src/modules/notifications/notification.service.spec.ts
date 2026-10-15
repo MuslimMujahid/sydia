@@ -1,3 +1,6 @@
+import { CalendarReminderService } from '../calendar/calendar-reminder.service';
+import { CalendarReadService } from '../calendar/calendar-read.service';
+import type { ICalendarRepository } from '../../database/interfaces';
 import { describe, expect, jest, test } from '@jest/globals';
 import type {
   NotificationDelivery,
@@ -53,10 +56,16 @@ function setup(storedPreferences: UserPreference | null) {
       Promise.resolve(delivery(input.channel as 'telegram' | 'whatsapp')),
     );
 
+  const rearmEventReminder = jest
+    .fn<INotificationRepository['rearmEventReminder']>()
+    .mockResolvedValue({ ...delivery('telegram'), status: 'pending' });
+
+  const getJob = jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined);
   const repository = {
     getPreferences: jest.fn(() => Promise.resolve(storedPreferences)),
     findDeliveryByIdempotencyKey,
     createDelivery,
+    rearmEventReminder,
   } as unknown as INotificationRepository;
 
   type AddNotificationJob = (
@@ -67,13 +76,23 @@ function setup(storedPreferences: UserPreference | null) {
   const whatsappAdd = jest.fn<AddNotificationJob>().mockResolvedValue();
   const telegramAdd = jest.fn<AddNotificationJob>().mockResolvedValue();
   const queues = {
-    whatsappNotifications: { add: whatsappAdd },
-    telegramNotifications: { add: telegramAdd },
+    whatsappNotifications: { add: whatsappAdd, getJob },
+    telegramNotifications: { add: telegramAdd, getJob },
   } as unknown as QueueService;
 
   return {
-    service: new NotificationService(repository, queues),
+    service: new NotificationService(
+      repository,
+      queues,
+      new CalendarReminderService(
+        {} as ICalendarRepository,
+        new CalendarReadService({} as ICalendarRepository),
+        queues,
+      ),
+    ),
     createDelivery,
+    rearmEventReminder,
+    getJob,
     findDeliveryByIdempotencyKey,
     whatsappAdd,
     telegramAdd,
@@ -212,4 +231,110 @@ describe('NotificationService channel routing', () => {
     expect(whatsappAdd).toHaveBeenCalledTimes(1);
     expect(telegramAdd).not.toHaveBeenCalled();
   });
+});
+
+test('an already delivered event reminder is not queued again after its lead time changes', async () => {
+  const { service, telegramAdd, whatsappAdd, findDeliveryByIdempotencyKey } =
+    setup(preferences());
+
+  findDeliveryByIdempotencyKey.mockResolvedValue({
+    ...delivery('telegram'),
+    status: 'delivered',
+  });
+  await service.enqueue({
+    ...intent,
+    kind: 'event_reminder',
+    eventReminder: {
+      kind: 'dispatch',
+      userId: 'user-1',
+      eventId: 'event-1',
+      timezone: 'UTC',
+      startAt: '2026-10-14T09:00:00.000Z',
+      scheduledAt: '2026-10-14T08:30:00.000Z',
+    },
+  });
+  expect(telegramAdd).not.toHaveBeenCalled();
+  expect(whatsappAdd).not.toHaveBeenCalled();
+});
+
+test('an obsolete event alert is rearmed and replaces the completed channel job', async () => {
+  const {
+    service,
+    rearmEventReminder,
+    getJob,
+    telegramAdd,
+    findDeliveryByIdempotencyKey,
+  } = setup(preferences({ whatsappNotificationsEnabled: false }));
+
+  findDeliveryByIdempotencyKey.mockResolvedValue({
+    ...delivery('telegram'),
+    status: 'skipped_obsolete',
+  });
+  const remove = jest.fn<() => Promise<void>>().mockResolvedValue();
+  getJob.mockResolvedValue({
+    getState: () => Promise.resolve('completed'),
+    remove,
+  });
+  await service.enqueue({
+    ...intent,
+    kind: 'event_reminder',
+    eventReminder: {
+      kind: 'dispatch',
+      userId: 'user-1',
+      eventId: 'event-1',
+      timezone: 'UTC',
+      startAt: '2026-10-14T09:00:00.000Z',
+      scheduledAt: '2026-10-14T08:30:00.000Z',
+    },
+  });
+  expect(rearmEventReminder).toHaveBeenCalledWith(
+    'user-1',
+    'delivery-telegram',
+    'Reminder: pay invoice',
+  );
+  expect(remove).toHaveBeenCalledTimes(1);
+  expect(telegramAdd).toHaveBeenCalledWith(
+    'deliver',
+    expect.objectContaining({
+      eventReminder: expect.objectContaining({
+        scheduledAt: '2026-10-14T08:30:00.000Z',
+      }),
+    }),
+    expect.any(Object),
+  );
+});
+
+test('an active channel job makes event dispatch retry instead of losing the updated alert', async () => {
+  const { Logger } = await import('@nestjs/common');
+  const { service, getJob, telegramAdd, findDeliveryByIdempotencyKey } = setup(
+    preferences({ whatsappNotificationsEnabled: false }),
+  );
+
+  findDeliveryByIdempotencyKey.mockResolvedValue(delivery('telegram'));
+  getJob.mockResolvedValue({ getState: () => Promise.resolve('active') });
+  const log = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+  try {
+    await expect(
+      service.enqueue({
+        ...intent,
+        kind: 'event_reminder',
+        eventReminder: {
+          kind: 'dispatch',
+          userId: 'user-1',
+          eventId: 'event-1',
+          timezone: 'UTC',
+          startAt: '2026-10-14T09:00:00.000Z',
+          scheduledAt: '2026-10-14T08:30:00.000Z',
+        },
+      }),
+    ).rejects.toThrow('Event reminder channel job is active');
+    expect(telegramAdd).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('dispatch will retry'),
+      'NotificationService',
+    );
+  } finally {
+    log.mockRestore();
+  }
 });

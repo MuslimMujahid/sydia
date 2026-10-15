@@ -49,6 +49,7 @@ const eventSelect = {
   title: true,
   description: true,
   location: true,
+  reminderMinutes: true,
   startAt: true,
   endAt: true,
   timezone: true,
@@ -76,6 +77,7 @@ const LOCAL_RECURRENCE_OVERRIDE_FIELDS = [
   'description',
   'location',
   'attendees',
+  'reminderMinutes',
   'time',
   'status',
 ] as const;
@@ -279,7 +281,8 @@ function localExceptionOverrideFields(
   );
 
   const compareField = <
-    K extends 'title' | 'description' | 'location' | 'attendees',
+    K extends
+      'title' | 'description' | 'location' | 'attendees' | 'reminderMinutes',
   >(
     field: K,
   ) => {
@@ -293,6 +296,7 @@ function localExceptionOverrideFields(
   compareField('description');
   compareField('location');
   compareField('attendees');
+  compareField('reminderMinutes');
 
   const timeWasWritten =
     input.startAt !== undefined ||
@@ -329,6 +333,9 @@ function projectLocalException(
 
   return {
     ...exception,
+    reminderMinutes: overrides.has('reminderMinutes')
+      ? exception.reminderMinutes
+      : series.reminderMinutes,
     title: overrides.has('title') ? exception.title : series.title,
     description: overrides.has('description')
       ? exception.description
@@ -1394,6 +1401,26 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     });
   }
 
+  async listReminderUsers(
+    afterId: string | null,
+    limit: number,
+  ): Promise<Array<{ id: string; timezone: string }>> {
+    return this.prisma.user.findMany({
+      where: {
+        ...(afterId ? { id: { gt: afterId } } : {}),
+        calendarEvents: {
+          some: {
+            reminderMinutes: { not: null },
+            status: { not: 'cancelled' },
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+      take: limit,
+      select: { id: true, timezone: true },
+    });
+  }
+
   async list(
     userId: string,
     from: Date,
@@ -1777,7 +1804,9 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         return projectLocalException(event(existing), event(series), {
           startAt: input.startAt,
           endAt: input.endAt,
-          timezone: series.timezone ?? 'UTC',
+          timezone: series.allDayStartDate
+            ? series.timezone
+            : (series.timezone ?? 'UTC'),
           allDayStartDate: input.allDayStartDate,
           allDayEndDate: input.allDayEndDate,
         });
@@ -1787,11 +1816,14 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           userId: input.userId,
           provider: 'local',
           title: series.title,
+          reminderMinutes: series.reminderMinutes,
           description: series.description,
           location: series.location,
           startAt: input.startAt,
           endAt: input.endAt,
-          timezone: series.timezone ?? 'UTC',
+          timezone: series.allDayStartDate
+            ? series.timezone
+            : (series.timezone ?? 'UTC'),
           allDayStartDate: input.allDayStartDate,
           allDayEndDate: input.allDayEndDate,
           recurrence: [],
@@ -1874,6 +1906,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         data: {
           userId,
           ...eventInput,
+          reminderMinutes: eventInput.reminderMinutes ?? 10,
           provider: target.binding ? 'google' : 'local',
           syncState: target.binding ? 'pending' : 'local',
           revision: 1,

@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
@@ -37,6 +38,16 @@ export class TelegramNotificationConsumer
       'notifications-telegram',
       async (job) => {
         const result = await this.telegram.deliverNotification(job.data);
+
+        if (job.data.kind === 'event_reminder' && result.status === 'failed') {
+          Logger.warn(
+            `Event reminder delivery ${job.data.idempotencyKey} failed; retrying.`,
+            'EventReminderDelivery',
+          );
+          throw new Error(
+            'Event reminder delivery failed; inspect the notification delivery attempt.',
+          );
+        }
 
         if (result.status === 'delivered' && job.data.reminderOccurrenceKey) {
           await this.reminders.markOccurrenceDelivered(

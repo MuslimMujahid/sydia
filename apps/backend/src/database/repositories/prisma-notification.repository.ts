@@ -79,6 +79,20 @@ export class PrismaNotificationRepository implements INotificationRepository {
     });
   }
 
+  async rearmEventReminder(userId: string, id: string, content: string) {
+    const result = await this.prisma.notificationDelivery.updateMany({
+      where: { id, userId, kind: 'event_reminder', status: 'skipped_obsolete' },
+      data: { status: 'pending', content, policyOutcome: null },
+    });
+
+    return result.count === 1
+      ? this.prisma.notificationDelivery.findUnique({
+          where: { id },
+          select: deliverySelect,
+        })
+      : null;
+  }
+
   async claimDelivery(userId: string, id: string): Promise<boolean> {
     const result = await this.prisma.notificationDelivery.updateMany({
       where: { id, userId, status: { in: ['pending', 'failed'] } },

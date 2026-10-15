@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Bell,
   Clock3,
   LoaderCircle,
   MapPin,
@@ -15,6 +16,7 @@ import {
   fieldErrorMessages,
   FormError,
   TextField,
+  SelectField,
 } from "@/components/forms/form-fields";
 import { TimePicker } from "@/components/forms/time-picker";
 import { Button } from "@/components/ui/button";
@@ -67,6 +69,7 @@ const eventSchema = z
       "Masukkan alamat email peserta yang valid."
     ),
     recurrence: z.array(z.string()),
+    reminderMinutes: z.enum(["10", "15", "30", "60"]),
   })
   .superRefine((value, context) => {
     if (value.isAllDay) {
@@ -159,6 +162,7 @@ export function EventEditor({
   const [expanded, setExpanded] = useState({
     time: false,
     attendees: false,
+    reminder: false,
     location: false,
     description: false,
     meet: false,
@@ -229,11 +233,14 @@ export function EventEditor({
       description: event?.description ?? "",
       attendees: event?.attendees.join(", ") ?? "",
       recurrence: event?.recurrence ?? [],
+      reminderMinutes: String(event?.reminderMinutes ?? 10) as
+        "10" | "15" | "30" | "60",
     },
     validators: { onChange: eventSchema },
     onSubmit: async ({ value }) => {
       const common = {
         title: value.title.trim(),
+        reminderMinutes: Number(value.reminderMinutes),
         recurrence: value.recurrence,
         ...(googleActive && createGoogleMeet !== undefined
           ? { createGoogleMeet }
@@ -686,6 +693,47 @@ export function EventEditor({
               );
             }}
           </form.Subscribe>
+          <form.Field name="reminderMinutes">
+            {(field) => (
+              <EventEditorRow
+                icon={Bell}
+                label="Ubah pengingat"
+                summary={
+                  field.state.value === "60"
+                    ? "1 jam sebelum acara"
+                    : `${field.state.value} menit sebelum acara`
+                }
+                open={expanded.reminder}
+                onToggle={() => toggleRow("reminder")}
+              >
+                <FieldShell
+                  id="event-reminder"
+                  label="Pengingat sebelum acara"
+                  errors={field.state.meta.errors}
+                >
+                  {({ describedBy, invalid }) => (
+                    <SelectField
+                      id="event-reminder"
+                      value={field.state.value}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid}
+                      onBlur={field.handleBlur}
+                      onChange={(change) =>
+                        field.handleChange(
+                          change.target.value as "10" | "15" | "30" | "60"
+                        )
+                      }
+                    >
+                      <option value="10">10 menit sebelumnya</option>
+                      <option value="15">15 menit sebelumnya</option>
+                      <option value="30">30 menit sebelumnya</option>
+                      <option value="60">1 jam sebelumnya</option>
+                    </SelectField>
+                  )}
+                </FieldShell>
+              </EventEditorRow>
+            )}
+          </form.Field>
           <form.Field name="attendees">
             {(field) => (
               <EventEditorRow

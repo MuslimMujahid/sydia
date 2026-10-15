@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { renderTemplate } from './notification-templates';
 import { localeOf } from '../../shared/locale';
 import {
@@ -6,7 +6,7 @@ import {
   type IUserRepository,
   type ReminderDelivery,
 } from '../../database/interfaces';
-import type { Task, User } from '../../database/entities';
+import type { Task, User, CalendarEvent } from '../../database/entities';
 import { REMINDER_TEMPLATES } from './reminder.templates';
 import {
   notificationTaskRow,
@@ -38,6 +38,34 @@ export class NotificationComposerService {
       title: reminder.title,
       notes: reminder.notes,
       time: reminder.scheduledAt,
+    });
+  }
+
+  async eventReminderBody(
+    userId: string,
+    event: CalendarEvent,
+    startAt: Date,
+  ): Promise<string> {
+    const user = await this.users.findById(userId);
+
+    if (!user) {
+      Logger.error(
+        `Cannot compose event reminder: user ${userId} is missing.`,
+        NotificationComposerService.name,
+      );
+      throw new Error('Event reminder owner is missing.');
+    }
+
+    const locale = localeOf(user.locale);
+
+    return renderTemplate(REMINDER_TEMPLATES[locale], {
+      locale,
+      timezone: event.timezone ?? user.timezone,
+      title: event.title,
+      time: startAt,
+      notes:
+        [event.location, event.googleMeetUrl].filter(Boolean).join('\n') ||
+        null,
     });
   }
 

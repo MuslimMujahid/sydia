@@ -1,10 +1,15 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import {
   NOTIFICATION_REPOSITORY,
   type INotificationRepository,
 } from '../../database/interfaces';
-import { QueueService, type NotificationChannel } from '../../infra/queue';
+import {
+  QueueService,
+  type NotificationChannel,
+  type CalendarReminderDispatch,
+} from '../../infra/queue';
+import { CalendarReminderService } from '../calendar/calendar-reminder.service';
 import type { NotificationDelivery } from '../../database/entities';
 
 export type NotificationIntent = {
@@ -18,6 +23,7 @@ export type NotificationIntent = {
   sourceId?: string;
   reminderOccurrenceId?: string;
   reminderOccurrenceKey?: string;
+  eventReminder?: CalendarReminderDispatch;
 };
 
 export type NotificationEnqueueResult = {
@@ -32,6 +38,7 @@ export class NotificationService {
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly notifications: INotificationRepository,
     private readonly queue: QueueService,
+    private readonly calendarReminders: CalendarReminderService,
   ) {}
 
   async enqueue(input: NotificationIntent): Promise<NotificationEnqueueResult> {
@@ -65,7 +72,7 @@ export class NotificationService {
     input: NotificationIntent,
     channel: NotificationChannel,
   ): Promise<{ delivery: NotificationDelivery; replayed: boolean }> {
-    const existing = await this.notifications.findDeliveryByIdempotencyKey(
+    let existing = await this.notifications.findDeliveryByIdempotencyKey(
       input.userId,
       input.idempotencyKey,
       channel,
@@ -77,6 +84,16 @@ export class NotificationService {
       : input.content;
 
     const job = { ...intent, content, channel };
+
+    if (existing?.status === 'skipped_obsolete' && input.eventReminder) {
+      const rearmed = await this.notifications.rearmEventReminder(
+        input.userId,
+        existing.id,
+        content,
+      );
+
+      if (rearmed) existing = rearmed;
+    }
 
     if (existing) {
       if (existing.status !== 'delivered') {
@@ -102,7 +119,7 @@ export class NotificationService {
     return { delivery, replayed: false };
   }
 
-  private queueIntent(
+  private async queueIntent(
     input: NotificationIntent & {
       channel: NotificationChannel;
     },
@@ -112,13 +129,55 @@ export class NotificationService {
         ? this.queue.telegramNotifications
         : this.queue.whatsappNotifications;
 
+    const jobId = createHash('sha256')
+      .update(JSON.stringify([input.userId, input.idempotencyKey]))
+      .digest('hex');
+
+    if (input.eventReminder) {
+      const existing = await queue.getJob(jobId);
+
+      if (existing) {
+        const state = await existing.getState();
+
+        if (state === 'active') {
+          Logger.warn(
+            'Event reminder channel job is active; dispatch will retry.',
+            NotificationService.name,
+          );
+          throw new Error(
+            'Event reminder channel job is active. Retry after its current attempt.',
+          );
+        }
+
+        if (state === 'completed' || state === 'failed')
+          await existing.remove();
+        else if (state === 'waiting' || state === 'delayed')
+          await existing.updateData(input);
+      }
+    }
+
     return queue.add('deliver', input, {
       // Queue IDs are global to a channel; delivery keys are scoped to a user.
       // Hash the tuple to preserve that scope without BullMQ's forbidden ':'.
-      jobId: createHash('sha256')
-        .update(JSON.stringify([input.userId, input.idempotencyKey]))
-        .digest('hex'),
+      jobId,
     });
+  }
+
+  async eventReminderIsCurrent(input: {
+    kind?: string;
+    eventReminder?: CalendarReminderDispatch;
+  }): Promise<boolean> {
+    if (input.kind !== 'event_reminder') return true;
+
+    if (!input.eventReminder) {
+      Logger.error(
+        'Event reminder notification is missing its occurrence.',
+        NotificationService.name,
+      );
+      throw new Error('Event reminder notification is missing its occurrence.');
+    }
+
+    return (await this.calendarReminders.resolve(input.eventReminder)) !== null;
   }
 
   async findByIdempotencyKey(

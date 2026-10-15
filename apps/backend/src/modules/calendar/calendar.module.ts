@@ -7,6 +7,7 @@ import {
   GoogleCalendarCallbackController,
   GoogleCalendarWebhookController,
 } from './calendar.controller';
+import { CalendarReminderService } from './calendar-reminder.service';
 import { CalendarService } from './calendar.service';
 import { CalendarReadService } from './calendar-read.service';
 import { CalendarOAuthService } from './calendar-oauth.service';
@@ -23,6 +24,7 @@ import { CalendarSyncService } from './calendar-sync.service';
     { provide: CALENDAR_REPOSITORY, useClass: PrismaCalendarRepository },
     CalendarService,
     CalendarReadService,
+    CalendarReminderService,
     CalendarOAuthService,
     CalendarSyncService,
   ],
@@ -30,6 +32,7 @@ import { CalendarSyncService } from './calendar-sync.service';
     CALENDAR_REPOSITORY,
     CalendarService,
     CalendarReadService,
+    CalendarReminderService,
     CalendarSyncService,
     CalendarProviderModule,
   ],

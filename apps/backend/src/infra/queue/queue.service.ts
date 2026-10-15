@@ -2,6 +2,15 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 
+export type CalendarReminderDispatch = {
+  kind: 'dispatch';
+  userId: string;
+  eventId: string;
+  startAt: string;
+  scheduledAt: string;
+  timezone: string;
+};
+export type CalendarReminderJob = { kind: 'sweep' } | CalendarReminderDispatch;
 export type ReminderJob = {
   reminderId: string;
   idempotencyKey: string;
@@ -30,6 +39,7 @@ export type NotificationJob = {
   idempotencyKey: string;
   channel: NotificationChannel;
   reminderOccurrenceKey?: string;
+  eventReminder?: CalendarReminderDispatch;
   proactive: boolean;
   sourceId?: string;
   reminderOccurrenceId?: string;
@@ -59,6 +69,7 @@ export class QueueService implements OnModuleDestroy {
   readonly followUps: Queue<FollowUpJob>;
   readonly dailyNoteIndexes: Queue<DailyNoteIndexJob>;
   readonly calendarSync: Queue<CalendarSyncJob>;
+  readonly calendarReminders: Queue<CalendarReminderJob>;
   constructor(config: ConfigService) {
     const connection = {
       url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
@@ -118,6 +129,10 @@ export class QueueService implements OnModuleDestroy {
       connection,
       defaultJobOptions,
     });
+    this.calendarReminders = new Queue<CalendarReminderJob>(
+      'calendar-reminders',
+      { connection, defaultJobOptions },
+    );
     this.calendarSync = new Queue<CalendarSyncJob>('calendar-sync', {
       connection,
       defaultJobOptions: {
@@ -142,6 +157,7 @@ export class QueueService implements OnModuleDestroy {
       this.followUps.close(),
       this.dailyNoteIndexes.close(),
       this.calendarSync.close(),
+      this.calendarReminders.close(),
     ]);
   }
 }

@@ -44,6 +44,10 @@ export type CalendarRequestFence =
     };
 
 export interface ICalendarRepository {
+  listReminderUsers(
+    afterId: string | null,
+    limit: number,
+  ): Promise<Array<{ id: string; timezone: string }>>;
   canSendCalendarRequest(
     fence: CalendarRequestFence,
     minimumRemainingMs: number,
