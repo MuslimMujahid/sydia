@@ -16,6 +16,7 @@ export type PublicUserPreferences = {
   preferredAddress: string | null;
   briefingEnabled: boolean;
   briefingTime: string;
+  followUpIntervalMinutes: number;
   webNotificationsEnabled: boolean;
   telegramNotificationsEnabled: boolean;
   whatsappNotificationsEnabled: boolean;
@@ -39,6 +40,7 @@ function normalizePreferredAddress(
 const defaults = {
   briefingEnabled: true,
   briefingTime: '08:00',
+  followUpIntervalMinutes: 60,
   webNotificationsEnabled: true,
   telegramNotificationsEnabled: true,
   whatsappNotificationsEnabled: true,
@@ -126,6 +128,8 @@ export class UserPreferencesService {
       preferredAddress: user.preferredAddress,
       briefingEnabled: stored?.briefingEnabled ?? defaults.briefingEnabled,
       briefingTime: stored?.briefingTime ?? defaults.briefingTime,
+      followUpIntervalMinutes:
+        stored?.followUpIntervalMinutes ?? defaults.followUpIntervalMinutes,
       webNotificationsEnabled:
         stored?.webNotificationsEnabled ?? defaults.webNotificationsEnabled,
       telegramNotificationsEnabled:

@@ -70,6 +70,7 @@ export type NotificationSchedulingTarget = {
   timezone: string;
   briefingEnabled: boolean;
   briefingTime: string | null;
+  followUpIntervalMinutes: number;
   /** False when every delivery channel is off, so a sweep can skip the work. */
   notifiable: boolean;
 };

@@ -8,6 +8,7 @@ export default defineConfig({
     "chat-previews.spec.ts",
     "dev-toolbar.spec.ts",
     "calendar-sync.spec.ts",
+    "notification-settings.spec.ts",
   ],
   fullyParallel: true,
   retries: 0,

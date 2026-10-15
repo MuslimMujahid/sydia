@@ -31,6 +31,7 @@ function setup(
   environment: string,
   briefingEnabled = true,
   channelsEnabled = true,
+  followUpIntervalMinutes = 60,
 ) {
   const owner: User = {
     id: 'owner',
@@ -81,6 +82,7 @@ function setup(
         userId: 'owner',
         briefingEnabled,
         briefingTime: '08:00',
+        followUpIntervalMinutes,
         webNotificationsEnabled: true,
         telegramNotificationsEnabled: channelsEnabled,
         whatsappNotificationsEnabled: channelsEnabled,
@@ -379,3 +381,49 @@ describe('manual development notifications', () => {
     expect(add).not.toHaveBeenCalled();
   });
 });
+
+test.each([
+  [30, '2026-10-09T02:30:00Z', '2026-10-09-30-20', '2026-10-09-30-21'],
+  [60, '2026-10-09T03:00:00Z', '2026-10-09-60-10', '2026-10-09-60-11'],
+  [120, '2026-10-09T04:00:00Z', '2026-10-09-120-5', '2026-10-09-120-6'],
+  [180, '2026-10-09T04:00:00Z', '2026-10-09-180-3', '2026-10-09-180-4'],
+])(
+  'scheduled follow-ups use a fresh delivery key each %i minutes',
+  async (interval, next, currentKey, nextKey) => {
+    const { followUps, createDelivery, listTasks } = setup(
+      'development',
+      true,
+      true,
+      Number(interval),
+    );
+
+    listTasks.mockResolvedValue([
+      {
+        id: 'overdue',
+        title: 'Pay invoice',
+        description: null,
+        status: 'inbox',
+        priority: 'medium',
+        dueAt: new Date('2026-10-08T02:00:00Z'),
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        categories: [],
+        source: { type: 'dashboard', label: null, messageId: null },
+      },
+    ]);
+    await followUps.run('owner', now);
+    await followUps.run('owner', new Date('2026-10-09T02:05:00Z'));
+    await followUps.run('owner', new Date(next));
+    expect(
+      createDelivery.mock.calls.map(([input]) => input.idempotencyKey),
+    ).toEqual([
+      `follow-up:${currentKey}`,
+      `follow-up:${currentKey}`,
+      `follow-up:${currentKey}`,
+      `follow-up:${currentKey}`,
+      `follow-up:${nextKey}`,
+      `follow-up:${nextKey}`,
+    ]);
+  },
+);

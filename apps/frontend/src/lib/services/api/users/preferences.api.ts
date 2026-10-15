@@ -19,6 +19,7 @@ export type UserPreferences = {
   preferredAddress: string | null;
   briefingEnabled: boolean;
   briefingTime: string;
+  followUpIntervalMinutes: 30 | 60 | 120 | 180;
   webNotificationsEnabled: boolean;
   telegramNotificationsEnabled: boolean;
   whatsappNotificationsEnabled: boolean;

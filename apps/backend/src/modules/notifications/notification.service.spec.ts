@@ -36,6 +36,7 @@ function preferences(input: Partial<UserPreference> = {}): UserPreference {
     userId: 'user-1',
     briefingEnabled: true,
     briefingTime: '08:00',
+    followUpIntervalMinutes: 60,
     webNotificationsEnabled: true,
     telegramNotificationsEnabled: true,
     whatsappNotificationsEnabled: true,

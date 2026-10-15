@@ -1,3 +1,4 @@
+import { followUpIntervalKey } from './follow-up-interval';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   NOTIFICATION_REPOSITORY,
@@ -236,7 +237,14 @@ export class FollowUpService {
     if (!user)
       return { status: 'skipped_user_missing' as const, deliveries: [] };
 
-    const window = dayWindow(now, user.timezone);
+    const preferences = await this.notifications.getPreferences(userId);
+    // Users without a preference row use the same default as settings and DB.
+    const intervalKey = followUpIntervalKey(
+      now,
+      user.timezone,
+      preferences?.followUpIntervalMinutes ?? 60,
+    );
+
     const [todayTasks, overdueTasks] = await Promise.all([
       this.tasks.list(userId, {
         status: ['inbox'],
@@ -268,9 +276,9 @@ export class FollowUpService {
       contentByChannel,
       idempotencyKey: requestId
         ? `dev-follow-up:${requestId}`
-        : `follow-up:${window.date}`,
+        : `follow-up:${intervalKey}`,
       proactive: true,
-      sourceId: window.date,
+      sourceId: intervalKey,
     });
 
     const deliveries = result.deliveries;

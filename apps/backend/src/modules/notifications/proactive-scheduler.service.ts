@@ -7,12 +7,11 @@ import {
 } from '../../database/interfaces';
 import { QueueService } from '../../infra/queue';
 import { dayWindow, isDueInWindow } from '../../shared/date-time';
+import { followUpIntervalKey } from './follow-up-interval';
 
 const DEFAULT_BRIEFING_TIME = '08:00';
 const DEFAULT_SWEEP_MINUTES = 5;
 const DEFAULT_WINDOW_MINUTES = 30;
-/** Follow-ups land in the morning, after the briefing window has closed. */
-const DEFAULT_FOLLOW_UP_TIME = '09:00';
 export type SweepOutcome = {
   kind: 'briefing' | 'follow_up';
   considered: number;
@@ -33,7 +32,6 @@ export class ProactiveSchedulerService {
   private readonly logger = new Logger(ProactiveSchedulerService.name);
   private readonly sweepMs: number;
   private readonly windowMinutes: number;
-  private readonly followUpTime: string;
 
   constructor(
     @Inject(NOTIFICATION_REPOSITORY)
@@ -50,10 +48,6 @@ export class ProactiveSchedulerService {
     this.windowMinutes = config.get<number>(
       'BACKEND_PROACTIVE_WINDOW_MINUTES',
       DEFAULT_WINDOW_MINUTES,
-    );
-    this.followUpTime = config.get<string>(
-      'BACKEND_PROACTIVE_FOLLOW_UP_TIME',
-      DEFAULT_FOLLOW_UP_TIME,
     );
   }
 
@@ -86,12 +80,7 @@ export class ProactiveSchedulerService {
 
   async sweepFollowUps(now = new Date()): Promise<SweepOutcome> {
     return this.sweep('follow_up', now, (target) => ({
-      due: isDueInWindow(
-        now,
-        target.timezone,
-        this.followUpTime,
-        this.windowMinutes,
-      ),
+      due: isDueInWindow(now, target.timezone, '08:00', 14 * 60),
       enabled: true,
     }));
   }
@@ -119,14 +108,19 @@ export class ProactiveSchedulerService {
         continue;
       }
 
-      const date = dayWindow(now, target.timezone).date;
-      const jobId = `${kind}-${target.userId}-${date}`;
+      const period =
+        kind === 'briefing'
+          ? dayWindow(now, target.timezone).date
+          : followUpIntervalKey(
+              now,
+              target.timezone,
+              target.followUpIntervalMinutes,
+            );
 
-      // One dispatch per user per day. A day-scoped job id expresses exactly
-      // that: it stays reserved after the job finishes, so every later tick in
-      // the same window is a no-op, and tomorrow's date mints a fresh id.
-      // Retrying a failed send is the queue's concern (attempts with backoff),
-      // not the sweep's — re-dispatching here would re-run the generation.
+      const jobId = `${kind}-${target.userId}-${period}`;
+
+      // Retain the job identity for the whole period so repeated sweeps and
+      // retries cannot dispatch the same briefing or follow-up twice.
       if (await queue.getJob(jobId)) {
         skipped += 1;
         continue;

@@ -44,6 +44,7 @@ export type UserPreference = Pick<
   | 'userId'
   | 'briefingEnabled'
   | 'briefingTime'
+  | 'followUpIntervalMinutes'
   | 'webNotificationsEnabled'
   | 'telegramNotificationsEnabled'
   | 'whatsappNotificationsEnabled'

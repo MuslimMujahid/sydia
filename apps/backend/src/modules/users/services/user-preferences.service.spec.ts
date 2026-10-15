@@ -12,6 +12,7 @@ const storedPreference: UserPreference = {
   userId: 'user-1',
   briefingEnabled: true,
   briefingTime: '09:30',
+  followUpIntervalMinutes: 60,
   webNotificationsEnabled: true,
   telegramNotificationsEnabled: true,
   whatsappNotificationsEnabled: false,
@@ -76,6 +77,7 @@ describe('UserPreferencesService', () => {
       preferredAddress: null,
       briefingEnabled: true,
       briefingTime: '09:30',
+      followUpIntervalMinutes: 60,
       webNotificationsEnabled: true,
       telegramNotificationsEnabled: true,
       whatsappNotificationsEnabled: false,
@@ -197,4 +199,30 @@ describe('UserPreferencesService', () => {
     expect(updateUser).toHaveBeenCalledWith({ preferredAddress: null });
     expect(result?.preferredAddress).toBeNull();
   });
+});
+
+test('defaults follow-ups to one hour when no preference row exists', async () => {
+  const { repository } = createRepository(null);
+  expect(
+    (await new UserPreferencesService(repository).get(user))
+      .followUpIntervalMinutes,
+  ).toBe(60);
+});
+
+test('persists and returns the selected follow-up interval', async () => {
+  const { repository, savePreferences } = createRepository();
+  savePreferences.mockResolvedValue({
+    ...storedPreference,
+    followUpIntervalMinutes: 120,
+  });
+  const result = await new UserPreferencesService(repository).update(
+    user,
+    { followUpIntervalMinutes: 120 },
+    () => Promise.resolve(user),
+  );
+
+  expect(savePreferences).toHaveBeenCalledWith('user-1', {
+    followUpIntervalMinutes: 120,
+  });
+  expect(result?.followUpIntervalMinutes).toBe(120);
 });

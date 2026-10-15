@@ -42,6 +42,10 @@ export class UpdateUserPreferencesDto {
   briefingTime?: string;
 
   @IsOptional()
+  @IsIn([30, 60, 120, 180])
+  followUpIntervalMinutes?: number;
+
+  @IsOptional()
   @IsBoolean()
   webNotificationsEnabled?: boolean;
 

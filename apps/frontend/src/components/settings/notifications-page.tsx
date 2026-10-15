@@ -184,6 +184,45 @@ export function NotificationSettingsPage() {
               ) : null}
             </div>
           </Card>
+          <Card className="p-6 sm:p-8" aria-label="Tindak lanjut tugas">
+            <label
+              htmlFor="follow-up-interval"
+              className="block font-sans text-[15px] font-semibold text-ink"
+            >
+              Pengingat tugas terlawat
+            </label>
+            <p
+              id="follow-up-description"
+              className="mt-1.5 max-w-xl text-sm text-ink-muted"
+            >
+              Kirim pengingat tugas setiap interval yang dipilih. Tidak ada
+              pengiriman antara pukul 22.00–08.00.
+            </p>
+            <select
+              id="follow-up-interval"
+              aria-describedby="follow-up-description"
+              className="mt-3 h-11 rounded-sm border border-ink/16 bg-canvas px-3 text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:bg-ink/4 disabled:opacity-40"
+              value={preferences.followUpIntervalMinutes}
+              disabled={controlsDisabled}
+              onChange={(event) => {
+                const minutes = Number(event.target.value);
+
+                if (
+                  minutes === 30 ||
+                  minutes === 60 ||
+                  minutes === 120 ||
+                  minutes === 180
+                ) {
+                  updateMutation.mutate({ followUpIntervalMinutes: minutes });
+                }
+              }}
+            >
+              <option value={30}>30 Menit</option>
+              <option value={60}>1 Jam</option>
+              <option value={120}>2 Jam</option>
+              <option value={180}>3 Jam</option>
+            </select>
+          </Card>
           <Card className="p-6 sm:p-8" aria-label="Briefing harian">
             <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
               Briefing harian

@@ -42,6 +42,7 @@ const preferenceSelect = {
   userId: true,
   briefingEnabled: true,
   briefingTime: true,
+  followUpIntervalMinutes: true,
   webNotificationsEnabled: true,
   telegramNotificationsEnabled: true,
   whatsappNotificationsEnabled: true,
@@ -173,6 +174,8 @@ export class PrismaNotificationRepository implements INotificationRepository {
       timezone: row.timezone,
       briefingEnabled: row.userPreference?.briefingEnabled ?? true,
       briefingTime: row.userPreference?.briefingTime ?? null,
+      followUpIntervalMinutes:
+        row.userPreference?.followUpIntervalMinutes ?? 60,
       notifiable:
         (row.userPreference?.telegramNotificationsEnabled ?? true) ||
         (row.userPreference?.whatsappNotificationsEnabled ?? true),
