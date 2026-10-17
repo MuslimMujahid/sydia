@@ -406,6 +406,24 @@ describe('ContextBuilderService recent conversations', () => {
 });
 
 describe('ContextBuilderService system policy', () => {
+  it('keeps referenced item scope narrower than additional lookup results', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+    );
+
+    expect(messages[0]?.content).toContain('scope actions to those items');
+    expect(messages[0]?.content).toContain(
+      'A selected quote narrows that scope further.',
+    );
+    expect(messages[0]?.content).toContain(
+      'Additional items returned by a lookup are not part of the request unless the user explicitly includes them.',
+    );
+    expect(messages[0]?.content).toContain(
+      'ask for clarification before making changes',
+    );
+  });
+
   it('defines global tool-routing and output-handling rules', async () => {
     const { messages, tokenUsage } = await createBuilder(10_000).build(
       user,

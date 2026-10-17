@@ -5,9 +5,11 @@ import type { User, SupportedLocale } from '../../database/entities';
 import {
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
+  NOTIFICATION_REPOSITORY,
   type ClaimedChannelTurns,
   type IConversationRepository,
   type IUserRepository,
+  type INotificationRepository,
 } from '../../database/interfaces';
 import type {
   MessageProvider,
@@ -22,6 +24,8 @@ const CHANNEL_MESSAGES = {
     newConversation: 'Percakapan baru dimulai.',
     unavailable: 'Provider atau pengguna tidak tersedia.',
     processingFailed: 'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
+    missingReference:
+      'Isi pesan yang Anda balas tidak dapat dibaca. Kirim ulang isinya atau sebutkan tugas atau item yang Anda maksud.',
     documentPending:
       'Dokumen masih diproses di latar belakang. Periksa statusnya di perpustakaan file sebelum mengunggah ulang.',
   },
@@ -31,6 +35,8 @@ const CHANNEL_MESSAGES = {
     unavailable: 'The provider or user is unavailable.',
     processingFailed:
       'Sorry, your message could not be processed. Please try again.',
+    missingReference:
+      'I cannot read the message you replied to. Please resend its content or name the tasks or items you mean.',
     documentPending:
       'Your document is still processing in the background. Check its status in your file library before uploading it again.',
   },
@@ -84,6 +90,8 @@ export class MessagingHandlerService implements OnModuleDestroy {
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversations: IConversationRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
+    @Inject(NOTIFICATION_REPOSITORY)
+    private readonly notifications: INotificationRepository,
   ) {}
 
   onModuleDestroy(): void {
@@ -287,13 +295,39 @@ export class MessagingHandlerService implements OnModuleDestroy {
         ),
       );
 
-      const messages = batch.turns.map(({ message }, index) => ({
-        message: message.message,
-        content: prepared[index]?.content ?? '',
-        attachmentIds: prepared[index]?.attachmentIds,
-      }));
+      const messages = await Promise.all(
+        batch.turns.map(async ({ message }, index) => ({
+          message: await this.resolveReply(batch.userId, message.message),
+          content: prepared[index]?.content ?? '',
+          attachmentIds: prepared[index]?.attachmentIds,
+        })),
+      );
 
       const last = messages.at(-1)!;
+      // An unresolved reference must never become a request about all entities.
+      const unresolved = messages.find(
+        ({ message }) =>
+          message.replyTo &&
+          !message.replyTo.text.trim() &&
+          !message.replyTo.quoteText?.trim(),
+      );
+
+      if (unresolved) {
+        await toolsReady;
+        if (controller.signal.aborted) throw controller.signal.reason;
+        stopProcessing?.();
+        stopProcessing = undefined;
+        await adapter.send(
+          user,
+          batch.externalIdentityId,
+          unresolved.message,
+          channelMessages(user.locale).missingReference,
+        );
+        await this.conversations.completeChannelTurns(turnIds, new Date());
+
+        return;
+      }
+
       // Keep each reference beside its own message when coalescing a burst.
       // Serialize quoted content as data, never as another assistant turn.
       const content = messages
@@ -411,6 +445,37 @@ export class MessagingHandlerService implements OnModuleDestroy {
       clearInterval(monitor);
       turnIds.forEach((id) => this.abortControllers.delete(id));
     }
+  }
+
+  private async resolveReply(
+    userId: string,
+    message: NormalizedInboundMessage,
+  ): Promise<NormalizedInboundMessage> {
+    const reply = message.replyTo;
+    if (!reply || reply.text.trim() || reply.quoteText?.trim()) return message;
+
+    this.logger.warn(
+      `Referenced message unavailable from provider: provider=${message.provider} messageId=${reply.providerMessageId}`,
+    );
+
+    if (reply.isFromMe) {
+      const delivery = await this.notifications.findDeliveryByProviderMessageId(
+        userId,
+        message.provider,
+        reply.providerMessageId,
+      );
+
+      if (delivery?.content.trim()) {
+        this.logger.log(
+          `Recovered referenced notification: provider=${message.provider} messageId=${reply.providerMessageId}`,
+        );
+
+        return { ...message, replyTo: { ...reply, text: delivery.content } };
+      }
+    }
+
+    // The caller surfaces missingReference and skips the assistant for this batch.
+    return message;
   }
 
   private async sendFor(

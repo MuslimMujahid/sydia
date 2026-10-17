@@ -1,12 +1,101 @@
 import { jest } from '@jest/globals';
 import { Api } from 'grammy';
 import type { Context } from 'grammy';
+import type { RichMessage } from 'grammy/types';
 import {
   TelegramInboundAdapter,
   TelegramOutboundAdapter,
 } from './telegram.adapter';
 
+const taskBrief: RichMessage = {
+  blocks: [
+    { type: 'paragraph', text: 'Tugas yang perlu ditindaklanjuti (3).' },
+    {
+      type: 'list',
+      items: [
+        {
+          label: '•',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: { type: 'bold', text: 'Review kerjaan kemarin' },
+            },
+          ],
+        },
+        {
+          label: '•',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: [
+                { type: 'bold', text: 'Membaca bab pertama' },
+                ' — Tenggat 15 Okt 2026, 18.00',
+              ],
+            },
+          ],
+        },
+        {
+          label: '•',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: { type: 'bold', text: 'Menyiapkan bahan presentasi' },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 describe('Telegram message adapters', () => {
+  it('preserves all three task titles from a replied-to rich notification', () => {
+    const context = {
+      me: { id: 99 },
+      update: { update_id: 7 },
+      from: { id: 123 },
+      msg: {
+        message_id: 142,
+        date: 1_780_000_000,
+        chat: { id: 123, type: 'private' },
+        text: 'Tandai semua tugas ini selesai',
+        reply_to_message: {
+          message_id: 139,
+          from: { id: 99 },
+          rich_message: taskBrief,
+        },
+      },
+    } as unknown as Context;
+
+    expect(new TelegramInboundAdapter().normalize(context)?.replyTo).toEqual({
+      providerMessageId: '123:139',
+      text: 'Tugas yang perlu ditindaklanjuti (3).\n• Review kerjaan kemarin\n• Membaca bab pertama — Tenggat 15 Okt 2026, 18.00\n• Menyiapkan bahan presentasi',
+      isFromMe: true,
+      quoteText: undefined,
+    });
+  });
+
+  it('accepts a rich current message as text', () => {
+    const context = {
+      me: { id: 99 },
+      update: { update_id: 7 },
+      from: { id: 123 },
+      msg: {
+        message_id: 142,
+        date: 1_780_000_000,
+        chat: { id: 123, type: 'private' },
+        rich_message: {
+          blocks: [{ type: 'paragraph', text: 'Tandai tugas ini selesai' }],
+        },
+      },
+    } as unknown as Context;
+
+    expect(new TelegramInboundAdapter().normalize(context)).toMatchObject({
+      text: 'Tandai tugas ini selesai',
+      kind: 'text',
+    });
+  });
+
   it.each([
     [
       'text',

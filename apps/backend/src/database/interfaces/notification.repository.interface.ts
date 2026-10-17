@@ -6,6 +6,11 @@ import type {
 } from '../entities';
 
 export interface INotificationRepository {
+  findDeliveryByProviderMessageId(
+    userId: string,
+    channel: string,
+    providerMessageId: string,
+  ): Promise<NotificationDelivery | null>;
   rearmEventReminder(
     userId: string,
     id: string,

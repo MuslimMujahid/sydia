@@ -2,6 +2,33 @@ import { expect, jest, test } from '@jest/globals';
 import type { PrismaService } from '../../infra/prisma';
 import { PrismaNotificationRepository } from './prisma-notification.repository';
 
+test('reply recovery only reads a delivered notification for the matching owner, channel and message', async () => {
+  const findFirst = jest
+    .fn<(input: unknown) => Promise<unknown>>()
+    .mockResolvedValue({ content: 'Three tasks' });
+
+  const repository = new PrismaNotificationRepository({
+    notificationDelivery: { findFirst },
+  } as unknown as PrismaService);
+
+  expect(
+    await repository.findDeliveryByProviderMessageId(
+      'user-1',
+      'telegram',
+      'chat-1:139',
+    ),
+  ).toEqual({ content: 'Three tasks' });
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      userId: 'user-1',
+      channel: 'telegram',
+      providerMessageId: 'chat-1:139',
+      status: 'delivered',
+    },
+    select: expect.objectContaining({ content: true }),
+  });
+});
+
 function setup(count: number) {
   const updateMany = jest
     .fn<(input: unknown) => Promise<{ count: number }>>()

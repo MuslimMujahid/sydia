@@ -93,6 +93,29 @@ Run the delivery worker from `apps/backend`:
 NODE_ENV=development bun run dev:worker
 ```
 
+## Replies to Telegram task lists
+
+Telegram replies preserve visible text from rich message blocks, including list
+items and nested formatting. If Telegram supplies an empty reference to a bot
+notification, the handler looks up its saved delivery by owner, channel, and
+provider message ID and logs the recovery. If neither that content nor a selected
+quote is available, it logs a warning and asks the user to resend the content or
+name the items. The entire coalesced batch stops before invoking the assistant;
+no task mutations run with an unresolved reference. Notification lookup failures
+use the normal logged processing error path.
+
+The `/chats` composer does not simulate native reply metadata. Verify this path
+with the adapter and messaging tests, plus the opt-in synthetic model test from
+`apps/backend` (all tasks stay in memory; no Telegram messages are sent):
+
+```sh
+node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --runInBand src/infra/telegram src/modules/messaging src/modules/conversations/services/context-builder.service.spec.ts src/database/repositories/prisma-notification.repository.spec.ts
+REPLY_SCOPE_LIVE_ENABLED=true node --env-file=../../.env --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --runInBand test/messaging/reply-scope.live.spec.ts
+```
+
+This checks the three referenced tasks against a fourth unrelated open task,
+selected quote scope, and an explicit request to complete every open task.
+
 A queued result confirms queue acceptance, not actual delivery. Each deliberate
 send receives a distinct request key; retrying a failed send of the same kind
 reuses its key to avoid duplicate delivery.

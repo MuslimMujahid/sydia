@@ -55,6 +55,17 @@ const preferenceSelect = {
 @Injectable()
 export class PrismaNotificationRepository implements INotificationRepository {
   constructor(private readonly prisma: PrismaService) {}
+  findDeliveryByProviderMessageId(
+    userId: string,
+    channel: string,
+    providerMessageId: string,
+  ) {
+    return this.prisma.notificationDelivery.findFirst({
+      where: { userId, channel, providerMessageId, status: 'delivered' },
+      select: deliverySelect,
+    });
+  }
+
   findDeliveryByIdempotencyKey(
     userId: string,
     idempotencyKey: string,

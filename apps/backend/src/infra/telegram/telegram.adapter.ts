@@ -1,4 +1,5 @@
 import { Api, InputFile, type Context } from 'grammy';
+import { telegramMessageText } from './telegram-message-text';
 import type {
   InboundMessageAdapter,
   NormalizedInboundMessage,
@@ -12,7 +13,7 @@ function messageKind(ctx: Context): NormalizedInboundMessage['kind'] {
   if (ctx.msg?.photo) return 'image';
   if (ctx.msg?.voice) return 'voice';
   if (ctx.msg?.document) return 'document';
-  if (ctx.msg?.text) return 'text';
+  if (ctx.msg?.text || ctx.msg?.rich_message) return 'text';
 
   return 'unknown';
 }
@@ -63,14 +64,13 @@ export class TelegramInboundAdapter implements InboundMessageAdapter<Context> {
       isGroup: message.chat.type !== 'private',
       isFromMe: sender.id === ctx.me.id,
       receivedAt: new Date(message.date * 1000),
-      text: message.text ?? message.caption ?? '',
+      text: telegramMessageText(message),
       kind,
       caption: message.caption,
       replyTo: referenced
         ? {
             providerMessageId: `${chatExternalId}:${referenced.message_id}`,
-            // Telegram replies may reference media with a caption or no text.
-            text: referenced.text ?? referenced.caption ?? '',
+            text: telegramMessageText(referenced),
             isFromMe: referenced.from?.id === ctx.me.id,
             quoteText: message.quote?.text,
           }
