@@ -14,7 +14,17 @@ export const TOOL_GROUPS = {
     'send_file',
     'search_documents',
   ],
-  notes: ['write_daily_note', 'read_daily_note', 'search_daily_notes'],
+  notes: [
+    'write_daily_note',
+    'read_daily_note',
+    'search_daily_notes',
+    'list_notes_workspace',
+    'read_custom_note',
+    'search_notes',
+    'create_custom_note',
+    'update_custom_note',
+    'manage_notes_item',
+  ],
   contacts: [
     'save_contact',
     'resolve_contact',

@@ -24,6 +24,7 @@ import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppDailyNotesRouteImport } from './routes/_app.daily-notes'
 import { Route as AppFilesRouteImport } from './routes/_app.files'
 import { Route as AppMemoryRouteImport } from './routes/_app.memory'
+import { Route as AppNotesRouteImport } from './routes/_app.notes'
 import { Route as AppRemindersRouteImport } from './routes/_app.reminders'
 import { Route as AppSecretsRouteImport } from './routes/_app.secrets'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
@@ -111,6 +112,11 @@ const AppMemoryRoute = AppMemoryRouteImport.update({
   path: '/memory',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotesRoute = AppNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRemindersRoute = AppRemindersRouteImport.update({
   id: '/reminders',
   path: '/reminders',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/daily-notes': typeof AppDailyNotesRoute
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
+  '/notes': typeof AppNotesRoute
   '/reminders': typeof AppRemindersRoute
   '/secrets': typeof AppSecretsRoute
   '/settings': typeof AppSettingsRouteWithChildren
@@ -215,6 +222,7 @@ export interface FileRoutesByTo {
   '/daily-notes': typeof AppDailyNotesRoute
   '/files': typeof AppFilesRoute
   '/memory': typeof AppMemoryRoute
+  '/notes': typeof AppNotesRoute
   '/reminders': typeof AppRemindersRoute
   '/secrets': typeof AppSecretsRoute
   '/settings': typeof AppSettingsRouteWithChildren
@@ -245,6 +253,7 @@ export interface FileRoutesById {
   '/_app/daily-notes': typeof AppDailyNotesRoute
   '/_app/files': typeof AppFilesRoute
   '/_app/memory': typeof AppMemoryRoute
+  '/_app/notes': typeof AppNotesRoute
   '/_app/reminders': typeof AppRemindersRoute
   '/_app/secrets': typeof AppSecretsRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/daily-notes'
     | '/files'
     | '/memory'
+    | '/notes'
     | '/reminders'
     | '/secrets'
     | '/settings'
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/daily-notes'
     | '/files'
     | '/memory'
+    | '/notes'
     | '/reminders'
     | '/secrets'
     | '/settings'
@@ -332,6 +343,7 @@ export interface FileRouteTypes {
     | '/_app/daily-notes'
     | '/_app/files'
     | '/_app/memory'
+    | '/_app/notes'
     | '/_app/reminders'
     | '/_app/secrets'
     | '/_app/settings'
@@ -466,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMemoryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/notes': {
+      id: '/_app/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof AppNotesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reminders': {
       id: '/_app/reminders'
       path: '/reminders'
@@ -583,6 +602,7 @@ interface AppRouteChildren {
   AppDailyNotesRoute: typeof AppDailyNotesRoute
   AppFilesRoute: typeof AppFilesRoute
   AppMemoryRoute: typeof AppMemoryRoute
+  AppNotesRoute: typeof AppNotesRoute
   AppRemindersRoute: typeof AppRemindersRoute
   AppSecretsRoute: typeof AppSecretsRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
@@ -598,6 +618,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDailyNotesRoute: AppDailyNotesRoute,
   AppFilesRoute: AppFilesRoute,
   AppMemoryRoute: AppMemoryRoute,
+  AppNotesRoute: AppNotesRoute,
   AppRemindersRoute: AppRemindersRoute,
   AppSecretsRoute: AppSecretsRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,

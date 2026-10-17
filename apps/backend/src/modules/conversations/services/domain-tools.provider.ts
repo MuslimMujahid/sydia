@@ -26,6 +26,8 @@ import { DailyNoteService } from '../../daily-notes/daily-note.service';
 import { createDomainTools } from './domain-tools';
 import { createPhaseTools } from './phase-tools';
 import { createDailyNoteTools } from './daily-note-tools';
+import { NotesService } from '../../notes/notes.service';
+import { createNotesWorkspaceTools } from './notes-workspace-tools';
 import type { AssistantTool } from './tool-executor.service';
 import { validateToolGroups } from './tool-groups';
 
@@ -49,6 +51,7 @@ export class DomainToolsProvider {
     calendarSync: CalendarSyncService,
     secrets: SecretsService,
     dailyNotes: DailyNoteService,
+    notes: NotesService,
   ) {
     this.tools = [
       ...createDomainTools({
@@ -71,6 +74,7 @@ export class DomainToolsProvider {
         users,
       }),
       ...createDailyNoteTools({ dailyNotes }),
+      ...createNotesWorkspaceTools(notes),
     ];
     validateToolGroups(this.tools.map(({ definition }) => definition.name));
   }

@@ -63,6 +63,8 @@ import { DomainToolsProvider } from '../../src/modules/conversations/services/do
 import { ToolExecutorService } from '../../src/modules/conversations/services/tool-executor.service';
 import { MEMORY_EVALUATION_FACTS } from './memory-evaluation.fixtures';
 import type { MemorySearchHit } from '../../src/modules/memories/memory-access.types';
+import { NotesService } from '../../src/modules/notes/notes.service';
+import { PrismaWorkspaceRepository } from '../../src/database/repositories';
 
 const enabled = process.env.HINDSIGHT_CHAT_CONTRACT_ENABLED === 'true';
 const databaseUrl = process.env.HINDSIGHT_LEDGER_CONTRACT_URL;
@@ -314,6 +316,17 @@ type Turn = {
           users,
           embeddings,
           queues,
+        ),
+        new NotesService(
+          new PrismaWorkspaceRepository(prisma),
+          embeddings,
+          queues,
+          new DailyNoteService(
+            new PrismaDailyNoteRepository(prisma),
+            users,
+            embeddings,
+            queues,
+          ),
         ),
       );
 

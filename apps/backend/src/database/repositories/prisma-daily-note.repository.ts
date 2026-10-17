@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import type { DailyNote as PrismaDailyNote } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
@@ -12,6 +12,7 @@ import type {
   DailyNoteWrite,
 } from '../entities';
 import type { DailyNoteRange, IDailyNoteRepository } from '../interfaces';
+import { NoteConflictError } from '../entities';
 
 const noteSelect = {
   id: true,
@@ -57,15 +58,25 @@ function dateFilter(range?: DailyNoteRange): Prisma.StringFilter | undefined {
 
 /**
  * The `content` column holds the whole Tiptap document, not just its node list,
- * so it is read back through the same parser the write path used. A row that
- * somehow fails to parse is surfaced as an empty document rather than thrown,
- * because a note that cannot be parsed must still be openable and fixable.
+ * so it is read back through the same parser the write path used. Invalid stored
+ * content is logged and rejected to preserve it for recovery rather than silently
+ * presenting an empty document that could overwrite the original.
  */
 function present(row: NoteRow): DailyNote {
+  const content = parseRichTextDocument(row.content);
+
+  if (!content) {
+    Logger.error(
+      `Daily note ${row.id} contains an invalid document; refusing to replace it with empty content.`,
+      'PrismaDailyNoteRepository',
+    );
+    throw new Error('Stored daily note content is invalid.');
+  }
+
   return {
     id: row.id,
     date: row.date,
-    content: parseRichTextDocument(row.content) ?? { type: 'doc', content: [] },
+    content,
     text: row.text,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -115,6 +126,64 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
   }
 
   async upsert(userId: string, input: DailyNoteWrite): Promise<DailyNote> {
+    if (input.expectedUpdatedAt !== undefined) {
+      const expectedUpdatedAt = input.expectedUpdatedAt;
+
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const data = {
+            timezone: input.timezone,
+            content: input.content,
+            text: input.text,
+            sourceType: input.sourceType,
+            sourceMessageId: input.sourceMessageId,
+          };
+
+          if (expectedUpdatedAt === null) {
+            return present(
+              await tx.dailyNote.create({
+                data: { ...data, userId, date: input.date },
+                select: noteSelect,
+              }),
+            );
+          }
+
+          const changed = await tx.dailyNote.updateMany({
+            where: {
+              userId,
+              date: input.date,
+              updatedAt: expectedUpdatedAt,
+            },
+            data: {
+              ...data,
+              updatedAt: new Date(
+                Math.max(Date.now(), expectedUpdatedAt.getTime() + 1),
+              ),
+            },
+          });
+
+          if (changed.count !== 1) throw new NoteConflictError();
+          const row = await tx.dailyNote.findUniqueOrThrow({
+            where: { userId_date: { userId, date: input.date } },
+            select: noteSelect,
+          });
+
+          return present(row);
+        });
+      } catch (error) {
+        Logger.warn(
+          'Conditional daily-note save rejected.',
+          'PrismaDailyNoteRepository',
+        );
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        )
+          throw new NoteConflictError();
+        throw error;
+      }
+    }
+
     const row = await this.prisma.dailyNote.upsert({
       where: { userId_date: { userId, date: input.date } },
       create: {
@@ -139,10 +208,37 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
     return present(row);
   }
 
-  async delete(userId: string, date: string): Promise<boolean> {
+  async delete(
+    userId: string,
+    date: string,
+    expectedUpdatedAt?: Date | null,
+  ): Promise<boolean> {
+    if (expectedUpdatedAt === null) {
+      const existing = await this.prisma.dailyNote.findUnique({
+        where: { userId_date: { userId, date } },
+        select: { id: true },
+      });
+
+      if (existing) throw new NoteConflictError();
+
+      return false;
+    }
+
     const deleted = await this.prisma.dailyNote.deleteMany({
-      where: { userId, date },
+      where: {
+        userId,
+        date,
+        ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}),
+      },
     });
+
+    if (expectedUpdatedAt && deleted.count === 0) {
+      Logger.warn(
+        'Conditional daily-note clear rejected.',
+        'PrismaDailyNoteRepository',
+      );
+      throw new NoteConflictError();
+    }
 
     return deleted.count > 0;
   }
@@ -179,13 +275,14 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
       // stale index is current.
       const stillCurrent = indexSignature(note.text) === input.signature;
 
-      await tx.dailyNote.update({
-        where: { id: note.id },
-        data: {
-          indexSignature: input.signature,
-          indexPending: !stillCurrent,
-        },
-      });
+      // Retrieval metadata is not a document edit. Raw SQL deliberately leaves
+      // updatedAt alone and compares the current row after acquiring its lock,
+      // so neither a false edit conflict nor a stale index can be introduced.
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE daily_note SET "indexSignature" = ${input.signature},
+          "indexPending" = (NOT ${stillCurrent} OR "text" <> ${note.text})
+        WHERE id = ${note.id} AND "userId" = ${userId}
+      `);
 
       return tx.dailyNoteChunk.findMany({
         where: { dailyNoteId: note.id },
@@ -196,10 +293,10 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
   }
 
   async markIndexPending(userId: string, date: string): Promise<void> {
-    await this.prisma.dailyNote.updateMany({
-      where: { userId, date },
-      data: { indexPending: true },
-    });
+    await this.prisma.$executeRaw(Prisma.sql`
+      UPDATE daily_note SET "indexPending" = true
+      WHERE "userId" = ${userId} AND date = ${date}
+    `);
   }
 
   async indexState(userId: string, date: string) {

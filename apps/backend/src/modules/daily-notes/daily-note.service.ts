@@ -24,6 +24,11 @@ import {
   type RichTextDocument,
 } from '../../shared/rich-text';
 import { chunkText } from '../../shared/text';
+import { HttpStatus } from '@nestjs/common';
+import { NoteConflictError } from '../../database/entities';
+import { ApiException, ErrorCodes } from '../../shared/errors';
+import { noteReferences } from '../../shared/rich-text';
+import { isDayKey } from '../../database/entities';
 
 const RRF_K = 60;
 const CANDIDATE_MULTIPLIER = 3;
@@ -90,7 +95,15 @@ export class DailyNoteService {
   ) {}
 
   async timezone(userId: string): Promise<string> {
-    return (await this.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
+    const user = await this.users.findById(userId);
+    if (!user)
+      throw new ApiException({
+        code: ErrorCodes.NOT_FOUND,
+        message: 'Pengguna tidak ditemukan.',
+        status: HttpStatus.NOT_FOUND,
+      });
+
+    return user.timezone;
   }
 
   async today(userId: string, now = new Date()): Promise<string> {
@@ -127,27 +140,62 @@ export class DailyNoteService {
       document: RichTextDocument;
       sourceType?: DailyNoteSource;
       sourceMessageId?: string | null;
+      expectedUpdatedAt?: Date | null;
     },
   ): Promise<DailyNote | null> {
+    if (!isDayKey(input.date))
+      throw new ApiException({
+        code: ErrorCodes.BAD_REQUEST,
+        message: 'Tanggal catatan tidak valid.',
+        status: HttpStatus.BAD_REQUEST,
+      });
+
+    try {
+      noteReferences(input.document);
+    } catch (error) {
+      this.logger.warn('Rejected invalid daily-note document.', error);
+      throw new ApiException({
+        code: ErrorCodes.BAD_REQUEST,
+        message: 'Isi catatan terlalu besar atau tidak valid.',
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
+
     const timezone = await this.timezone(userId);
     const text = richTextToPlainText(input.document);
     const before = await this.notes.findByDate(userId, input.date);
+    const expectedUpdatedAt =
+      input.expectedUpdatedAt === undefined
+        ? (before?.updatedAt ?? null)
+        : input.expectedUpdatedAt;
+
+    if (
+      (before?.updatedAt.toISOString() ?? null) !==
+      (expectedUpdatedAt?.toISOString() ?? null)
+    )
+      this.writeConflict(new NoteConflictError());
 
     if (!text) {
       // Nothing left to index either; deleting the note cascades its chunks.
-      if (before) await this.notes.delete(userId, input.date);
+      if (before)
+        await this.notes
+          .delete(userId, input.date, expectedUpdatedAt)
+          .catch((error: unknown) => this.writeConflict(error));
 
       return null;
     }
 
-    const note = await this.notes.upsert(userId, {
-      date: input.date,
-      timezone,
-      content: input.document,
-      text,
-      sourceType: input.sourceType ?? 'dashboard',
-      sourceMessageId: input.sourceMessageId ?? null,
-    });
+    const note = await this.notes
+      .upsert(userId, {
+        date: input.date,
+        timezone,
+        content: input.document,
+        text,
+        sourceType: input.sourceType ?? 'dashboard',
+        sourceMessageId: input.sourceMessageId ?? null,
+        expectedUpdatedAt,
+      })
+      .catch((error: unknown) => this.writeConflict(error));
 
     // Re-embedding is only warranted when the retrievable text changed.
     if (!before || before.text !== text)
@@ -181,6 +229,7 @@ export class DailyNoteService {
       document,
       sourceType: input.sourceType,
       sourceMessageId: input.sourceMessageId,
+      expectedUpdatedAt: existing?.updatedAt ?? null,
     });
 
     // The appended text is non-empty by construction, so `save` cannot have
@@ -192,6 +241,22 @@ export class DailyNoteService {
 
   remove(userId: string, date: string): Promise<boolean> {
     return this.notes.delete(userId, date);
+  }
+
+  private writeConflict(error: unknown): never {
+    this.logger.warn(
+      'Daily-note write failed; the current document was preserved.',
+      error,
+    );
+    if (error instanceof NoteConflictError)
+      throw new ApiException({
+        code: ErrorCodes.CONFLICT,
+        message:
+          'Catatan telah berubah. Draf Anda tetap disimpan; pilih versi yang ingin digunakan.',
+        status: HttpStatus.CONFLICT,
+        details: { reason: 'REVISION' },
+      });
+    throw error;
   }
 
   /**

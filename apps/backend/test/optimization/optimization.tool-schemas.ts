@@ -2,6 +2,7 @@ import { jsonSchema, tool, type ToolSet } from 'ai';
 import { createDomainTools } from '../../src/modules/conversations/services/domain-tools';
 import { createPhaseTools } from '../../src/modules/conversations/services/phase-tools';
 import { createDailyNoteTools } from '../../src/modules/conversations/services/daily-note-tools';
+import { createNotesWorkspaceTools } from '../../src/modules/conversations/services/notes-workspace-tools';
 import { terminalToolInputSchema } from '../../src/modules/conversations/services/terminal-tool-response';
 import { validateToolGroups } from '../../src/modules/conversations/services/tool-groups';
 
@@ -39,6 +40,7 @@ export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
       users: unavailable(),
     }),
     ...createDailyNoteTools({ dailyNotes: unavailable() }),
+    ...createNotesWorkspaceTools(unavailable()),
   ].map(({ definition }) => definition);
 
   validateToolGroups(definitions.map(({ name }) => name));

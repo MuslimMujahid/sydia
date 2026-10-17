@@ -390,9 +390,9 @@ test.each([
     expect(await service.decide('user', input)).toEqual(expected);
   },
 );
-test('registry covers 39 distinct tools and rejects missing prerequisites', () => {
+test('registry covers 45 distinct tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(39);
+  expect(names).toHaveLength(45);
   expect(() => validateToolGroups(names)).not.toThrow();
   expect(() => validateToolGroups(names.slice(1))).toThrow();
 });

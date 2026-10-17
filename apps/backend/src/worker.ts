@@ -34,6 +34,7 @@ import { HindsightIngestionService } from './modules/memories/hindsight-ingestio
 import { MemoryEngineService } from './modules/memories/memory-engine.service';
 import { CalendarSyncService } from './modules/calendar/calendar-sync.service';
 import { DailyNoteService } from './modules/daily-notes/daily-note.service';
+import { NotesService } from './modules/notes/notes.service';
 import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
 import {
   DailyBriefingService,
@@ -56,6 +57,7 @@ async function bootstrap(): Promise<void> {
   const memoryDream = context.get(MemoryDreamService);
   const memoryDreamScheduler = context.get(MemoryDreamSchedulerService);
   const dailyNotes = context.get(DailyNoteService);
+  const notes = context.get(NotesService);
   const conversationSummarizer = context.get(ConversationSummarizerService);
   const notifications = context.get(NotificationService);
   const briefings = context.get(DailyBriefingService);
@@ -206,10 +208,17 @@ async function bootstrap(): Promise<void> {
 
   const dailyNoteIndexWorker = new Worker<DailyNoteIndexJob>(
     'daily-note-indexes',
-    async (job) =>
-      job.data.kind === 'recover'
-        ? dailyNotes.recoverPending()
-        : dailyNotes.index(job.data.userId, job.data.date),
+    async (job) => {
+      if (job.data.kind === 'recover')
+        return Promise.all([
+          dailyNotes.recoverPending(),
+          notes.recoverPending(),
+        ]);
+      if (job.data.kind === 'custom-index')
+        return notes.index(job.data.userId, job.data.itemId);
+
+      return dailyNotes.index(job.data.userId, job.data.date);
+    },
     { connection },
   );
 

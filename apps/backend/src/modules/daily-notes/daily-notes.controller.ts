@@ -15,7 +15,7 @@ import {
   AUDIT_EVENT_REPOSITORY,
   type IAuditEventRepository,
 } from '../../database/interfaces';
-import { DAY_KEY_PATTERN } from '../../database/entities';
+import { isDayKey } from '../../database/entities';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { parseRichTextDocument } from '../../shared/rich-text';
 import { DailyNoteService } from './daily-note.service';
@@ -62,6 +62,14 @@ export class DailyNotesController {
       date: day,
       document,
       sourceType: 'dashboard',
+      ...(input.expectedUpdatedAt === undefined
+        ? {}
+        : {
+            expectedUpdatedAt:
+              input.expectedUpdatedAt === null
+                ? null
+                : new Date(input.expectedUpdatedAt),
+          }),
     });
 
     await this.audit.record({
@@ -89,7 +97,7 @@ export class DailyNotesController {
   }
 
   private validDate(date: string): string {
-    if (!DAY_KEY_PATTERN.test(date)) throw this.invalidDate();
+    if (!isDayKey(date)) throw this.invalidDate();
 
     return date;
   }

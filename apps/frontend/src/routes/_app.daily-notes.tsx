@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   DailyNotePage,
@@ -26,6 +26,14 @@ const dailyNoteSearchSchema = z.object({
 
 export const Route = createFileRoute("/_app/daily-notes")({
   validateSearch: dailyNoteSearchSchema,
+  beforeLoad: ({ search, context }) => {
+    throw redirect({
+      to: "/notes",
+      search: {
+        date: search.date ?? dayKeyInZone(new Date(), context.timezone),
+      },
+    });
+  },
   head: () => ({
     meta: [
       { title: "Catatan harian · Sydia" },

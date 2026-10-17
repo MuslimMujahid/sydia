@@ -3,6 +3,7 @@ import {
   IsObject,
   IsOptional,
   Matches,
+  IsISO8601,
 } from 'class-validator';
 import { DAY_KEY_PATTERN } from '../../database/entities';
 
@@ -28,4 +29,8 @@ export class SaveDailyNoteDto {
   @IsObject()
   @IsNotEmptyObject()
   content!: Record<string, unknown>;
+
+  @IsOptional()
+  @IsISO8601()
+  expectedUpdatedAt?: string | null;
 }

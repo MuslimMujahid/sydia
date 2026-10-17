@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T17:25:40.631Z",
+  "title": "Design System: Sydia Notes workspace",
+  "extensions": {
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "New note",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The existing Aurora primary action creates a note in the selected folder.",
+      "html": "<button class=\"ds-notes-button ds-notes-primary\">Catatan baru</button>",
+      "css": ".ds-notes-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:var(--radius-md);padding:12px 22px;font-family:var(--font-sans);font-size:15px;line-height:1.4;font-weight:600;cursor:pointer}.ds-notes-button:focus-visible{outline:2px solid color-mix(in srgb,var(--color-brand) 50%,transparent);outline-offset:2px}.ds-notes-button:active{transform:scale(.98)}.ds-notes-button:disabled{pointer-events:none;opacity:.4;filter:saturate(.5)}.ds-notes-primary{border:0;background:var(--aurora-gradient);color:var(--color-canvas);font-weight:700;box-shadow:var(--shadow-button)}.ds-notes-primary:hover{filter:brightness(.97)}"
+    },
+    {
+      "name": "Today",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Supporting action to return to the current daily note.",
+      "html": "<button class=\"ds-notes-button ds-notes-outline\">Hari ini</button>",
+      "css": ".ds-notes-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:var(--radius-md);padding:12px 22px;font-family:var(--font-sans);font-size:15px;line-height:1.4;font-weight:600;cursor:pointer}.ds-notes-button:focus-visible{outline:2px solid color-mix(in srgb,var(--color-brand) 50%,transparent);outline-offset:2px}.ds-notes-button:active{transform:scale(.98)}.ds-notes-button:disabled{pointer-events:none;opacity:.4;filter:saturate(.5)}.ds-notes-outline{border:1px solid color-mix(in srgb,var(--color-ink) 16%,transparent);background:transparent;color:var(--color-ink)}.ds-notes-outline:hover{color:var(--color-ink)}"
+    },
+    {
+      "name": "Note actions",
+      "kind": "button",
+      "description": "Named mobile action trigger; shared icon sizing from 640 px.",
+      "html": "<button class=\"ds-notes-action\" aria-label=\"Tindakan Rencana peluncuran\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/></svg></button>",
+      "css": ".ds-notes-action{display:inline-grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:var(--radius-md);background:transparent;color:var(--color-ink-muted);cursor:pointer}.ds-notes-action:hover{color:var(--color-ink)}.ds-notes-action:focus-visible{outline:2px solid color-mix(in srgb,var(--color-brand) 50%,transparent);outline-offset:2px}.ds-notes-action:active{transform:scale(.98)}@media(min-width:640px){.ds-notes-action{width:40px;height:40px}}"
+    },
+    {
+      "name": "Workspace search",
+      "kind": "input",
+      "description": "Named search field at the top of contextual navigation.",
+      "html": "<input class=\"ds-notes-search\" aria-label=\"Cari catatan\" placeholder=\"Cari catatan…\"/>",
+      "css": ".ds-notes-search{width:100%;height:44px;min-height:44px;padding:8px 12px 8px 40px;border:1px solid var(--input);border-radius:var(--radius-sm);background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-sans);font-size:15px;outline:none}.ds-notes-search::placeholder{color:var(--color-ink-muted)}.ds-notes-search:hover{border-color:color-mix(in srgb,var(--color-brand) 50%,transparent)}.ds-notes-search:focus-visible{border-color:var(--color-brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--color-brand) 15%,transparent)}.ds-notes-search:disabled{pointer-events:none;background:color-mix(in srgb,var(--color-ink) 4%,transparent);opacity:.4}"
+    },
+    {
+      "name": "Selected note row",
+      "kind": "nav",
+      "description": "Selected custom note with a quiet brand tint and semibold label.",
+      "html": "<nav aria-label=\"Navigasi catatan\"><button class=\"ds-notes-row\" aria-current=\"page\">Rencana peluncuran</button></nav>",
+      "css": ".ds-notes-row{display:flex;align-items:center;min-height:44px;width:100%;padding:4px 8px;border:0;border-radius:var(--radius-sm);background:color-mix(in srgb,var(--color-brand) 10%,transparent);color:var(--color-ink);font-family:var(--font-sans);font-size:13px;font-weight:600;text-align:left;cursor:pointer}.ds-notes-row:hover{background:var(--color-surface-1)}.ds-notes-row:focus-visible{outline:2px solid var(--color-brand)}@media(min-width:640px){.ds-notes-row{min-height:36px}}"
+    },
+    {
+      "name": "Incoming links",
+      "kind": "custom",
+      "description": "Initially open native disclosure after the document.",
+      "html": "<details class=\"ds-notes-backlinks\" open><summary>Tautan masuk <span>1 catatan</span></summary><button class=\"ds-notes-backlink\">Riset pengguna</button></details>",
+      "css": ".ds-notes-backlinks{margin-top:36px;border-top:1px solid var(--border);padding-top:20px;color:var(--color-ink);font-family:var(--font-sans);font-size:14px}.ds-notes-backlinks summary{display:flex;align-items:center;min-height:44px;gap:8px;font-weight:600;cursor:pointer}.ds-notes-backlinks summary span{margin-left:auto;color:var(--color-ink-muted);font-size:12px;font-weight:400}.ds-notes-backlinks summary:focus-visible{outline:2px solid var(--color-brand)}.ds-notes-backlink{display:flex;align-items:center;min-height:44px;width:100%;padding:8px 0;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--color-ink);font-family:var(--font-sans);font-size:14px;text-align:left;cursor:pointer}.ds-notes-backlink:hover{background:var(--color-surface-1)}.ds-notes-backlink:focus-visible{outline:2px solid var(--color-brand)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Aurora Haze",
+    "overview": "This document records the implemented Notes surface in **Operate** mode. It extends the existing identity: warm contextual navigation, a flat white writing area, Inter typography, and the original grainy Aurora primary button. The main task is to open, write, and organize one note while retaining its folder or daily-date context.\n\nThe [root design system](../../../../../DESIGN.md) remains the visual authority. Product behavior comes from the [Notes specification](../../../../../docs/NOTES_WORKSPACE_SPEC.md); composition and interaction intent come from the [Notes design handoff](../../../../../docs/NOTES_WORKSPACE_DESIGN.md). This is a local implementation record, not a new global identity or replacement for those documents. The paired `.impeccable/design.json` contains local component specimens and responsive metadata.",
+    "keyCharacteristics": [
+      "Warm navigation beside one flat white editor.",
+      "Persistent folder/date context and quiet save feedback.",
+      "Dark underlined note links and backlinks after the document.",
+      "A dedicated mobile navigation sheet with touch-sized folder controls."
+    ],
+    "rules": [],
+    "dos": [
+      "**Do** preserve the root Aurora Haze identity and shared semantic tokens.",
+      "**Do** keep the folder/date context visible above one writing surface.",
+      "**Do** keep backlinks after the document and navigation available in the mobile sheet.",
+      "**Do** retain visible focus, native buttons, labelled fields, explicit save states, and the mobile folder expansion target.",
+      "**Do** distinguish implementation facts from the limited screenshot sample when reporting verification."
+    ],
+    "donts": [
+      "**Don't** introduce a new visual world, decorative motion, or global token changes through this local document.",
+      "**Don't** wrap every section in a card or add a fourth persistent column for backlinks.",
+      "**Don't** replace dark underlined note-link labels with accent-only text.",
+      "**Don't** make dragging the only way to move an item or make typed unresolved links create notes automatically.",
+      "**Don't** report the custom-note desktop/mobile sample as certification of the entire Notes workspace."
+    ]
+  }
+}

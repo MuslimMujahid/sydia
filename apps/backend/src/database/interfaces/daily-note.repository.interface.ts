@@ -13,7 +13,11 @@ export interface IDailyNoteRepository {
   list(userId: string, range?: DailyNoteRange): Promise<DailyNoteSummary[]>;
   findByDate(userId: string, date: string): Promise<DailyNote | null>;
   upsert(userId: string, input: DailyNoteWrite): Promise<DailyNote>;
-  delete(userId: string, date: string): Promise<boolean>;
+  delete(
+    userId: string,
+    date: string,
+    expectedUpdatedAt?: Date | null,
+  ): Promise<boolean>;
   /**
    * Replaces the day's retrieval index and records whether that index is still
    * current, in one transaction.

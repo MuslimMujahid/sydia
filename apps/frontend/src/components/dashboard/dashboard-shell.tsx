@@ -58,7 +58,7 @@ const DEBUG_ENABLED = import.meta.env.VITE_DEBUG_ENABLED === "true";
 // Tasks live inside the calendar page, behind its Kalender/Tugas switch.
 const NAV_ITEMS = [
   { to: "/calendar", label: "Kalender", icon: CalendarDays },
-  { to: "/daily-notes", label: "Catatan", icon: NotebookPen },
+  { to: "/notes", label: "Catatan", icon: NotebookPen },
   { to: "/files", label: "File", icon: Files },
 ] as const;
 
@@ -174,7 +174,7 @@ export function DashboardShell({
           <Button
             variant="ghost"
             className={cn(
-              "h-auto min-w-0 justify-start gap-3 px-2 py-2",
+              "h-auto min-w-0 max-w-full justify-start gap-3 px-2 py-2",
               collapsed && "justify-center px-0"
             )}
             aria-label="Buka menu akun"
@@ -444,6 +444,8 @@ export function DashboardShell({
               // The calendar grid scrolls inside the panel instead of the page.
               calendarGridSurface && "lg:flex lg:h-dvh lg:flex-col",
               chatSurface &&
+                "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:h-dvh lg:p-0",
+              activePath === "/notes" &&
                 "h-[calc(100dvh-4rem)] max-w-none overflow-hidden p-0 sm:p-0 lg:h-dvh lg:p-0"
             )}
           >

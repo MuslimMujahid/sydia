@@ -21,3 +21,4 @@ export * from './user-privacy.repository.interface';
 export * from './secret.repository.interface';
 
 export * from './chat-preview.repository.interface';
+export * from './workspace.repository.interface';

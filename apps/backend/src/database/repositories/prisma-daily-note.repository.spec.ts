@@ -4,6 +4,7 @@ import { indexSignature } from '../../shared/rich-text';
 import { PrismaDailyNoteRepository } from './prisma-daily-note.repository';
 
 type Transaction = {
+  $executeRaw: (input: unknown) => Promise<number>;
   dailyNote: {
     findUnique: (input: unknown) => Promise<unknown>;
     update: (input: unknown) => Promise<unknown>;
@@ -23,6 +24,9 @@ function repositoryWith(
   update.mockResolvedValue({});
 
   const tx: Transaction = {
+    $executeRaw: jest
+      .fn<(input: unknown) => Promise<number>>()
+      .mockResolvedValue(1),
     dailyNote: {
       findUnique: jest.fn(() =>
         Promise.resolve({ id: 'note-1', text: currentText ?? '' }),
@@ -50,16 +54,16 @@ function repositoryWith(
 describe('PrismaDailyNoteRepository index freshness', () => {
   test('clears the pending flag when the indexed text is the note text', async () => {
     const text = 'Bryan dan Salsa tidak hadir';
-    const { repository, update } = repositoryWith({}, text);
+    const { repository, tx } = repositoryWith({}, text);
 
     await repository.replaceChunks('user-1', '2026-09-20', {
       signature: indexSignature(text),
       chunks: [text],
     });
 
-    expect(update).toHaveBeenCalledWith(
+    expect(tx.$executeRaw).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ indexPending: false }),
+        values: expect.arrayContaining([true, text]),
       }),
     );
   });
@@ -68,16 +72,16 @@ describe('PrismaDailyNoteRepository index freshness', () => {
     // The note gained new text after this index was computed. Marking the stale
     // index as fresh would drop the note out of the recovery backlog, so the
     // flag must stay set until the newer text is indexed.
-    const { repository, update } = repositoryWith({}, 'Teks yang lebih baru');
+    const { repository, tx } = repositoryWith({}, 'Teks yang lebih baru');
 
     await repository.replaceChunks('user-1', '2026-09-20', {
       signature: indexSignature('Teks lama yang sudah usang'),
       chunks: ['Teks lama yang sudah usang'],
     });
 
-    expect(update).toHaveBeenCalledWith(
+    expect(tx.$executeRaw).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ indexPending: true }),
+        values: expect.arrayContaining([false, 'Teks yang lebih baru']),
       }),
     );
   });

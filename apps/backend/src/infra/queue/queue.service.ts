@@ -49,7 +49,9 @@ export type BriefingJob =
 export type FollowUpJob =
   { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
 export type DailyNoteIndexJob =
-  { kind: 'index'; userId: string; date: string } | { kind: 'recover' };
+  | { kind: 'index'; userId: string; date: string }
+  | { kind: 'custom-index'; userId: string; itemId: string }
+  | { kind: 'recover' };
 export type CalendarSyncJob =
   | { kind: 'operation'; operationId: string }
   | { kind: 'pull'; bindingId: string; connectionGeneration: number }

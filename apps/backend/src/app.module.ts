@@ -9,6 +9,7 @@ import { QueueModule } from './infra/queue';
 import { UsersModule } from './modules/users/users.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { MemoriesModule } from './modules/memories/memories.module';
+import { NotesModule } from './modules/notes/notes.module';
 import { DailyNotesModule } from './modules/daily-notes/daily-notes.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -442,6 +443,7 @@ export function validateEnvironment(
     SecretsModule,
     MemoriesModule,
     DailyNotesModule,
+    NotesModule,
     TodayModule,
     CryptoModule,
     StorageModule,

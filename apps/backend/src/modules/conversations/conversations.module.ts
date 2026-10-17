@@ -4,6 +4,7 @@ import { DecisionGatewayModule } from '../../infra/decision-gateway';
 import { TurnDecisionService } from './services/turn-decision.service';
 import { MemoriesModule } from '../memories/memories.module';
 import { DailyNotesModule } from '../daily-notes/daily-notes.module';
+import { NotesModule } from '../notes/notes.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
@@ -39,6 +40,7 @@ import {
     RemindersModule,
     MemoriesModule,
     DailyNotesModule,
+    NotesModule,
     DocumentsModule,
     ContactsModule,
     CalendarModule,

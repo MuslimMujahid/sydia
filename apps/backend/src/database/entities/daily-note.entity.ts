@@ -10,6 +10,15 @@ export type DailyNoteSource = (typeof DAILY_NOTE_SOURCES)[number];
 
 export const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+export function isDayKey(value: string): boolean {
+  if (!DAY_KEY_PATTERN.test(value)) return false;
+  const date = new Date(`${value}T12:00:00Z`);
+
+  return (
+    !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+  );
+}
+
 export type DailyNote = {
   id: string;
   /** The owner's local calendar date in YYYY-MM-DD form. */
@@ -44,6 +53,7 @@ export type DailyNoteWrite = {
   text: string;
   sourceType: DailyNoteSource;
   sourceMessageId?: string | null;
+  expectedUpdatedAt?: Date | null;
 };
 
 /** A matched passage, carrying the note day it belongs to for provenance. */

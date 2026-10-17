@@ -89,6 +89,9 @@ function collectText(
 
   if (node.type === 'hardBreak') return '\n';
 
+  if (node.type === 'noteLink' && isNode(node.attrs))
+    return typeof node.attrs.label === 'string' ? node.attrs.label : '';
+
   const inner = (Array.isArray(node.content) ? node.content : [])
     .map((child) =>
       isNode(child) ? collectText(child, depth + 1, budget) : '',
@@ -147,6 +150,11 @@ function collectMarkedText(
     return typeof node.text === 'string' ? node.text : '';
 
   if (node.type === 'hardBreak') return '\n';
+
+  if (node.type === 'noteLink' && isNode(node.attrs))
+    return typeof node.attrs.label === 'string'
+      ? `[[${node.attrs.label}]]`
+      : '';
 
   const children = (Array.isArray(node.content) ? node.content : []).filter(
     isNode,

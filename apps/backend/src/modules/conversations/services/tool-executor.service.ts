@@ -135,6 +135,18 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
   forget_memory: { en: 'Forget memory', id: 'Menghapus memori' },
   search_memories: { en: 'Search memories', id: 'Mencari memori' },
   write_daily_note: { en: 'Write daily note', id: 'Menulis catatan harian' },
+  list_notes_workspace: {
+    en: 'Browse notes and folders',
+    id: 'Melihat catatan dan folder',
+  },
+  read_custom_note: { en: 'Read custom note', id: 'Membaca catatan' },
+  search_notes: { en: 'Search notes', id: 'Mencari catatan' },
+  create_custom_note: { en: 'Create custom note', id: 'Membuat catatan' },
+  update_custom_note: { en: 'Edit custom note', id: 'Mengubah catatan' },
+  manage_notes_item: {
+    en: 'Organize notes and folders',
+    id: 'Mengatur catatan dan folder',
+  },
   read_daily_note: { en: 'Read daily note', id: 'Membaca catatan harian' },
   search_daily_notes: {
     en: 'Search daily notes',

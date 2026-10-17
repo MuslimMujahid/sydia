@@ -21,3 +21,4 @@ export * from './prisma-user-privacy.repository';
 export * from './prisma-secret.repository';
 
 export * from './prisma-chat-preview.repository';
+export * from './prisma-workspace.repository';

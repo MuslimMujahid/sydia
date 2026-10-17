@@ -18,7 +18,7 @@ const SURFACE_CLASS_NAME =
 
 const CONTENT_CLASS_NAME = "min-h-64 sm:min-h-[26rem]";
 
-const NOTE_TYPOGRAPHY = cn(
+export const NOTE_TYPOGRAPHY = cn(
   "[&_.tiptap]:max-w-[68ch] [&_.tiptap]:flex-1 [&_.tiptap]:px-5 [&_.tiptap]:py-6 [&_.tiptap]:text-[17px] [&_.tiptap]:leading-[1.6] [&_.tiptap]:text-ink [&_.tiptap]:outline-none sm:[&_.tiptap]:px-8 sm:[&_.tiptap]:py-8",
   // Blocks sit close together; a heading opens a new section.
   "[&_.tiptap>*+*]:mt-3 [&_.tiptap>h1:not(:first-child)]:mt-8 [&_.tiptap>h2:not(:first-child)]:mt-7 [&_.tiptap>h3:not(:first-child)]:mt-6",

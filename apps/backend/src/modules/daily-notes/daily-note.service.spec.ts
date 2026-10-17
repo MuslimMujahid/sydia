@@ -342,7 +342,11 @@ describe('daily note writes', () => {
       }),
     ).resolves.toBeNull();
 
-    expect(setup.delete).toHaveBeenCalledWith('user-1', '2026-09-20');
+    expect(setup.delete).toHaveBeenCalledWith(
+      'user-1',
+      '2026-09-20',
+      new Date(0),
+    );
     expect(setup.upsert).not.toHaveBeenCalled();
     expect(setup.markIndexPending).not.toHaveBeenCalled();
   });

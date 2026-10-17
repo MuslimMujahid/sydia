@@ -176,7 +176,12 @@ describe('daily note assistant tools', () => {
       userId: 'user-1',
       sourceMessageId: 'message-2',
       idempotencyKey: 'two',
-      arguments: { text: edited, date: NOTE_DATE },
+      arguments: {
+        text: edited,
+        date: NOTE_DATE,
+        document: plainTextToRichText(edited),
+        expectedUpdatedAt: new Date(0).toISOString(),
+      },
     });
 
     expect(append).not.toHaveBeenCalled();

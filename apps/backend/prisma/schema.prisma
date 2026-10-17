@@ -66,6 +66,7 @@ model User {
   secretRevealTokens       SecretRevealToken[]
   secretVaultUnlocks       SecretVaultUnlock[]
   dailyNotes               DailyNote[]
+  workspaceItems           WorkspaceItem[]
 
   @@index([role])
   @@index([banned])
@@ -423,6 +424,50 @@ model Memory {
 
 /// One diary entry per owner-local calendar day. `date` is the owner's local
 /// calendar date in `timezone`, so a note never shifts when the reader travels.
+model WorkspaceItem {
+  id           String          @id @default(cuid())
+  userId       String
+  kind         String
+  title        String
+  parentId     String?
+  content      Json
+  text         String          @default("")
+  revision     Int             @default(1)
+  indexPending Boolean         @default(true)
+  indexSignature String?
+  trashedAt    DateTime?
+  trashBatchId String?
+  sourceType   String          @default("dashboard")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @default(now()) @updatedAt
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       WorkspaceItem?   @relation("WorkspaceHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, map: "workspace_item_parent_owner_fkey")
+  children     WorkspaceItem[]  @relation("WorkspaceHierarchy")
+  chunks       WorkspaceNoteChunk[]
+
+  @@index([userId, trashedAt, parentId])
+  @@index([userId, trashBatchId])
+  @@unique([userId, id], map: "workspace_item_owner_id_key")
+  @@map("workspace_item")
+}
+
+model WorkspaceNoteChunk {
+  id               String                       @id @default(cuid())
+  workspaceItemId  String
+  userId           String
+  chunkIndex       Int
+  content          String
+  embedding        Unsupported("vector(1536)")?
+  embeddingModel   String
+  embeddingVersion String
+  signature        String
+  item             WorkspaceItem                @relation(fields: [userId, workspaceItemId], references: [userId, id], onDelete: Cascade)
+
+  @@unique([workspaceItemId, chunkIndex])
+  @@index([userId])
+  @@map("workspace_note_chunk")
+}
+
 model DailyNote {
   id              String           @id @default(cuid())
   userId          String
