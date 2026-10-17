@@ -11,6 +11,8 @@ import { UserPreferencesService } from './user-preferences.service';
 const storedPreference: UserPreference = {
   userId: 'user-1',
   briefingEnabled: true,
+  weeklyBriefingEnabled: true,
+  weeklyBriefingDay: 1,
   briefingTime: '09:30',
   followUpIntervalMinutes: 60,
   webNotificationsEnabled: true,
@@ -76,6 +78,8 @@ describe('UserPreferencesService', () => {
       persona: 'professional',
       preferredAddress: null,
       briefingEnabled: true,
+      weeklyBriefingEnabled: true,
+      weeklyBriefingDay: 1,
       briefingTime: '09:30',
       followUpIntervalMinutes: 60,
       webNotificationsEnabled: true,
@@ -225,4 +229,39 @@ test('persists and returns the selected follow-up interval', async () => {
     followUpIntervalMinutes: 120,
   });
   expect(result?.followUpIntervalMinutes).toBe(120);
+});
+
+test('weekly briefing defaults to enabled on Monday for an account without preferences', async () => {
+  const { repository } = createRepository(null);
+  expect(await new UserPreferencesService(repository).get(user)).toMatchObject({
+    weeklyBriefingEnabled: true,
+    weeklyBriefingDay: 1,
+    briefingTime: '08:00',
+  });
+});
+
+test('weekly weekday and switch persist independently of the daily switch and share its time', async () => {
+  const { repository, savePreferences } = createRepository();
+  savePreferences.mockResolvedValue({
+    ...storedPreference,
+    briefingEnabled: false,
+    weeklyBriefingEnabled: true,
+    weeklyBriefingDay: 7,
+    briefingTime: '09:15',
+  });
+  const input = {
+    briefingEnabled: false,
+    weeklyBriefingEnabled: true,
+    weeklyBriefingDay: 7,
+    briefingTime: '09:15',
+  };
+
+  const result = await new UserPreferencesService(repository).update(
+    user,
+    input,
+    () => Promise.resolve(user),
+  );
+
+  expect(savePreferences).toHaveBeenCalledWith('user-1', input);
+  expect(result).toMatchObject(input);
 });

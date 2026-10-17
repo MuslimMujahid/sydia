@@ -41,6 +41,8 @@ const attemptSelect = {
 const preferenceSelect = {
   userId: true,
   briefingEnabled: true,
+  weeklyBriefingEnabled: true,
+  weeklyBriefingDay: true,
   briefingTime: true,
   followUpIntervalMinutes: true,
   webNotificationsEnabled: true,
@@ -173,6 +175,8 @@ export class PrismaNotificationRepository implements INotificationRepository {
       userId: row.id,
       timezone: row.timezone,
       briefingEnabled: row.userPreference?.briefingEnabled ?? true,
+      weeklyBriefingEnabled: row.userPreference?.weeklyBriefingEnabled ?? true,
+      weeklyBriefingDay: row.userPreference?.weeklyBriefingDay ?? 1,
       briefingTime: row.userPreference?.briefingTime ?? null,
       followUpIntervalMinutes:
         row.userPreference?.followUpIntervalMinutes ?? 60,

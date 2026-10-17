@@ -2,6 +2,35 @@ import { describe, expect, jest, test } from '@jest/globals';
 import type { PrismaService } from '../../infra/prisma';
 import { PrismaReminderRepository } from './prisma-reminder.repository';
 
+test('weekly reminder query bounds the schedule with an exclusive end', async () => {
+  const findMany = jest
+    .fn<(input: unknown) => Promise<never[]>>()
+    .mockResolvedValue([]);
+
+  const repository = new PrismaReminderRepository({
+    reminder: { findMany },
+  } as unknown as PrismaService);
+
+  await repository.list('user-1', {
+    now: new Date('2026-10-19T00:00:00Z'),
+    scheduleRange: {
+      from: new Date('2026-10-19T00:00:00Z'),
+      to: new Date('2026-10-25T16:00:00Z'),
+    },
+  });
+  expect(findMany).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: expect.objectContaining({
+        userId: 'user-1',
+        scheduledAt: {
+          gte: new Date('2026-10-19T00:00:00Z'),
+          lt: new Date('2026-10-25T16:00:00Z'),
+        },
+      }),
+    }),
+  );
+});
+
 describe('reminder API projection', () => {
   test('lists reminders without lifecycle status or completion timestamps', async () => {
     const row = {

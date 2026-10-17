@@ -29,7 +29,46 @@ export class DevNotificationsController {
     this.requireDevelopment();
 
     return this.summarize(
-      await this.briefings.run(session.user.id, new Date(), input.requestId),
+      await this.briefings.run(
+        session.user.id,
+        new Date(),
+        input.requestId,
+        'daily',
+      ),
+    );
+  }
+
+  @Post('weekly-brief')
+  async weeklyBrief(
+    @Session() session: UserSession,
+    @Body() input: DevNotificationDto,
+  ) {
+    this.requireDevelopment();
+
+    return this.summarize(
+      await this.briefings.run(
+        session.user.id,
+        new Date(),
+        input.requestId,
+        'weekly',
+      ),
+    );
+  }
+
+  @Post('daily-weekly-brief')
+  async dailyWeeklyBrief(
+    @Session() session: UserSession,
+    @Body() input: DevNotificationDto,
+  ) {
+    this.requireDevelopment();
+
+    return this.summarize(
+      await this.briefings.run(
+        session.user.id,
+        new Date(),
+        input.requestId,
+        'daily_weekly',
+      ),
     );
   }
 

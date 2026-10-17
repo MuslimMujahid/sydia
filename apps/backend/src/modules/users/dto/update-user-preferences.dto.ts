@@ -37,6 +37,14 @@ export class UpdateUserPreferencesDto {
   briefingEnabled?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  weeklyBriefingEnabled?: boolean;
+
+  @IsOptional()
+  @IsIn([1, 2, 3, 4, 5, 6, 7])
+  weeklyBriefingDay?: number;
+
+  @IsOptional()
   @IsString()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   briefingTime?: string;

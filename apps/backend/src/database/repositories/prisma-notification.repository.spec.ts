@@ -59,3 +59,63 @@ test('rearming cannot overwrite a reminder already claimed or delivered', async 
   ).toBeNull();
   expect(findUnique).not.toHaveBeenCalled();
 });
+
+test('scheduler reads the weekly switch, weekday, and shared time from stored preferences', async () => {
+  const findMany = jest.fn<() => Promise<unknown[]>>().mockResolvedValue([
+    {
+      id: 'weekly-only',
+      timezone: 'Asia/Makassar',
+      userPreference: {
+        briefingEnabled: false,
+        weeklyBriefingEnabled: true,
+        weeklyBriefingDay: 7,
+        briefingTime: '09:15',
+        followUpIntervalMinutes: 60,
+        telegramNotificationsEnabled: true,
+        whatsappNotificationsEnabled: false,
+      },
+    },
+  ]);
+
+  const repository = new PrismaNotificationRepository({
+    user: { findMany },
+  } as unknown as PrismaService);
+
+  expect(await repository.listSchedulingTargets()).toEqual([
+    {
+      userId: 'weekly-only',
+      timezone: 'Asia/Makassar',
+      briefingEnabled: false,
+      weeklyBriefingEnabled: true,
+      weeklyBriefingDay: 7,
+      briefingTime: '09:15',
+      followUpIntervalMinutes: 60,
+      notifiable: true,
+    },
+  ]);
+});
+
+test('scheduler defaults missing preference rows to both briefings with Monday selected', async () => {
+  const findMany = jest
+    .fn<() => Promise<unknown[]>>()
+    .mockResolvedValue([
+      { id: 'new-user', timezone: 'Asia/Makassar', userPreference: null },
+    ]);
+
+  const repository = new PrismaNotificationRepository({
+    user: { findMany },
+  } as unknown as PrismaService);
+
+  expect(await repository.listSchedulingTargets()).toEqual([
+    {
+      userId: 'new-user',
+      timezone: 'Asia/Makassar',
+      briefingEnabled: true,
+      weeklyBriefingEnabled: true,
+      weeklyBriefingDay: 1,
+      briefingTime: null,
+      followUpIntervalMinutes: 60,
+      notifiable: true,
+    },
+  ]);
+});

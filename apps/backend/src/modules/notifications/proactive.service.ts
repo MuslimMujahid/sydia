@@ -10,8 +10,8 @@ import {
   type ITaskRepository,
   type IUserRepository,
 } from '../../database/interfaces';
-import type { User } from '../../database/entities';
-import { dayWindow } from '../../shared/date-time';
+import type { User, Reminder } from '../../database/entities';
+import { dayWindow, nextOccurrence } from '../../shared/date-time';
 import {
   LANGUAGE_MODEL,
   type LanguageModelGateway,
@@ -24,11 +24,45 @@ import {
 import { NotificationComposerService } from './notification-composer.service';
 import { NotificationService } from './notification.service';
 import { localeOf } from '../../shared/locale';
-import { renderBriefingBody } from './notification-formatting';
+import { renderScheduledBriefing } from './scheduled-briefing-formatting';
+import { briefingDayWindows, isWeeklyBriefingDay } from './briefing-schedule';
 import { CalendarReadService } from '../calendar/calendar-read.service';
 
 const BRIEFING_MAX_OUTPUT_TOKENS = 400;
 const BRIEFING_TEMPERATURE = 0.5;
+type BriefingMode = 'scheduled' | 'daily' | 'weekly' | 'daily_weekly';
+const MANUAL_BRIEFING_KEYS: Record<BriefingMode, string> = {
+  scheduled: 'dev-briefing',
+  daily: 'dev-briefing',
+  weekly: 'dev-weekly-briefing',
+  daily_weekly: 'dev-combined-briefing',
+};
+
+// Daily is the most frequent supported reminder recurrence. Allow timezone
+// transitions at either end while bounding malformed-rule expansion.
+const MAX_WEEKLY_REMINDER_OCCURRENCES = 14;
+
+function reminderOccurrences(reminder: Reminder, end: Date): Reminder[] {
+  const occurrences: Reminder[] = [];
+  let at: Date | null = reminder.scheduledAt;
+
+  while (at && at < end) {
+    if (occurrences.length >= MAX_WEEKLY_REMINDER_OCCURRENCES)
+      throw new Error(
+        `Reminder ${reminder.id} exceeded the weekly occurrence limit.`,
+      );
+    occurrences.push({ ...reminder, scheduledAt: at });
+    const next: Date | null = reminder.recurrence
+      ? nextOccurrence(reminder.recurrence, at, reminder.timezone)
+      : null;
+
+    if (next && next <= at)
+      throw new Error(`Reminder ${reminder.id} recurrence did not advance.`);
+    at = next;
+  }
+
+  return occurrences;
+}
 
 @Injectable()
 export class DailyBriefingService {
@@ -48,19 +82,49 @@ export class DailyBriefingService {
     private readonly model: LanguageModelGateway | null = null,
   ) {}
 
-  async run(userId: string, now = new Date(), requestId?: string) {
+  async run(
+    userId: string,
+    now = new Date(),
+    requestId?: string,
+    mode: BriefingMode = 'scheduled',
+  ) {
     const user = await this.users.findById(userId);
     if (!user) return { status: 'skipped_user_missing' as const };
     const preferences = await this.preferences.getPreferences(userId);
-    if (preferences?.briefingEnabled === false)
-      return { status: 'skipped_disabled' as const };
+    const dailyEnabled = preferences?.briefingEnabled !== false;
+    const weeklyEnabled = preferences?.weeklyBriefingEnabled !== false;
+    const weekly =
+      mode === 'weekly' ||
+      mode === 'daily_weekly' ||
+      (mode === 'scheduled' &&
+        weeklyEnabled &&
+        isWeeklyBriefingDay(
+          now,
+          user.timezone,
+          preferences?.weeklyBriefingDay ?? 1,
+        ));
+
+    const enabled =
+      mode === 'weekly'
+        ? weeklyEnabled
+        : mode === 'daily_weekly'
+          ? dailyEnabled && weeklyEnabled
+          : mode === 'daily'
+            ? dailyEnabled
+            : dailyEnabled || weekly;
+
+    if (!enabled) return { status: 'skipped_disabled' as const };
 
     const window = dayWindow(now, user.timezone);
-    const [todayTasks, overdueTasks, todayReminders, events] =
+    const days = weekly ? briefingDayWindows(now, user.timezone) : [window];
+    const end = days[days.length - 1]!.end;
+    const [dueTasks, overdueTasks, scheduledReminders, events] =
       await Promise.all([
         this.tasks.list(userId, {
           status: ['inbox'],
-          due: 'today',
+          ...(weekly
+            ? { dueRange: { from: window.start, to: end } }
+            : { due: 'today' as const }),
           now,
           timezone: user.timezone,
         }),
@@ -71,75 +135,142 @@ export class DailyBriefingService {
           timezone: user.timezone,
         }),
         this.reminders.list(userId, {
-          schedule: 'today',
+          ...(weekly
+            ? { scheduleRange: { from: now, to: end } }
+            : { schedule: 'today' as const }),
           now,
           timezone: user.timezone,
         }),
-        this.calendar.list(userId, window.start, window.end),
+        this.calendar.list(userId, window.start, end),
       ]);
 
-    const snapshot: BriefingSnapshot = {
-      date: window.date,
-      timezone: user.timezone,
-      instant: now.toISOString(),
-      events: events.map((event) => {
-        if (event.allDayStartDate && event.allDayEndDate)
-          return {
-            title: event.title,
-            kind: 'all_day' as const,
-            startDate: event.allDayStartDate.toISOString().slice(0, 10),
-            endDate: event.allDayEndDate.toISOString().slice(0, 10),
-          };
-        if (event.startAt && event.endAt)
-          return {
-            title: event.title,
-            kind: 'timed' as const,
-            startAt: event.startAt.toISOString(),
-            endAt: event.endAt.toISOString(),
-          };
+    // Assign an overlapping event to its first day in the window. Multi-day
+    // events retain their full date range and appear only once in the message.
+    const eventDays = events.map((event) => {
+      if (event.status === 'cancelled') return -1;
 
-        throw new Error(`Calendar event ${event.id} has no valid date shape.`);
-      }),
-      tasksDueToday: todayTasks.map((task) => ({
+      if (event.allDayStartDate && event.allDayEndDate) {
+        const from = event.allDayStartDate.toISOString().slice(0, 10);
+        const to = event.allDayEndDate.toISOString().slice(0, 10);
+
+        return days.findIndex((day) => from <= day.date && to > day.date);
+      }
+
+      if (event.startAt && event.endAt)
+        return days.findIndex(
+          (day) => event.startAt! < day.end && event.endAt! > day.start,
+        );
+      throw new Error(`Calendar event ${event.id} has no valid date shape.`);
+    });
+
+    const reminderDates = weekly
+      ? scheduledReminders
+          .filter((reminder) => reminder.scheduledAt >= now)
+          .flatMap((reminder) => reminderOccurrences(reminder, end))
+          .sort(
+            (left, right) =>
+              left.scheduledAt.getTime() - right.scheduledAt.getTime(),
+          )
+      : scheduledReminders;
+
+    const snapshots: BriefingSnapshot[] = days.map((day, index) => ({
+      date: day.date,
+      timezone: user.timezone,
+      instant: (index === 0 ? now : day.start).toISOString(),
+      events: events
+        .filter((_event, eventIndex) => eventDays[eventIndex] === index)
+        .map((event) => {
+          if (event.allDayStartDate && event.allDayEndDate)
+            return {
+              title: event.title,
+              kind: 'all_day' as const,
+              startDate: event.allDayStartDate.toISOString().slice(0, 10),
+              endDate: event.allDayEndDate.toISOString().slice(0, 10),
+            };
+          if (event.startAt && event.endAt)
+            return {
+              title: event.title,
+              kind: 'timed' as const,
+              startAt: event.startAt.toISOString(),
+              endAt: event.endAt.toISOString(),
+            };
+
+          throw new Error(
+            `Calendar event ${event.id} has no valid date shape.`,
+          );
+        }),
+      tasksDueToday: dueTasks
+        .filter(
+          (task) =>
+            task.dueAt && task.dueAt >= day.start && task.dueAt < day.end,
+        )
+        .map((task) => ({
+          title: task.title,
+          priority: task.priority,
+          dueAt: task.dueAt?.toISOString() ?? null,
+        })),
+      overdueTasks: (index === 0 ? overdueTasks : []).map((task) => ({
         title: task.title,
         priority: task.priority,
         dueAt: task.dueAt?.toISOString() ?? null,
       })),
-      overdueTasks: overdueTasks.map((task) => ({
-        title: task.title,
-        priority: task.priority,
-        dueAt: task.dueAt?.toISOString() ?? null,
-      })),
-      remindersToday: todayReminders
-        .filter((reminder) => reminder.scheduledAt >= now)
+      remindersToday: reminderDates
+        .filter(
+          (reminder) =>
+            reminder.scheduledAt >= now &&
+            reminder.scheduledAt >= day.start &&
+            reminder.scheduledAt < day.end,
+        )
         .map((reminder) => ({
           title: reminder.title,
           scheduledAt: reminder.scheduledAt.toISOString(),
         })),
-    };
+    }));
 
+    const snapshot = snapshots[0]!;
     const introduction = await this.compose(user, snapshot);
     const format = { locale: localeOf(user.locale), timezone: user.timezone };
+    const upcoming = weekly ? snapshots.slice(1) : null;
+    const telegram = renderScheduledBriefing(
+      { ...format, rich: true },
+      snapshot,
+      upcoming,
+      introduction,
+      mode === 'weekly' ? 'weekly' : 'combined',
+    );
+
+    const whatsapp = renderScheduledBriefing(
+      { ...format, rich: false },
+      snapshot,
+      upcoming,
+      introduction,
+      mode === 'weekly' ? 'weekly' : 'combined',
+    );
+
+    if (telegram.omitted > 0 || whatsapp.omitted > 0) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'briefing_items_omitted',
+          userId,
+          date: window.date,
+          telegram: telegram.omitted,
+          whatsapp: whatsapp.omitted,
+        }),
+      );
+    }
+
     const contentByChannel = {
-      telegram: renderBriefingBody(
-        { ...format, rich: true },
-        snapshot,
-        introduction,
-      ),
-      whatsapp: renderBriefingBody(
-        { ...format, rich: false },
-        snapshot,
-        introduction,
-      ),
+      telegram: telegram.content,
+      whatsapp: whatsapp.content,
     };
 
     const result = await this.notifications.enqueue({
       userId,
-      kind: 'daily_briefing',
+      kind: weekly ? 'weekly_briefing' : 'daily_briefing',
       content: contentByChannel.telegram,
       contentByChannel,
       idempotencyKey: requestId
-        ? `dev-briefing:${requestId}`
+        ? `${MANUAL_BRIEFING_KEYS[mode]}:${requestId}`
         : `briefing:${window.date}`,
       proactive: true,
       sourceId: window.date,

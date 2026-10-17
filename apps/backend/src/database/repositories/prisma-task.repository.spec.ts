@@ -4,6 +4,37 @@ import { PrismaTaskRepository } from './prisma-task.repository';
 
 const NOW = new Date('2026-09-06T12:00:00.000Z');
 
+test('weekly task query bounds the due range and excludes completed work at the database boundary', async () => {
+  const findMany = jest
+    .fn<(input: unknown) => Promise<never[]>>()
+    .mockResolvedValue([]);
+
+  const repository = new PrismaTaskRepository({
+    task: { findMany },
+  } as unknown as PrismaService);
+
+  await repository.list('user-1', {
+    status: ['inbox'],
+    now: NOW,
+    dueRange: {
+      from: new Date('2026-10-18T16:00:00Z'),
+      to: new Date('2026-10-25T16:00:00Z'),
+    },
+  });
+  expect(findMany).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: expect.objectContaining({
+        userId: 'user-1',
+        status: { in: ['inbox'] },
+        dueAt: {
+          gte: new Date('2026-10-18T16:00:00Z'),
+          lt: new Date('2026-10-25T16:00:00Z'),
+        },
+      }),
+    }),
+  );
+});
+
 function taskRow(status: string, completedAt: Date | null = null) {
   return {
     id: 'task-1',

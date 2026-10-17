@@ -87,6 +87,12 @@ test("disables sending while a follow-up request is pending", async ({
   await expect(
     page.getByRole("button", { name: "Send follow-up" })
   ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Send weekly brief only", exact: true })
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Send weekly + daily brief", exact: true })
+  ).toBeDisabled();
   finish();
   await expect(page.getByRole("status")).toHaveText(
     "No tasks are due for follow-up."
@@ -132,3 +138,51 @@ test("links to chat previews", async ({ page }) => {
   await page.getByRole("link", { name: "Chat previews" }).click();
   await expect(page).toHaveURL(/\/chats$/);
 });
+
+const weeklyActions = [
+  { label: "Send weekly brief only", endpoint: "weekly-brief" },
+  { label: "Send weekly + daily brief", endpoint: "daily-weekly-brief" },
+];
+
+for (const { label, endpoint } of weeklyActions) {
+  test(`${label} sends to its endpoint with distinct keys for deliberate sends`, async ({
+    page,
+  }) => {
+    const requests: { requestId: string }[] = [];
+    await page.route(`**/dev/notifications/${endpoint}`, async (route) => {
+      requests.push(route.request().postDataJSON());
+      await route.fulfill({
+        json: { data: { status: "queued", deliveryCount: 2, replayed: false } },
+      });
+    });
+    const action = page.getByRole("button", { name: label, exact: true });
+    await action.click();
+    await expect.poll(() => requests.length).toBe(1);
+    await expect(action).toBeEnabled();
+    await action.click();
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests[0]!.requestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(requests[1]!.requestId).not.toBe(requests[0]!.requestId);
+  });
+
+  test(`${label} retains its request key after a failed send`, async ({
+    page,
+  }) => {
+    const requests: { requestId: string }[] = [];
+    await page.route(`**/dev/notifications/${endpoint}`, async (route) => {
+      requests.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 503,
+        json: { error: { message: "Queue unavailable. Check Redis." } },
+      });
+    });
+    const action = page.getByRole("button", { name: label, exact: true });
+    await action.click();
+    await expect(page.getByRole("alert")).toHaveText(
+      "Queue unavailable. Check Redis."
+    );
+    await action.click();
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests[1]!.requestId).toBe(requests[0]!.requestId);
+  });
+}

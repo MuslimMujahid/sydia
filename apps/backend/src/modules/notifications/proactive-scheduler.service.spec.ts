@@ -7,14 +7,21 @@ import type {
 import type { QueueService } from '../../infra/queue';
 import { ProactiveSchedulerService } from './proactive-scheduler.service';
 
-function setup(interval: number, notifiable = true) {
+function setup(
+  interval: number,
+  notifiable = true,
+  overrides: Partial<NotificationSchedulingTarget> = {},
+) {
   const target: NotificationSchedulingTarget = {
     userId: 'owner',
     timezone: 'Asia/Makassar',
     briefingEnabled: true,
+    weeklyBriefingEnabled: true,
+    weeklyBriefingDay: 1,
     briefingTime: '08:00',
     followUpIntervalMinutes: interval,
     notifiable,
+    ...overrides,
   };
 
   const repository = {
@@ -86,3 +93,50 @@ test.each(['2026-10-15T14:00:00Z', '2026-10-15T23:55:00Z'])(
     expect(add).not.toHaveBeenCalled();
   },
 );
+
+test('weekly-only briefing uses the shared time on the selected local weekday', async () => {
+  const { service, add } = setup(60, true, {
+    briefingEnabled: false,
+    briefingTime: '09:15',
+  });
+
+  await service.sweepBriefings(new Date('2026-10-19T01:15:00Z'));
+  expect(add).toHaveBeenCalledWith(
+    'briefing',
+    { kind: 'user', userId: 'owner', at: '2026-10-19T01:15:00.000Z' },
+    { jobId: 'briefing-owner-2026-10-19' },
+  );
+});
+
+test('weekly-only briefing is skipped on another weekday', async () => {
+  const { service, add } = setup(60, true, { briefingEnabled: false });
+  await service.sweepBriefings(new Date('2026-10-20T00:00:00Z'));
+  expect(add).not.toHaveBeenCalled();
+});
+
+test('daily and weekly share one job identity across repeated weekly-day sweeps', async () => {
+  const { service, add } = setup(60);
+  await service.sweepBriefings(new Date('2026-10-19T00:00:00Z'));
+  await service.sweepBriefings(new Date('2026-10-19T00:05:00Z'));
+  expect(add).toHaveBeenCalledTimes(1);
+});
+
+test('both briefing switches off suppress the weekly day', async () => {
+  const { service, add } = setup(60, true, {
+    briefingEnabled: false,
+    weeklyBriefingEnabled: false,
+  });
+
+  await service.sweepBriefings(new Date('2026-10-19T00:00:00Z'));
+  expect(add).not.toHaveBeenCalled();
+});
+
+test('weekly briefing respects quiet hours even on the selected weekday', async () => {
+  const { service, add } = setup(60, true, {
+    briefingEnabled: false,
+    briefingTime: '23:00',
+  });
+
+  await service.sweepBriefings(new Date('2026-10-19T15:00:00Z'));
+  expect(add).not.toHaveBeenCalled();
+});

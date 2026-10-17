@@ -223,9 +223,9 @@ export function NotificationSettingsPage() {
               <option value={180}>3 Jam</option>
             </select>
           </Card>
-          <Card className="p-6 sm:p-8" aria-label="Briefing harian">
+          <Card className="p-6 sm:p-8" aria-label="Briefing">
             <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-              Briefing harian
+              Briefing
             </h2>
             <div className="mt-4 divide-y divide-surface-1">
               <PreferenceSwitch
@@ -238,6 +238,45 @@ export function NotificationSettingsPage() {
                   updateMutation.mutate({ briefingEnabled: checked })
                 }
               />
+              <PreferenceSwitch
+                id="weekly-briefing-enabled"
+                label="Aktifkan briefing mingguan"
+                description="Ringkasan tujuh hari mulai hari pengiriman. Digabung dalam satu pesan dengan briefing harian jika keduanya aktif."
+                checked={preferences.weeklyBriefingEnabled}
+                disabled={controlsDisabled}
+                onChange={(checked) =>
+                  updateMutation.mutate({ weeklyBriefingEnabled: checked })
+                }
+              />
+              <div className="py-5">
+                <label
+                  htmlFor="weekly-briefing-day"
+                  className="block font-sans text-[15px] font-semibold text-ink"
+                >
+                  Hari briefing mingguan
+                </label>
+                <select
+                  id="weekly-briefing-day"
+                  className="mt-3 h-11 rounded-sm border border-ink/16 bg-canvas px-3 text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:bg-ink/4 disabled:opacity-40"
+                  value={preferences.weeklyBriefingDay}
+                  disabled={
+                    controlsDisabled || !preferences.weeklyBriefingEnabled
+                  }
+                  onChange={(event) =>
+                    updateMutation.mutate({
+                      weeklyBriefingDay: Number(event.target.value),
+                    })
+                  }
+                >
+                  <option value={1}>Senin</option>
+                  <option value={2}>Selasa</option>
+                  <option value={3}>Rabu</option>
+                  <option value={4}>Kamis</option>
+                  <option value={5}>Jumat</option>
+                  <option value={6}>Sabtu</option>
+                  <option value={7}>Minggu</option>
+                </select>
+              </div>
               <div className="py-5 last:pb-0">
                 <label
                   htmlFor="briefing-time"
@@ -249,8 +288,9 @@ export function NotificationSettingsPage() {
                   id="briefing-time-description"
                   className="mt-1.5 max-w-xl text-sm text-ink-muted"
                 >
-                  Dikirim pada zona waktu profil Anda. Tidak ada pengiriman
-                  antara pukul 22.00–08.00.
+                  Briefing harian dan mingguan memakai jam yang sama, sesuai
+                  zona waktu profil Anda. Tidak ada pengiriman antara pukul
+                  22.00–08.00.
                 </p>
                 <input
                   id="briefing-time"
@@ -258,7 +298,11 @@ export function NotificationSettingsPage() {
                   aria-describedby="briefing-time-description"
                   className="mt-3 h-11 rounded-sm border border-ink/16 bg-canvas px-3 font-mono text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:bg-ink/4 disabled:opacity-40"
                   value={preferences.briefingTime}
-                  disabled={controlsDisabled || !preferences.briefingEnabled}
+                  disabled={
+                    controlsDisabled ||
+                    (!preferences.briefingEnabled &&
+                      !preferences.weeklyBriefingEnabled)
+                  }
                   onChange={(event) => {
                     if (!event.target.value) return;
                     updateMutation.mutate({

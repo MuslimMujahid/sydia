@@ -72,8 +72,9 @@ export class PrismaReminderRepository implements IReminderRepository {
   ): Promise<Reminder[]> {
     const now = filters.now ?? new Date();
     const { start, end } = dayWindow(now, filters.timezone ?? 'UTC');
-    const scheduledAt =
-      filters.schedule === 'today'
+    const scheduledAt = filters.scheduleRange
+      ? { gte: filters.scheduleRange.from, lt: filters.scheduleRange.to }
+      : filters.schedule === 'today'
         ? { gte: start, lt: end }
         : filters.schedule === 'upcoming'
           ? { gte: end }

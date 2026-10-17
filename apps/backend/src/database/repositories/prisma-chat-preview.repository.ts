@@ -32,6 +32,7 @@ export class PrismaChatPreviewRepository implements IChatPreviewRepository {
         data: ids.map((userId) => ({
           userId,
           briefingEnabled: false,
+          weeklyBriefingEnabled: false,
           webNotificationsEnabled: false,
           telegramNotificationsEnabled: false,
           whatsappNotificationsEnabled: false,

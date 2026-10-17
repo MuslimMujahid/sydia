@@ -69,6 +69,8 @@ export type NotificationSchedulingTarget = {
   userId: string;
   timezone: string;
   briefingEnabled: boolean;
+  weeklyBriefingEnabled: boolean;
+  weeklyBriefingDay: number;
   briefingTime: string | null;
   followUpIntervalMinutes: number;
   /** False when every delivery channel is off, so a sweep can skip the work. */

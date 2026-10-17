@@ -1,7 +1,8 @@
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
-export type DevNotificationKind = "daily-brief" | "follow-up";
+export type DevNotificationKind =
+  "daily-brief" | "weekly-brief" | "daily-weekly-brief" | "follow-up";
 export type DevNotificationResult = {
   status:
     "queued" | "skipped_disabled" | "skipped_user_missing" | "nothing_due";

@@ -43,6 +43,8 @@ export type UserPreference = Pick<
   PrismaUserPreference,
   | 'userId'
   | 'briefingEnabled'
+  | 'weeklyBriefingEnabled'
+  | 'weeklyBriefingDay'
   | 'briefingTime'
   | 'followUpIntervalMinutes'
   | 'webNotificationsEnabled'

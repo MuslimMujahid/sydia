@@ -3,6 +3,8 @@ import type { Task, TaskStatus, TaskWrite } from '../entities';
 export type TaskFilters = {
   status?: TaskStatus | TaskStatus[];
   due?: 'today' | 'upcoming' | 'overdue' | 'none';
+  /** Explicit range, inclusive start and exclusive end; overrides `due`. */
+  dueRange?: { from: Date; to: Date };
   search?: string;
   categoryIds?: string[];
   now?: Date;

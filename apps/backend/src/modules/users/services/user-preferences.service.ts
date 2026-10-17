@@ -15,6 +15,8 @@ export type PublicUserPreferences = {
   persona: AssistantPersona;
   preferredAddress: string | null;
   briefingEnabled: boolean;
+  weeklyBriefingEnabled: boolean;
+  weeklyBriefingDay: number;
   briefingTime: string;
   followUpIntervalMinutes: number;
   webNotificationsEnabled: boolean;
@@ -39,6 +41,8 @@ function normalizePreferredAddress(
 
 const defaults = {
   briefingEnabled: true,
+  weeklyBriefingEnabled: true,
+  weeklyBriefingDay: 1,
   briefingTime: '08:00',
   followUpIntervalMinutes: 60,
   webNotificationsEnabled: true,
@@ -127,6 +131,10 @@ export class UserPreferencesService {
       persona: user.persona,
       preferredAddress: user.preferredAddress,
       briefingEnabled: stored?.briefingEnabled ?? defaults.briefingEnabled,
+      weeklyBriefingEnabled:
+        stored?.weeklyBriefingEnabled ?? defaults.weeklyBriefingEnabled,
+      weeklyBriefingDay:
+        stored?.weeklyBriefingDay ?? defaults.weeklyBriefingDay,
       briefingTime: stored?.briefingTime ?? defaults.briefingTime,
       followUpIntervalMinutes:
         stored?.followUpIntervalMinutes ?? defaults.followUpIntervalMinutes,

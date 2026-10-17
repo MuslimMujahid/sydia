@@ -73,8 +73,9 @@ export class PrismaTaskRepository implements ITaskRepository {
   async list(userId: string, filters: TaskFilters = {}): Promise<Task[]> {
     const now = filters.now ?? new Date();
     const { start, end } = dayWindow(now, filters.timezone ?? 'UTC');
-    const dueAt =
-      filters.due === 'today'
+    const dueAt = filters.dueRange
+      ? { gte: filters.dueRange.from, lt: filters.dueRange.to }
+      : filters.due === 'today'
         ? { gte: start, lt: end }
         : filters.due === 'upcoming'
           ? { gte: end }

@@ -99,6 +99,78 @@ async function send(page: Page, content: string) {
   await expect(page.getByRole("button", { name: "New session" })).toBeEnabled();
 }
 
+test("renders a combined weekly brief with complete rows and an omitted count across channels", async ({
+  page,
+}) => {
+  const rich = [
+    [
+      "**Weekly briefing · 19 Oct 2026–25 Oct 2026**",
+      "Your day ahead.",
+      "**Today**",
+    ].join("\\\n\\\n"),
+    "**Tasks due today (1)**",
+    "- **Pay invoice** — Due 19 Oct 2026, 10:00 · Priority high",
+    "---",
+    "**Coming six days**",
+    "**20 Oct 2026**",
+    "**Agenda (1)**",
+    "- **Planning** — 20 Oct 2026, 11:00–12:00",
+    "3 more items omitted to keep this briefing in one message.",
+  ].join("\n\n");
+
+  await page.route("**/conversations/messages/stream", async (route) => {
+    const values = route.request().postDataJSON() as SendMessageVariables;
+    const turn = response(values);
+    const content =
+      values.previewChannel === "telegram"
+        ? rich
+        : rich.replaceAll("\\\n\\\n", "\n\n").replace("\n\n---\n\n", "\n\n");
+
+    turn.assistantMessage.content =
+      values.previewChannel === "whatsapp"
+        ? content.replaceAll("**", "")
+        : content;
+    turn.toolInvocations = [];
+    await route.fulfill({
+      contentType: "text/event-stream",
+      body: `data: ${JSON.stringify({ type: "data-turn", data: turn })}\n\ndata: [DONE]\n\n`,
+    });
+  });
+  await page.goto("/e2e/chat-previews.html");
+  await send(page, "Show the weekly brief");
+  const web = page.getByRole("region", { name: "Web chat", exact: true });
+  const telegram = page.getByRole("region", { name: "Telegram", exact: true });
+  const whatsapp = page.getByRole("region", { name: "WhatsApp", exact: true });
+  await expect(web.getByRole("listitem")).toHaveText([
+    "Pay invoice — Due 19 Oct 2026, 10:00 · Priority high",
+    "Planning — 20 Oct 2026, 11:00–12:00",
+  ]);
+  await expect(telegram.getByRole("listitem")).toHaveText([
+    "Pay invoice — Due 19 Oct 2026, 10:00 · Priority high",
+    "Planning — 20 Oct 2026, 11:00–12:00",
+  ]);
+  await expect(whatsapp.getByRole("listitem")).toHaveText([
+    "Pay invoice — Due 19 Oct 2026, 10:00 · Priority high",
+    "Planning — 20 Oct 2026, 11:00–12:00",
+  ]);
+  await expect(
+    telegram.getByText("Coming six days", { exact: true })
+  ).toBeVisible();
+  await expect(telegram.getByRole("separator")).toHaveCount(1);
+  const opening = telegram.locator("p").filter({ hasText: "Your day ahead." });
+
+  await expect(opening).toHaveCSS("white-space", "normal");
+  await expect(opening.locator("br")).toHaveCount(4);
+  await expect(web.getByRole("separator")).toHaveCount(0);
+  await expect(whatsapp.getByRole("separator")).toHaveCount(0);
+  await expect(
+    whatsapp.getByText(
+      "3 more items omitted to keep this briefing in one message.",
+      { exact: true }
+    )
+  ).toBeVisible();
+});
+
 test("fires three requests concurrently through the existing endpoint", async ({
   page,
 }) => {

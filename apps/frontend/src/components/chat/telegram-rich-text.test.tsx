@@ -4,6 +4,40 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NativeChatText } from "./native-chat-text";
 
 describe("Telegram rich message preview", () => {
+  it("preserves blank lines between the weekly title, introduction, and first section", () => {
+    const html = renderToStaticMarkup(
+      <NativeChatText
+        channel="telegram"
+        content={[
+          "**Briefing mingguan · 17 Okt 2026–23 Okt 2026**",
+          "Semangat pagi!",
+          "**Hari ini**",
+        ].join("\\\n\\\n")}
+      />
+    );
+
+    assert.match(
+      html,
+      /<strong>Briefing mingguan · 17 Okt 2026–23 Okt 2026<\/strong><br\/>\n<br\/>\nSemangat pagi!<br\/>\n<br\/>\n<strong>Hari ini<\/strong>/
+    );
+  });
+
+  it("renders a divider between today's brief and the coming six days", () => {
+    const html = renderToStaticMarkup(
+      <NativeChatText
+        channel="telegram"
+        content={
+          "**Hari ini**\n\n- Bayar tagihan\n\n---\n\n**Enam hari ke depan**\n\n- Rapat"
+        }
+      />
+    );
+
+    assert.match(
+      html,
+      /<strong>Hari ini<\/strong>[\s\S]*<hr\/>[\s\S]*<strong>Enam hari ke depan<\/strong>/
+    );
+  });
+
   it("renders emphasis and native nested lists", () => {
     const html = renderToStaticMarkup(
       <NativeChatText

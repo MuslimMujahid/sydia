@@ -1,6 +1,14 @@
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Code2, LoaderCircle, MessageSquare, Send, Sun } from "lucide-react";
+import {
+  CalendarDays,
+  Code2,
+  Layers,
+  LoaderCircle,
+  MessageSquare,
+  Send,
+  Sun,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -19,6 +27,33 @@ interface DevToolbarProps {
 
 const ACTION_CLASS_NAME =
   "flex min-h-10 w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-sm font-normal text-ink-muted outline-none hover:bg-surface-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50";
+
+const NOTIFICATION_ACTIONS = [
+  {
+    kind: "daily-brief",
+    Icon: Sun,
+    labelEn: "Send daily brief",
+    labelId: "Kirim ringkasan harian",
+  },
+  {
+    kind: "weekly-brief",
+    Icon: CalendarDays,
+    labelEn: "Send weekly brief only",
+    labelId: "Kirim ringkasan mingguan",
+  },
+  {
+    kind: "daily-weekly-brief",
+    Icon: Layers,
+    labelEn: "Send weekly + daily brief",
+    labelId: "Kirim mingguan + harian",
+  },
+  {
+    kind: "follow-up",
+    Icon: Send,
+    labelEn: "Send follow-up",
+    labelId: "Kirim tindak lanjut",
+  },
+] as const;
 
 export function DevToolbar({ locale }: DevToolbarProps) {
   const en = locale === "en";
@@ -78,40 +113,26 @@ export function DevToolbar({ locale }: DevToolbarProps) {
         aria-label={en ? "Development tools" : "Alat pengembangan"}
       >
         <div aria-busy={mutation.isPending}>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={ACTION_CLASS_NAME}
-            disabled={mutation.isPending}
-            onClick={() => send("daily-brief")}
-          >
-            {mutation.isPending && mutation.variables.kind === "daily-brief" ? (
-              <LoaderCircle
-                className="animate-spin motion-reduce:animate-none"
-                aria-hidden="true"
-              />
-            ) : (
-              <Sun aria-hidden="true" />
-            )}
-            {en ? "Send daily brief" : "Kirim ringkasan harian"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={ACTION_CLASS_NAME}
-            disabled={mutation.isPending}
-            onClick={() => send("follow-up")}
-          >
-            {mutation.isPending && mutation.variables.kind === "follow-up" ? (
-              <LoaderCircle
-                className="animate-spin motion-reduce:animate-none"
-                aria-hidden="true"
-              />
-            ) : (
-              <Send aria-hidden="true" />
-            )}
-            {en ? "Send follow-up" : "Kirim tindak lanjut"}
-          </Button>
+          {NOTIFICATION_ACTIONS.map(({ kind, Icon, labelEn, labelId }) => (
+            <Button
+              key={kind}
+              variant="ghost"
+              size="sm"
+              className={ACTION_CLASS_NAME}
+              disabled={mutation.isPending}
+              onClick={() => send(kind)}
+            >
+              {mutation.isPending && mutation.variables.kind === kind ? (
+                <LoaderCircle
+                  className="animate-spin motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Icon aria-hidden="true" />
+              )}
+              {en ? labelEn : labelId}
+            </Button>
+          ))}
           <Link to="/chats" className={ACTION_CLASS_NAME}>
             <MessageSquare className="size-4" aria-hidden="true" />
             {en ? "Chat previews" : "Pratinjau chat"}

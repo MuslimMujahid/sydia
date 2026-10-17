@@ -1249,6 +1249,8 @@ model WhatsAppOutboundReservation {
 model UserPreference {
   userId                       String   @id
   briefingEnabled              Boolean  @default(true)
+  weeklyBriefingEnabled        Boolean  @default(true)
+  weeklyBriefingDay            Int      @default(1)
   followUpIntervalMinutes      Int      @default(60)
   briefingTime                 String?
   webNotificationsEnabled      Boolean  @default(true)

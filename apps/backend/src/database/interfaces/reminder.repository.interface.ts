@@ -3,6 +3,8 @@ import type { Reminder, ReminderWrite } from '../entities';
 export type ReminderDelivery = Reminder & { userId: string };
 export type ReminderFilters = {
   schedule?: 'today' | 'upcoming' | 'past';
+  /** Explicit range, inclusive start and exclusive end; overrides `schedule`. */
+  scheduleRange?: { from: Date; to: Date };
   search?: string;
   now?: Date;
   timezone?: string;

@@ -8,6 +8,7 @@ import {
 import { QueueService } from '../../infra/queue';
 import { dayWindow, isDueInWindow } from '../../shared/date-time';
 import { followUpIntervalKey } from './follow-up-interval';
+import { isWeeklyBriefingDay } from './briefing-schedule';
 
 const DEFAULT_BRIEFING_TIME = '08:00';
 const DEFAULT_SWEEP_MINUTES = 5;
@@ -67,14 +68,18 @@ export class ProactiveSchedulerService {
 
   async sweepBriefings(now = new Date()): Promise<SweepOutcome> {
     return this.sweep('briefing', now, (target) => ({
-      due: isDueInWindow(
-        now,
-        target.timezone,
-        target.briefingTime ?? DEFAULT_BRIEFING_TIME,
-        this.windowMinutes,
-      ),
-      // Only an explicitly disabled preference suppresses a briefing.
-      enabled: target.briefingEnabled,
+      due:
+        isDueInWindow(now, target.timezone, '08:00', 14 * 60) &&
+        isDueInWindow(
+          now,
+          target.timezone,
+          target.briefingTime ?? DEFAULT_BRIEFING_TIME,
+          this.windowMinutes,
+        ),
+      enabled:
+        target.briefingEnabled ||
+        (target.weeklyBriefingEnabled &&
+          isWeeklyBriefingDay(now, target.timezone, target.weeklyBriefingDay)),
     }));
   }
 

@@ -31,14 +31,25 @@ against persisted conversation state and log any degraded recovery.
 
 In Vite development mode, signed-in pages with completed onboarding show a
 floating **Development tools** toggle at the bottom right. Open it to send a
-daily brief or follow-up, or follow **Chat previews** to `/chats`.
+daily brief, weekly brief only, weekly + daily brief, or follow-up, or follow
+**Chat previews** to `/chats`.
 
-Manual sends use `POST /dev/notifications/daily-brief` and
-`POST /dev/notifications/follow-up`. Both require backend
+Manual sends use `POST /dev/notifications/daily-brief`,
+`POST /dev/notifications/weekly-brief`,
+`POST /dev/notifications/daily-weekly-brief`, and
+`POST /dev/notifications/follow-up`. All require backend
 `NODE_ENV=development` and use the current session's account. They send through
 the existing notification pipeline to enabled Telegram and WhatsApp channels,
 respect notification preferences, and only include due tasks in follow-ups.
 These actions send real notifications for that account.
+
+Manual brief actions choose their exact format on any weekday, using today in
+the account's timezone as the start date. **Weekly brief only** groups all seven
+days by date, without a separate daily section; **Weekly + daily brief** sends
+one combined **Today** and **Coming six days** message. **Daily brief** always
+sends just today's brief. Weekly-only sends require the weekly switch; combined
+sends require both daily and weekly switches. Each variant has its own manual
+delivery key, and retries of that variant reuse the original key and saved text.
 
 Daily briefs and follow-ups use compact bullet rows with a title followed by
 inline metadata (`—` and `·` separators). Telegram adds bold titles; WhatsApp
@@ -51,6 +62,30 @@ introduction is generated once; if the model is unavailable or returns empty
 text, a warning records the use of a localized deterministic introduction.
 Record lists use the same formatter in either case. Each channel's final text is
 persisted before enqueue, and retries reuse that saved text.
+
+Weekly briefs share the daily send time and have their own switch and ISO weekday
+(Monday = 1 through Sunday = 7) in notification settings. They default to Monday,
+enabled; the migration preserves opt-outs for accounts that had daily briefs off.
+The selected day covers that local date and the following six dates, ending at
+the next local midnight after day seven (including across DST). Daily and weekly
+briefs use one job and delivery key for the date. On the weekly day, **Today** is
+followed by **Coming six days**, grouped by date, with no repeated items; a
+Telegram divider (`---`) separates those sections and counts toward the message
+budget. A multi-day event is listed once with its complete range. Weekly-only
+accounts receive this complete seven-day brief on their selected day.
+Recurring events and reminders include their occurrences within that window;
+reminder recurrence uses the reminder's timezone and respects its end date.
+
+Briefings stay within a conservative 4,096-character text budget per channel.
+Included rows retain their full existing title, date/time, and priority details.
+When space runs out, whole items are omitted: overdue first, then earliest due or
+start time, with task priority breaking ties. The message shows the omitted count,
+and the worker logs `briefing_items_omitted` with per-channel counts. An individual
+row larger than the whole budget is omitted intact, never shortened. An oversized
+introduction/heading set fails visibly rather than producing an undeliverable
+message. Empty future periods are stated explicitly. Quiet hours apply to both
+briefing schedules. Manual actions select their requested format independently
+of the scheduled weekly day.
 
 Run the delivery worker from `apps/backend`:
 
@@ -99,6 +134,7 @@ From `apps/backend`:
 ```sh
 bun run test --runInBand prisma-chat-preview.repository.spec assistant-orchestrator.service.spec
 bun run test --runInBand telegram.adapter.spec terminal-tool-response.spec context-builder.service.spec
+bun run test --runInBand src/modules/notifications src/modules/users/dto/update-user-preferences.dto.spec.ts src/modules/users/services/user-preferences.service.spec.ts
 bun run check-types
 ```
 
@@ -107,6 +143,7 @@ From `apps/frontend`:
 ```sh
 bun test src/components/chat/telegram-rich-text.test.tsx src/components/chat/whatsapp-format.test.ts src/lib/services/api/conversations/conversations.api.test.ts
 bunx playwright test --config playwright.entities.config.ts chat-previews.spec.ts --workers 2
+bunx playwright test --config playwright.entities.config.ts notification-settings.spec.ts --workers 2
 bun run check-types
 bun run build
 ```

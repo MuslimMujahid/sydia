@@ -18,6 +18,9 @@ export type UserPreferences = {
   persona: AssistantPersona;
   preferredAddress: string | null;
   briefingEnabled: boolean;
+  weeklyBriefingEnabled: boolean;
+  /** ISO weekday: Monday = 1, Sunday = 7. */
+  weeklyBriefingDay: number;
   briefingTime: string;
   followUpIntervalMinutes: 30 | 60 | 120 | 180;
   webNotificationsEnabled: boolean;

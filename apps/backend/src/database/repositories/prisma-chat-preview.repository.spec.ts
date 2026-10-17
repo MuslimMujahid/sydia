@@ -45,6 +45,7 @@ type NewUser = Pick<
 type Preferences = {
   userId: string;
   briefingEnabled: boolean;
+  weeklyBriefingEnabled: boolean;
   webNotificationsEnabled: boolean;
   telegramNotificationsEnabled: boolean;
   whatsappNotificationsEnabled: boolean;
@@ -208,6 +209,7 @@ describe('development chat sandbox ownership', () => {
     expect(preferences.get(sandbox.id)).toEqual({
       userId: sandbox.id,
       briefingEnabled: false,
+      weeklyBriefingEnabled: false,
       webNotificationsEnabled: false,
       telegramNotificationsEnabled: false,
       whatsappNotificationsEnabled: false,
