@@ -144,6 +144,23 @@
   box-shadow: var(--shadow-button);
 }
 
+@utility scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 25%, transparent)
+    transparent;
+  scrollbar-gutter: stable;
+
+  &:hover,
+  &:focus-within {
+    scrollbar-color: color-mix(in srgb, var(--color-ink) 45%, transparent)
+      transparent;
+  }
+
+  @media (forced-colors: active) {
+    scrollbar-color: auto;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

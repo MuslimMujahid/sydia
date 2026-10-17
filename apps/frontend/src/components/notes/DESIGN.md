@@ -23,6 +23,12 @@ typography:
   label:
     fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "12px"
+  navigation:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "13px"
+  mobile-inline-input:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "16px"
 rounded:
   sm: "10px"
   md: "16px"
@@ -110,9 +116,15 @@ Use the existing gentle radii: small navigation/field corners, medium toolbar/bu
 
 ### Contextual navigation
 
-Search sits above the dedicated daily-note entry, followed by the separate custom folder hierarchy. Daily mode expands the existing date navigator. Custom folders sort before notes, alphabetically. Folder expansion and folder selection are separate native buttons; expansion exposes `aria-expanded`, and selected entries expose `aria-current`. Folder expansion controls are at least 44 × 44 px below 640 px; they compact at wider widths. Mobile note actions and new-folder controls also retain 44 px minimum dimensions. Icons supplement text or have accessible names.
+Search sits above the dedicated daily-note entry, followed by the separate custom folder hierarchy. Daily mode expands the existing date navigator. Custom folders sort before notes, alphabetically. Tree rows have a 4 px gap, including between a parent and its first child. Folder expansion and folder selection are separate native buttons; expansion exposes `aria-expanded`, and selected entries expose `aria-current`. Opening a document highlights that document alone; its parent remains the destination for new items without receiving an active treatment. A folder receives the active treatment when its contents view is open. Folder expansion controls are at least 44 × 44 px below 640 px; they compact at wider widths. Mobile note actions and new-folder controls also retain 44 px minimum dimensions. Icons supplement text or have accessible names.
 
-The item menu exposes rename, move, note-link copying, and a distinct destructive Trash action. Dragging changes the parent; **Pindahkan ke…** supplies the destination-picker path. Trash remains at the bottom of contextual navigation. Folder creation is inline with a named destination.
+The item menu exposes rename, move, note-link copying, and a distinct destructive Trash action. Dragging changes the parent; **Pindahkan ke…** supplies the destination-picker path. Trash remains at the bottom of contextual navigation.
+
+The calendar and folder tree share one vertical scroll region with horizontal overflow contained. A thin, muted scrollbar uses a transparent track, becomes more visible on hover or focus, and reserves a stable gutter. Forced-colors mode uses the system scrollbar colors. Calendar month controls stay within the available width; Search and Trash remain outside the scrolling region.
+
+**Folder baru** inserts one editable row at the start of the destination branch and reveals collapsed ancestors. The destination is the browsed folder or the open document's parent; root documents and daily notes use the root. The default name **Folder baru** is selected for replacement. Enter (keyboard Done on mobile) creates; Escape cancels and returns focus to the trigger. Leaving the field saves a trimmed, nonempty name; leaving an empty name cancels. Keep the existing document open throughout. The field uses a 6 px radius, folder and chevron icons, 13 px desktop text and 16 px mobile text. The destination and keyboard instructions are available to assistive technology rather than repeated as visible form copy.
+
+While creating, retain the row with a read-only name, loading icon and accessible status. Failed creation preserves the name, returns focus to the visible input and displays an associated alert; Enter retries. A shared draft and mutation serve the desktop sidebar and mobile drawer, and retries reuse the creation request key to prevent duplicate folders after a lost response. Opening mobile navigation focuses its heading so it preserves document context; Search activates when explicitly focused.
 
 ### Editor and links
 

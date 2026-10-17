@@ -151,7 +151,7 @@ export function DailyNoteCalendar({
         >
           {formatMonthAnchor(anchor)}
         </h2>
-        <div className="-mr-2 flex items-center">
+        <div className="flex shrink-0 items-center">
           <Button
             type="button"
             variant="ghost"

@@ -55,7 +55,7 @@ import {
   type WorkspaceDialogTarget,
 } from "./workspace-dialog";
 import { WorkspaceSearch } from "./workspace-search";
-import { InlineFolderForm } from "./inline-folder-form";
+import { useFolderCreation } from "./inline-folder-form";
 
 type NotesWorkspacePageProps = {
   userId: string;
@@ -99,11 +99,6 @@ export function NotesWorkspacePage({
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [dialog, setDialog] = useState<WorkspaceDialogTarget | null>(null);
-  const [newFolder, setNewFolder] = useState<{
-    parentId: string | null;
-    requestKey: string;
-  } | null>(null);
-
   const [freshRef, setFreshRef] = useState<string | null>(null);
   const [month, setMonth] = useState<MonthAnchor>(monthAnchorFromDayKey(today));
   const editor = useRef<WorkspaceEditorHandle>(null);
@@ -115,6 +110,7 @@ export function NotesWorkspacePage({
   const pendingLinks = useRef(new Map<string, string>());
   const [statusSlot, setStatusSlot] = useState<HTMLDivElement | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
+  const navigationHeading = useRef<HTMLHeadingElement>(null);
   const workspace = useQuery({ ...workspaceQueryOptions(), enabled: mounted });
   const requestedRef = selectedRef ?? stored.ref;
   const note = useQuery({
@@ -154,6 +150,8 @@ export function NotesWorkspacePage({
   const refresh = useCallback(async () => {
     await client.invalidateQueries({ queryKey: notesKeys.all });
   }, [client]);
+
+  const folderCreation = useFolderCreation({ onCreated: refresh });
 
   useEffect(() => {
     if (missingStored)
@@ -382,7 +380,7 @@ export function NotesWorkspacePage({
           }}
         />
       </div>
-      <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
+      <div className="scrollbar-subtle mt-5 -mr-4 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-4">
         <button
           className={cn(
             "flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-sm outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand",
@@ -435,29 +433,18 @@ export function NotesWorkspacePage({
             size="icon-sm"
             className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
             aria-label="Folder baru"
-            disabled={workspace.isPending || workspace.isError}
-            onClick={() => {
-              setNewFolder({
-                parentId: selectedFolder,
-                requestKey: crypto.randomUUID(),
-              });
-            }}
+            disabled={
+              workspace.isPending ||
+              workspace.isError ||
+              Boolean(folderCreation.draft)
+            }
+            onClick={(event) =>
+              folderCreation.start(selectedFolder, event.currentTarget)
+            }
           >
             <FolderPlus />
           </Button>
         </div>
-        {newFolder ? (
-          <InlineFolderForm
-            parentId={newFolder.parentId}
-            parentLabel={
-              items.find((item) => item.id === newFolder.parentId)?.path ??
-              "Semua catatan"
-            }
-            requestKey={newFolder.requestKey}
-            onClose={() => setNewFolder(null)}
-            onCreated={refresh}
-          />
-        ) : null}
         {workspace.isPending ? (
           <div
             aria-busy="true"
@@ -477,8 +464,9 @@ export function NotesWorkspacePage({
         ) : (
           <WorkspaceTree
             items={items}
+            folderCreation={folderCreation}
             selectedRef={mode === "note" ? activeRef : null}
-            selectedFolder={selectedFolder}
+            selectedFolder={mode === "folder" ? selectedFolder : null}
             onNote={(ref) => void open(ref)}
             onFolder={(id) => void show("folder", id)}
             onAction={(type, item) => action.mutate({ type, item })}
@@ -767,12 +755,35 @@ export function NotesWorkspacePage({
           )}
         </section>
       </div>
-      <Dialog open={navOpen} onOpenChange={setNavOpen}>
+      <Dialog
+        open={navOpen}
+        onOpenChange={(open, details) => {
+          if (
+            !open &&
+            details.reason === "escape-key" &&
+            folderCreation.draft
+          ) {
+            details.cancel();
+            folderCreation.cancel(true);
+
+            return;
+          }
+
+          setNavOpen(open);
+        }}
+      >
         <DialogContent
           variant="sheet"
+          initialFocus={navigationHeading}
           className="flex h-[90dvh] max-h-[90dvh] flex-col overflow-hidden p-0"
         >
-          <DialogTitle className="px-6 pt-5">Catatan</DialogTitle>
+          <DialogTitle
+            ref={navigationHeading}
+            tabIndex={-1}
+            className="px-6 pt-5 outline-none"
+          >
+            Catatan
+          </DialogTitle>
           <div className="min-h-0 flex-1">{sidebar}</div>
         </DialogContent>
       </Dialog>

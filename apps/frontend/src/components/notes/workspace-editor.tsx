@@ -287,11 +287,11 @@ export function WorkspaceEditor({
               </Button>
             </div>
           ) : null}
-          <div className="relative">
+          <div className="group/editor relative mt-5">
             {(empty ?? editor.isEmpty) ? (
               <p
                 aria-hidden="true"
-                className="pointer-events-none absolute top-7 left-0 text-[17px] leading-relaxed text-ink-muted sm:top-8"
+                className="pointer-events-none absolute top-2 left-0 text-[17px] leading-[1.6] text-ink-muted group-focus-within/editor:hidden sm:top-3"
               >
                 Mulai dari hal yang ingin Anda ingat.
               </p>
@@ -300,7 +300,7 @@ export function WorkspaceEditor({
               editor={editor}
               className={cn(
                 NOTE_TYPOGRAPHY,
-                "mt-5 [&_.tiptap_a]:text-ink [&_.tiptap]:min-h-72 [&_.tiptap]:max-w-none [&_.tiptap]:px-0 [&_.tiptap]:py-2 sm:[&_.tiptap]:px-0 sm:[&_.tiptap]:py-3 [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child::before]:text-ink-muted"
+                "[&_.tiptap_a]:text-ink [&_.tiptap]:min-h-72 [&_.tiptap]:max-w-none [&_.tiptap]:px-0 [&_.tiptap]:py-2 sm:[&_.tiptap]:px-0 sm:[&_.tiptap]:py-3"
               )}
             />
           </div>

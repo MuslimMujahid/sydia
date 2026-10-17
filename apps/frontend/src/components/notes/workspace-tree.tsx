@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { WorkspaceItem } from "@/lib/services/api/notes/notes.api";
 import { cn } from "@/lib/utils/cn";
+import { InlineFolderForm, type FolderCreation } from "./inline-folder-form";
 
 export type ItemAction =
   "rename" | "move" | "trash" | "restore" | "delete" | "copy-link";
@@ -68,6 +69,7 @@ export function ItemMenu({ item, onAction }: ItemMenuProps) {
 
 type WorkspaceTreeProps = {
   items: WorkspaceItem[];
+  folderCreation: FolderCreation;
   selectedRef: string | null;
   selectedFolder: string | null;
   onNote: (ref: string) => void;
@@ -78,6 +80,7 @@ type WorkspaceTreeProps = {
 
 export function WorkspaceTree({
   items,
+  folderCreation,
   selectedRef,
   selectedFolder,
   onNote,
@@ -86,8 +89,32 @@ export function WorkspaceTree({
   onMove,
 }: WorkspaceTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [revealedDraft, setRevealedDraft] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const live = items.filter((item) => !item.trashedAt);
+
+  // Reveal the destination before committing the input, so autofocus also
+  // works when one of its ancestors was collapsed.
+  if (
+    folderCreation.draft &&
+    folderCreation.draft.requestKey !== revealedDraft
+  ) {
+    setRevealedDraft(folderCreation.draft.requestKey);
+    const ancestors = new Set<string>();
+    let parent: string | null = folderCreation.draft.parentId;
+
+    while (parent !== null && !ancestors.has(parent)) {
+      ancestors.add(parent);
+      const item = items.find((candidate) => candidate.id === parent);
+
+      if (!item) break;
+      parent = item.parentId;
+    }
+
+    setCollapsed(
+      (previous) => new Set([...previous].filter((id) => !ancestors.has(id)))
+    );
+  }
 
   function drop(event: DragEvent, parentId: string | null) {
     event.preventDefault();
@@ -98,7 +125,7 @@ export function WorkspaceTree({
     if (item) onMove(item, parentId);
   }
 
-  function branch(parentId: string | null) {
+  function branch(parentId: string | null, parentLabel: string) {
     const children = live
       .filter((item) => item.parentId === parentId)
       .sort(
@@ -109,8 +136,20 @@ export function WorkspaceTree({
 
     return (
       <ul
-        className={cn(parentId !== null && "ml-4 border-l border-ink/6 pl-1")}
+        className={cn(
+          "space-y-1",
+          parentId !== null && "mt-1 ml-4 border-l border-ink/6 pl-1"
+        )}
       >
+        {folderCreation.draft?.parentId === parentId ? (
+          <li>
+            <InlineFolderForm
+              draft={folderCreation.draft}
+              creation={folderCreation}
+              parentLabel={parentLabel}
+            />
+          </li>
+        ) : null}
         {children.map((item) => {
           const folder = item.kind === "folder";
           const expanded = !collapsed.has(item.id);
@@ -193,7 +232,7 @@ export function WorkspaceTree({
                 </button>
                 <ItemMenu item={item} onAction={onAction} />
               </div>
-              {folder && expanded ? branch(item.id) : null}
+              {folder && expanded ? branch(item.id, item.path) : null}
             </li>
           );
         })}
@@ -215,8 +254,8 @@ export function WorkspaceTree({
       >
         Semua folder
       </button>
-      {branch(null)}
-      {live.length === 0 ? (
+      {branch(null, "Semua catatan")}
+      {live.length === 0 && !folderCreation.draft ? (
         <p className="px-2 py-3 text-sm text-ink-muted">
           Belum ada catatan khusus.
         </p>
