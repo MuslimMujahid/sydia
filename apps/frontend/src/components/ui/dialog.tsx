@@ -24,18 +24,27 @@ const dialogContentVariants = cva(
 );
 
 type DialogContentProps = DialogPrimitive.Popup.Props &
-  VariantProps<typeof dialogContentVariants> & { showClose?: boolean };
+  VariantProps<typeof dialogContentVariants> & {
+    showClose?: boolean;
+    backdropClassName?: string;
+  };
 
 function DialogContent({
   className,
   variant = "center",
   showClose = true,
+  backdropClassName,
   children,
   ...props
 }: DialogContentProps) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-ink/60 transition-opacity data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
+      <DialogPrimitive.Backdrop
+        className={cn(
+          "fixed inset-0 z-50 bg-ink/60 transition-opacity data-[starting-style]:opacity-0 data-[ending-style]:opacity-0",
+          backdropClassName
+        )}
+      />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(dialogContentVariants({ variant }), className)}

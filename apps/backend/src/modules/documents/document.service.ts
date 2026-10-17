@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { FileLibraryService } from './file-library.service';
 
 type UploadedFile = {
   originalname: string;
@@ -20,6 +21,7 @@ import type {
   DocumentUpdate,
   FileKind,
 } from '../../database/entities';
+import { FileLibraryError } from '../../database/entities';
 import { EmbeddingsService } from '../../infra/embeddings';
 import {
   LANGUAGE_MODEL,
@@ -148,6 +150,7 @@ function fuseCandidates<T extends { id: string; content: string }>(
 
 @Injectable()
 export class DocumentService {
+  private readonly logger = new Logger(DocumentService.name);
   private readonly publicBaseUrl: string;
 
   constructor(
@@ -166,6 +169,7 @@ export class DocumentService {
       DocumentArtifactCleanupService,
       'trackUpload' | 'startUploadLease' | 'requestCleanup' | 'activateUpload'
     > = NO_ARTIFACT_CLEANUP,
+    private readonly library?: FileLibraryService,
   ) {
     this.publicBaseUrl = config.getOrThrow<string>('BACKEND_AUTH_URL');
   }
@@ -173,7 +177,7 @@ export class DocumentService {
   async ingest(
     userId: string,
     file: UploadedFile,
-    options?: { hint?: string },
+    options?: { hint?: string; folderId?: string },
   ): Promise<Document> {
     if (
       file.buffer.length > MAX_DOCUMENT_BYTES ||
@@ -203,6 +207,19 @@ export class DocumentService {
       throw failure;
     }
 
+    if (options?.folderId) {
+      if (!this.library)
+        throw new Error(
+          'File library provider is required for folder uploads.',
+        );
+      await this.library.execute(() =>
+        this.library!.repository.assertUploadDestination(
+          userId,
+          options.folderId!,
+        ),
+      );
+    }
+
     const kind = kindFor(file.mimetype);
     const storageKey = `${userId}/${randomUUID()}`;
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
@@ -222,6 +239,7 @@ export class DocumentService {
           kind,
         },
         title: file.originalname,
+        ...(options?.folderId ? { folderId: options.folderId } : {}),
       });
 
       if (kind !== 'document')
@@ -246,6 +264,10 @@ export class DocumentService {
 
       return document;
     } catch (error: unknown) {
+      this.logger.error(
+        'Document upload failed; cleaning up uploaded artifacts.',
+        error,
+      );
       const cleanupErrors: unknown[] = [];
 
       await this.artifactCleanup
@@ -281,6 +303,8 @@ export class DocumentService {
         throw failure;
       }
 
+      if (error instanceof FileLibraryError && this.library)
+        return this.library.execute(() => Promise.reject(error));
       throw error;
     } finally {
       stopUploadLease();
@@ -547,6 +571,20 @@ export class DocumentService {
   }
 
   async remove(userId: string, documentId: string): Promise<boolean> {
+    if (this.library)
+      return this.library.execute(() =>
+        this.library!.repository.withFileMutation(userId, documentId, () =>
+          this.removeStoredDocument(userId, documentId),
+        ),
+      );
+
+    return this.removeStoredDocument(userId, documentId);
+  }
+
+  private async removeStoredDocument(
+    userId: string,
+    documentId: string,
+  ): Promise<boolean> {
     const key = await this.documents.storageKey(userId, documentId);
     if (!key) return false;
     await this.artifactCleanup.requestCleanup(userId, key);
@@ -568,7 +606,9 @@ export class DocumentService {
     documentId: string,
     input: DocumentUpdate,
   ): Promise<Document | null> {
-    return this.documents.update(userId, documentId, input);
+    const action = () => this.documents.update(userId, documentId, input);
+
+    return this.library ? this.library.execute(action) : action();
   }
 
   async listAttached(userId: string, messageId: string): Promise<Document[]> {

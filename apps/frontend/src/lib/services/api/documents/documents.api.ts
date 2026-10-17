@@ -41,6 +41,7 @@ export type Document = {
 
 export type UploadDocumentInput = {
   file: File;
+  folderId?: string;
   conversationId?: string;
 };
 
@@ -117,10 +118,12 @@ export function getDocumentContentUrl(documentId: string): string {
 
 export async function uploadDocument({
   file,
+  folderId,
   conversationId,
 }: UploadDocumentInput): Promise<Document> {
   const formData = new FormData();
   formData.append("file", file);
+  if (folderId) formData.append("folderId", folderId);
   if (conversationId) formData.append("conversationId", conversationId);
 
   try {

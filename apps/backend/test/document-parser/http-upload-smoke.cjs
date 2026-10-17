@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { mkdtemp, readFile, writeFile, rm } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
+const { setTimeout: pollDelay } = require('node:timers/promises');
 const { ConfigService } = require('@nestjs/config');
 const { Test } = require('@nestjs/testing');
 const { ValidationPipe } = require('@nestjs/common');
@@ -22,12 +23,39 @@ const {
   PrismaDocumentRepository,
 } = require('../../dist/src/database/repositories/prisma-document.repository');
 const {
+  PrismaFileLibraryRepository,
+} = require('../../dist/src/database/repositories/prisma-file-library.repository');
+const {
+  FileLibraryService,
+} = require('../../dist/src/modules/documents/file-library.service');
+const {
+  FileLibraryController,
+} = require('../../dist/src/modules/documents/file-library.controller');
+const {
+  FileDeletionController,
+} = require('../../dist/src/modules/documents/file-deletion.controller');
+const {
+  FileDeletionWorker,
+} = require('../../dist/src/modules/documents/file-deletion.worker');
+const {
+  PrismaFileDeletionRepository,
+} = require('../../dist/src/database/repositories/prisma-file-deletion.repository');
+const {
+  PrismaDocumentArtifactCleanupRepository,
+} = require('../../dist/src/database/repositories/prisma-document-artifact-cleanup.repository');
+const {
+  DocumentArtifactCleanupService,
+} = require('../../dist/src/modules/document-artifacts/document-artifact-cleanup.service');
+const {
   PrismaAuditEventRepository,
 } = require('../../dist/src/database/repositories/prisma-audit-event.repository');
 const {
   PrismaCategoryRepository,
 } = require('../../dist/src/database/repositories/prisma-category.repository');
-const { DOCUMENT_REPOSITORY } = require('../../dist/src/database/interfaces');
+const {
+  DOCUMENT_REPOSITORY,
+  FILE_DELETION_REPOSITORY,
+} = require('../../dist/src/database/interfaces');
 const {
   DocumentService,
 } = require('../../dist/src/modules/documents/document.service');
@@ -62,7 +90,14 @@ async function main() {
   });
   const prisma = new PrismaService(config);
   const repository = new PrismaDocumentRepository(prisma);
+  const library = new PrismaFileLibraryRepository(prisma);
   const storage = new StorageService(config);
+  const deletions = new PrismaFileDeletionRepository(prisma);
+  const libraryService = new FileLibraryService(library);
+  const cleanup = new DocumentArtifactCleanupService(
+    new PrismaDocumentArtifactCleanupRepository(prisma),
+    storage,
+  );
   const parser = new DocumentParserService(new DocumentParserSettings(config));
   const vector = [1, ...Array(1535).fill(0)];
   const embeddings = {
@@ -88,6 +123,8 @@ async function main() {
     { generate: async () => ({ text: 'Invoice fixture.pdf', usage: {} }) },
     config,
     extraction,
+    cleanup,
+    libraryService,
   );
   const worker = new Worker(
     queue.name,
@@ -95,6 +132,13 @@ async function main() {
     { connection },
   );
   worker.on('error', (error) => console.error(error));
+  const deletionWorker = new FileDeletionWorker(
+    deletions,
+    storage,
+    extraction,
+    cleanup,
+    { documents: queue },
+  );
   const categories = new PrismaCategoryRepository(prisma);
   const auth = createAuth(prisma, {
     secret: 'document-http-fixture-secret-at-least-thirty-two-characters',
@@ -109,12 +153,19 @@ async function main() {
   try {
     const module = await Test.createTestingModule({
       imports: [AuthModule.forRoot({ auth, bodyParser: { rawBody: true } })],
-      controllers: [DocumentsController],
+      controllers: [
+        DocumentsController,
+        FileLibraryController,
+        FileDeletionController,
+      ],
       providers: [
         DocumentUploadInterceptor,
         { provide: DOCUMENT_REPOSITORY, useValue: repository },
         { provide: DocumentService, useValue: documents },
         { provide: StorageService, useValue: storage },
+        { provide: FileLibraryService, useValue: libraryService },
+        { provide: FILE_DELETION_REPOSITORY, useValue: deletions },
+        { provide: FileDeletionWorker, useValue: deletionWorker },
       ],
     }).compile();
     app = module.createNestApplication({ bodyParser: false, logger: false });
@@ -192,6 +243,129 @@ async function main() {
     assert.equal(await prisma.document.count(), 0);
     assert.equal(await prisma.fileAsset.count(), 0);
     await worker.pause();
+    const targetFolder = await library.createFolder(
+      owners[0],
+      'HTTP uploads',
+      null,
+    );
+    const foreignFolder = await library.createFolder(
+      owners[1],
+      'Private HTTP uploads',
+      null,
+    );
+    const folderUpload = await agent
+      .post('/documents')
+      .field('folderId', targetFolder.id)
+      .attach('file', Buffer.from('Synthetic folder upload.'), {
+        filename: 'duplicate.txt',
+        contentType: 'text/plain',
+      })
+      .expect(201);
+    const duplicateUpload = await agent
+      .post('/documents')
+      .field('folderId', targetFolder.id)
+      .attach('file', Buffer.from('Another independent file.'), {
+        filename: 'duplicate.txt',
+        contentType: 'text/plain',
+      })
+      .expect(201);
+    assert.notEqual(folderUpload.body.data.id, duplicateUpload.body.data.id);
+    assert.equal(
+      await prisma.document.count({ where: { folderId: targetFolder.id } }),
+      2,
+    );
+    await agent
+      .post('/documents')
+      .field('folderId', foreignFolder.id)
+      .attach('file', Buffer.from('Must remain private.'), {
+        filename: 'private.txt',
+        contentType: 'text/plain',
+      })
+      .expect(404);
+    await agent
+      .post('/documents')
+      .field('folderId', 'missing-http-folder')
+      .attach('file', Buffer.from('Do not redirect this to root.'), {
+        filename: 'missing.txt',
+        contentType: 'text/plain',
+      })
+      .expect(404);
+    assert.equal(await prisma.document.count(), 2);
+    assert.equal(await prisma.fileAsset.count(), 2);
+    results.push({
+      scenario: 'multipart-folder-placement-and-privacy',
+      duplicateFilesPreserved: true,
+      foreignAndMissingDestinationsRejected: true,
+    });
+    const storedFiles = await prisma.document.findMany({
+      where: { folderId: targetFolder.id },
+      select: { fileAsset: { select: { storageKey: true } } },
+    });
+    const preview = await agent
+      .post('/file-library/delete-previews')
+      .send({
+        items: [
+          {
+            kind: 'folder',
+            id: targetFolder.id,
+            revision: targetFolder.revision,
+          },
+        ],
+      })
+      .expect(201);
+    assert.equal(preview.body.data.files.total, 2);
+    assert.equal(preview.body.data.folders.total, 1);
+    const confirmation = {
+      previewId: preview.body.data.id,
+      idempotencyKey: 'http-fixture-folder-delete',
+    };
+    const started = await agent
+      .post('/file-library/deletions')
+      .send(confirmation)
+      .expect(202);
+    const repeated = await agent
+      .post('/file-library/deletions')
+      .send(confirmation)
+      .expect(202);
+    assert.equal(repeated.body.data.id, started.body.data.id);
+    const operationId = started.body.data.id;
+    await other.get(`/file-library/deletions/${operationId}`).expect(404);
+    let outcome;
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      const progress = await agent
+        .get(`/file-library/deletions/${operationId}`)
+        .expect(200);
+      outcome = progress.body.data;
+      if (outcome.status !== 'running') break;
+      await pollDelay(50);
+    }
+    assert.equal(outcome?.status, 'completed');
+    assert.equal(outcome.files.completed, 2);
+    assert.equal(outcome.folders.completed, 1);
+    assert.equal(await prisma.document.count(), 0);
+    assert.equal(await prisma.fileAsset.count(), 0);
+    assert.equal(
+      await prisma.fileFolder.count({ where: { id: targetFolder.id } }),
+      0,
+    );
+    for (const file of storedFiles) {
+      await assert.rejects(storage.get(file.fileAsset.storageKey), {
+        code: 'ENOENT',
+      });
+      await assert.rejects(
+        storage.get(extractionKey(file.fileAsset.storageKey)),
+        { code: 'ENOENT' },
+      );
+    }
+    results.push({
+      scenario: 'durable-folder-deletion-http-worker-storage',
+      status: 'passed',
+      idempotentConfirmation: true,
+      filesDeleted: 2,
+      foldersDeleted: 1,
+      originalAndCheckpointArtifactsRemoved: true,
+    });
     const boundary = await agent
       .post('/documents')
       .attach('file', Buffer.alloc(25 * 1024 * 1024, 65), {
@@ -286,6 +460,7 @@ async function main() {
       fullAppBootstrap: false,
       processor: 'Shared production processDocumentJob',
       productionWorkerBootstrapVerified: false,
+      fileDeletionWorkerBootstrapVerified: true,
       modelAnswerVerified: false,
       externalMessagesSent: 0,
       results,

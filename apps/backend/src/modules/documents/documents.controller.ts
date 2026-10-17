@@ -26,6 +26,7 @@ import type { Document } from '../../database/entities';
 import { DocumentService } from './document.service';
 import { UpdateDocumentDto } from './dto';
 import { DocumentUploadInterceptor } from './document-upload.interceptor';
+import { UploadFileFolderDto } from './file-library.dto';
 
 type UploadedDocument = {
   originalname: string;
@@ -85,6 +86,7 @@ export class DocumentsController {
   async upload(
     @Session() session: UserSession,
     @UploadedFile() file?: UploadedDocument,
+    @Body() body?: UploadFileFolderDto,
   ) {
     if (!file)
       throw new ApiException({
@@ -93,7 +95,11 @@ export class DocumentsController {
         status: HttpStatus.BAD_REQUEST,
       });
 
-    return this.service.ingest(session.user.id, file);
+    return this.service.ingest(
+      session.user.id,
+      file,
+      body?.folderId ? { folderId: body.folderId } : undefined,
+    );
   }
 
   @Patch(':id')

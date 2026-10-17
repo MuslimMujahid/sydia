@@ -52,6 +52,8 @@ model User {
   memoryDeletionMarkers    MemoryDeletionMarker[]
   fileAssets               FileAsset[]
   documents                Document[]
+  fileFolders              FileFolder[]
+  fileDeletionOperations   FileDeletionOperation[]
   contacts                 Contact[]
   contactGroups            ContactGroup[]
   calendarIntegrations     CalendarIntegration[]
@@ -726,6 +728,9 @@ model Document {
   id               String          @id @default(cuid())
   userId           String
   fileAssetId      String          @unique
+  folderId         String?
+  organizationRevision Int        @default(1)
+  deletingOperationId String?
   status           String          @default("processing")
   title            String
   description      String?
@@ -738,11 +743,74 @@ model Document {
   updatedAt        DateTime        @default(now()) @updatedAt
   user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   fileAsset        FileAsset       @relation(fields: [fileAssetId], references: [id], onDelete: Cascade)
+  folder           FileFolder?     @relation(fields: [userId, folderId], references: [userId, id], onDelete: Restrict)
   chunks           DocumentChunk[]
 
   @@index([userId, createdAt])
   @@index([userId, status])
+  @@index([userId, folderId])
   @@map("document")
+}
+
+model FileFolder {
+  id             String       @id @default(cuid())
+  userId         String
+  parentId       String?
+  name           String
+  normalizedName String
+  revision       Int          @default(1)
+  deletingOperationId String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent         FileFolder?  @relation("FileFolderHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict)
+  children       FileFolder[] @relation("FileFolderHierarchy")
+  documents      Document[]
+
+  @@unique([userId, id])
+  @@index([userId, parentId])
+  @@map("file_folder")
+}
+
+model FileDeletionOperation {
+  id             String   @id @default(cuid())
+  userId         String
+  status         String   @default("preview")
+  idempotencyKey String?
+  selection      Json
+  fingerprint    String
+  expiresAt      DateTime
+  leaseUntil     DateTime?
+  workerFailures Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items          FileDeletionItem[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, createdAt])
+  @@index([status, leaseUntil])
+  @@index([status, expiresAt])
+  @@map("file_deletion_operation")
+}
+
+model FileDeletionItem {
+  operationId String
+  kind        String
+  itemId      String
+  name        String
+  parentId    String?
+  revision    Int
+  depth       Int
+  storageKey  String?
+  state       String @default("pending")
+  error       String?
+  attempts    Int @default(0)
+  operation   FileDeletionOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+
+  @@id([operationId, kind, itemId])
+  @@index([operationId, state, kind, depth])
+  @@map("file_deletion_item")
 }
 
 model DocumentChunk {

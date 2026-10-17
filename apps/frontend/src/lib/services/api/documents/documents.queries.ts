@@ -5,6 +5,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { conversationQueryKeys } from "../conversations/conversations.queries";
+import { libraryQueryKeys } from "../file-library/file-library.queries";
 import {
   deleteDocument,
   getDocument,
@@ -56,7 +57,11 @@ export function useUploadDocument() {
     mutationFn: uploadDocument,
     onSuccess: (document) => cacheDocument(queryClient, document),
     meta: {
-      invalidateQueries: [documentQueryKeys.all, conversationQueryKeys.all],
+      invalidateQueries: [
+        documentQueryKeys.all,
+        conversationQueryKeys.all,
+        libraryQueryKeys.all,
+      ],
     },
   });
 }
@@ -67,7 +72,7 @@ export function useRetryDocument() {
   return useMutation({
     mutationFn: retryDocument,
     onSuccess: (document) => cacheDocument(queryClient, document),
-    meta: { invalidateQueries: [documentQueryKeys.all] },
+    meta: { invalidateQueries: [documentQueryKeys.all, libraryQueryKeys.all] },
   });
 }
 
@@ -83,7 +88,7 @@ export function useUpdateDocument() {
       values: UpdateDocumentInput;
     }) => updateDocument(documentId, values),
     onSuccess: (document) => cacheDocument(queryClient, document),
-    meta: { invalidateQueries: [documentQueryKeys.all] },
+    meta: { invalidateQueries: [documentQueryKeys.all, libraryQueryKeys.all] },
   });
 }
 

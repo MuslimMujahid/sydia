@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   Prisma,
   type Document as PrismaDocument,
@@ -18,6 +18,11 @@ import type {
 } from '../entities';
 
 import type { IDocumentRepository } from '../interfaces';
+import { assertLibraryUnlocked } from '../entities';
+import {
+  lockFileLibrary,
+  requireWritableFileFolder,
+} from './file-library-lock';
 
 const fileSelect = {
   id: true,
@@ -147,6 +152,7 @@ function vectorLiteral(values: number[]): string {
 
 @Injectable()
 export class PrismaDocumentRepository implements IDocumentRepository {
+  private readonly logger = new Logger(PrismaDocumentRepository.name);
   constructor(private readonly prisma: PrismaService) {}
 
   async createFile(
@@ -179,20 +185,33 @@ export class PrismaDocumentRepository implements IDocumentRepository {
 
   async createWithFile(
     userId: string,
-    input: { file: FileAssetCreate; title: string },
+    input: { file: FileAssetCreate; title: string; folderId?: string },
   ): Promise<Document> {
-    return present(
-      await this.prisma.document.create({
-        data: {
-          title: input.title,
-          user: { connect: { id: userId } },
-          fileAsset: {
-            create: { ...input.file, user: { connect: { id: userId } } },
+    return this.prisma.$transaction(async (tx) => {
+      await lockFileLibrary(tx, userId);
+      if (input.folderId)
+        await requireWritableFileFolder(tx, userId, input.folderId);
+
+      return present(
+        await tx.document.create({
+          data: {
+            title: input.title,
+            user: { connect: { id: userId } },
+            ...(input.folderId
+              ? {
+                  folder: {
+                    connect: { userId_id: { userId, id: input.folderId } },
+                  },
+                }
+              : {}),
+            fileAsset: {
+              create: { ...input.file, user: { connect: { id: userId } } },
+            },
           },
-        },
-        select: documentSelect,
-      }),
-    );
+          select: documentSelect,
+        }),
+      );
+    });
   }
 
   async deleteFileByStorageKey(
@@ -251,14 +270,26 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     input: DocumentUpdate,
   ): Promise<Document | null> {
     try {
-      const row = await this.prisma.document.update({
-        where: { id, userId },
-        data: input,
-        select: documentSelect,
-      });
+      return await this.prisma.$transaction(async (tx) => {
+        await lockFileLibrary(tx, userId);
+        const current = await tx.document.findFirst({
+          where: { id, userId },
+          select: { deletingOperationId: true },
+        });
 
-      return present(row);
+        if (!current) return null;
+        assertLibraryUnlocked(current.deletingOperationId);
+
+        return present(
+          await tx.document.update({
+            where: { id, userId },
+            data: input,
+            select: documentSelect,
+          }),
+        );
+      });
     } catch (error: unknown) {
+      this.logger.warn('Document metadata update failed.', error);
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
@@ -349,7 +380,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return (
       (
         await this.prisma.document.findFirst({
-          where: { id, userId },
+          where: { id, userId, deletingOperationId: null },
           select: { fileAsset: { select: { storageKey: true } } },
         })
       )?.fileAsset.storageKey ?? null

@@ -1,6 +1,18 @@
 import { Module } from '@nestjs/common';
-import { PrismaDocumentRepository } from '../../database/repositories';
-import { DOCUMENT_REPOSITORY } from '../../database/interfaces';
+import {
+  PrismaDocumentRepository,
+  PrismaFileLibraryRepository,
+  PrismaFileDeletionRepository,
+} from '../../database/repositories';
+import {
+  DOCUMENT_REPOSITORY,
+  FILE_LIBRARY_REPOSITORY,
+  FILE_DELETION_REPOSITORY,
+} from '../../database/interfaces';
+import { FileLibraryController } from './file-library.controller';
+import { FileLibraryService } from './file-library.service';
+import { FileDeletionController } from './file-deletion.controller';
+import { FileDeletionWorker } from './file-deletion.worker';
 import { EmbeddingsModule } from '../../infra/embeddings';
 import { ModelGatewayModule } from '../../infra/model-gateway';
 import { DocumentParserModule } from '../../infra/document-parser';
@@ -18,9 +30,20 @@ import { DocumentArtifactCleanupModule } from '../document-artifacts/document-ar
     DocumentParserModule,
     DocumentArtifactCleanupModule,
   ],
-  controllers: [DocumentsController],
+  controllers: [
+    DocumentsController,
+    FileLibraryController,
+    FileDeletionController,
+  ],
   providers: [
     { provide: DOCUMENT_REPOSITORY, useClass: PrismaDocumentRepository },
+    { provide: FILE_LIBRARY_REPOSITORY, useClass: PrismaFileLibraryRepository },
+    FileLibraryService,
+    {
+      provide: FILE_DELETION_REPOSITORY,
+      useClass: PrismaFileDeletionRepository,
+    },
+    FileDeletionWorker,
     DocumentService,
     DocumentUploadInterceptor,
     DocumentExtractionService,

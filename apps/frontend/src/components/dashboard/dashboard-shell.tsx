@@ -356,7 +356,12 @@ export function DashboardShell({
 
   return (
     <TopbarSlotsContext value={topbarSlots}>
-      <div className="min-h-screen bg-background text-ink">
+      <div
+        className={cn(
+          "min-h-screen bg-background text-ink",
+          activePath === "/files" && "files-dashboard"
+        )}
+      >
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 hidden border-r border-ink/8 bg-canvas transition-[width] duration-200 lg:block",
@@ -437,6 +442,8 @@ export function DashboardShell({
               "mx-auto max-w-6xl px-5 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-12",
               // The daily note's writing sheet runs edge to edge on phones.
               activePath === "/daily-notes" && "max-sm:px-0 max-sm:pb-0",
+              activePath === "/files" &&
+                "min-h-[calc(100dvh-4rem)] max-w-none bg-canvas p-0 sm:p-0 lg:min-h-dvh lg:p-0",
               calendarSurface && "max-w-none lg:px-8 lg:py-6",
               // The task list card runs edge to edge on phones; the task page
               // pads the controls around it itself.

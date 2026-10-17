@@ -25,7 +25,7 @@ export interface IDocumentRepository {
   create(userId: string, input: DocumentCreate): Promise<Document>;
   createWithFile(
     userId: string,
-    input: { file: FileAssetCreate; title: string },
+    input: { file: FileAssetCreate; title: string; folderId?: string },
   ): Promise<Document>;
   deleteFileByStorageKey(userId: string, storageKey: string): Promise<void>;
   list(userId: string): Promise<Document[]>;
