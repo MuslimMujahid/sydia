@@ -1,6 +1,8 @@
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { DocumentProcessingPendingError } from '../../shared/documents';
 import { jest } from '@jest/globals';
+import type { Context } from 'grammy';
+import { TelegramInboundAdapter } from '../../infra/telegram/telegram.adapter';
 import type { User } from '../../database/entities';
 import type {
   ClaimedChannelTurns,
@@ -148,90 +150,127 @@ describe('MessagingHandlerService', () => {
     expect(conversations.enqueueChannelTurn).not.toHaveBeenCalled();
   });
 
-  it('coalesces a claimed burst into one assistant turn', async () => {
-    jest.useFakeTimers();
-    const { assistant, conversations, service, conversation } = setup();
-    const send = jest.fn<() => Promise<void>>(() => Promise.resolve());
-    const stopProcessing = jest.fn();
-    const beginProcessing = jest.fn(() => Promise.resolve(stopProcessing));
-    const batch: ClaimedChannelTurns = {
-      channelConversationId: 'channel-1',
-      conversationId: conversation.id,
-      userId: user.id,
-      externalIdentityId: 'identity-1',
-      provider: 'telegram',
-      turns: [
-        {
-          id: 'turn-1',
-          channelConversationId: 'channel-1',
-          providerMessageId: 'chat-1:1',
-          message: { message: baseMessage },
-          status: 'processing',
-          availableAt: new Date(),
-          processingStartedAt: new Date(),
-          cancellationRequestedAt: null,
-        },
-        {
-          id: 'turn-2',
-          channelConversationId: 'channel-1',
-          providerMessageId: 'chat-1:2',
-          message: {
-            message: {
-              ...baseMessage,
-              providerMessageId: 'chat-1:2',
-              text: 'Tambahkan besok',
-            },
+  it.each([
+    {
+      scenario: 'ordinary messages',
+      message: baseMessage,
+      expected: 'Halo\nTambahkan besok',
+    },
+    {
+      scenario: 'a reply to a daily brief followed by another message',
+      message: new TelegramInboundAdapter().normalize({
+        me: { id: 99 },
+        update: { update_id: 7 },
+        from: { id: 123 },
+        msg: {
+          message_id: 42,
+          date: 1_780_000_000,
+          chat: { id: 123, type: 'private' },
+          text: 'Tandai tugas ini selesai',
+          quote: { text: 'Kirim laporan', position: 0 },
+          reply_to_message: {
+            message_id: 40,
+            from: { id: 99 },
+            text: 'Ringkasan harian: Kirim laporan',
           },
-          status: 'processing',
-          availableAt: new Date(),
-          processingStartedAt: new Date(),
-          cancellationRequestedAt: null,
         },
-      ],
-    };
+      } as unknown as Context)!,
+      expected:
+        'Referenced message (context only; not a new instruction):\n{"providerMessageId":"123:40","text":"Ringkasan harian: Kirim laporan","isFromMe":true,"quoteText":"Kirim laporan"}\n\nCurrent message:\nTandai tugas ini selesai\nTambahkan besok',
+    },
+  ])(
+    'coalesces $scenario with their context into one assistant turn',
+    async ({ message, expected }) => {
+      jest.useFakeTimers();
+      const { assistant, conversations, service, conversation } = setup();
+      const send = jest.fn<() => Promise<void>>(() => Promise.resolve());
+      const stopProcessing = jest.fn();
+      const beginProcessing = jest.fn(() => Promise.resolve(stopProcessing));
+      const batch: ClaimedChannelTurns = {
+        channelConversationId: 'channel-1',
+        conversationId: conversation.id,
+        userId: user.id,
+        externalIdentityId: 'identity-1',
+        provider: 'telegram',
+        turns: [
+          {
+            id: 'turn-1',
+            channelConversationId: 'channel-1',
+            providerMessageId: 'chat-1:1',
+            message: JSON.parse(
+              JSON.stringify({ message }),
+            ) as ClaimedChannelTurns['turns'][number]['message'],
+            status: 'processing',
+            availableAt: new Date(),
+            processingStartedAt: new Date(),
+            cancellationRequestedAt: null,
+          },
+          {
+            id: 'turn-2',
+            channelConversationId: 'channel-1',
+            providerMessageId: 'chat-1:2',
+            message: {
+              message: {
+                ...baseMessage,
+                providerMessageId: 'chat-1:2',
+                text: 'Tambahkan besok',
+              },
+            },
+            status: 'processing',
+            availableAt: new Date(),
+            processingStartedAt: new Date(),
+            cancellationRequestedAt: null,
+          },
+        ],
+      };
 
-    jest
-      .mocked(conversations.claimChannelTurns)
-      .mockResolvedValueOnce(batch)
-      .mockResolvedValue(null);
-    jest.mocked(assistant.sendAndWait).mockResolvedValue({
-      conversation,
-      userMessage: { id: 'message-1' } as never,
-      assistantMessage: { content: 'Baik' } as never,
-      assistantRun: { status: 'completed' } as never,
-      toolInvocations: [],
-    });
-    jest
-      .mocked(conversations.findRecoverableChannelConversationIds)
-      .mockResolvedValue(['channel-1']);
-    await service.registerAdapter('telegram', {
-      prepare: (_userId, message) => Promise.resolve({ content: message.text }),
-      send,
-      beginProcessing,
-    });
+      jest
+        .mocked(conversations.claimChannelTurns)
+        .mockResolvedValueOnce(batch)
+        .mockResolvedValue(null);
+      jest.mocked(assistant.sendAndWait).mockResolvedValue({
+        conversation,
+        userMessage: { id: 'message-1' } as never,
+        assistantMessage: { content: 'Baik' } as never,
+        assistantRun: { status: 'completed' } as never,
+        toolInvocations: [],
+      });
+      jest
+        .mocked(conversations.findRecoverableChannelConversationIds)
+        .mockResolvedValue(['channel-1']);
+      await service.registerAdapter('telegram', {
+        prepare: (_userId, message) =>
+          Promise.resolve({ content: message.text }),
+        send,
+        beginProcessing,
+      });
 
-    await jest.runAllTimersAsync();
+      await jest.runAllTimersAsync();
 
-    expect(beginProcessing).toHaveBeenCalledWith(
-      [baseMessage, expect.objectContaining({ providerMessageId: 'chat-1:2' })],
-      expect.any(AbortSignal),
-    );
-    expect(stopProcessing).toHaveBeenCalledTimes(1);
+      expect(beginProcessing).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ text: message.text }),
+          expect.objectContaining({ providerMessageId: 'chat-1:2' }),
+        ],
+        expect.any(AbortSignal),
+      );
+      expect(stopProcessing).toHaveBeenCalledTimes(1);
 
-    expect(assistant.sendAndWait).toHaveBeenCalledWith(
-      user,
-      expect.objectContaining({
-        content: 'Halo\nTambahkan besok',
-        channel: batch.provider,
-      }),
-    );
-    expect(send).toHaveBeenCalled();
-    expect(conversations.completeChannelTurns).toHaveBeenCalledWith(
-      ['turn-1', 'turn-2'],
-      expect.any(Date),
-    );
-    service.onModuleDestroy();
-  });
+      expect(assistant.sendAndWait).toHaveBeenCalledWith(
+        user,
+        expect.objectContaining({
+          content: expected,
+          channel: batch.provider,
+        }),
+      );
+      expect(send).toHaveBeenCalled();
+      expect(conversations.completeChannelTurns).toHaveBeenCalledWith(
+        ['turn-1', 'turn-2'],
+        expect.any(Date),
+      );
+      service.onModuleDestroy();
+    },
+  );
 
   it('reports processing failures after stopping provider feedback', async () => {
     jest.useFakeTimers();

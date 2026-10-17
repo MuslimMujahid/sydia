@@ -53,6 +53,7 @@ export class TelegramInboundAdapter implements InboundMessageAdapter<Context> {
     if (!message || !sender) return null;
     const kind = messageKind(ctx);
     const chatExternalId = String(message.chat.id);
+    const referenced = message.reply_to_message;
 
     return {
       provider: 'telegram',
@@ -65,6 +66,15 @@ export class TelegramInboundAdapter implements InboundMessageAdapter<Context> {
       text: message.text ?? message.caption ?? '',
       kind,
       caption: message.caption,
+      replyTo: referenced
+        ? {
+            providerMessageId: `${chatExternalId}:${referenced.message_id}`,
+            // Telegram replies may reference media with a caption or no text.
+            text: referenced.text ?? referenced.caption ?? '',
+            isFromMe: referenced.from?.id === ctx.me.id,
+            quoteText: message.quote?.text,
+          }
+        : undefined,
       mediaMessage: mediaMessage(ctx),
       raw: {
         updateId: ctx.update.update_id,

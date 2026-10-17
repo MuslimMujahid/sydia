@@ -7,6 +7,45 @@ import {
 } from './telegram.adapter';
 
 describe('Telegram message adapters', () => {
+  it.each([
+    [
+      'text',
+      { text: 'Ringkasan harian: Kirim laporan' },
+      'Ringkasan harian: Kirim laporan',
+    ],
+    ['caption', { caption: 'Kirim laporan' }, 'Kirim laporan'],
+    ['non-text message', {}, ''],
+  ])(
+    'preserves the referenced %s when replying in Telegram',
+    (_label, referenced, text) => {
+      const context = {
+        me: { id: 99 },
+        update: { update_id: 7 },
+        from: { id: 123 },
+        msg: {
+          message_id: 42,
+          date: 1_780_000_000,
+          chat: { id: 123, type: 'private' },
+          text: 'Tandai tugas ini selesai',
+          quote: { text: 'Kirim laporan', position: 0 },
+          reply_to_message: { message_id: 40, from: { id: 99 }, ...referenced },
+        },
+      } as unknown as Context;
+
+      expect(new TelegramInboundAdapter().normalize(context)).toEqual(
+        expect.objectContaining({
+          text: 'Tandai tugas ini selesai',
+          replyTo: {
+            providerMessageId: '123:40',
+            text,
+            isFromMe: true,
+            quoteText: 'Kirim laporan',
+          },
+        }),
+      );
+    },
+  );
+
   it('normalizes a private text message', () => {
     const context = {
       me: { id: 99 },

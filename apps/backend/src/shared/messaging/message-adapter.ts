@@ -13,6 +13,12 @@ export type NormalizedInboundMessage = {
   text: string;
   kind: MessageKind;
   caption?: string;
+  replyTo?: {
+    providerMessageId: string;
+    text: string;
+    isFromMe: boolean;
+    quoteText?: string;
+  };
   mediaMessage?: Record<string, unknown>;
   raw: Record<string, unknown>;
 };
