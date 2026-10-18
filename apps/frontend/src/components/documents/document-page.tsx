@@ -750,7 +750,7 @@ export function DocumentPage() {
         {selected.size ? (
           <div className="files-mobile-actions" aria-label="Tindakan pilihan">
             <Button
-              variant="dark"
+              variant="secondary"
               onClick={() => openDialog("move", [...selected.values()])}
             >
               <FolderInput />

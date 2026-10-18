@@ -6,6 +6,19 @@
   flex-direction: column;
   background: var(--color-canvas);
 }
+:where(.files-page, .files-dialog, .files-deletion-panel) [data-slot="button"] {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 13px;
+  box-shadow: none;
+}
+:where(.files-page, .files-dialog, .files-deletion-panel)
+  [data-slot="button"]
+  > svg {
+  width: 18px;
+  height: 18px;
+}
 .files-header {
   padding: 20px 20px 0;
 }
@@ -17,15 +30,9 @@
   min-height: 40px;
   height: 40px;
   border-radius: 10px;
-  padding: 0 14px;
+  padding: 0 12px;
   font-size: 13px;
   box-shadow: none;
-}
-.files-header-actions > button:first-child {
-  width: 160px;
-}
-.files-header-actions > button:last-child {
-  flex: 1;
 }
 .files-workspace {
   display: flex;
@@ -76,7 +83,7 @@
 .files-sort {
   position: relative;
   display: flex;
-  width: 212px;
+  width: max-content;
   height: 40px;
   align-items: center;
   border: 1px solid var(--color-hairline);
@@ -95,7 +102,8 @@
   color: var(--color-ink-muted);
 }
 .files-sort-select {
-  width: 100%;
+  field-sizing: content;
+  width: auto;
   height: 100%;
   appearance: none;
   padding: 0 32px 0 40px;
@@ -376,7 +384,7 @@
   background: var(--color-canvas);
 }
 .files-mobile-actions > button {
-  flex: 1;
+  flex: none;
   min-height: 40px;
   height: 40px;
   border-radius: 10px;
@@ -448,12 +456,6 @@
   .files-header-actions {
     gap: 16px;
   }
-  .files-header-actions > button:first-child {
-    width: 140px;
-  }
-  .files-header-actions > button:last-child {
-    width: 176px;
-  }
   .files-workspace {
     padding: 32px 40px 60px;
   }
@@ -476,9 +478,6 @@
     flex-shrink: 0;
     gap: 16px;
     margin-top: 0;
-  }
-  .files-sort {
-    width: 228px;
   }
   .files-workspace > nav {
     display: flex;
@@ -507,14 +506,8 @@
     min-height: 40px;
     height: 40px;
     border-radius: 10px;
-    padding: 0 14px;
+    padding: 0 12px;
     font-size: 13px;
-  }
-  .files-selection-actions > button:first-child {
-    min-width: 194px;
-  }
-  .files-selection-actions > button:last-child {
-    min-width: 192px;
   }
   .files-clear-selection {
     margin-left: 0;
@@ -795,10 +788,7 @@
 .files-dialog-actions > button {
   height: 40px;
   min-height: 40px;
-  padding: 0 14px;
-}
-.files-dialog-actions > button:last-child {
-  min-width: 232px;
+  padding: 0 12px;
 }
 .files-delete-dialog[data-slot="dialog-content"] {
   max-width: 560px;
@@ -843,12 +833,8 @@
   }
   .files-dialog-actions {
     flex-direction: column-reverse;
+    align-items: flex-end;
     margin-top: 20px;
-  }
-  .files-dialog-actions > button,
-  .files-dialog-actions > button:last-child {
-    width: 100%;
-    min-width: 0;
   }
 }
 /* A destructive decision uses the mobile bottom sheet shown in the handoff. */
@@ -897,10 +883,8 @@
     margin-top: 32px;
   }
   .files-delete-actions > button {
-    width: 100%;
+    align-self: flex-end;
     min-height: 44px;
-    text-align: left;
-    justify-content: flex-start;
   }
 }
 @media (min-width: 1024px) {
@@ -1020,14 +1004,16 @@
   }
   .files-move-dialog .files-dialog-actions {
     flex-direction: row;
+    align-items: center;
     margin-top: 16px;
   }
   .files-move-dialog .files-dialog-actions > button:first-child {
-    width: 100px;
-    flex-shrink: 0;
+    flex: none;
   }
   .files-move-dialog .files-dialog-actions > button:last-child {
-    flex: 1;
+    flex: none;
+    min-height: 44px;
+    height: 44px;
   }
 }
 /* Base UI center dialogs use the individual translate property in Tailwind 4. */
@@ -1036,8 +1022,8 @@
 }
 .files-header-actions > button {
   justify-content: flex-start;
-  padding-right: 16px;
-  padding-left: 16px;
+  padding-right: 12px;
+  padding-left: 12px;
 }
 .files-checkbox[data-indeterminate] {
   background: var(--color-ink);
@@ -1093,9 +1079,6 @@
   }
   .files-move-dialog .files-destination-list {
     min-height: 208px;
-  }
-  .files-dialog-actions > button:first-child {
-    min-width: 108px;
   }
 }
 @media (max-width: 639px) {

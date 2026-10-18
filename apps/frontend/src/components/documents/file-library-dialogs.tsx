@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Folder,
   FolderInput,
+  FolderPlus,
   LoaderCircle,
   TriangleAlert,
   Trash2,
@@ -112,9 +113,10 @@ export function FolderNameDialog({
           </Button>
           <Button
             type="submit"
-            variant="dark"
+            variant="secondary"
             disabled={mutation.isPending || !name.trim()}
           >
+            <FolderPlus aria-hidden="true" />
             {mutation.isPending
               ? "Menyimpan…"
               : folder
@@ -273,7 +275,7 @@ export function MoveDialog({ items, onClose, onMoved }: MoveDialogProps) {
             Batal
           </Button>
           <Button
-            variant="dark"
+            variant="secondary"
             disabled={
               mutation.isPending ||
               query.isPending ||

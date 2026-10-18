@@ -164,7 +164,7 @@ function OperationProgress({ operation }: OperationProgressProps) {
           </Button>
           <Button
             size="sm"
-            variant="dark"
+            variant="secondary"
             disabled={retry.isPending}
             onClick={() => retry.mutate(undefined)}
           >
