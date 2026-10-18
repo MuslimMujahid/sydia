@@ -4,6 +4,7 @@ import type {
   DeletionOperation,
   LibraryItem,
 } from "../src/lib/services/api/file-library/file-library.api";
+import { filePreviewImage, filePreviewPdf } from "./file-preview-fixtures";
 
 const backend = process.env.PLAYWRIGHT_BACKEND_URL ?? "http://localhost:5000";
 
@@ -720,6 +721,20 @@ test.describe("Files and folders", () => {
     page,
   }) => {
     const items = visualItems();
+    await page.route("**/documents/visual-file-*/content", (route) =>
+      route.fulfill({
+        contentType: route.request().url().includes("visual-file-3/")
+          ? "image/svg+xml"
+          : "application/pdf",
+        body: route.request().url().includes("visual-file-3/")
+          ? filePreviewImage
+          : filePreviewPdf(),
+        headers: {
+          "Access-Control-Allow-Origin": new URL(page.url()).origin,
+          "Access-Control-Allow-Credentials": "true",
+        },
+      })
+    );
     await page.route("**/file-library/items?**", (route) =>
       route.fulfill({
         json: { data: items, pagination: { total: 8, offset: 0, limit: 50 } },
@@ -730,6 +745,7 @@ test.describe("Files and folders", () => {
     await waitForWorkspace(page);
     const list = page.getByRole("list", { name: "File dan folder" });
     await expect(list.getByRole("listitem")).toHaveCount(8);
+    await expect(list.getByRole("img")).toHaveCount(0);
     // Literal dimensions come from the approved 1440px Penpot list board.
     await expect(page.locator(".files-header")).toHaveCSS("height", "80px");
     await expect(list.getByRole("listitem").first()).toHaveCSS(
@@ -766,10 +782,60 @@ test.describe("Files and folders", () => {
           exact: true,
         }),
       })
-    ).toHaveCSS("height", "196px");
+    ).toHaveCSS("height", "240px");
+    await expect
+      .poll(() =>
+        page
+          .locator(".files-grid-items")
+          .last()
+          .evaluate(
+            (element) =>
+              getComputedStyle(element).gridTemplateColumns.split(" ").length
+          )
+      )
+      .toBe(5);
+    const pdf = page.getByRole("img", {
+      name: "Pratinjau Catatan rapat.pdf",
+      exact: true,
+    });
+
+    await expect
+      .poll(() =>
+        pdf.evaluate((element: HTMLCanvasElement) => {
+          const pixels = element
+            .getContext("2d")!
+            .getImageData(0, 0, element.width, element.height).data;
+
+          return pixels.some(
+            (value, index) =>
+              index % 4 === 0 && pixels[index + 3] === 255 && value < 100
+          );
+        })
+      )
+      .toBe(true);
+    await expect(
+      page.getByRole("img", { name: "Pratinjau Foto catatan.jpg" })
+    ).toBeVisible();
+    await expect(list.getByRole("status")).toHaveCount(0);
+    await expect(list.getByText("Pratinjau tidak tersedia")).toHaveCount(0);
+    await expect(
+      page.getByText("Gagal diproses", { exact: true })
+    ).toBeVisible();
     await page.screenshot({
       path: "/tmp/sydia-files-final-populated-grid.png",
     });
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await expect
+      .poll(() =>
+        page
+          .locator(".files-grid-items")
+          .last()
+          .evaluate(
+            (element) =>
+              getComputedStyle(element).gridTemplateColumns.split(" ").length
+          )
+      )
+      .toBe(5);
     await page.setViewportSize({ width: 390, height: 844 });
     await expect
       .poll(() =>
@@ -786,7 +852,16 @@ test.describe("Files and folders", () => {
     ).toBeInViewport();
     await expect(list.getByRole("listitem").first()).toHaveCSS(
       "height",
-      "176px"
+      "80px"
+    );
+    await expect(
+      list.getByRole("listitem").filter({
+        has: page.getByRole("link", { name: "Catatan rapat.pdf", exact: true }),
+      })
+    ).toHaveCSS("height", "216px");
+    await expect(page.locator(".files-grid-items").last()).toHaveCSS(
+      "grid-template-columns",
+      "169px 169px"
     );
     await expect
       .poll(() =>
@@ -805,6 +880,76 @@ test.describe("Files and folders", () => {
       )
     ).toBe(true);
     await expect(page.getByRole("tree")).toHaveCount(0);
+  });
+
+  test("a failed image preview keeps the file selectable and openable", async ({
+    page,
+  }) => {
+    const image = visualItems().find((item) => item.fileKind === "image")!;
+    const warnings: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "warning") warnings.push(message.text());
+    });
+    await page.route("**/file-library/items?**", (route) =>
+      route.fulfill({
+        json: { data: [image], pagination: { total: 1, offset: 0, limit: 50 } },
+      })
+    );
+    await page.route("**/documents/visual-file-3/content", (route) =>
+      route.fulfill({ status: 503 })
+    );
+    await page.goto("/files");
+    await waitForWorkspace(page);
+    await page.getByRole("button", { name: "Tampilan kisi" }).click();
+
+    await expect(
+      page.getByText("Pratinjau tidak tersedia", { exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Buka Foto catatan.jpg", exact: true })
+    ).toHaveAttribute("href", `${backend}/documents/visual-file-3/content`);
+    await page
+      .getByRole("checkbox", { name: "Pilih Foto catatan.jpg" })
+      .check();
+    await expect(page.getByText("1 dipilih", { exact: true })).toBeVisible();
+    expect(
+      warnings.some((message) => message.includes("File thumbnail unavailable"))
+    ).toBe(true);
+  });
+
+  test("an unreadable PDF shows a preview error without losing its processing status", async ({
+    page,
+  }) => {
+    const file = visualItems()[3]!;
+    await page.route("**/file-library/items?**", (route) =>
+      route.fulfill({
+        json: { data: [file], pagination: { total: 1, offset: 0, limit: 50 } },
+      })
+    );
+    await page.route("**/documents/visual-file-0/content", (route) =>
+      route.fulfill({
+        contentType: "application/pdf",
+        body: "Unreadable PDF fixture",
+        headers: {
+          "Access-Control-Allow-Origin": new URL(page.url()).origin,
+          "Access-Control-Allow-Credentials": "true",
+        },
+      })
+    );
+    await page.goto("/files");
+    await waitForWorkspace(page);
+    await page.getByRole("button", { name: "Tampilan kisi" }).click();
+
+    await expect(
+      page.getByText("Pratinjau tidak tersedia", { exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByText("Memuat pratinjau Catatan rapat.pdf", { exact: true })
+    ).toHaveCount(0);
+    await expect(page.getByText("Siap", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Catatan rapat.pdf", exact: true })
+    ).toBeVisible();
   });
 
   test.describe("mobile", () => {

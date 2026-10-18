@@ -28,6 +28,7 @@ import type { LibraryItem } from "@/lib/services/api/file-library/file-library.a
 import { formatDateTime } from "@/lib/utils/date-time";
 import { formatFileSize } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
+import { FileLibraryThumbnail } from "./file-library-thumbnail";
 
 interface ItemStatusProps {
   status: string | null;
@@ -262,10 +263,14 @@ export function FileLibraryItem({
           <div className="files-tile-icon">
             <Icon aria-hidden="true" />
           </div>
-          <div className="files-tile-name">
-            {name}
-            {path}
-          </div>
+          <div className="files-tile-name">{name}</div>
+          {item.kind === "file" ? (
+            <FileLibraryThumbnail
+              key={`${item.id}:${item.revision}`}
+              item={item}
+            />
+          ) : null}
+          {path}
           <p className="files-tile-metadata">
             {size}
             {item.kind === "file" ? (

@@ -286,6 +286,63 @@ export function DocumentPage() {
     );
   }
 
+  const renderItem = (item: LibraryItem) => {
+    const checked = selected.has(libraryItemKey(item));
+    const isDrop =
+      item.kind === "folder" &&
+      canDrop(item.id, item.path) &&
+      !item.deletingOperationId;
+
+    return (
+      <FileLibraryItem
+        key={libraryItemKey(item)}
+        item={item}
+        view={view}
+        selected={checked}
+        dropTarget={dropTarget === item.id}
+        showPath={Boolean(search.q)}
+        onSelect={(value) => toggle(item, value)}
+        onAction={(action) => openDialog(action, [item])}
+        drag={{
+          onDragStart: (event) => {
+            if (!window.matchMedia("(pointer:fine)").matches) {
+              event.preventDefault();
+
+              return;
+            }
+
+            const items = checked ? [...selected.values()] : [item];
+            setDragged(items);
+
+            if (dragPreview.current) {
+              dragPreview.current.textContent = `${items.length} item`;
+              event.dataTransfer.setDragImage(dragPreview.current, 12, 12);
+            }
+
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", `${items.length} item`);
+          },
+          onDragEnd: () => {
+            setDragged([]);
+            setDropTarget(null);
+          },
+          onDragOver: (event) => {
+            if (isDrop) {
+              event.preventDefault();
+              setDropTarget(item.id);
+            }
+          },
+          onDragLeave: () => {
+            if (dropTarget === item.id) setDropTarget(null);
+          },
+          onDrop: (event) => {
+            if (isDrop) drop(event, item.id, item.path);
+          },
+        }}
+      />
+    );
+  };
+
   return (
     <div
       className={cn(
@@ -637,69 +694,28 @@ export function DocumentPage() {
               aria-label="File dan folder"
               className={cn(view === "grid" ? "files-grid" : "files-list")}
             >
-              {query.data.data.map((item) => {
-                const checked = selected.has(libraryItemKey(item));
-                const isDrop =
-                  item.kind === "folder" &&
-                  canDrop(item.id, item.path) &&
-                  !item.deletingOperationId;
+              {view === "grid"
+                ? (["folder", "file"] as const).map((kind) => {
+                    const items = query.data.data.filter(
+                      (item) => item.kind === kind
+                    );
 
-                return (
-                  <FileLibraryItem
-                    key={libraryItemKey(item)}
-                    item={item}
-                    view={view}
-                    selected={checked}
-                    dropTarget={dropTarget === item.id}
-                    showPath={Boolean(search.q)}
-                    onSelect={(value) => toggle(item, value)}
-                    onAction={(action) => openDialog(action, [item])}
-                    drag={{
-                      onDragStart: (event) => {
-                        if (!window.matchMedia("(pointer:fine)").matches) {
-                          event.preventDefault();
-
-                          return;
-                        }
-
-                        const items = checked ? [...selected.values()] : [item];
-                        setDragged(items);
-
-                        if (dragPreview.current) {
-                          dragPreview.current.textContent = `${items.length} item`;
-                          event.dataTransfer.setDragImage(
-                            dragPreview.current,
-                            12,
-                            12
-                          );
-                        }
-
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setData(
-                          "text/plain",
-                          `${items.length} item`
-                        );
-                      },
-                      onDragEnd: () => {
-                        setDragged([]);
-                        setDropTarget(null);
-                      },
-                      onDragOver: (event) => {
-                        if (isDrop) {
-                          event.preventDefault();
-                          setDropTarget(item.id);
-                        }
-                      },
-                      onDragLeave: () => {
-                        if (dropTarget === item.id) setDropTarget(null);
-                      },
-                      onDrop: (event) => {
-                        if (isDrop) drop(event, item.id, item.path);
-                      },
-                    }}
-                  />
-                );
-              })}
+                    return items.length ? (
+                      <li
+                        key={kind}
+                        role="presentation"
+                        className="files-grid-section"
+                      >
+                        <ul
+                          aria-label={kind === "folder" ? "Folder" : "File"}
+                          className="files-grid-items"
+                        >
+                          {items.map(renderItem)}
+                        </ul>
+                      </li>
+                    ) : null;
+                  })
+                : query.data.data.map(renderItem)}
             </ul>
             <div className="files-footer">
               <p>
