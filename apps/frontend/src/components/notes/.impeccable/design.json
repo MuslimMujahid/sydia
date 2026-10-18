@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-17T17:25:40.631Z",
+  "generatedAt": "2026-10-18T07:41:37.465Z",
   "title": "Design System: Sydia Notes workspace",
   "extensions": {
     "breakpoints": [
@@ -12,7 +12,13 @@
         "name": "lg",
         "value": "1024px"
       }
-    ]
+    ],
+    "dailyNavigation": {
+      "description": "Today with a short date badge, up to two other latest saved dates, and a date-picker trigger remain available across note and search views.",
+      "calendarWidth": "248px",
+      "placement": "Below trigger with viewport collision handling; may flip above on short screens.",
+      "keyboard": "Arrows cross month boundaries; Escape closes the picker and restores trigger focus while preserving the mobile sheet. Selecting a day navigates and closes picker and sheet."
+    }
   },
   "components": [
     {
@@ -41,16 +47,16 @@
     {
       "name": "Workspace search",
       "kind": "input",
-      "description": "Named search field at the top of contextual navigation.",
-      "html": "<input class=\"ds-notes-search\" aria-label=\"Cari catatan\" placeholder=\"Cari catatan…\"/>",
-      "css": ".ds-notes-search{width:100%;height:44px;min-height:44px;padding:8px 12px 8px 40px;border:1px solid var(--input);border-radius:var(--radius-sm);background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-sans);font-size:15px;outline:none}.ds-notes-search::placeholder{color:var(--color-ink-muted)}.ds-notes-search:hover{border-color:color-mix(in srgb,var(--color-brand) 50%,transparent)}.ds-notes-search:focus-visible{border-color:var(--color-brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--color-brand) 15%,transparent)}.ds-notes-search:disabled{pointer-events:none;background:color-mix(in srgb,var(--color-ink) 4%,transparent);opacity:.4}"
+      "description": "Compact search with a command-K hint above persistent daily shortcuts and folders.",
+      "html": "<div class=\"ds-notes-search-wrap\"><svg class=\"ds-notes-search-icon\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input class=\"ds-notes-search\" aria-label=\"Cari catatan\" placeholder=\"Cari catatan…\"/><span class=\"ds-notes-search-hint\" aria-hidden=\"true\">⌘ K</span></div>",
+      "css": ".ds-notes-search-wrap{position:relative;color:var(--color-ink-muted)}.ds-notes-search-icon{position:absolute;top:12px;left:12px;pointer-events:none}.ds-notes-search-hint{position:absolute;top:12px;right:12px;font-family:var(--font-sans);font-size:11px;pointer-events:none}.ds-notes-search{box-sizing:border-box;width:100%;height:40px;min-height:40px;padding:8px 56px 8px 40px;border:1px solid color-mix(in srgb,var(--color-ink) 8%,transparent);border-radius:var(--radius-sm);background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-sans);font-size:13px;outline:none}.ds-notes-search::placeholder{color:var(--color-ink-muted)}.ds-notes-search:hover{border-color:color-mix(in srgb,var(--color-brand) 50%,transparent)}.ds-notes-search:focus-visible{border-color:var(--color-brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--color-brand) 15%,transparent)}.ds-notes-search:disabled{pointer-events:none;opacity:.4}"
     },
     {
       "name": "Selected note row",
       "kind": "nav",
       "description": "Selected custom note with a quiet brand tint and semibold label.",
       "html": "<nav aria-label=\"Navigasi catatan\"><button class=\"ds-notes-row\" aria-current=\"page\">Rencana peluncuran</button></nav>",
-      "css": ".ds-notes-row{display:flex;align-items:center;min-height:44px;width:100%;padding:4px 8px;border:0;border-radius:var(--radius-sm);background:color-mix(in srgb,var(--color-brand) 10%,transparent);color:var(--color-ink);font-family:var(--font-sans);font-size:13px;font-weight:600;text-align:left;cursor:pointer}.ds-notes-row:hover{background:var(--color-surface-1)}.ds-notes-row:focus-visible{outline:2px solid var(--color-brand)}@media(min-width:640px){.ds-notes-row{min-height:36px}}"
+      "css": ".ds-notes-row{display:flex;align-items:center;min-height:44px;width:100%;padding:4px 8px;border:0;border-radius:var(--radius-sm);background:color-mix(in srgb,var(--color-brand) 10%,transparent);color:var(--color-ink);font-family:var(--font-sans);font-size:13px;font-weight:600;text-align:left;cursor:pointer}.ds-notes-row:hover{background:var(--color-surface-1)}.ds-notes-row:focus-visible{outline:2px solid var(--color-brand)}@media(min-width:640px){.ds-notes-row{min-height:40px}}"
     },
     {
       "name": "Incoming links",

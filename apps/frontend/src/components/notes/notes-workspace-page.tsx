@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Link2,
-  FolderPlus,
+  Command,
   Menu,
   Plus,
   Search,
@@ -20,15 +20,8 @@ import {
   X,
 } from "lucide-react";
 import { TopbarTitle } from "@/components/dashboard/topbar-slots";
-import { DailyNoteNavigator } from "@/components/daily-notes/daily-note-navigator";
-import {
-  monthAnchorFromDayKey,
-  shiftDayKey,
-} from "@/components/daily-notes/daily-note-date";
-import {
-  shiftMonthAnchor,
-  type MonthAnchor,
-} from "@/components/calendar/month-anchor";
+import { WorkspaceDailyNavigation } from "./workspace-daily-navigation";
+import { shiftDayKey } from "@/components/daily-notes/daily-note-date";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -98,7 +91,6 @@ export function NotesWorkspacePage({
   const [notice, setNotice] = useState<string | null>(null);
   const [dialog, setDialog] = useState<WorkspaceDialogTarget | null>(null);
   const [freshRef, setFreshRef] = useState<string | null>(null);
-  const [month, setMonth] = useState<MonthAnchor>(monthAnchorFromDayKey(today));
   const editor = useRef<WorkspaceEditorHandle>(null);
   const pendingCreation = useRef<{
     parentId: string | null;
@@ -168,7 +160,6 @@ export function NotesWorkspacePage({
     setMode("note");
     navigation.save(ref);
     setNavOpen(false);
-    if (ref.startsWith("daily:")) setMonth(monthAnchorFromDayKey(ref.slice(6)));
     await onNavigate(ref);
   }
 
@@ -352,14 +343,14 @@ export function NotesWorkspacePage({
   const sidebar = (
     <div className="flex h-full min-h-0 flex-col px-4 pt-4 pb-3">
       <div className="relative">
-        <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-ink-muted" />
+        <Search className="pointer-events-none absolute top-3 left-3 size-4 text-ink-muted" />
         <Input
           ref={searchInput}
           aria-label="Cari catatan"
           disabled={!mounted}
           placeholder="Cari catatan…"
           value={query}
-          className="min-h-11 bg-canvas pl-10"
+          className="h-10 min-h-10 border-ink/8 bg-canvas pr-14 pl-10 text-[13px]"
           onFocus={() => {
             void show("search");
           }}
@@ -370,54 +361,24 @@ export function NotesWorkspacePage({
             if (event.key === "Enter") setNavOpen(false);
           }}
         />
-      </div>
-      <div className="scrollbar-subtle mt-5 -mr-4 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-4">
-        <button
-          className={cn(
-            "flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-sm outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand",
-            activeRef?.startsWith("daily:") && mode === "note" && "bg-brand/10"
-          )}
-          onClick={() => void open(`daily:${dailyDate}`)}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-3 right-3 flex items-center gap-0.5 text-[11px] text-ink-muted"
         >
-          <CalendarDays className="size-4 text-ink-muted" />
-          Catatan harian
-        </button>
-        {activeRef?.startsWith("daily:") && mode === "note" ? (
-          <div className="mt-3 px-1 pb-4">
-            <DailyNoteNavigator
-              anchor={month}
-              selectedDate={dailyDate}
-              today={today}
-              notes={entries
-                .filter((entry) => entry.kind === "daily")
-                .map((entry) => ({
-                  date: entry.ref.slice(6),
-                  excerpt: entry.excerpt,
-                  updatedAt: entry.updatedAt,
-                }))
-                .sort((a, b) => b.date.localeCompare(a.date))}
-              noteDates={
-                new Set(
-                  entries
-                    .filter((entry) => entry.kind === "daily")
-                    .map((entry) => entry.ref.slice(6))
-                )
-              }
-              loading={workspace.isPending}
-              error={workspace.error}
-              onRetry={() => void workspace.refetch()}
-              onChangeMonth={(delta) =>
-                setMonth((current) => shiftMonthAnchor(current, delta))
-              }
-              onSelectDate={(date) => void open(`daily:${date}`)}
-            />
-          </div>
-        ) : (
-          <p className="mt-1 px-3 text-xs text-ink-muted">
-            Satu catatan untuk setiap hari
-          </p>
-        )}
-        <div className="mt-5 flex items-center justify-between border-t border-ink/8 pt-4">
+          <Command className="size-3" /> K
+        </span>
+      </div>
+      <div className="scrollbar-subtle mt-8 -mr-4 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-4">
+        <WorkspaceDailyNavigation
+          today={today}
+          selectedDate={
+            mode === "note" && activeRef.startsWith("daily:") ? dailyDate : null
+          }
+          entries={entries}
+          loading={workspace.isPending}
+          onSelectDate={(date) => void open(`daily:${date}`)}
+        />
+        <div className="mt-7 mb-2 flex items-center justify-between">
           <h2 className="px-2 text-xs font-semibold text-ink-muted">Folder</h2>
           <Button
             variant="ghost"
@@ -433,7 +394,7 @@ export function NotesWorkspacePage({
               folderCreation.start(noteParentId, event.currentTarget)
             }
           >
-            <FolderPlus />
+            <Plus />
           </Button>
         </div>
         {workspace.isPending ? (

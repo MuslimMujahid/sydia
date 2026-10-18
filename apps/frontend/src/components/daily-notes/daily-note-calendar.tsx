@@ -56,6 +56,7 @@ type DailyNoteCalendarProps = {
   onSelectDate: (date: string) => void;
   /** Receives the day button that currently owns the grid's single tab stop. */
   activeDayRef?: Ref<HTMLButtonElement>;
+  compact?: boolean;
 };
 
 function toWeeks(days: MonthGridDay[]): MonthGridDay[][] {
@@ -87,16 +88,27 @@ export function DailyNoteCalendar({
   onChangeMonth,
   onSelectDate,
   activeDayRef,
+  compact = false,
 }: DailyNoteCalendarProps) {
   const titleId = useId();
   const gridRef = useRef<HTMLDivElement>(null);
   const moveFocusRef = useRef(false);
   const [focusedDate, setFocusedDate] = useState<string | null>(null);
   const days = useMemo(() => getMonthGridDays(anchor), [anchor]);
-  const weeks = useMemo(() => toWeeks(days), [days]);
+  const weeks = useMemo(
+    () =>
+      toWeeks(days).filter(
+        (week) => !compact || week.some((day) => day.inMonth)
+      ),
+    [days, compact]
+  );
+
   const visibleKeys = useMemo(
-    () => new Set(days.map((day) => day.key)),
-    [days]
+    () =>
+      new Set(
+        days.filter((day) => !compact || day.inMonth).map((day) => day.key)
+      ),
+    [days, compact]
   );
 
   const activeDate =
@@ -120,9 +132,9 @@ export function DailyNoteCalendar({
 
     const next = shiftDayKey(from, delta);
 
-    if (!visibleKeys.has(next)) onChangeMonth(delta > 0 ? 1 : -1);
-    setFocusedDate(next);
     moveFocusRef.current = true;
+    setFocusedDate(next);
+    if (!visibleKeys.has(next)) onChangeMonth(delta > 0 ? 1 : -1);
   }
 
   function handleKeyDown(
@@ -147,7 +159,10 @@ export function DailyNoteCalendar({
         <h2
           id={titleId}
           aria-live="polite"
-          className="font-display text-[15px] font-semibold capitalize"
+          className={cn(
+            "font-display text-[15px] font-semibold capitalize",
+            compact && "text-sm"
+          )}
         >
           {formatMonthAnchor(anchor)}
         </h2>
@@ -184,9 +199,14 @@ export function DailyNoteCalendar({
             <div
               key={label.long}
               role="columnheader"
-              className="pb-1.5 text-center font-mono text-[11px] tracking-wider text-ink-muted uppercase"
+              className={cn(
+                "pb-1.5 text-center font-mono text-[11px] tracking-wider text-ink-muted uppercase",
+                compact && "font-sans tracking-normal"
+              )}
             >
-              <span aria-hidden="true">{label.short}</span>
+              <span aria-hidden="true">
+                {compact ? label.long.slice(0, 1) : label.short}
+              </span>
               <span className="sr-only">{label.long}</span>
             </div>
           ))}
@@ -208,11 +228,14 @@ export function DailyNoteCalendar({
                   data-day={day.key}
                   tabIndex={isActive ? 0 : -1}
                   aria-label={dayLabel(day.key, hasNote, isToday)}
+                  aria-hidden={compact && !day.inMonth ? true : undefined}
                   aria-selected={isSelected}
                   aria-current={isToday ? "date" : undefined}
                   className={cn(
                     "relative mx-auto grid aspect-square w-full max-w-11 place-items-center rounded-sm font-mono text-[13px] font-medium outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50",
                     day.inMonth ? "text-ink" : "text-ink-muted",
+                    compact && "font-sans text-xs",
+                    compact && !day.inMonth && "pointer-events-none opacity-0",
                     isToday && !isSelected && "ring-1 ring-brand ring-inset",
                     isSelected && "bg-ink text-canvas hover:bg-ink"
                   )}

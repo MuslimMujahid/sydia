@@ -25,10 +25,11 @@ export type ItemAction =
   "rename" | "move" | "trash" | "restore" | "delete" | "copy-link";
 type ItemMenuProps = {
   item: WorkspaceItem;
+  className?: string;
   onAction: (action: ItemAction, item: WorkspaceItem) => void;
 };
 
-export function ItemMenu({ item, onAction }: ItemMenuProps) {
+export function ItemMenu({ item, onAction, className }: ItemMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -36,7 +37,7 @@ export function ItemMenu({ item, onAction }: ItemMenuProps) {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+            className={cn("min-h-11 min-w-11 sm:min-h-8 sm:min-w-8", className)}
             aria-label={`Tindakan ${item.title}`}
           />
         }
@@ -180,7 +181,7 @@ export function WorkspaceTree({
                 )}
               >
                 <button
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-9"
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-10"
                   aria-current={selected ? "page" : undefined}
                   aria-expanded={folder ? expanded : undefined}
                   onClick={() => {
@@ -218,7 +219,11 @@ export function WorkspaceTree({
                     {item.title}
                   </span>
                 </button>
-                <ItemMenu item={item} onAction={onAction} />
+                <ItemMenu
+                  item={item}
+                  onAction={onAction}
+                  className="sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                />
               </div>
               {folder && expanded ? branch(item.id, item.path) : null}
             </li>

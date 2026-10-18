@@ -984,55 +984,131 @@ test.describe("Notes workspace with the real backend", () => {
     expect(sibling!.y - child!.y - child!.height).toBe(4);
   });
 
+  test("daily shortcuts show the two latest dates and the picker opens from a custom note", async ({
+    page,
+  }) => {
+    const custom = await create(page.request, "Custom note");
+    await page.request.put(`${backendURL}/daily-notes/2026-10-16`, {
+      data: { expectedUpdatedAt: null, content: document("Friday") },
+    });
+    await page.request.put(`${backendURL}/daily-notes/2026-10-13`, {
+      data: { expectedUpdatedAt: null, content: document("Tuesday") },
+    });
+    await page.request.put(`${backendURL}/daily-notes/2026-10-10`, {
+      data: { expectedUpdatedAt: null, content: document("Older note") },
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, custom.id);
+    const navigation = page.getByRole("complementary", {
+      name: "Navigasi catatan",
+    });
+
+    await expect(
+      navigation.getByRole("button", { name: "Jumat, 16 Oktober", exact: true })
+    ).toBeVisible();
+    await expect(
+      navigation.getByRole("button", {
+        name: "Selasa, 13 Oktober",
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      navigation.getByRole("button", { name: "Sabtu, 10 Oktober", exact: true })
+    ).toHaveCount(0);
+    await expect(page.getByRole("grid")).toHaveCount(0);
+    const picker = navigation.getByRole("button", {
+      name: "Pilih tanggal…",
+      exact: true,
+    });
+
+    await picker.click();
+    await expect(page.getByRole("grid")).toBeVisible();
+    await expect(
+      page.getByRole("gridcell", { name: /hari ini/ })
+    ).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("grid")).toHaveCount(0);
+    await expect(picker).toBeFocused();
+    await navigation
+      .getByRole("button", { name: "Jumat, 16 Oktober", exact: true })
+      .click();
+    await expect(page).toHaveURL(/date=2026-10-16/);
+    await expect(
+      navigation.getByRole("button", { name: "Jumat, 16 Oktober", exact: true })
+    ).toHaveAttribute("aria-current", "page");
+    await picker.click();
+    await page
+      .getByRole("gridcell", { name: "Kamis, 15 Oktober", exact: true })
+      .click();
+    await expect(page).toHaveURL(/date=2026-10-15/);
+    await expect(page.getByRole("grid")).toHaveCount(0);
+    await expect(picker).toBeFocused();
+  });
+
+  test("the compact picker moves keyboard focus across the month boundary", async ({
+    page,
+  }) => {
+    await page.goto("/notes?date=2026-10-31");
+    await page
+      .getByRole("button", { name: "Pilih tanggal…", exact: true })
+      .click();
+    await expect(
+      page.getByRole("gridcell", { name: "Sabtu, 31 Oktober", exact: true })
+    ).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(
+      page.getByRole("gridcell", { name: "Minggu, 1 November", exact: true })
+    ).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/date=2026-11-01/);
+    await expect(page.getByRole("grid")).toHaveCount(0);
+  });
+
   test("daily navigation fits its sidebar without horizontal overflow and scrolls vertically", async ({
     page,
   }) => {
     await create(page.request, "Kerja", null, "folder");
     await create(page.request, "Pribadi", null, "folder");
-    await page.setViewportSize({ width: 1280, height: 620 });
+    await page.setViewportSize({ width: 1280, height: 420 });
     await page.goto("/notes?date=2026-10-18");
     const navigation = page.getByRole("complementary", {
       name: "Navigasi catatan",
     });
 
-    await expect(navigation.getByRole("grid")).toBeVisible();
-    const measurements = await navigation.getByRole("grid").evaluate((grid) => {
-      const scroller = grid.closest(".overflow-y-auto");
-      if (!(scroller instanceof HTMLElement))
-        throw new Error("Missing navigation scroll container");
-      const calendar = grid.parentElement;
-      if (!calendar) throw new Error("Missing daily calendar");
-      const style = getComputedStyle(scroller);
-      const sidebar = scroller.closest("aside");
-      if (!sidebar) throw new Error("Missing notes sidebar");
-      scroller.scrollTop = scroller.scrollHeight;
+    await navigation
+      .getByRole("button", { name: "Pilih tanggal…", exact: true })
+      .click();
+    await expect(page.getByRole("grid")).toBeVisible();
+    expect(
+      await page
+        .getByRole("grid")
+        .evaluate((grid) => grid.scrollWidth - grid.clientWidth)
+    ).toBe(0);
+    await page.keyboard.press("Escape");
+    const measurements = await navigation
+      .locator(".scrollbar-subtle")
+      .evaluate((scroller) => {
+        scroller.scrollTop = scroller.scrollHeight;
+        const style = getComputedStyle(scroller);
 
-      return {
-        horizontalOverflow: scroller.scrollWidth - scroller.clientWidth,
-        calendarOverflow: calendar.scrollWidth - calendar.clientWidth,
-        verticalOverflow: scroller.scrollHeight > scroller.clientHeight,
-        scrolled: scroller.scrollTop > 0,
-        scrollbarWidth: style.scrollbarWidth,
-        scrollbarColor: style.scrollbarColor,
-        rightInset:
-          sidebar.getBoundingClientRect().right -
-          scroller.getBoundingClientRect().right,
-      };
-    });
+        return {
+          horizontalOverflow: scroller.scrollWidth - scroller.clientWidth,
+          scrolled: scroller.scrollTop > 0,
+          scrollbarWidth: style.scrollbarWidth,
+          scrollbarColor: style.scrollbarColor,
+        };
+      });
 
     expect(measurements.horizontalOverflow).toBe(0);
-    expect(measurements.calendarOverflow).toBe(0);
-    expect(measurements.verticalOverflow).toBe(true);
     expect(measurements.scrolled).toBe(true);
     expect(measurements.scrollbarWidth).toBe("thin");
     expect(measurements.scrollbarColor).not.toBe("auto");
-    expect(measurements.rightInset).toBe(1); // Sidebar border only; no content inset.
     await expect(
       navigation.getByRole("button", { name: "Sampah 0", exact: true })
     ).toBeVisible();
   });
 
-  test("mobile daily navigation fits its drawer and retains vertical scrolling", async ({
+  test("mobile daily navigation opens a keyboard accessible picker inside its drawer", async ({
     page,
   }) => {
     await create(page.request, "Kerja", null, "folder");
@@ -1044,31 +1120,33 @@ test.describe("Notes workspace with the real backend", () => {
     await page
       .getByRole("button", { name: "Buka navigasi catatan", exact: true })
       .click();
-    const drawer = page.getByRole("dialog");
-    await expect(drawer.getByRole("grid")).toBeVisible();
-    const measurements = await drawer.getByRole("grid").evaluate((grid) => {
-      const scroller = grid.closest(".overflow-y-auto");
-      if (!(scroller instanceof HTMLElement))
-        throw new Error("Missing navigation scroll container");
-      const drawer = scroller.closest('[role="dialog"]');
-      if (!drawer) throw new Error("Missing navigation drawer");
-      scroller.scrollTop = scroller.scrollHeight;
-
-      return {
-        horizontalOverflow: scroller.scrollWidth - scroller.clientWidth,
-        scrolled: scroller.scrollTop > 0,
-        rightInset:
-          drawer.getBoundingClientRect().right -
-          scroller.getBoundingClientRect().right,
-      };
+    const drawer = page.getByRole("dialog").filter({
+      has: page.getByRole("heading", { name: "Catatan", exact: true }),
     });
 
-    expect(measurements.horizontalOverflow).toBe(0);
-    expect(measurements.scrolled).toBe(true);
-    expect(measurements.rightInset).toBe(0);
-    await expect(
-      drawer.getByRole("button", { name: "Sampah 0", exact: true })
-    ).toBeVisible();
+    const picker = drawer.getByRole("button", {
+      name: "Pilih tanggal…",
+      exact: true,
+    });
+
+    await expect(page.getByRole("grid")).toHaveCount(0);
+    await picker.click();
+    await expect(page.getByRole("grid")).toBeVisible();
+    expect(
+      await page
+        .getByRole("grid")
+        .evaluate((grid) => grid.scrollWidth - grid.clientWidth)
+    ).toBe(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("grid")).toHaveCount(0);
+    await expect(drawer).toBeVisible();
+    await expect(picker).toBeFocused();
+    await picker.click();
+    await page
+      .getByRole("gridcell", { name: "Sabtu, 17 Oktober", exact: true })
+      .click();
+    await expect(page).toHaveURL(/date=2026-10-17/);
+    await expect(drawer).toBeHidden();
   });
 
   test("a duplicate title reports a name error and editing the title resumes autosave", async ({
