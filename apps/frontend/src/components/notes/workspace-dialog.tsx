@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Folder } from "lucide-react";
+import { Folder, FolderInput } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,8 @@ import {
   mutateWorkspaceItem,
   type WorkspaceItem,
 } from "@/lib/services/api/notes/notes.api";
+import { cn } from "@/lib/utils/cn";
+import { MoveDestinationPicker } from "./move-destination-picker";
 import type { ItemAction } from "./workspace-tree";
 
 export type WorkspaceDialogTarget = {
@@ -42,6 +44,9 @@ export function WorkspaceDialog({
   const [title, setTitle] = useState(item.title);
   const [folderQuery, setFolderQuery] = useState("");
   const [parentId, setParentId] = useState<string | null>(item.parentId);
+
+  const isMove = target.action === "move";
+  const sourceFolder = items.find((entry) => entry.id === item.parentId);
 
   const showFolders = target.action === "move" || target.action === "restore";
 
@@ -97,9 +102,31 @@ export function WorkspaceDialog({
     >
       <DialogContent
         variant="sheet"
-        className="max-h-[90dvh] overflow-auto sm:max-w-lg"
+        className={cn(
+          "max-h-[90dvh] overflow-auto sm:max-w-lg",
+          isMove &&
+            "flex h-[548px] flex-col overflow-hidden rounded-t-[22px] bg-canvas p-0 pb-0 sm:max-w-[480px] sm:rounded-[22px] sm:p-0"
+        )}
       >
-        <DialogTitle>{TITLES[target.action]}</DialogTitle>
+        <DialogTitle
+          className={
+            isMove
+              ? "mx-6 mt-6 pr-7 font-sans text-[22px] leading-[27px] tracking-normal"
+              : undefined
+          }
+        >
+          {isMove
+            ? item.kind === "folder"
+              ? "Pindahkan folder"
+              : "Pindahkan catatan"
+            : TITLES[target.action]}
+        </DialogTitle>
+        {isMove ? (
+          <DialogDescription className="mx-6 mt-3 min-w-0 truncate text-xs leading-[18px]">
+            <span>{sourceFolder ? sourceFolder.path : "Semua catatan"} / </span>
+            <span className="font-medium text-ink">{item.title}</span>
+          </DialogDescription>
+        ) : null}
         {target.action === "delete" ? (
           <DialogDescription className="mt-4">
             “{item.title}” beserta seluruh isinya akan dihapus permanen.
@@ -125,7 +152,21 @@ export function WorkspaceDialog({
             />
           </label>
         ) : null}
-        {showFolders ? (
+        {isMove ? (
+          <MoveDestinationPicker
+            folders={items
+              .filter(
+                (entry) =>
+                  entry.kind === "folder" &&
+                  !entry.trashedAt &&
+                  !containsItem(entry)
+              )
+              .sort((a, b) => a.path.localeCompare(b.path))}
+            currentParentId={item.parentId}
+            parentId={parentId}
+            onSelect={setParentId}
+          />
+        ) : showFolders ? (
           <>
             <p className="mt-4 text-xs text-ink-muted">
               Lokasi semula: {item.path}
@@ -170,13 +211,30 @@ export function WorkspaceDialog({
           </>
         ) : null}
         {mutation.error ? (
-          <p role="alert" className="mt-4 text-sm text-destructive">
+          <p
+            role="alert"
+            className={cn(
+              "mt-4 text-sm text-destructive",
+              isMove && "mx-6 mt-2"
+            )}
+          >
             {mutation.error.message}
           </p>
         ) : null}
-        <div className="mt-6 flex justify-end gap-3">
+        <div
+          className={cn(
+            "mt-6 flex justify-end gap-3",
+            isMove &&
+              "mx-6 mt-0 shrink-0 border-t border-[#e8e3e5] pt-6 pb-[max(1.75rem,env(safe-area-inset-bottom))]"
+          )}
+        >
           <Button
-            variant="ghost"
+            variant={isMove ? "dark-outline" : "ghost"}
+            className={
+              isMove
+                ? "min-h-10 rounded-[10px] border-[#e8e3e5] px-[18px] py-2 text-sm"
+                : undefined
+            }
             disabled={mutation.isPending}
             onClick={onClose}
           >
@@ -184,6 +242,11 @@ export function WorkspaceDialog({
           </Button>
           <Button
             variant={target.action === "delete" ? "destructive" : "primary"}
+            className={
+              isMove
+                ? "min-h-10 rounded-2xl px-3.5 py-2 text-sm font-semibold shadow-none"
+                : undefined
+            }
             disabled={
               mutation.isPending ||
               ((target.action === "rename" || target.action === "restore") &&
@@ -191,6 +254,9 @@ export function WorkspaceDialog({
             }
             onClick={() => mutation.mutate()}
           >
+            {isMove ? (
+              <FolderInput aria-hidden="true" className="size-[18px]" />
+            ) : null}
             {mutation.isPending
               ? "Menyimpan…"
               : target.action === "delete"
