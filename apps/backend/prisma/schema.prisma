@@ -229,6 +229,7 @@ model Message {
   type              String              @default("text")
   content           String
   providerMessageId String?
+  activeNoteRef     String?
   attachments       MessageAttachment[]
   idempotencyKey    String?
   createdAt         DateTime            @default(now())

@@ -1,4 +1,11 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
+import { ApiException, ErrorCodes } from '../../../shared/errors';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import { createUIMessageStream } from 'ai';
 import type { InferUIMessageChunk, UIMessage } from 'ai';
@@ -35,6 +42,7 @@ import {
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 import { buildTerminalToolResponse } from './terminal-tool-response';
 import { ToolExecutorService } from './tool-executor.service';
+import { ActiveNoteService } from './active-note.service';
 
 const ASSISTANT_MESSAGES = {
   en: {
@@ -160,6 +168,7 @@ export class AssistantOrchestratorService {
     @Optional()
     @Inject(AUDIT_EVENT_REPOSITORY)
     private readonly auditEvents?: IAuditEventRepository,
+    @Optional() private readonly activeNotes?: ActiveNoteService,
   ) {}
 
   async sendQueued(
@@ -169,6 +178,7 @@ export class AssistantOrchestratorService {
       content: string;
       idempotencyKey: string;
       attachmentIds?: string[];
+      activeNoteRef?: string;
     },
     context?: AssistantExecutionContext,
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
@@ -200,6 +210,7 @@ export class AssistantOrchestratorService {
       content: string;
       idempotencyKey: string;
       attachmentIds?: string[];
+      activeNoteRef?: string;
     },
     context?: AssistantExecutionContext,
   ): ReadableStream<InferUIMessageChunk<AssistantStreamMessage>> {
@@ -341,6 +352,7 @@ export class AssistantOrchestratorService {
       content: string;
       idempotencyKey: string;
       attachmentIds?: string[];
+      activeNoteRef?: string;
       channel?: MessageProvider;
       abortSignal?: AbortSignal;
       toolsReady?: Promise<void>;
@@ -433,6 +445,7 @@ export class AssistantOrchestratorService {
       content: string;
       idempotencyKey: string;
       attachmentIds?: string[];
+      activeNoteRef?: string;
     },
   ): Promise<{
     conversation: Conversation;
@@ -440,13 +453,36 @@ export class AssistantOrchestratorService {
     run: AssistantRun;
     completedResult?: AssistantTurnResult & { userMessage: Message };
   }> {
+    if (input.activeNoteRef) {
+      if (!this.activeNotes)
+        throw new Error('Active note validation service is unavailable');
+      await this.activeNotes.validate(user.id, input.activeNoteRef);
+    }
+
     const write = await this.conversations.writeUserMessage({
       userId: user.id,
       conversationId: input.conversationId,
       content: input.content,
       idempotencyKey: input.idempotencyKey,
       attachmentIds: input.attachmentIds,
+      activeNoteRef: input.activeNoteRef,
     });
+
+    if (
+      write.replayed &&
+      (write.userMessage.activeNoteRef ?? null) !==
+        (input.activeNoteRef ?? null)
+    ) {
+      this.logger.warn(
+        `Message retry attempted to change active note message=${write.userMessage.id}`,
+      );
+      throw new ApiException({
+        code: ErrorCodes.CONFLICT,
+        status: HttpStatus.CONFLICT,
+        message:
+          'Pesan ini sudah dikirim dengan konteks catatan berbeda. Kirim sebagai pesan baru.',
+      });
+    }
 
     const existingRun = await this.conversations.findLatestRunForMessage(
       user.id,

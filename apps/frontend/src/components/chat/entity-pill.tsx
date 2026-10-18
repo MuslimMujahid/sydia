@@ -1,4 +1,10 @@
-import { AlarmClock, CalendarDays, CheckSquare2, FileText } from "lucide-react";
+import {
+  AlarmClock,
+  CalendarDays,
+  CheckSquare2,
+  FileText,
+  Files,
+} from "lucide-react";
 import { useState } from "react";
 import {
   Popover,
@@ -10,8 +16,15 @@ import { cn } from "@/lib/utils/cn";
 import type { ChatEntity } from "./chat-entities";
 import { EntitySnapshotDetails } from "./entity-snapshot-details";
 import { EntityDetails } from "./entity-details";
+import { useChatNotes } from "./chat-notes";
 
 const ENTITY_STYLES = {
+  note: {
+    icon: Files,
+    color: "bg-brand/8 text-ink hover:bg-brand/15",
+    en: "Note",
+    id: "Catatan",
+  },
   task: {
     icon: CheckSquare2,
     color: "bg-blue-50 text-blue-800 hover:bg-blue-100",
@@ -54,14 +67,48 @@ export function EntityPill({
   snapshotOnly = false,
 }: EntityPillProps) {
   const [open, setOpen] = useState(false);
+  const notes = useChatNotes();
   const style = ENTITY_STYLES[entity.kind];
-  const Icon = style.icon;
+  const Icon =
+    entity.kind === "note" && entity.ref.startsWith("daily:")
+      ? CalendarDays
+      : style.icon;
+
+  const displayLabel =
+    entity.kind === "note" && entity.ref.startsWith("daily:")
+      ? new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          timeZone: "UTC",
+        }).format(new Date(`${entity.ref.slice(6)}T12:00:00Z`))
+      : label;
+
+  if (entity.kind === "note" && !snapshotOnly)
+    return (
+      <button
+        type="button"
+        data-entity-kind="note"
+        aria-label={`${style[locale]}: ${displayLabel}`}
+        disabled={!notes}
+        className={cn(
+          "mx-0.5 inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-0.5 align-baseline text-[0.875em] leading-6 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          style.color
+        )}
+        onClick={(event) => notes?.open(entity.ref, event.currentTarget)}
+      >
+        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="min-w-0 break-words whitespace-normal text-left [overflow-wrap:anywhere]">
+          {displayLabel}
+        </span>
+      </button>
+    );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-entity-kind={entity.kind}
-        aria-label={`${style[locale]}: ${label}`}
+        aria-label={`${style[locale]}: ${displayLabel}`}
         className={cn(
           "mx-0.5 inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-0.5 align-baseline text-[0.875em] leading-6 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           style.color
@@ -69,7 +116,7 @@ export function EntityPill({
       >
         <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         <span className="min-w-0 break-words whitespace-normal text-left [overflow-wrap:anywhere]">
-          {label}
+          {displayLabel}
         </span>
       </PopoverTrigger>
       <PopoverContent>

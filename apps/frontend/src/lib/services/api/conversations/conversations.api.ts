@@ -99,6 +99,7 @@ export type SendMessageVariables = Partial<ChatPreviewScope> & {
   content: string;
   idempotencyKey: string;
   attachmentIds?: string[];
+  activeNoteRef?: string;
 };
 export type AssistantActivityPhase = "queued" | "preparing" | "executing_tool";
 

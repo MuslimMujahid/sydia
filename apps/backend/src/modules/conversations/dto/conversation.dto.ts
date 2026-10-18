@@ -8,6 +8,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Matches,
 } from 'class-validator';
 
 export class ChatPreviewScopeDto {
@@ -21,6 +22,12 @@ export class ChatPreviewScopeDto {
 }
 
 export class SendMessageDto extends ChatPreviewScopeDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  @Matches(/^(custom:[a-zA-Z0-9_-]+|daily:\d{4}-\d{2}-\d{2})$/)
+  activeNoteRef?: string;
+
   @IsOptional()
   @IsString()
   conversationId?: string;

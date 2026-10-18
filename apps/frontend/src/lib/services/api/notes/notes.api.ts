@@ -61,11 +61,14 @@ async function request<T>(
       })
     ).data.data;
   } catch (error) {
-    console.warn("Notes request failed", { method, url, error });
-    throw toApiError(
+    const failure = toApiError(
       error,
       "Catatan tidak dapat dimuat atau disimpan. Coba lagi."
     );
+
+    // Axios errors contain request bodies; never log a note's document.
+    console.warn("Notes request failed", { method, url, name: failure.name });
+    throw failure;
   }
 }
 

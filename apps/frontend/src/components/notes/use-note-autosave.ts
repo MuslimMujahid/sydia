@@ -11,12 +11,16 @@ export type NoteSaveStatus =
   "saved" | "dirty" | "saving" | "error" | "conflict";
 type UseNoteAutosaveOptions = {
   note: WorkspaceNote;
+  available?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
   onSaved: (note: WorkspaceNote) => void;
   onRemote: (note: WorkspaceNote) => void;
 };
 
 export function useNoteAutosave({
   note,
+  available = true,
+  onDirtyChange,
   onSaved,
   onRemote,
 }: UseNoteAutosaveOptions) {
@@ -29,10 +33,13 @@ export function useNoteAutosave({
   const paused = useRef(false);
   const writing = useRef<Promise<boolean> | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const callbacks = useRef({ onSaved, onRemote });
+  const callbacks = useRef({ onSaved, onRemote, onDirtyChange });
   useEffect(() => {
-    callbacks.current = { onSaved, onRemote };
-  }, [onSaved, onRemote]);
+    callbacks.current = { onSaved, onRemote, onDirtyChange };
+  }, [onSaved, onRemote, onDirtyChange]);
+  useEffect(() => {
+    callbacks.current.onDirtyChange?.(dirty.current);
+  }, [status]);
 
   const flush = useCallback(
     async function flushPending(): Promise<boolean> {
@@ -47,6 +54,7 @@ export function useNoteAutosave({
         return flushPending();
       }
 
+      if (!available) return !dirty.current;
       if (paused.current) return false;
       if (!dirty.current) return true;
       const captured = draft.current;
@@ -75,6 +83,7 @@ export function useNoteAutosave({
 
             try {
               setConflict(await getWorkspaceNote(note.ref));
+              setError(null);
             } catch (readFailure) {
               console.warn(
                 "Conflicting note could not be fetched.",
@@ -105,7 +114,7 @@ export function useNoteAutosave({
 
       return succeeded;
     },
-    [note.ref]
+    [available, note.ref]
   );
 
   const change = useCallback(
@@ -123,6 +132,17 @@ export function useNoteAutosave({
   );
 
   useEffect(() => {
+    if (!available) {
+      if (timer.current) clearTimeout(timer.current);
+
+      if (dirty.current) {
+        setStatus("error");
+        setError("Catatan tidak tersedia. Salin draf atau buang perubahan.");
+      }
+    }
+  }, [available]);
+
+  useEffect(() => {
     if (note.version === baseline.current.version) return;
     if (writing.current) return;
 
@@ -130,6 +150,7 @@ export function useNoteAutosave({
       paused.current = true;
       if (timer.current) clearTimeout(timer.current);
       setConflict(note);
+      setError(null);
       setStatus("conflict");
     } else {
       baseline.current = note;
@@ -203,5 +224,30 @@ export function useNoteAutosave({
     [conflict, flush, note.ref]
   );
 
-  return { status, error, conflict, change, flush, resolve, draft, dirty };
+  const discard = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    dirty.current = false;
+    paused.current = false;
+    draft.current = {
+      title: baseline.current.title,
+      content: baseline.current.content,
+    };
+    setConflict(null);
+    setError(null);
+    setStatus("saved");
+    callbacks.current.onRemote(baseline.current);
+  }, []);
+
+  return {
+    status,
+    error,
+    conflict,
+    change,
+    flush,
+    resolve,
+    discard,
+    draft,
+    dirty,
+  };
 }

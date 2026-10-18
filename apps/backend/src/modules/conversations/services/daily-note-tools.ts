@@ -1,3 +1,4 @@
+import { withNoteReferenceGuidance } from './note-tool-references';
 import type { JSONSchema7 } from 'ai';
 import type { Prisma } from '../../../generated/prisma/client';
 import { isDayKey } from '../../../database/entities';
@@ -206,7 +207,6 @@ Do not use it to search across many days by topic; use search_daily_notes for th
 date defaults to today in the owner's timezone. Returns the note's text, or null when that day has no note. Headings and lists are returned with their \`##\`, \`- \` and \`1. \` markers, and that text is the note exactly as it stands — read it before any write_daily_note call so the full note you send back keeps everything already recorded, then add or adjust what the user asked for.`,
       parameters: schema({ date: DAY_KEY }),
     },
-    internal: true,
     readOnly: true,
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
@@ -263,7 +263,6 @@ Returns up to five days, each with the matching passage and its date. Retrieved 
         ['query'],
       ),
     },
-    internal: true,
     readOnly: true,
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
@@ -305,5 +304,7 @@ Returns up to five days, each with the matching passage and its date. Retrieved 
     },
   };
 
-  return [writeDailyNote, readDailyNote, searchDailyNotes];
+  return [writeDailyNote, readDailyNote, searchDailyNotes].map(
+    withNoteReferenceGuidance,
+  );
 }

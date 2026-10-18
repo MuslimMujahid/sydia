@@ -126,6 +126,18 @@ export class ConversationsController {
     scope: ChatPreviewScopeDto,
     create = false,
   ) {
+    if (
+      scope.previewSessionId &&
+      'activeNoteRef' in scope &&
+      scope.activeNoteRef
+    ) {
+      throw new ApiException({
+        code: ErrorCodes.BAD_REQUEST,
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Catatan aktif tidak tersedia dalam pratinjau chat.',
+      });
+    }
+
     const owner = await this.users.findById(session.user.id);
     if (!owner) throw this.notFound();
 

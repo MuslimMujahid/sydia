@@ -24,10 +24,13 @@ import { NoteLink, NoteLinksContext, type LinkRequest } from "./note-link";
 import { NoteLinkPicker } from "./note-link-picker";
 import { useNoteAutosave } from "./use-note-autosave";
 import { NoteBacklinks } from "./note-backlinks";
+import { NoteVersionComparison } from "./note-version-comparison";
 
 export type WorkspaceEditorHandle = {
   flush: () => Promise<boolean>;
   focusTitle: () => void;
+  discard: () => void;
+  draftText: () => string;
 };
 type WorkspaceEditorProps = {
   note: WorkspaceNote;
@@ -39,6 +42,11 @@ type WorkspaceEditorProps = {
   onSaved: (note: WorkspaceNote) => void;
   onOpen: (ref: string) => void;
   onCreateLink: (title: string) => Promise<NoteEntry>;
+  presentation?: "workspace" | "drawer";
+  timezone?: string;
+  guarded?: boolean;
+  available?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 function asDocument(content: JSONContent): TiptapDoc {
@@ -47,6 +55,7 @@ function asDocument(content: JSONContent): TiptapDoc {
 
 function readableText(value: unknown): string {
   if (!value || typeof value !== "object") return "";
+  if ("type" in value && value.type === "hardBreak") return "\n";
   if ("text" in value && typeof value.text === "string") return value.text;
   if (
     "type" in value &&
@@ -59,7 +68,14 @@ function readableText(value: unknown): string {
   )
     return `[[${value.attrs.label}]]`;
   if ("content" in value && Array.isArray(value.content))
-    return value.content.map(readableText).join(" ");
+    return value.content
+      .map(readableText)
+      .join(
+        "type" in value &&
+          ["doc", "bulletList", "orderedList"].includes(String(value.type))
+          ? "\n\n"
+          : ""
+      );
 
   return "";
 }
@@ -74,6 +90,11 @@ export function WorkspaceEditor({
   onSaved,
   onOpen,
   onCreateLink,
+  presentation = "workspace",
+  timezone,
+  guarded = false,
+  available = true,
+  onDirtyChange,
 }: WorkspaceEditorProps) {
   const daily = note.ref.startsWith("daily:");
   const [title, setTitle] = useState(note.title);
@@ -122,6 +143,8 @@ export function WorkspaceEditor({
 
   const autosave = useNoteAutosave({
     note,
+    available,
+    onDirtyChange,
     onSaved,
     onRemote: (remote) => {
       setTitle(remote.title);
@@ -130,6 +153,10 @@ export function WorkspaceEditor({
       });
     },
   });
+
+  useEffect(() => {
+    editor?.setEditable(available, false);
+  }, [available, editor]);
 
   const empty = useEditorState({
     editor,
@@ -141,14 +168,20 @@ export function WorkspaceEditor({
     setCompareOpen(true);
   }
 
-  useBlocker({ shouldBlockFn: async () => !(await autosave.flush()) });
+  useBlocker({
+    shouldBlockFn: async () =>
+      presentation === "workspace" && !(await autosave.flush()),
+  });
   useImperativeHandle(
     ref,
     () => ({
       flush: autosave.flush,
+      discard: autosave.discard,
+      draftText: () =>
+        `${autosave.draft.current.title}\n\n${readableText(autosave.draft.current.content)}`,
       focusTitle: () => document.getElementById("note-title")?.focus(),
     }),
-    [autosave.flush]
+    [autosave.flush, autosave.discard, autosave.draft]
   );
   useEffect(() => {
     if (fresh && !daily) document.getElementById("note-title")?.focus();
@@ -176,6 +209,41 @@ export function WorkspaceEditor({
       </div>
     );
 
+  const saveNotices = (
+    <>
+      {autosave.status === "conflict" ? (
+        <div role="alert" className="space-y-3 text-sm">
+          <p className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="size-4" />
+            {presentation === "drawer"
+              ? "Catatan berubah di tempat lain"
+              : "Penyimpanan otomatis dijeda"}
+          </p>
+          <p>Autosave dijeda. Draf Anda tetap tersedia.</p>
+          <Button variant="dark-outline" size="sm" onClick={openComparison}>
+            Bandingkan versi
+          </Button>
+        </div>
+      ) : null}
+      {autosave.error ? (
+        <div role="alert" className="space-y-2 text-sm text-destructive">
+          <p>{autosave.error}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (autosave.status === "conflict") openComparison();
+              else void autosave.flush();
+            }}
+          >
+            <RotateCcw />
+            Coba lagi
+          </Button>
+        </div>
+      ) : null}
+    </>
+  );
+
   return (
     <NoteLinksContext value={{ entries, open: onOpen, choose: setLinkRequest }}>
       {statusSlot
@@ -202,11 +270,53 @@ export function WorkspaceEditor({
             statusSlot
           )
         : null}
-      <div className="flex min-h-full flex-col">
-        <div className="mx-auto w-full max-w-[824px] flex-1 px-6 pt-8 pb-10 sm:px-12 sm:pt-11">
+      {presentation === "drawer" && compareOpen ? (
+        <NoteVersionComparison
+          draftTitle={title}
+          draftText={readableText(comparisonDraft)}
+          savedTitle={autosave.conflict?.title}
+          savedText={
+            autosave.conflict
+              ? readableText(autosave.conflict.content)
+              : undefined
+          }
+          source={autosave.conflict?.sourceType}
+          resolving={resolving}
+          error={autosave.error}
+          updatedAt={autosave.conflict?.updatedAt}
+          timezone={timezone}
+          onChoose={(choice) => {
+            void resolve(choice);
+          }}
+          onBack={() => {
+            setCompareOpen(false);
+            requestAnimationFrame(() => editor.commands.focus());
+          }}
+        />
+      ) : null}
+      <div
+        className={cn(
+          "min-h-full flex-col",
+          presentation === "drawer" && compareOpen ? "hidden" : "flex",
+          presentation === "drawer" && "chat-note-editor"
+        )}
+      >
+        <div
+          className={cn(
+            "mx-auto w-full max-w-[824px] flex-1 px-6 pt-8 pb-10 sm:px-12 sm:pt-11",
+            presentation === "drawer" && "!pt-6 sm:!px-10 sm:!pt-8"
+          )}
+        >
           {daily ? (
             <h1 className="font-display text-[30px] leading-tight font-bold tracking-[-0.03em] sm:text-[34px]">
-              {formatDailyNoteTitle(note.title, today)}
+              {presentation === "drawer"
+                ? new Intl.DateTimeFormat("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  }).format(new Date(`${note.title}T12:00:00Z`))
+                : formatDailyNoteTitle(note.title, today)}
             </h1>
           ) : (
             <>
@@ -216,6 +326,7 @@ export function WorkspaceEditor({
                 rows={1}
                 aria-label="Judul catatan"
                 value={title}
+                readOnly={!available}
                 className="w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent [field-sizing:content] font-display text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink outline-none placeholder:text-ink-muted focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-brand/40 sm:text-[34px]"
                 onChange={(event) => {
                   const nextTitle = event.target.value.replace(/[\r\n]/g, " ");
@@ -236,13 +347,16 @@ export function WorkspaceEditor({
             </>
           )}
           <p className="mt-3 text-xs text-ink-muted">
-            {note.updatedAt
-              ? `Diperbarui ${new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(note.updatedAt))}`
-              : "Satu catatan untuk hari ini"}
+            {daily && presentation === "drawer"
+              ? `${note.title.slice(0, 4)} · Catatan harian`
+              : note.updatedAt
+                ? `Diperbarui ${new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(new Date(note.updatedAt))}`
+                : "Satu catatan untuk hari ini"}
           </p>
           <div className="sticky top-0 z-10 mt-7 rounded-md bg-background [&_button]:min-h-11 [&_button]:min-w-11 sm:[&_button]:min-h-8 sm:[&_button]:min-w-8">
             <DailyNoteToolbar
               editor={editor}
+              compact={presentation === "drawer"}
               status={
                 <Button
                   variant="ghost"
@@ -256,36 +370,8 @@ export function WorkspaceEditor({
               }
             />
           </div>
-          {autosave.status === "conflict" ? (
-            <div
-              role="alert"
-              className="mt-5 space-y-2 rounded-md bg-surface-1 p-4 text-sm"
-            >
-              <p className="flex items-center gap-2 font-semibold">
-                <AlertTriangle className="size-4" />
-                Penyimpanan otomatis dijeda
-              </p>
-              <p>Catatan berubah di tempat lain. Draf Anda tetap tersedia.</p>
-              <Button variant="dark-outline" size="sm" onClick={openComparison}>
-                Bandingkan versi
-              </Button>
-            </div>
-          ) : null}
-          {autosave.error ? (
-            <div role="alert" className="mt-4 text-sm text-destructive">
-              <p>{autosave.error}</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (autosave.status === "conflict") openComparison();
-                  else void autosave.flush();
-                }}
-              >
-                <RotateCcw />
-                Coba lagi
-              </Button>
-            </div>
+          {presentation === "workspace" ? (
+            <div className="mt-5">{saveNotices}</div>
           ) : null}
           <div className="group/editor relative mt-5">
             {(empty ?? editor.isEmpty) ? (
@@ -306,7 +392,20 @@ export function WorkspaceEditor({
           </div>
           <NoteBacklinks target={note.ref} onOpen={onOpen} />
         </div>
-        <footer className="flex min-h-11 items-center gap-2 border-t border-ink/8 px-6 text-xs text-ink-muted">
+        {presentation === "drawer" &&
+        !guarded &&
+        !compareOpen &&
+        (autosave.status === "conflict" || autosave.error) ? (
+          <div className="sticky bottom-0 z-20 shrink-0 space-y-3 border-t border-ink/8 bg-background p-6">
+            {saveNotices}
+          </div>
+        ) : null}
+        <footer
+          className={cn(
+            "flex min-h-11 items-center gap-2 border-t border-ink/8 px-6 text-xs text-ink-muted",
+            presentation === "drawer" && "hidden"
+          )}
+        >
           <span
             role="status"
             aria-live="polite"
@@ -335,7 +434,7 @@ export function WorkspaceEditor({
         />
       ) : null}
       <Dialog
-        open={compareOpen}
+        open={presentation === "workspace" && compareOpen}
         onOpenChange={(open) => {
           if (!resolving) setCompareOpen(open);
         }}

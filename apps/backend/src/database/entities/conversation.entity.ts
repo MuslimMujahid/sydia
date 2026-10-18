@@ -50,7 +50,7 @@ export type Message = Pick<
   'id' | 'conversationId' | 'role' | 'content' | 'createdAt'
 > & {
   attachments?: Array<{ fileAsset: MessageAttachment }>;
-};
+} & Partial<Pick<PrismaMessage, 'activeNoteRef'>>;
 
 export type AssistantRun = Pick<
   PrismaAssistantRun,

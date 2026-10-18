@@ -16,6 +16,13 @@ import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { ChatComposer } from "./chat-composer";
 import { MessageHistory } from "./message-history";
 import { TodayAgenda } from "./today-agenda";
+import {
+  ChatNotesProvider,
+  ChatNoteContextIndicator,
+  useChatNotes,
+} from "./chat-notes";
+import { useQueryClient } from "@tanstack/react-query";
+import { notesKeys } from "@/lib/services/api/notes/notes.api";
 
 type ChatPageProps = {
   conversationId?: string;
@@ -80,12 +87,28 @@ function ConversationError({
   );
 }
 
-export function ChatPage({
+export function ChatPage(props: ChatPageProps) {
+  const { timezone } = useRouteContext({ from: "/_app" });
+
+  return (
+    <ChatNotesProvider
+      conversationId={props.conversationId}
+      locale={props.locale}
+      timezone={timezone}
+    >
+      <ChatPageContent {...props} />
+    </ChatNotesProvider>
+  );
+}
+
+function ChatPageContent({
   conversationId,
   initialAttachmentId,
   locale,
 }: ChatPageProps) {
   const navigate = useNavigate();
+  const notes = useChatNotes();
+  const queryClient = useQueryClient();
   const { timezone } = useRouteContext({ from: "/_app" });
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const conversationQuery = useQuery(
@@ -121,6 +144,7 @@ export function ChatPage({
         result.assistantRun.status === "failed"
       ) {
         setStreamCompleted(true);
+        void queryClient.invalidateQueries({ queryKey: notesKeys.all });
       }
     },
   });
@@ -162,6 +186,19 @@ export function ChatPage({
   }
 
   async function handleSend(values: SendMessageVariables) {
+    if (notes?.selectedRef && !notes.activeNote)
+      throw new Error(
+        locale === "en"
+          ? "Load the note or close its editor before sending. Your message is still here."
+          : "Muat catatan atau tutup editornya sebelum mengirim. Pesan Anda tetap tersedia."
+      );
+    const activeNoteRef = notes?.activeNote?.ref;
+    if (notes && !(await notes.flush()))
+      throw new Error(
+        locale === "en"
+          ? "Message not sent. Your note changes are still available."
+          : "Pesan belum dikirim. Perubahan catatan Anda tetap tersedia."
+      );
     setSubmissionConversationId(values.conversationId);
     setStreamedText("");
     setStreamCompleted(false);
@@ -169,7 +206,10 @@ export function ChatPage({
       phase: "queued",
       label: locale === "en" ? "Waiting for its turn…" : "Menunggu giliran…",
     });
-    await sendMutation.mutateAsync(values);
+    await sendMutation.mutateAsync({
+      ...values,
+      ...(activeNoteRef ? { activeNoteRef } : {}),
+    });
   }
 
   function handleRetry(runId: string) {
@@ -301,6 +341,7 @@ export function ChatPage({
         ) : null}
       </div>
 
+      <ChatNoteContextIndicator />
       {!isNewConversation || isSending ? (
         <ChatComposer
           key={conversationId ?? "new-sending"}

@@ -10,6 +10,7 @@ const entityFixture: Plugin = {
       const fixture = request.url?.split("?")[0];
       if (
         fixture !== "/e2e/notes-move.html" &&
+        fixture !== "/e2e/note-drawer.html" &&
         fixture !== "/e2e/entity-renderer.html" &&
         fixture !== "/e2e/chat-previews.html" &&
         fixture !== "/e2e/dev-toolbar.html" &&

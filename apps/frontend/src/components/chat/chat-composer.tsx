@@ -103,6 +103,9 @@ export function ChatComposer({
   onSend,
 }: ChatComposerProps) {
   const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [submissionError, setSubmissionError] = useState<string>();
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -191,7 +194,8 @@ export function ChatComposer({
     Boolean(normalizedContent || readyAttachments.length) &&
     !hasPendingUpload &&
     !disabled &&
-    !isSending;
+    !isSending &&
+    !submitting;
 
   async function uploadAttachment(attachment: ComposerAttachment) {
     if (!attachment.file) return;
@@ -236,6 +240,9 @@ export function ChatComposer({
         )
       );
     } catch (error) {
+      console.warn("Chat attachment upload failed", {
+        name: error instanceof Error ? error.name : "UnknownError",
+      });
       setAttachments((current) =>
         current.map((item) =>
           item.localId === attachment.localId
@@ -283,7 +290,10 @@ export function ChatComposer({
         ? `Use the ${readyAttachments.length === 1 ? "attached file" : `${readyAttachments.length} attached files`} for this.`
         : `Gunakan ${readyAttachments.length === 1 ? "file terlampir" : `${readyAttachments.length} file terlampir`} ini.`);
 
-    if (!canSend) return;
+    if (!canSend || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setSubmissionError(undefined);
     const attachmentIds = readyAttachments.flatMap((attachment) =>
       attachment.documentId ? [attachment.documentId] : []
     );
@@ -306,8 +316,20 @@ export function ChatComposer({
       setContent("");
       setAttachments([]);
       lastSubmission.current = undefined;
-    } catch {
-      // The mutation exposes a recoverable inline error and keeps the draft.
+    } catch (error) {
+      console.warn("Chat submission failed; composer draft retained", {
+        name: error instanceof Error ? error.name : "UnknownError",
+      });
+      setSubmissionError(
+        error instanceof Error
+          ? error.message
+          : locale === "en"
+            ? "Message could not be sent."
+            : "Pesan belum dapat dikirim."
+      );
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   }
 
@@ -337,9 +359,9 @@ export function ChatComposer({
       }
       aria-live="polite"
     >
-      {errorMessage ? (
+      {errorMessage || submissionError ? (
         <p className="text-destructive" role="alert">
-          {errorMessage}{" "}
+          {errorMessage || submissionError}{" "}
           {locale === "en"
             ? "Press send to try again."
             : "Tekan kirim untuk mencoba lagi."}

@@ -24,6 +24,12 @@ export function EntitySnapshotDetails({
     }).format(new Date(value));
 
   const details: string[] = [];
+
+  if (entity.kind === "note") {
+    if (entity.path) details.push(entity.path);
+    if (entity.updatedAt) details.push(when(entity.updatedAt));
+  }
+
   if ("status" in entity && entity.status) details.push(entity.status);
   if (entity.kind === "task" && entity.dueAt) details.push(when(entity.dueAt));
 

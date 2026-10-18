@@ -20,6 +20,7 @@ import { MemoryEngineService } from '../../memories/memory-engine.service';
 import type { MemoryAccessService } from '../../memories/memory-access.service';
 import type { MemorySearchHit } from '../../memories/memory-access.types';
 import type { TurnDecisionService } from './turn-decision.service';
+import type { ActiveNoteService } from './active-note.service';
 
 const user = {
   id: 'user-1',
@@ -83,6 +84,7 @@ type RepositoryOptions = {
   memoryEngine?: MemoryEngineService;
   memoryAccess?: MemoryAccessService;
   turnDecisions?: TurnDecisionService;
+  activeNotes?: ActiveNoteService;
 };
 
 function createBuilder(
@@ -122,6 +124,7 @@ function createBuilder(
     options.memoryAccess,
     options.memoryEngine,
     options.turnDecisions,
+    options.activeNotes,
   );
 }
 
@@ -139,6 +142,58 @@ function attachmentMessageContent(context: ModelMessage[]): string {
 
   return attachment.content;
 }
+
+describe('ContextBuilderService active notes', () => {
+  it('validates only the current message target and keeps note tools available', async () => {
+    const validate = jest
+      .fn<ActiveNoteService['validate']>()
+      .mockResolvedValue(undefined);
+
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false, toolNames: ['list_tasks'] });
+
+    const result = await createBuilder(10_000, {
+      messages: [
+        {
+          ...message('current', 'user', 'Ringkas catatan ini'),
+          activeNoteRef: 'custom:design',
+        },
+      ],
+      activeNotes: { validate } as unknown as ActiveNoteService,
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+    }).build(user, 'conversation-1', 'current');
+
+    expect(validate).toHaveBeenCalledWith(user.id, 'custom:design');
+    expect(JSON.stringify(result.messages)).toContain('custom:design');
+    expect(result.decision?.toolNames).toContain('read_custom_note');
+    expect(result.decision?.toolNames).toContain('update_custom_note');
+    expect(result.messages.at(-1)?.content).toBe('Ringkas catatan ini');
+  });
+
+  it('does not carry a previous message active target into the new turn', async () => {
+    const validate = jest
+      .fn<ActiveNoteService['validate']>()
+      .mockResolvedValue(undefined);
+
+    const result = await createBuilder(10_000, {
+      messages: [
+        {
+          ...message('old', 'user', 'Ringkas catatan ini'),
+          activeNoteRef: 'custom:old',
+        },
+        message('current', 'user', 'Halo'),
+      ],
+      activeNotes: { validate } as unknown as ActiveNoteService,
+    }).build(user, 'conversation-1', 'current');
+
+    expect(validate).not.toHaveBeenCalled();
+    expect(JSON.stringify(result.messages)).not.toContain('custom:old');
+    expect(JSON.stringify(result.messages)).not.toContain(
+      'Active note for this message',
+    );
+  });
+});
 
 describe('ContextBuilderService task-list formatting', () => {
   it.each([undefined, 'whatsapp', 'telegram'] as const)(

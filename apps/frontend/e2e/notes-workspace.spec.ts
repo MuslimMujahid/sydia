@@ -184,7 +184,14 @@ test.describe("Notes workspace with the real backend", () => {
       page,
     }) => {
       await page.setViewportSize(viewport);
+      const loaded = page.waitForResponse(
+        (response) =>
+          response.url() === `${backendURL}/daily-notes/2026-10-18` &&
+          response.request().method() === "GET"
+      );
+
       await page.goto("/notes?date=2026-10-18");
+      expect((await loaded).ok()).toBe(true);
       const editor = page.getByRole("textbox", {
         name: "Isi catatan",
         exact: true,
@@ -195,7 +202,7 @@ test.describe("Notes workspace with the real backend", () => {
         { exact: true }
       );
 
-      await expect(editor).toBeVisible();
+      await expect(editor).toBeVisible({ timeout: 15_000 });
       await expect(placeholder).toBeVisible();
       const hint = await placeholder.boundingBox();
       await editor.focus();
@@ -288,7 +295,9 @@ test.describe("Notes workspace with the real backend", () => {
       .last()
       .click();
     await page.getByRole("menuitem", { name: "Pindahkan ke…" }).click();
-    await page.getByRole("radio", { name: "Semua catatan (akar)" }).check();
+    await page
+      .getByRole("radio", { name: "Semua catatan", exact: true })
+      .check();
     await page.getByRole("button", { name: "Pindahkan", exact: true }).click();
     await expect
       .poll(async () => (await read(page.request, note.id)).parentId)

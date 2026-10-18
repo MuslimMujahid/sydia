@@ -132,6 +132,18 @@ bunx playwright test --config playwright.entities.config.ts dev-toolbar.spec.ts 
 
 ## Rendering behavior
 
+- Confirmed note results use canonical `custom:ID` or `daily:YYYY-MM-DD`
+  identities. Web replies may use `[title](#note/ENCODED_REFERENCE)`; the renderer
+  accepts only identities confirmed by that reply's successful note tools.
+  Folder-only, missing, failed, and ambiguous results stay plain text. Successful
+  note mutations append a chip when the response omits its title.
+  In `/chats`, note chips show sandbox snapshots only: they never fetch normal
+  account notes, open the editable drawer, or send active-note context. Use
+  regular authenticated Web chat for editing, autosave, and conflict checks.
+  Telegram and WhatsApp replies retain channel-native note text without `#note/`
+  links. Inspect **Raw response / Respons mentah** to check the original syntax.
+  Note search/read results are persisted for new replies; historical replies
+  without confirmed tool metadata remain plain text.
 - Web chat uses the existing Markdown and entity renderer. Entity popovers show
   snapshots from tool results; they do not fetch or mutate normal user entities.
   Task lists use `[title](#task/ID)` references with URL-encoded IDs confirmed by
@@ -175,6 +187,8 @@ From `apps/frontend`:
 ```sh
 bun test src/components/chat/telegram-rich-text.test.tsx src/components/chat/whatsapp-format.test.ts src/lib/services/api/conversations/conversations.api.test.ts
 bun test src/components/chat/entity-mentions.test.ts src/components/chat/chat-entities.test.ts
+bun test src/components/chat/note-entities.test.ts
+bunx playwright test --config playwright.entities.config.ts note-drawer.spec.ts --workers 1
 bunx playwright test --config playwright.entities.config.ts entity-renderer.spec.ts --workers 2
 bunx playwright test --config playwright.entities.config.ts chat-previews.spec.ts --workers 2
 bunx playwright test --config playwright.entities.config.ts notification-settings.spec.ts --workers 2

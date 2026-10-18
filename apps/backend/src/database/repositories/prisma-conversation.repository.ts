@@ -43,6 +43,7 @@ const messageSelect = {
   conversationId: true,
   role: true,
   content: true,
+  activeNoteRef: true,
   createdAt: true,
   attachments: {
     select: {
@@ -758,6 +759,7 @@ export class PrismaConversationRepository implements IConversationRepository {
             userId: input.userId,
             role: 'user',
             content: input.content,
+            activeNoteRef: input.activeNoteRef,
             idempotencyKey: input.idempotencyKey,
             ...(attachmentAssets.length
               ? {

@@ -24,6 +24,7 @@ export type UserMessageWrite = {
   content: string;
   idempotencyKey: string;
   attachmentIds?: string[];
+  activeNoteRef?: string;
   channel?: string;
 };
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { collectNoteEntities, type ChatNoteEntity } from "./note-entities";
 import type { ToolInvocation } from "@/lib/services/api/conversations/conversations.api";
 
 const text = z.string().trim().min(1);
@@ -84,6 +85,7 @@ export type ChatEntity = EntityContext &
     | ({ kind: "reminder" } & z.infer<typeof reminderSchema>)
     | ({ kind: "file" } & z.infer<typeof fileSchema>)
     | ({ kind: "event" } & z.infer<typeof eventSchema>)
+    | ChatNoteEntity
   );
 export type EntityDiagnostic = { invocationId: string; reason: string };
 export type EntityCollection = {
@@ -133,6 +135,17 @@ export function collectChatEntities(
     a.updatedAt.localeCompare(b.updatedAt)
   )) {
     if (invocation.status !== "completed") continue;
+    const notes = collectNoteEntities(invocation);
+    diagnostics.push(...notes.diagnostics);
+
+    for (const note of notes.entities) {
+      const key = entityKey(note);
+      entities.set(key, {
+        ...note,
+        mutation: note.mutation || entities.get(key)?.mutation === true,
+      });
+    }
+
     const shape = TOOL_SHAPES[invocation.name];
     if (!shape) continue;
     const output = record(invocation.output);
@@ -165,6 +178,7 @@ export function collectChatEntities(
         reminder: reminderSchema,
         file: fileSchema,
         event: eventSchema,
+        note: z.never(),
       }[shape.kind];
 
       const parsed = schema.safeParse(normalized);

@@ -1,3 +1,4 @@
+import type { ActiveNoteService } from './active-note.service';
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import type {
@@ -765,4 +766,58 @@ describe('AssistantOrchestratorService', () => {
       expect.objectContaining({ messages: context }),
     );
   });
+});
+
+describe('active-note message idempotency', () => {
+  it.each([undefined, 'custom:another-note'])(
+    'rejects replay that changes the accepted note target to %s',
+    async (activeNoteRef) => {
+      const create = resolved(createRun());
+      const repository = {
+        writeUserMessage: resolved({
+          conversation,
+          userMessage: {
+            ...userMessage,
+            activeNoteRef: 'custom:original-note',
+          },
+          replayed: true,
+        }),
+        findLatestRunForMessage: resolved(null),
+        createRun: create,
+      } as unknown as IConversationRepository;
+
+      const generate = jest.fn<LanguageModelGateway['generate']>();
+      const model: LanguageModelGateway = {
+        provider: 'openrouter',
+        model: 'test-model',
+        generate,
+      };
+
+      const config = new ConfigService();
+      const validate = resolved({ ref: 'custom:another-note' });
+      const orchestrator = new AssistantOrchestratorService(
+        repository,
+        model,
+        new ContextBuilderService(repository, config),
+        new ConversationSummarizerService(repository, model, config),
+        new ToolExecutorService(repository, []),
+        { assistantTurns: { add: resolved({}) } } as never,
+        { schedule: resolved(undefined) } as never,
+        undefined,
+        { validate } as unknown as ActiveNoteService,
+      );
+
+      await expect(
+        orchestrator.sendQueued(user, {
+          content: 'Ringkas catatan ini',
+          idempotencyKey: 'accepted-message-key',
+          activeNoteRef,
+        }),
+      ).rejects.toMatchObject({
+        response: { error: { code: 'CONFLICT' } },
+      });
+      expect(create).not.toHaveBeenCalled();
+      expect(generate).not.toHaveBeenCalled();
+    },
+  );
 });

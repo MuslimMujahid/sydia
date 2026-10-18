@@ -10,6 +10,8 @@ import {
   List,
   ListOrdered,
   Pilcrow,
+  Quote,
+  Undo2,
   Underline,
   Unlink,
   type LucideIcon,
@@ -66,6 +68,7 @@ type DailyNoteToolbarProps = {
   editor: Editor;
   /** Rendered at the end of the row, e.g. the save status. */
   status?: ReactNode;
+  compact?: boolean;
 };
 
 type ToolbarButtonProps = {
@@ -109,7 +112,11 @@ function ToolbarSeparator() {
   );
 }
 
-export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
+export function DailyNoteToolbar({
+  editor,
+  status,
+  compact = false,
+}: DailyNoteToolbarProps) {
   const toolbarState = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => {
@@ -208,7 +215,12 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
 
   return (
     <div>
-      <div className="flex items-center gap-1 px-2 py-2 sm:px-3">
+      <div
+        className={cn(
+          "flex items-center gap-1 px-2 py-2 sm:px-3",
+          compact && "!px-2 !py-1.5"
+        )}
+      >
         {/* One row on phones; scrolls sideways only below ~340px. */}
         <div
           role="toolbar"
@@ -230,7 +242,11 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
                 />
               }
             >
-              <ActiveBlockIcon aria-hidden="true" />
+              {compact && toolbarState.blockStyle === "paragraph" ? (
+                <span className="text-xs">Teks</span>
+              ) : (
+                <ActiveBlockIcon aria-hidden="true" />
+              )}
               <ChevronDown className="size-3" aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -265,21 +281,25 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
           <ToolbarSeparator />
-          <ToolbarButton
-            label="Daftar berpoin"
-            active={toolbarState.bulletList}
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-          >
-            <List />
-          </ToolbarButton>
-          <ToolbarButton
-            label="Daftar bernomor"
-            active={toolbarState.orderedList}
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          >
-            <ListOrdered />
-          </ToolbarButton>
-          <ToolbarSeparator />
+          {!compact ? (
+            <>
+              <ToolbarButton
+                label="Daftar berpoin"
+                active={toolbarState.bulletList}
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+              >
+                <List />
+              </ToolbarButton>
+              <ToolbarButton
+                label="Daftar bernomor"
+                active={toolbarState.orderedList}
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              >
+                <ListOrdered />
+              </ToolbarButton>
+              <ToolbarSeparator />
+            </>
+          ) : null}
           <ToolbarButton
             label="Tebal"
             active={toolbarState.bold}
@@ -294,26 +314,59 @@ export function DailyNoteToolbar({ editor, status }: DailyNoteToolbarProps) {
           >
             <Italic />
           </ToolbarButton>
-          <ToolbarButton
-            label="Garis bawah"
-            active={toolbarState.underline}
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-          >
-            <Underline />
-          </ToolbarButton>
-          <ToolbarButton
-            label={toolbarState.link ? "Ubah tautan" : "Tambah tautan"}
-            active={toolbarState.link}
-            expanded={linkOpen}
-            onClick={() => {
-              setLinkHref(toolbarState.href);
-              setLinkOpen((current) => !current);
-            }}
-          >
-            <Link2 />
-          </ToolbarButton>
+          {!compact ? (
+            <ToolbarButton
+              label="Garis bawah"
+              active={toolbarState.underline}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+            >
+              <Underline />
+            </ToolbarButton>
+          ) : (
+            <>
+              <ToolbarButton
+                label="Daftar berpoin"
+                active={toolbarState.bulletList}
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+              >
+                <List />
+              </ToolbarButton>
+              <ToolbarButton
+                label="Kutipan"
+                active={editor.isActive("blockquote")}
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              >
+                <Quote />
+              </ToolbarButton>
+            </>
+          )}
+          {!compact ? (
+            <ToolbarButton
+              label={toolbarState.link ? "Ubah tautan" : "Tambah tautan"}
+              active={toolbarState.link}
+              expanded={linkOpen}
+              onClick={() => {
+                setLinkHref(toolbarState.href);
+                setLinkOpen((current) => !current);
+              }}
+            >
+              <Link2 />
+            </ToolbarButton>
+          ) : (
+            status
+          )}
+          {compact ? (
+            <ToolbarButton
+              label="Urungkan"
+              onClick={() => editor.chain().focus().undo().run()}
+            >
+              <Undo2 />
+            </ToolbarButton>
+          ) : null}
         </div>
-        {status ? <div className="shrink-0 pl-1">{status}</div> : null}
+        {status && !compact ? (
+          <div className="shrink-0 pl-1">{status}</div>
+        ) : null}
       </div>
       {linkOpen ? (
         <div

@@ -105,11 +105,15 @@ export function enrichEntityMentions(
         if (node.tagName === "a") {
           const href = node.properties.href;
 
-          if (typeof href === "string" && href.startsWith("#task/")) {
+          if (
+            typeof href === "string" &&
+            (href.startsWith("#task/") || href.startsWith("#note/"))
+          ) {
+            const kind = href.startsWith("#note/") ? "note" : "task";
             const task = entities.find(
               (entity) =>
-                entity.kind === "task" &&
-                href === `#task/${encodeURIComponent(entity.id)}`
+                entity.kind === kind &&
+                href === `#${kind}/${encodeURIComponent(entity.id)}`
             );
 
             if (task) {
@@ -120,7 +124,7 @@ export function enrichEntityMentions(
               // task link or guess an ID from another answer.
               if (reportUnconfirmed)
                 console.warn(
-                  "Unconfirmed task reference in assistant response"
+                  `Unconfirmed ${kind} reference in assistant response`
                 );
               result.push({ ...node, tagName: "span", properties: {} });
             }

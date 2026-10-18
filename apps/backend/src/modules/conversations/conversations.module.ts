@@ -22,6 +22,7 @@ import {
   PrismaUserRepository,
 } from '../../database/repositories';
 import { ChatPreviewService } from './services/chat-preview.service';
+import { ActiveNoteService } from './services/active-note.service';
 import { ConversationsController } from './conversations.controller';
 import {
   ASSISTANT_TOOLS,
@@ -49,6 +50,7 @@ import {
   controllers: [ConversationsController],
   providers: [
     ChatPreviewService,
+    ActiveNoteService,
     { provide: CHAT_PREVIEW_REPOSITORY, useClass: PrismaChatPreviewRepository },
     {
       provide: CONVERSATION_REPOSITORY,

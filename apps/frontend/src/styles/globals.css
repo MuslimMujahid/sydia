@@ -196,3 +196,90 @@
     outline-color: rgba(239, 90, 138, 0.5);
   }
 }
+
+/* Chat Notes: split editor follows the approved Penpot layout. */
+.chat-notes-layout {
+  container-type: inline-size;
+}
+.chat-note-panel {
+  width: min(720px, 62%);
+}
+.chat-note-header {
+  height: 80px;
+}
+.chat-note-back {
+  display: none;
+}
+.chat-note-editor textarea,
+.chat-note-editor h1 {
+  font-size: 30px;
+}
+.chat-note-editor .tiptap h2 {
+  font-size: 18px;
+}
+@container (max-width: 959px) {
+  .chat-note-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    width: 100%;
+    border: 0;
+  }
+  .chat-note-header {
+    height: 64px;
+    padding-inline: 12px;
+  }
+  .chat-note-back {
+    display: inline-flex;
+  }
+  .chat-note-path,
+  .chat-note-close,
+  .chat-note-workspace span {
+    display: none;
+  }
+  .chat-note-status {
+    background: transparent;
+  }
+  .chat-note-workspace {
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+  }
+  .chat-note-editor textarea {
+    font-size: 30px;
+  }
+}
+.chat-note-path {
+  flex: 0 1 auto;
+}
+.chat-note-editor > div > p {
+  margin-top: 12px;
+}
+.chat-note-editor > div > div.sticky {
+  margin-top: 20px;
+}
+.chat-note-editor [role="toolbar"] button {
+  min-width: 36px;
+  min-height: 32px;
+}
+@container (max-width: 959px) {
+  .chat-note-editor [role="toolbar"] button {
+    min-width: 40px;
+    min-height: 36px;
+  }
+}
+.chat-note-editor [role="toolbar"] button {
+  height: 32px;
+  width: 40px;
+  padding-block: 0;
+}
+@container (max-width: 959px) {
+  .chat-note-editor [role="toolbar"] button {
+    height: 36px;
+  }
+}
+.chat-note-editor .tiptap li + li {
+  margin-top: 20px;
+}
