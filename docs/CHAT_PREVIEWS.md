@@ -134,6 +134,14 @@ bunx playwright test --config playwright.entities.config.ts dev-toolbar.spec.ts 
 
 - Web chat uses the existing Markdown and entity renderer. Entity popovers show
   snapshots from tool results; they do not fetch or mutate normal user entities.
+  Task lists use `[title](#task/ID)` references with URL-encoded IDs confirmed by
+  the current turn's tool results. These render as pills even when titles repeat.
+  An unconfirmed reference keeps its label as plain text; completed replies log
+  a warning. It never links to a guessed task. Older replies retain unique-title matching.
+  Current task questions require a fresh lookup even when recent chat context
+  contains an answer. `list_tasks` defaults to unfinished (`inbox`) tasks; `all`
+  explicitly includes every status. `due=tomorrow` covers only the next calendar
+  day in the account timezone, including daylight-saving transitions.
 - Telegram delivers replies through `sendRichMessage` with the `markdown` field
   (Bot API 10.1+). The local preview renders the supported Markdown text subset:
   emphasis, headings, nested bullet and numbered lists, task lists, tables,
@@ -157,6 +165,7 @@ From `apps/backend`:
 ```sh
 bun run test --runInBand prisma-chat-preview.repository.spec assistant-orchestrator.service.spec
 bun run test --runInBand telegram.adapter.spec terminal-tool-response.spec context-builder.service.spec
+bun run test --runInBand domain-tools.spec
 bun run test --runInBand src/modules/notifications src/modules/users/dto/update-user-preferences.dto.spec.ts src/modules/users/services/user-preferences.service.spec.ts
 bun run check-types
 ```
@@ -165,10 +174,20 @@ From `apps/frontend`:
 
 ```sh
 bun test src/components/chat/telegram-rich-text.test.tsx src/components/chat/whatsapp-format.test.ts src/lib/services/api/conversations/conversations.api.test.ts
+bun test src/components/chat/entity-mentions.test.ts src/components/chat/chat-entities.test.ts
+bunx playwright test --config playwright.entities.config.ts entity-renderer.spec.ts --workers 2
 bunx playwright test --config playwright.entities.config.ts chat-previews.spec.ts --workers 2
 bunx playwright test --config playwright.entities.config.ts notification-settings.spec.ts --workers 2
 bun run check-types
 bun run build
+```
+
+The opt-in model regression replays an identical question from another chat on
+all three channels. It uses synthetic tasks without database or channel writes:
+
+```sh
+cd apps/backend
+TASK_LISTS_LIVE_ENABLED=true node --env-file=../../.env --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --runInBand test/messaging/task-lists.live.spec.ts
 ```
 
 Browser tests use synthetic responses at the HTTP boundary while exercising the

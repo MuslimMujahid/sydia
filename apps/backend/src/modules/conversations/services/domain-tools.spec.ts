@@ -37,6 +37,93 @@ afterEach(() => {
 });
 
 describe('domain assistant tools', () => {
+  function taskLookup(timezone: string | null = 'Asia/Makassar') {
+    const list = jest.fn<ITaskRepository['list']>().mockResolvedValue([]);
+    const tools = createDomainTools({
+      tasks: { list } as unknown as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: {} as IReminderRepository,
+      memoryService: {} as MemoryAccessService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {
+        findById: resolved(timezone === null ? null : { timezone }),
+      } as unknown as IUserRepository,
+    });
+
+    const lookup = tools.find((tool) => tool.definition.name === 'list_tasks');
+    if (!lookup) throw new Error('list_tasks must be registered');
+
+    return { list, lookup };
+  }
+
+  test('tomorrow task lookup uses only the next local calendar day and open tasks', async () => {
+    jest.setSystemTime(new Date('2026-10-18T01:42:47.000Z'));
+    const { list, lookup } = taskLookup();
+    await lookup.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      arguments: { due: 'tomorrow' },
+      idempotencyKey: 'tomorrow',
+    });
+    expect(list).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        status: 'inbox',
+        dueRange: {
+          from: new Date('2026-10-18T16:00:00.000Z'),
+          to: new Date('2026-10-19T16:00:00.000Z'),
+        },
+      }),
+    );
+  });
+
+  test('tomorrow task lookup follows a 25-hour daylight-saving day', async () => {
+    jest.setSystemTime(new Date('2026-10-31T16:00:00.000Z'));
+    const { list, lookup } = taskLookup('America/New_York');
+    await lookup.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      arguments: { due: 'tomorrow' },
+      idempotencyKey: 'dst',
+    });
+    expect(list).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        dueRange: {
+          from: new Date('2026-11-01T04:00:00.000Z'),
+          to: new Date('2026-11-02T05:00:00.000Z'),
+        },
+      }),
+    );
+  });
+
+  test('explicit all-status task lookup includes completed and cancelled tasks', async () => {
+    const { list, lookup } = taskLookup();
+    await lookup.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      arguments: { status: 'all' },
+      idempotencyKey: 'all',
+    });
+    expect(list).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ status: undefined }),
+    );
+  });
+
+  test('task lookup rejects a missing owner instead of using a different timezone', async () => {
+    const { list, lookup } = taskLookup(null);
+    await expect(
+      lookup.execute({
+        userId: 'deleted-user',
+        sourceMessageId: 'message-1',
+        arguments: { due: 'tomorrow' },
+        idempotencyKey: 'missing-owner',
+      }),
+    ).rejects.toThrow('Task owner was not found.');
+    expect(list).not.toHaveBeenCalled();
+  });
+
   test('creates and updates a task without duplicating it', async () => {
     const created = {
       id: 'task-1',
@@ -506,7 +593,10 @@ describe('domain assistant tools', () => {
         expect.objectContaining({
           properties: expect.objectContaining({
             status: expect.objectContaining({
-              enum: ['inbox', 'done', 'cancelled'],
+              enum:
+                name === 'list_tasks'
+                  ? ['inbox', 'done', 'cancelled', 'all']
+                  : ['inbox', 'done', 'cancelled'],
             }),
           }),
         }),

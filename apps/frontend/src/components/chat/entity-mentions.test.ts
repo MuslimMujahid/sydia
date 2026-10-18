@@ -30,6 +30,75 @@ function tree(...children: Element[]): Root {
 }
 
 describe("entity Markdown enrichment", () => {
+  it("uses a confirmed task ID when two lookup results have the same title", () => {
+    const markdown = tree(element("a", "Baca buku", { href: "#task/task-1" }));
+
+    const mentioned = enrichEntityMentions(markdown, [
+      task,
+      { ...task, id: "task-2" },
+    ]);
+
+    assert.deepEqual([...mentioned], ["task:task-1"]);
+    assert.deepEqual(
+      markdown,
+      tree(
+        element("span", "Baca buku", {
+          "data-entity-key": "task:task-1",
+        })
+      )
+    );
+  });
+
+  it("renders an unconfirmed task reference as text and reports it", () => {
+    const markdown = tree(element("a", "Baca buku", { href: "#task/unknown" }));
+    const warnings: unknown[][] = [];
+    const originalWarn = console.warn;
+
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args);
+    };
+
+    try {
+      const mentioned = enrichEntityMentions(markdown, []);
+      assert.equal(mentioned.size, 0);
+      assert.deepEqual(markdown, tree(element("span", "Baca buku")));
+      assert.equal(warnings.length, 1);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it("uses the confirmed title rather than a misleading task link label", () => {
+    const markdown = tree(element("a", "Other task", { href: "#task/task-1" }));
+    enrichEntityMentions(markdown, [task]);
+    assert.deepEqual(
+      markdown,
+      tree(
+        element("span", "Baca buku", {
+          "data-entity-key": "task:task-1",
+        })
+      )
+    );
+  });
+
+  it("defers unconfirmed reference warnings while tool snapshots are still streaming", () => {
+    const markdown = tree(element("a", "Baca buku", { href: "#task/task-1" }));
+    const warnings: unknown[][] = [];
+    const originalWarn = console.warn;
+
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args);
+    };
+
+    try {
+      rehypeEntityMentions([], false)()(markdown);
+      assert.deepEqual(markdown, tree(element("span", "Baca buku")));
+      assert.equal(warnings.length, 0);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
   it("recognizes a title split across Markdown emphasis", () => {
     const markdown = tree({
       type: "element",

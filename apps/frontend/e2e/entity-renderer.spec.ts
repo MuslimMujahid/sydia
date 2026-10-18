@@ -175,7 +175,7 @@ test("renders a task batch with one confirmation and one pill per saved task", a
   await expect(answer.getByRole("link")).toHaveCount(0);
 });
 
-test("renders listed tasks with inline metadata and interactive smart entity pills", async ({
+test("renders task ID references despite a duplicate title in lookup results", async ({
   page,
 }) => {
   await page.goto("/e2e/entity-renderer.html?mode=task-list");
@@ -202,7 +202,9 @@ test("renders listed tasks with inline metadata and interactive smart entity pil
 
   await expect(answer.getByRole("link")).toHaveCount(0);
 
+  const request = page.waitForRequest("**/tasks/task-1");
   await answer.getByRole("button", { name: "Tugas: Baca buku" }).click();
+  await request;
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 

@@ -139,12 +139,13 @@ const taskBatchReceipt =
 
 // Representative model response following the task-list system policy.
 const taskList =
-  "Ada 3 tugas yang belum selesai:\n\n- **Baca buku** — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi · Sedang dikerjakan\n- **Kirim proposal** — Tenggat 9 Okt 2026, 11.00\n- **Beli perlengkapan kantor**";
+  "Ada 3 tugas yang belum selesai:\n\n- [Baca buku](#task/task-1) — Tenggat 8 Okt 2026, 23.59 · Prioritas tinggi · Sedang dikerjakan\n- [Kirim proposal](#task/task-2) — Tenggat 9 Okt 2026, 11.00\n- [Beli perlengkapan kantor](#task/task-3)";
 
 const taskListInvocations = [
   invocation("list-tasks", "list_tasks", {
     tasks: [
       { ...records[0].output.object, status: "inbox", priority: "high" },
+      { ...records[0].output.object, id: "task-old", status: "done" },
       {
         id: "task-2",
         title: "Kirim proposal",

@@ -57,10 +57,10 @@ function sliceInline(
 /** Transform rendered Markdown text, never raw Markdown, code, or arbitrary links. */
 export function enrichEntityMentions(
   tree: Root,
-  entities: ChatEntity[]
+  entities: ChatEntity[],
+  reportUnconfirmed = true
 ): Set<string> {
   const mentioned = new Set<string>();
-  if (!entities.length) return mentioned;
 
   function visit(parent: Root | Element) {
     const result: RootContent[] = [];
@@ -104,6 +104,30 @@ export function enrichEntityMentions(
 
         if (node.tagName === "a") {
           const href = node.properties.href;
+
+          if (typeof href === "string" && href.startsWith("#task/")) {
+            const task = entities.find(
+              (entity) =>
+                entity.kind === "task" &&
+                href === `#task/${encodeURIComponent(entity.id)}`
+            );
+
+            if (task) {
+              mentioned.add(entityKey(task));
+              result.push(mention(task, task.title));
+            } else {
+              // Degraded display: retain the label, never expose an unverified
+              // task link or guess an ID from another answer.
+              if (reportUnconfirmed)
+                console.warn(
+                  "Unconfirmed task reference in assistant response"
+                );
+              result.push({ ...node, tagName: "span", properties: {} });
+            }
+
+            continue;
+          }
+
           const file = entities.find(
             (entity) =>
               entity.kind === "file" && entity.url && entity.url === href
@@ -136,7 +160,9 @@ export function rehypeEntityMentions(
   appendUnmentioned = true
 ) {
   return () => (tree: Root) => {
-    const mentioned = enrichEntityMentions(tree, entities);
+    // Streaming text may arrive before the terminal turn's tool snapshots.
+    // Defer diagnostics until the completed reply, while retaining its label.
+    const mentioned = enrichEntityMentions(tree, entities, appendUnmentioned);
     const unmentioned = entities.filter(
       (entity) => entity.mutation && !mentioned.has(entityKey(entity))
     );

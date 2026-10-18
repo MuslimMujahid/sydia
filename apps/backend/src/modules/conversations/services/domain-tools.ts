@@ -11,7 +11,11 @@ import type {
   ReminderRecurrence,
   TaskStatus,
 } from '../../../database/entities';
-import { firstOccurrence, zonedInstant } from '../../../shared/date-time';
+import {
+  dayWindow,
+  firstOccurrence,
+  zonedInstant,
+} from '../../../shared/date-time';
 import type { AssistantTool } from './tool-executor.service';
 import { MemoryAccessService } from '../../memories/memory-access.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
@@ -91,7 +95,7 @@ function schema(
     label: 'Human-readable label for the secret.',
     value:
       'Secret value to store exactly. For multiple values, separate with \\n; never slashes, labels, bullets, or other separators.',
-    due: 'Due-date filter: today, upcoming, overdue, or none.',
+    due: 'Due-date filter: today, tomorrow (only the next local calendar day), upcoming (all future days), overdue, or none.',
   };
 
   const describe = (key: string, value: JSONSchema7): JSONSchema7 => {
@@ -557,14 +561,21 @@ Use it when the user asks what tasks exist or wants tasks filtered by text, stat
 
 Do not use it to search memories; use 'search_memories' instead.
 
-Filters combine. status is inbox, done, or cancelled; due is today, upcoming, overdue, or none. Unmatched category names return no tasks.`,
+Always call this tool for a current task-list request, even when a previous conversation contains an answer. Historical answers are not current task state.
+
+Filters combine. Omitted status means inbox (unfinished); use done, cancelled, or all only when requested. due is today, tomorrow (only the next local calendar day), upcoming (all days after today), overdue, or none. Use tomorrow for "besok" or "tomorrow", not upcoming. Unmatched category names return no tasks.`,
       parameters: schema({
         query: string,
         status: {
           type: 'string',
-          enum: ['inbox', 'done', 'cancelled'],
+          enum: ['inbox', 'done', 'cancelled', 'all'],
+          description:
+            'Task status filter; defaults to inbox. Use all only when all statuses are requested.',
         },
-        due: { type: 'string', enum: ['today', 'upcoming', 'overdue', 'none'] },
+        due: {
+          type: 'string',
+          enum: ['today', 'tomorrow', 'upcoming', 'overdue', 'none'],
+        },
         categoryNames: {
           type: 'array',
           items: { ...string, description: 'A category name to match.' },
@@ -575,7 +586,14 @@ Filters combine. status is inbox, done, or cancelled; due is today, upcoming, ov
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
-      const timezone = (await deps.users.findById(userId))?.timezone ?? 'UTC';
+      const user = await deps.users.findById(userId);
+      if (!user) throw new Error('Task owner was not found.');
+      const timezone = user.timezone;
+      const tomorrow =
+        a.due === 'tomorrow'
+          ? dayWindow(dayWindow(new Date(), timezone).end, timezone)
+          : undefined;
+
       const categoryNames = texts(a, 'categoryNames');
       const categories = categoryNames
         ? await deps.categories.findByNames(userId, categoryNames)
@@ -585,8 +603,16 @@ Filters combine. status is inbox, done, or cancelled; due is today, upcoming, ov
         return { tasks: [] };
       const tasks = await deps.tasks.list(userId, {
         search: text(a, 'query', false),
-        status: a.status as TaskStatus | undefined,
-        due: a.due as 'today' | 'upcoming' | 'overdue' | 'none' | undefined,
+        status:
+          a.status === 'all'
+            ? undefined
+            : ((a.status as TaskStatus | undefined) ?? 'inbox'),
+        due: tomorrow
+          ? undefined
+          : (a.due as 'today' | 'upcoming' | 'overdue' | 'none' | undefined),
+        ...(tomorrow
+          ? { dueRange: { from: tomorrow.start, to: tomorrow.end } }
+          : {}),
         timezone,
         categoryIds: categories?.map((category) => category.id),
       });
