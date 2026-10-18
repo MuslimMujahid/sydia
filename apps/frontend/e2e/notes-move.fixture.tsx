@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WorkspaceTree } from "../src/components/notes/workspace-tree";
+import { useFolderCreation } from "../src/components/notes/inline-folder-form";
 import { WorkspaceDialog } from "../src/components/notes/workspace-dialog";
 import type { WorkspaceItem } from "../src/lib/services/api/notes/notes.api";
 import "../src/styles/globals.css";
@@ -51,6 +53,25 @@ const items = [
   note,
 ];
 
+function TreeFixture() {
+  const [selectedRef, setSelectedRef] = useState<string | null>("custom:note");
+  const folderCreation = useFolderCreation({ onCreated: async () => {} });
+
+  return (
+    <main>
+      <WorkspaceTree
+        items={items}
+        folderCreation={folderCreation}
+        selectedRef={selectedRef}
+        onNote={setSelectedRef}
+        onAction={() => {}}
+        onMove={() => {}}
+      />
+      <p role="status">{selectedRef}</p>
+    </main>
+  );
+}
+
 function Fixture() {
   const [open, setOpen] = useState(true);
   const item = new URLSearchParams(window.location.search).has("folder")
@@ -77,6 +98,6 @@ const root = document.getElementById("root");
 if (!root) throw new Error("Notes move fixture root is missing");
 createRoot(root).render(
   <QueryClientProvider client={new QueryClient()}>
-    <Fixture />
+    {window.location.hash === "#tree" ? <TreeFixture /> : <Fixture />}
   </QueryClientProvider>
 );

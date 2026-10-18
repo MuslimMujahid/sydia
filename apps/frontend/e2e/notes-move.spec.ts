@@ -85,3 +85,29 @@ test("an unmatched search explains the empty result and keeps root selectable", 
     page.getByRole("radio", { name: "Semua catatan", exact: true })
   ).toBeChecked();
 });
+
+for (const width of [1440, 390]) {
+  test(`folder labels toggle children without selecting a folder at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/e2e/notes-move.html#tree");
+    const folder = page.getByRole("button", { name: "Kerja", exact: true });
+    const child = page.getByRole("button", { name: "Proyek", exact: true });
+    await expect(child).toBeVisible();
+    await folder.click();
+    await expect(child).toBeHidden();
+    await expect(folder).toHaveAttribute("aria-expanded", "false");
+    await expect(folder).not.toHaveAttribute("aria-current");
+    await expect(page.getByRole("status")).toHaveText("custom:note");
+    await folder.press("Enter");
+    await expect(child).toBeVisible();
+    await expect(folder).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      page.getByRole("button", { name: "Rencana peluncuran", exact: true })
+    ).toHaveAttribute("aria-current", "page");
+    await folder.press("Space");
+    await expect(child).toBeHidden();
+    await expect(page.getByRole("status")).toHaveText("custom:note");
+  });
+}

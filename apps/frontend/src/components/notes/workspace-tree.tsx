@@ -71,9 +71,7 @@ type WorkspaceTreeProps = {
   items: WorkspaceItem[];
   folderCreation: FolderCreation;
   selectedRef: string | null;
-  selectedFolder: string | null;
   onNote: (ref: string) => void;
-  onFolder: (id: string | null) => void;
   onAction: ItemMenuProps["onAction"];
   onMove: (item: WorkspaceItem, parentId: string | null) => void;
 };
@@ -82,9 +80,7 @@ export function WorkspaceTree({
   items,
   folderCreation,
   selectedRef,
-  selectedFolder,
   onNote,
-  onFolder,
   onAction,
   onMove,
 }: WorkspaceTreeProps) {
@@ -153,9 +149,7 @@ export function WorkspaceTree({
         {children.map((item) => {
           const folder = item.kind === "folder";
           const expanded = !collapsed.has(item.id);
-          const selected = folder
-            ? selectedFolder === item.id
-            : selectedRef === `custom:${item.id}`;
+          const selected = !folder && selectedRef === `custom:${item.id}`;
 
           return (
             <li key={item.id}>
@@ -185,37 +179,31 @@ export function WorkspaceTree({
                   over === item.id && "outline-2 outline-brand"
                 )}
               >
-                {folder ? (
-                  <button
-                    className="grid min-h-11 w-11 shrink-0 place-items-center rounded-sm focus-visible:outline-2 focus-visible:outline-brand sm:min-h-9 sm:w-6"
-                    aria-label={`${expanded ? "Ciutkan" : "Bentangkan"} ${item.title}`}
-                    aria-expanded={expanded}
-                    onClick={() =>
+                <button
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-9"
+                  aria-current={selected ? "page" : undefined}
+                  aria-expanded={folder ? expanded : undefined}
+                  onClick={() => {
+                    if (folder) {
                       setCollapsed((previous) => {
                         const next = new Set(previous);
                         if (next.has(item.id)) next.delete(item.id);
                         else next.add(item.id);
 
                         return next;
-                      })
-                    }
-                  >
-                    {expanded ? (
-                      <ChevronDown className="size-3.5" />
-                    ) : (
-                      <ChevronRight className="size-3.5" />
-                    )}
-                  </button>
-                ) : (
-                  <span className="w-11 shrink-0 sm:w-6" />
-                )}
-                <button
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-9"
-                  aria-current={selected ? "page" : undefined}
-                  onClick={() =>
-                    folder ? onFolder(item.id) : onNote(`custom:${item.id}`)
-                  }
+                      });
+                    } else onNote(`custom:${item.id}`);
+                  }}
                 >
+                  <span className="grid w-11 shrink-0 place-items-center sm:w-6">
+                    {folder ? (
+                      expanded ? (
+                        <ChevronDown className="size-3.5" />
+                      ) : (
+                        <ChevronRight className="size-3.5" />
+                      )
+                    ) : null}
+                  </span>
                   {folder ? (
                     <Folder className="size-4 shrink-0 text-ink-muted" />
                   ) : (
@@ -248,12 +236,6 @@ export function WorkspaceTree({
       }}
       onDrop={(event) => drop(event, null)}
     >
-      <button
-        className="mb-2 min-h-11 w-full rounded-sm px-2 text-left text-xs text-ink-muted outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8"
-        onClick={() => onFolder(null)}
-      >
-        Semua folder
-      </button>
       {branch(null, "Semua catatan")}
       {live.length === 0 && !folderCreation.draft ? (
         <p className="px-2 py-3 text-sm text-ink-muted">

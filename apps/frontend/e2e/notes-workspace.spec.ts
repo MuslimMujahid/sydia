@@ -244,12 +244,13 @@ test.describe("Notes workspace with the real backend", () => {
     expect((await workspace(page.request)).items).toHaveLength(1);
   });
 
-  test("a folder selected in the tree is the destination of immediate note creation", async ({
+  test("toggling a folder keeps new notes in the open note’s parent", async ({
     page,
   }) => {
     const work = await create(page.request, "Kerja", null, "folder");
-    const project = await create(page.request, "Proyek", work.id, "folder");
-    await page.goto("/notes");
+    await create(page.request, "Proyek", work.id, "folder");
+    const source = await create(page.request, "Catatan kerja", work.id);
+    await open(page, source.id);
     await page.getByRole("button", { name: "Proyek", exact: true }).click();
     await page
       .getByRole("button", { name: "Catatan baru", exact: true })
@@ -261,10 +262,10 @@ test.describe("Notes workspace with the real backend", () => {
       .poll(
         async () =>
           (await workspace(page.request)).items.find(
-            (item) => item.kind === "note"
+            (item) => item.title === "Untitled"
           )?.parentId
       )
-      .toBe(project.id);
+      .toBe(work.id);
   });
 
   test("native dragging and the move picker both change a note's parent", async ({
@@ -604,7 +605,7 @@ test.describe("Notes workspace with the real backend", () => {
     );
   });
 
-  test("inline folder creation selects its name inside the selected folder and keeps the note open", async ({
+  test("inline folder creation selects its name inside the open note’s parent and keeps the note open", async ({
     page,
   }) => {
     const work = await create(page.request, "Kerja", null, "folder");
@@ -653,9 +654,7 @@ test.describe("Notes workspace with the real backend", () => {
     const project = await create(page.request, "Proyek", work.id, "folder");
     const note = await create(page.request, "Catatan proyek", project.id);
     await open(page, note.id);
-    await page
-      .getByRole("button", { name: "Ciutkan Kerja", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Kerja", exact: true }).click();
     await page
       .getByRole("button", { name: "Folder baru", exact: true })
       .click();
@@ -666,7 +665,7 @@ test.describe("Notes workspace with the real backend", () => {
 
     await expect(input).toBeFocused();
     await expect(
-      page.getByRole("button", { name: "Ciutkan Kerja", exact: true })
+      page.getByRole("button", { name: "Kerja", exact: true })
     ).toHaveAttribute("aria-expanded", "true");
     await input.fill("Subfolder");
     await input.press("Enter");
@@ -921,7 +920,7 @@ test.describe("Notes workspace with the real backend", () => {
       .toBe(folder.id);
   });
 
-  test("an active document does not mark its parent folder active", async ({
+  test("folder clicks and keyboard activation only toggle the tree and keep the note open", async ({
     page,
   }) => {
     const folder = await create(page.request, "Sydia", null, "folder");
@@ -944,8 +943,18 @@ test.describe("Notes workspace with the real backend", () => {
     await expect(document).toHaveAttribute("aria-current", "page");
     await expect(parent).not.toHaveAttribute("aria-current");
     await parent.click();
-    await expect(parent).toHaveAttribute("aria-current", "page");
-    await expect(document).not.toHaveAttribute("aria-current");
+    await expect(parent).toHaveAttribute("aria-expanded", "false");
+    await expect(parent).not.toHaveAttribute("aria-current");
+    await expect(document).toBeHidden();
+    await expect(
+      page.getByRole("textbox", { name: "Judul catatan" })
+    ).toHaveValue("Sydia - First note");
+    await expect(page).toHaveURL(`/notes?note=${note.id}`);
+    await parent.press("Enter");
+    await expect(parent).toHaveAttribute("aria-expanded", "true");
+    await expect(document).toHaveAttribute("aria-current", "page");
+    await parent.press("Space");
+    await expect(parent).toHaveAttribute("aria-expanded", "false");
   });
 
   test("folder tree rows have a small gap at the same and nested levels", async ({

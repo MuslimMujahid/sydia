@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Link2,
-  FileText,
   FolderPlus,
   Menu,
   Plus,
@@ -83,15 +82,14 @@ export function NotesWorkspacePage({
   );
 
   const mounted = stored.mounted;
-  const [browsedFolder, setBrowsedFolder] = useState<string | null>(null);
   const [view, setView] = useState<{
-    mode: "note" | "folder" | "search" | "trash";
+    mode: "note" | "search" | "trash";
     selectedRef?: string;
   }>({ mode: "note", selectedRef });
 
   const mode = view.selectedRef === selectedRef ? view.mode : "note";
 
-  function setMode(next: "note" | "folder" | "search" | "trash") {
+  function setMode(next: "note" | "search" | "trash") {
     setView({ mode: next, selectedRef });
   }
 
@@ -138,10 +136,7 @@ export function NotesWorkspacePage({
     (item) => `custom:${item.id}` === activeRef && !item.trashedAt
   );
 
-  const selectedFolder =
-    mode === "note"
-      ? (note.data?.parentId ?? currentItem?.parentId ?? null)
-      : browsedFolder;
+  const noteParentId = note.data?.parentId ?? currentItem?.parentId ?? null;
 
   const dailyDate = activeRef?.startsWith("daily:")
     ? activeRef.slice(6)
@@ -177,13 +172,9 @@ export function NotesWorkspacePage({
     await onNavigate(ref);
   }
 
-  async function show(
-    next: "folder" | "search" | "trash",
-    folderId = selectedFolder
-  ) {
+  async function show(next: "search" | "trash") {
     if (!(await guard())) return;
     setMode(next);
-    if (next === "folder") setBrowsedFolder(folderId);
     if (next !== "search") setNavOpen(false);
   }
 
@@ -205,15 +196,15 @@ export function NotesWorkspacePage({
     mutationFn: async () => {
       if (
         !pendingCreation.current ||
-        pendingCreation.current.parentId !== selectedFolder
+        pendingCreation.current.parentId !== noteParentId
       )
         pendingCreation.current = {
-          parentId: selectedFolder,
+          parentId: noteParentId,
           requestKey: crypto.randomUUID(),
         };
       const item = await createWorkspaceItem({
         kind: "note",
-        parentId: selectedFolder,
+        parentId: noteParentId,
         requestKey: pendingCreation.current.requestKey,
       });
 
@@ -439,7 +430,7 @@ export function NotesWorkspacePage({
               Boolean(folderCreation.draft)
             }
             onClick={(event) =>
-              folderCreation.start(selectedFolder, event.currentTarget)
+              folderCreation.start(noteParentId, event.currentTarget)
             }
           >
             <FolderPlus />
@@ -466,9 +457,7 @@ export function NotesWorkspacePage({
             items={items}
             folderCreation={folderCreation}
             selectedRef={mode === "note" ? activeRef : null}
-            selectedFolder={mode === "folder" ? selectedFolder : null}
             onNote={(ref) => void open(ref)}
-            onFolder={(id) => void show("folder", id)}
             onAction={(type, item) => action.mutate({ type, item })}
             onMove={(item, parentId) => move.mutate({ item, parentId })}
           />
@@ -715,44 +704,7 @@ export function NotesWorkspacePage({
                 </ul>
               )}
             </section>
-          ) : (
-            <section className="overflow-y-auto px-6 py-8 sm:px-12">
-              <h1 className="text-2xl font-semibold">
-                {items.find((item) => item.id === selectedFolder)?.title ??
-                  "Semua catatan"}
-              </h1>
-              <ul className="mt-6 space-y-2">
-                {items
-                  .filter(
-                    (item) =>
-                      !item.trashedAt && item.parentId === selectedFolder
-                  )
-                  .map((item) => (
-                    <li key={item.id}>
-                      <button
-                        className="flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-left text-sm outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand"
-                        onClick={() =>
-                          item.kind === "folder"
-                            ? void show("folder", item.id)
-                            : void open(`custom:${item.id}`)
-                        }
-                      >
-                        <FileText className="size-4 text-ink-muted" />
-                        {item.title}
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-              {!items.some(
-                (item) => !item.trashedAt && item.parentId === selectedFolder
-              ) ? (
-                <p className="mt-8 text-sm text-ink-muted">
-                  Folder ini masih kosong. Buat catatan baru untuk mulai
-                  menulis.
-                </p>
-              ) : null}
-            </section>
-          )}
+          ) : null}
         </section>
       </div>
       <Dialog
