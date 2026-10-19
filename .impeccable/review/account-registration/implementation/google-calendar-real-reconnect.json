@@ -1,0 +1,26 @@
+{
+  "observedAt": "2026-10-19T22:43:14.603Z",
+  "scope": "Real Calendar reconnection after revocation, fresh identity login, and a cancelled consent attempt.",
+  "sameSydiaUser": true,
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "email": "muslimmujahid1712@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "id": "cmvftm2v7000w8j7kyz302h7y",
+      "status": "connected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "calendarId": "muslimmujahid1712@gmail.com",
+      "hasAccessToken": true,
+      "hasRefreshToken": true
+    }
+  ]
+}

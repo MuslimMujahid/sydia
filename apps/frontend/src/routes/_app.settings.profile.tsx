@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Save } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { CheckCircle2 } from "lucide-react";
 import { z } from "zod";
 import { DomainPageHeader } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import {
 } from "@/components/forms/form-fields";
 import { useAppForm } from "@/lib/hooks/forms";
 import { useUpdateCurrentUser } from "@/lib/services/api/users/users.queries";
+import { SignInMethods } from "@/components/settings/sign-in-methods";
+import "@/components/auth/auth.css";
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "Masukkan minimal 2 karakter."),
@@ -65,11 +67,11 @@ function ProfileSettingsPage() {
     : [user.timezone, ...TIMEZONES];
 
   return (
-    <div className="max-w-3xl space-y-6 lg:space-y-10">
+    <div className="auth-surface flex max-w-3xl flex-col gap-7 pt-1 sm:pt-0 lg:gap-10">
       <DomainPageHeader title="Profil" divided={false} />
-      <Card className="p-6 sm:p-8">
+      <Card className="min-h-[586px] rounded-md p-6 pt-7 shadow-none sm:min-h-[554px] sm:p-8 sm:pt-7 sm:pb-6">
         <form
-          className="space-y-7"
+          className="space-y-6 [&_input]:h-12 [&_select]:h-12 [&_#profile-timezone-description]:text-xs [&_#profile-timezone-description]:leading-[18px]"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -98,12 +100,26 @@ function ProfileSettingsPage() {
               </FieldShell>
             )}
           </form.Field>
-          <FieldShell
-            id="profile-email"
-            label="Email"
-            description="Perubahan email dikelola melalui akun autentikasi Anda."
-          >
-            {() => <TextField id="profile-email" value={user.email} disabled />}
+          <FieldShell id="profile-email" label="Email">
+            {() => (
+              <>
+                <TextField
+                  id="profile-email"
+                  value={user.email}
+                  disabled
+                  className="disabled:opacity-100"
+                />
+                <div className="flex h-4 items-center justify-between gap-3 text-[13px] leading-[19px] text-ink-muted">
+                  <span>Email terverifikasi</span>
+                  <Link
+                    to="/change-email"
+                    className="inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4"
+                  >
+                    Ubah email
+                  </Link>
+                </div>
+              </>
+            )}
           </FieldShell>
           <form.Field name="timezone">
             {(field) => (
@@ -137,7 +153,6 @@ function ProfileSettingsPage() {
               <FieldShell
                 id="profile-locale"
                 label="Bahasa"
-                description="Menentukan bahasa antarmuka Sydia."
                 errors={field.state.meta.errors}
               >
                 {({ describedBy, invalid }) => (
@@ -172,14 +187,18 @@ function ProfileSettingsPage() {
             selector={(state) => [state.canSubmit, state.isSubmitting]}
           >
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                <Save />
+              <Button
+                className="mt-0.5 h-12 w-full sm:w-[204px]"
+                type="submit"
+                disabled={!canSubmit || isSubmitting}
+              >
                 {isSubmitting ? "Menyimpan perubahan…" : "Simpan perubahan"}
               </Button>
             )}
           </form.Subscribe>
         </form>
       </Card>
+      <SignInMethods />
     </div>
   );
 }

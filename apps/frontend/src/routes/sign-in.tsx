@@ -11,6 +11,8 @@ import { useAppForm } from "@/lib/hooks/forms";
 import { redirectAuthenticatedUser, safeRedirectTarget } from "@/lib/auth";
 import { useSignIn } from "@/lib/services/api/auth/auth.queries";
 import { currentUserQueryOptions } from "@/lib/services/api/users/users.queries";
+import { GoogleButton, AuthDivider } from "@/components/auth/google-button";
+import { PasswordField } from "@/components/auth/password-field";
 
 const searchSchema = z.object({
   redirect: z.string().optional(),
@@ -46,7 +48,14 @@ function SignInPage() {
     defaultValues: { email: "", password: "" },
     validators: { onChange: signInSchema },
     onSubmit: async ({ value }) => {
-      await signInMutation.mutateAsync(value);
+      const response = await signInMutation.mutateAsync(value);
+
+      if (!response.user.emailVerified) {
+        await navigate({ to: "/verify-email", replace: true });
+
+        return;
+      }
+
       const user = await context.queryClient.fetchQuery(
         currentUserQueryOptions()
       );
@@ -74,7 +83,7 @@ function SignInPage() {
   return (
     <AuthShell
       title="Selamat datang kembali"
-      description="Masuk untuk melanjutkan percakapan Anda dengan Sydia."
+      description="Masuk untuk melanjutkan percakapan Anda."
       footer={
         <>
           Belum punya akun?{" "}
@@ -96,8 +105,11 @@ function SignInPage() {
           {notice}
         </p>
       ) : null}
+      <GoogleButton destination={safeRedirectTarget(search.redirect)} />
+      <AuthDivider />
       <form
-        className="space-y-5"
+        method="post"
+        className="space-y-5 [&_input]:h-12"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -116,6 +128,7 @@ function SignInPage() {
                   id="sign-in-email"
                   name={field.name}
                   type="email"
+                  placeholder="nama@contoh.com"
                   autoComplete="email"
                   value={field.state.value}
                   aria-describedby={describedBy}
@@ -129,25 +142,34 @@ function SignInPage() {
         </form.Field>
         <form.Field name="password">
           {(field) => (
-            <FieldShell
-              id="sign-in-password"
-              label="Kata sandi"
-              errors={field.state.meta.errors}
-            >
-              {({ describedBy, invalid }) => (
-                <TextField
-                  id="sign-in-password"
-                  name={field.name}
-                  type="password"
-                  autoComplete="current-password"
-                  value={field.state.value}
-                  aria-describedby={describedBy}
-                  aria-invalid={invalid}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-              )}
-            </FieldShell>
+            <div>
+              <FieldShell
+                id="sign-in-password"
+                label="Kata sandi"
+                errors={field.state.meta.errors}
+              >
+                {({ describedBy, invalid }) => (
+                  <PasswordField
+                    id="sign-in-password"
+                    name={field.name}
+                    type="password"
+                    placeholder="Masukkan kata sandi Anda"
+                    autoComplete="current-password"
+                    value={field.state.value}
+                    aria-describedby={describedBy}
+                    aria-invalid={invalid}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </FieldShell>
+              <Link
+                to="/forgot-password"
+                className="ml-auto flex min-h-11 w-fit items-center text-sm font-semibold underline underline-offset-4"
+              >
+                Lupa kata sandi?
+              </Link>
+            </div>
           )}
         </form.Field>
         <FormError message={signInMutation.error?.message} />
@@ -156,7 +178,7 @@ function SignInPage() {
         >
           {([canSubmit, isSubmitting]) => (
             <Button
-              className="w-full"
+              className="h-12 w-full"
               type="submit"
               disabled={!canSubmit || isSubmitting}
             >

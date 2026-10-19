@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-10-19T22:37:53.602Z",
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "emailVerified": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "status": "disconnected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "hasAccessToken": false,
+      "hasRefreshToken": false
+    }
+  ]
+}

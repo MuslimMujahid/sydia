@@ -1,0 +1,16 @@
+{
+  "observedAt": "2026-10-19T22:04:35.126Z",
+  "scope": "Real Google identity login confirmed by owner and persisted account; baseline before Calendar consent cancellation. Does not prove disconnect/reconnect isolation.",
+  "user": {
+    "id": "EY2p6RZ8L5OzF0fimFLIQjguUHrV7qFm",
+    "email": "xcaptcha15@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": []
+}

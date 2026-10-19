@@ -1,0 +1,25 @@
+{
+  "observedAt": "2026-10-19T22:39:24.493Z",
+  "scope": "Owner completed fresh Google identity login after same-Google-account Calendar revocation and normal Sydia sign-out. Prior evidence recorded zero active sessions.",
+  "sameSydiaUser": true,
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "email": "muslimmujahid1712@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "status": "disconnected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "hasAccessToken": false,
+      "hasRefreshToken": false
+    }
+  ],
+  "activeSessionCreationTimes": ["2026-10-19T22:39:05.785Z"]
+}

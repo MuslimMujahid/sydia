@@ -49,7 +49,7 @@ async function seed(): Promise<void> {
       id: DEMO_USER_ID,
       name: DEMO_USER_NAME,
       email: DEMO_USER_EMAIL,
-      emailVerified: false,
+      emailVerified: true,
       image: null,
       timezone: DEMO_TIMEZONE,
       locale: DEMO_LOCALE,
@@ -59,7 +59,7 @@ async function seed(): Promise<void> {
     update: {
       name: DEMO_USER_NAME,
       email: DEMO_USER_EMAIL,
-      emailVerified: false,
+      emailVerified: true,
       image: null,
       timezone: DEMO_TIMEZONE,
       locale: DEMO_LOCALE,

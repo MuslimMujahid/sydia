@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-10-19T22:38:49.114Z",
+  "scope": "Same-account test after Calendar disconnect and normal Sydia sign-out, before requested fresh Google login.",
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "email": "muslimmujahid1712@gmail.com",
+    "emailVerified": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "status": "disconnected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "hasAccessToken": false,
+      "hasRefreshToken": false
+    }
+  ],
+  "activeSessionCreationTimes": []
+}

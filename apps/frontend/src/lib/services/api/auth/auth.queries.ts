@@ -15,6 +15,7 @@ import {
   type SessionResponse,
 } from "./auth.api";
 import { currentUserQueryOptions } from "../users/users.queries";
+import { getAuthMethods } from "./verification.api";
 
 export const authQueryKeys = {
   all: ["auth"] as const,
@@ -61,6 +62,19 @@ export const sessionQueryOptions = () =>
     retry: false,
   });
 
+const getAuthMethodsServer = createServerFn({ method: "GET" }).handler(() =>
+  getAuthMethods(getRequestHeader("cookie"))
+);
+
+export const authMethodsQueryOptions = () =>
+  queryOptions({
+    queryKey: [...authQueryKeys.all, "methods"],
+    queryFn: () =>
+      typeof window === "undefined" ? getAuthMethodsServer() : getAuthMethods(),
+    staleTime: 0,
+    retry: false,
+  });
+
 async function reconcileAuthenticatedQueries(
   queryClient: QueryClient,
   authResponse: AuthResponse
@@ -78,7 +92,12 @@ async function reconcileAuthenticatedQueries(
     await queryClient.fetchQuery({ ...sessionQueryOptions(), staleTime: 0 });
   }
 
-  await queryClient.fetchQuery({ ...currentUserQueryOptions(), staleTime: 0 });
+  if (authResponse.user.emailVerified) {
+    await queryClient.fetchQuery({
+      ...currentUserQueryOptions(),
+      staleTime: 0,
+    });
+  }
 }
 
 export function useSignUp() {

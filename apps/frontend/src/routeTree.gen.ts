@@ -11,11 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ChangeEmailRouteImport } from './routes/change-email'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GoogleResultRouteImport } from './routes/google-result'
+import { Route as LinkGoogleRouteImport } from './routes/link-google'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SecretRevealRouteImport } from './routes/secret-reveal'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
@@ -47,9 +52,29 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChangeEmailRoute = ChangeEmailRouteImport.update({
+  id: '/change-email',
+  path: '/change-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DesignSystemRoute = DesignSystemRouteImport.update({
   id: '/design-system',
   path: '/design-system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GoogleResultRoute = GoogleResultRouteImport.update({
+  id: '/google-result',
+  path: '/google-result',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinkGoogleRoute = LinkGoogleRouteImport.update({
+  id: '/link-google',
+  path: '/link-google',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -70,6 +95,11 @@ const SignInRoute = SignInRouteImport.update({
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -182,11 +212,16 @@ const AppSettingsWhatsappRoute = AppSettingsWhatsappRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/admin': typeof AdminRoute
+  '/change-email': typeof ChangeEmailRoute
   '/design-system': typeof DesignSystemRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/google-result': typeof GoogleResultRoute
+  '/link-google': typeof LinkGoogleRoute
   '/onboarding': typeof OnboardingRoute
   '/secret-reveal': typeof SecretRevealRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
   '/chats': typeof AppChatsRoute
@@ -210,11 +245,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
+  '/change-email': typeof ChangeEmailRoute
   '/design-system': typeof DesignSystemRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/google-result': typeof GoogleResultRoute
+  '/link-google': typeof LinkGoogleRoute
   '/onboarding': typeof OnboardingRoute
   '/secret-reveal': typeof SecretRevealRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/calendar': typeof AppCalendarRoute
   '/chat': typeof AppChatRoute
   '/chats': typeof AppChatsRoute
@@ -241,11 +281,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
+  '/change-email': typeof ChangeEmailRoute
   '/design-system': typeof DesignSystemRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/google-result': typeof GoogleResultRoute
+  '/link-google': typeof LinkGoogleRoute
   '/onboarding': typeof OnboardingRoute
   '/secret-reveal': typeof SecretRevealRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/chats': typeof AppChatsRoute
@@ -273,11 +318,16 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/change-email'
     | '/design-system'
+    | '/forgot-password'
+    | '/google-result'
+    | '/link-google'
     | '/onboarding'
     | '/secret-reveal'
     | '/sign-in'
     | '/sign-up'
+    | '/verify-email'
     | '/calendar'
     | '/chat'
     | '/chats'
@@ -301,11 +351,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin'
+    | '/change-email'
     | '/design-system'
+    | '/forgot-password'
+    | '/google-result'
+    | '/link-google'
     | '/onboarding'
     | '/secret-reveal'
     | '/sign-in'
     | '/sign-up'
+    | '/verify-email'
     | '/calendar'
     | '/chat'
     | '/chats'
@@ -331,11 +386,16 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/admin'
+    | '/change-email'
     | '/design-system'
+    | '/forgot-password'
+    | '/google-result'
+    | '/link-google'
     | '/onboarding'
     | '/secret-reveal'
     | '/sign-in'
     | '/sign-up'
+    | '/verify-email'
     | '/_app/calendar'
     | '/_app/chat'
     | '/_app/chats'
@@ -362,11 +422,16 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
+  ChangeEmailRoute: typeof ChangeEmailRoute
   DesignSystemRoute: typeof DesignSystemRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GoogleResultRoute: typeof GoogleResultRoute
+  LinkGoogleRoute: typeof LinkGoogleRoute
   OnboardingRoute: typeof OnboardingRoute
   SecretRevealRoute: typeof SecretRevealRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminWhatsappRoute: typeof AdminWhatsappRoute
 }
@@ -387,11 +452,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/change-email': {
+      id: '/change-email'
+      path: '/change-email'
+      fullPath: '/change-email'
+      preLoaderRoute: typeof ChangeEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/design-system': {
       id: '/design-system'
       path: '/design-system'
       fullPath: '/design-system'
       preLoaderRoute: typeof DesignSystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/google-result': {
+      id: '/google-result'
+      path: '/google-result'
+      fullPath: '/google-result'
+      preLoaderRoute: typeof GoogleResultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/link-google': {
+      id: '/link-google'
+      path: '/link-google'
+      fullPath: '/link-google'
+      preLoaderRoute: typeof LinkGoogleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -420,6 +513,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-up'
       fullPath: '/sign-up'
       preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -631,11 +731,16 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
+  ChangeEmailRoute: ChangeEmailRoute,
   DesignSystemRoute: DesignSystemRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  GoogleResultRoute: GoogleResultRoute,
+  LinkGoogleRoute: LinkGoogleRoute,
   OnboardingRoute: OnboardingRoute,
   SecretRevealRoute: SecretRevealRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminWhatsappRoute: AdminWhatsappRoute,
 }

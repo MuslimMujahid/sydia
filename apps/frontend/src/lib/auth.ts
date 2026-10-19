@@ -37,6 +37,8 @@ export async function requireSession(
         search: { redirect: locationHref, reason: "required" },
       });
 
+    if (!session.user.emailVerified) throw redirect({ to: "/verify-email" });
+
     return session;
   } catch (error) {
     if (isUnauthorizedError(error)) {
@@ -82,6 +84,7 @@ export async function redirectAuthenticatedUser(queryClient: QueryClient) {
   try {
     const session = await queryClient.ensureQueryData(sessionQueryOptions());
     if (!session) return;
+    if (!session.user.emailVerified) throw redirect({ to: "/verify-email" });
     const user = await queryClient.ensureQueryData(currentUserQueryOptions());
     if (isAdminRole(user.role)) throw redirect({ to: "/admin" });
     throw redirect({ to: user.onboardingCompleted ? "/" : "/onboarding" });
@@ -103,6 +106,7 @@ export async function requireAdminSession(
         search: { redirect: locationHref, reason: "required" },
       });
 
+    if (!session.user.emailVerified) throw redirect({ to: "/verify-email" });
     const user = await queryClient.ensureQueryData(currentUserQueryOptions());
     if (!isAdminRole(user.role)) throw redirect({ to: "/" });
 
@@ -125,6 +129,7 @@ export async function redirectAuthenticatedAdmin(queryClient: QueryClient) {
   try {
     const session = await queryClient.ensureQueryData(sessionQueryOptions());
     if (!session) return;
+    if (!session.user.emailVerified) throw redirect({ to: "/verify-email" });
     const user = await queryClient.ensureQueryData(currentUserQueryOptions());
     throw redirect({ to: isAdminRole(user.role) ? "/admin" : "/" });
   } catch (error) {

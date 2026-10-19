@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-10-19T22:11:22.920Z",
+  "scope": "Real Calendar consent completed by owner; persisted identity and separate Calendar account. Disconnect/re-login isolation not yet proven.",
+  "user": {
+    "id": "EY2p6RZ8L5OzF0fimFLIQjguUHrV7qFm",
+    "email": "xcaptcha15@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "id": "cmvft67xd000f8j7k5m2g5dzr",
+      "status": "connected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "calendarId": "muslimmujahid1712@gmail.com"
+    }
+  ]
+}

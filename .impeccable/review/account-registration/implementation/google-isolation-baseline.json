@@ -1,0 +1,21 @@
+{
+  "calendar": {
+    "calendarId": "xcaptcha15@gmail.com",
+    "calendarName": "xcaptcha15@gmail.com",
+    "connected": true,
+    "connectionStatus": "connected",
+    "googleEmail": "xcaptcha15@gmail.com"
+  },
+  "observedAt": "2026-10-19T12:44:31.373Z",
+  "scope": "Read-only seed-account baseline before real Google identity setup; not isolation proof",
+  "signIn": {
+    "google": false,
+    "password": true
+  },
+  "user": {
+    "email": "user@demo.com",
+    "emailVerified": true,
+    "id": "demo-user-seed",
+    "onboardingCompleted": true
+  }
+}
