@@ -1,0 +1,736 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Scene 1 — the big composer */
+    .p03-composer {
+      left: 370px;
+      top: 452px;
+      width: 1180px;
+      box-sizing: border-box;
+    }
+    .p03-send {
+      position: relative;
+    }
+    .p03-send-ring {
+      position: absolute;
+      left: 1456px;
+      top: 478px;
+      width: 64px;
+      height: 64px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      border: 2.5px solid rgba(239, 90, 138, 0.8);
+      background: rgba(239, 90, 138, 0.12);
+    }
+
+    /* App window (standard geometry: 1 CSS px of the app = 0.8556 window px) */
+    .p03-win {
+      left: 344px;
+      top: 130px;
+      width: 1232px;
+      height: 770px;
+    }
+    .p03-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1232px;
+      height: 770px;
+      transform-origin: 0 0;
+    }
+    .p03-cam img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1232px;
+      height: 770px;
+    }
+
+    /* Rings + click dot, in window (cam) px */
+    .p03-ring {
+      position: absolute;
+      box-sizing: border-box;
+      border: 2px solid var(--sy-pink);
+      box-shadow: 0 0 0 5px rgba(239, 90, 138, 0.16);
+    }
+    .p03-dot {
+      position: absolute;
+      left: 533.9px;
+      top: 228.4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 1px solid rgba(23, 20, 25, 0.18);
+      box-shadow: rgba(23, 20, 25, 0.28) 0 2px 6px;
+    }
+    .p03-ripple {
+      position: absolute;
+      left: 525.9px;
+      top: 220.4px;
+      width: 28px;
+      height: 28px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      border: 2px solid var(--sy-pink);
+      background: rgba(239, 90, 138, 0.14);
+    }
+
+    /* Result badges at the window's right edge */
+    .p03-badge {
+      position: absolute;
+      left: 1604px;
+      font-size: 26px;
+      box-shadow: var(--sy-shadow-card);
+      border: 1px solid var(--sy-border);
+    }
+    .p03-badge svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    /* Caption words */
+    .p03-w {
+      display: inline-block;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-133j"
+    id="root"
+    data-composition-id="03-action"
+    data-width="1920"
+    data-height="1080"
+    data-duration="25.55"
+  >
+    <!-- Ground: bone + blooms + grain -->
+    <div
+      data-hf-id="hf-5e0y"
+      id="p03-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="25.55"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-39ri"
+        id="p03-bloom-coral"
+        class="sy-bloom coral"
+        style="
+          left: 120px;
+          top: 560px;
+          width: 720px;
+          height: 460px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-jmcm"
+        id="p03-bloom-violet"
+        class="sy-bloom violet"
+        style="
+          left: 1180px;
+          top: -60px;
+          width: 700px;
+          height: 480px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-6v5g"
+        id="p03-bloom-amber"
+        class="sy-bloom amber"
+        style="
+          left: 1420px;
+          top: 640px;
+          width: 460px;
+          height: 360px;
+          opacity: 0.22;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <!-- Scene 1: the typed request -->
+    <div
+      data-hf-id="hf-xg5a"
+      id="p03-type-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="4.25"
+      data-track-index="1"
+    >
+      <div
+        data-hf-id="hf-3yrz"
+        id="p03-composer"
+        class="sy-composer p03-composer"
+      >
+        <div data-hf-id="hf-zzs1" class="sy-composer-text">
+          <span data-hf-id="hf-sph2" id="p03-typed"></span
+          ><span data-hf-id="hf-boce" id="p03-caret" class="sy-caret"></span>
+        </div>
+        <div data-hf-id="hf-x1hr" id="p03-send" class="sy-send p03-send">
+          <svg
+            data-hf-id="hf-3xkb"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ffffff"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-wubm"
+              d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"
+            />
+            <path data-hf-id="hf-kzdh" d="M6 12h16" />
+          </svg>
+        </div>
+      </div>
+      <div data-hf-id="hf-5m6o" id="p03-send-ring" class="p03-send-ring"></div>
+    </div>
+
+    <!-- Scenes 2–7: the real app -->
+    <div
+      data-hf-id="hf-8n5o"
+      id="p03-app-stage"
+      class="clip sy-stage"
+      data-start="4.25"
+      data-duration="21.3"
+      data-track-index="2"
+    >
+      <div data-hf-id="hf-65nl" id="p03-win" class="sy-window p03-win">
+        <div data-hf-id="hf-ng6o" id="p03-cam" class="p03-cam">
+          <img
+            data-hf-id="hf-oqd9"
+            id="p03-img-run"
+            src="assets/pv-cap/s3-run-08.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-4vcw"
+            id="p03-img-answer"
+            src="assets/pv-cap/s3-09-answer.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-n8u8"
+            id="p03-img-pop"
+            src="assets/pv-cap/s3-10-task-popover.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-xfjj"
+            id="p03-img-tasks"
+            src="assets/pv-cap/s3-11-tasks.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-637v"
+            id="p03-img-cal"
+            src="assets/pv-cap/s3-12-calendar-week.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-fawo"
+            id="p03-img-rem"
+            src="assets/pv-cap/s3-13-reminders.png"
+            alt=""
+          />
+
+          <!-- answer rings (CSS boxes x 0.8556) -->
+          <div
+            data-hf-id="hf-o26c"
+            id="p03-ring-task"
+            class="p03-ring"
+            style="
+              left: 446.6px;
+              top: 219px;
+              width: 187.4px;
+              height: 30.8px;
+              border-radius: 16px;
+            "
+          ></div>
+          <div
+            data-hf-id="hf-1tnl"
+            id="p03-ring-event"
+            class="p03-ring"
+            style="
+              left: 441.5px;
+              top: 284.1px;
+              width: 451.8px;
+              height: 47.9px;
+              border-radius: 12px;
+            "
+          ></div>
+          <div
+            data-hf-id="hf-pqcs"
+            id="p03-ring-rem"
+            class="p03-ring"
+            style="
+              left: 441.5px;
+              top: 365.3px;
+              width: 444.9px;
+              height: 29.9px;
+              border-radius: 12px;
+            "
+          ></div>
+          <div data-hf-id="hf-hv42" id="p03-ripple" class="p03-ripple"></div>
+          <div data-hf-id="hf-r4fg" id="p03-dot" class="p03-dot"></div>
+
+          <!-- result-screen rings -->
+          <div
+            data-hf-id="hf-bc17"
+            id="p03-ring-row"
+            class="p03-ring"
+            style="
+              left: 272.1px;
+              top: 161.7px;
+              width: 675.9px;
+              height: 34.2px;
+              border-radius: 10px;
+            "
+          ></div>
+          <div
+            data-hf-id="hf-tzkb"
+            id="p03-ring-cal"
+            class="p03-ring"
+            style="
+              left: 689.6px;
+              top: 393.6px;
+              width: 130.9px;
+              height: 47.1px;
+              border-radius: 10px;
+            "
+          ></div>
+          <div
+            data-hf-id="hf-ql2c"
+            id="p03-ring-remrow"
+            class="p03-ring"
+            style="
+              left: 266.9px;
+              top: 211.3px;
+              width: 285.8px;
+              height: 59.9px;
+              border-radius: 12px;
+            "
+          ></div>
+        </div>
+      </div>
+
+      <span
+        data-hf-id="hf-cf5c"
+        id="p03-badge-task"
+        class="sy-chip task p03-badge"
+        style="top: 330px"
+        ><svg
+          data-hf-id="hf-h0hq"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect
+            data-hf-id="hf-mwue"
+            x="3"
+            y="3"
+            width="18"
+            height="18"
+            rx="3"
+          />
+          <path data-hf-id="hf-t5d2" d="m8 12 3 3 5-6" /></svg
+        >Tugas</span
+      >
+      <span
+        data-hf-id="hf-ru5h"
+        id="p03-badge-event"
+        class="sy-chip event p03-badge"
+        style="top: 404px"
+        ><svg
+          data-hf-id="hf-pmle"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect
+            data-hf-id="hf-4rv6"
+            x="3"
+            y="4"
+            width="18"
+            height="18"
+            rx="2"
+          />
+          <path data-hf-id="hf-zqia" d="M16 2v4" />
+          <path data-hf-id="hf-adwx" d="M8 2v4" />
+          <path data-hf-id="hf-unwg" d="M3 10h18" /></svg
+        >Jadwal</span
+      >
+      <span
+        data-hf-id="hf-bvoo"
+        id="p03-badge-rem"
+        class="sy-chip reminder p03-badge"
+        style="top: 478px"
+        ><svg
+          data-hf-id="hf-q0wf"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle data-hf-id="hf-hoqb" cx="12" cy="13" r="8" />
+          <path data-hf-id="hf-a705" d="M12 9v4l2 2" />
+          <path data-hf-id="hf-2ed7" d="M5 3 2 6" />
+          <path data-hf-id="hf-7agl" d="m22 6-3-3" /></svg
+        >Pengingat</span
+      >
+
+      <div data-hf-id="hf-b4r3" id="p03-caption" class="sy-caption">
+        <span data-hf-id="hf-01pq" id="p03-w1" class="p03-w">Cukup</span>
+        <span data-hf-id="hf-bvxb" id="p03-w2" class="p03-w">ceritakan.</span>
+        <span data-hf-id="hf-hdtu" id="p03-w3" class="p03-w">Sydia</span>
+        <span data-hf-id="hf-m0yv" id="p03-w4" class="p03-w">bantu</span>
+        <span data-hf-id="hf-d6py" id="p03-w5" class="p03-w"
+          ><em data-hf-id="hf-nntd">atur.</em></span
+        >
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const D = 25.05;
+      const tl = gsap.timeline({ paused: true });
+
+      // ── Seek-safe typewriter: text is a pure function of timeline time ──
+      const MSG =
+        "Sydia, buat tugas finalisasi proposal Aurora sebelum Jumat. Jadwalkan juga review dengan Nadia hari Kamis jam 10, dan ingatkan aku jam 8 pagi.";
+      const T0 = 0.4;
+      const T1 = 3.95;
+      const typedEl = document.getElementById("p03-typed");
+      const caretEl = document.getElementById("p03-caret");
+      let lastN = -1;
+      const paint = (t) => {
+        const p = Math.min(Math.max((t - T0) / (T1 - T0), 0), 1);
+        const n = Math.floor(p * MSG.length);
+        if (n !== lastN) {
+          typedEl.textContent = MSG.slice(0, n);
+          lastN = n;
+        }
+        caretEl.style.opacity = t >= 0.15 ? "1" : "0";
+      };
+      paint(0);
+
+      // ── Ambient bloom drift (whole frame) ──
+      tl.fromTo(
+        "#p03-bloom-coral",
+        { x: 0, y: 0 },
+        { x: 70, y: -24, duration: D, ease: "sine.inOut" },
+        0
+      );
+      tl.fromTo(
+        "#p03-bloom-violet",
+        { x: 0, y: 0 },
+        { x: -60, y: 26, duration: D, ease: "sine.inOut" },
+        0
+      );
+
+      // ── Scene 1 (0.0–4.25): composer types, send press on the 4.17 downbeat ──
+      tl.fromTo(
+        "#p03-composer",
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" },
+        0
+      );
+      tl.fromTo(
+        "#p03-send",
+        { scale: 1 },
+        { scale: 0.9, duration: 0.12, ease: "power2.out" },
+        4.05
+      );
+      tl.to(
+        "#p03-send",
+        { scale: 1, duration: 0.12, ease: "power3.out" },
+        4.17
+      );
+      tl.fromTo(
+        "#p03-send-ring",
+        { opacity: 0, scale: 1 },
+        { opacity: 0.8, scale: 1.1, duration: 0.03, ease: "none" },
+        4.17
+      );
+      tl.to(
+        "#p03-send-ring",
+        { opacity: 0, scale: 1.7, duration: 0.3, ease: "power2.out" },
+        4.2
+      );
+
+      // ── Scene 2 (4.25–8.35): cut into the app — sent bubble + "menyiapkan jawaban" ──
+      tl.fromTo(
+        "#p03-win",
+        { opacity: 0, y: 26 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" },
+        4.25
+      );
+      tl.fromTo(
+        "#p03-cam",
+        { x: 0, y: 0, scale: 1, transformOrigin: "0 0" },
+        {
+          x: -65,
+          y: -20,
+          scale: 1.1,
+          transformOrigin: "0 0",
+          duration: 4.0,
+          ease: "sine.inOut",
+          force3D: false,
+        },
+        4.25
+      );
+      const WORDS = [
+        ["#p03-w1", 4.81],
+        ["#p03-w2", 5.08],
+        ["#p03-w3", 5.42],
+        ["#p03-w4", 5.62],
+        ["#p03-w5", 5.86],
+      ];
+      WORDS.forEach(([sel, at]) => {
+        tl.fromTo(
+          sel,
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" },
+          at
+        );
+      });
+
+      // ── Scene 3 (8.35–13.6): answer lands, cam pushes to the answer column, rings + badges ──
+      tl.fromTo(
+        "#p03-img-answer",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power1.out" },
+        8.35
+      );
+      tl.fromTo(
+        "#p03-cam",
+        { x: -65, y: -20, scale: 1.1 },
+        {
+          x: -337,
+          y: -80,
+          scale: 1.45,
+          duration: 1.1,
+          ease: "power3.inOut",
+          force3D: false,
+          immediateRender: false,
+        },
+        8.35
+      );
+      const RING_IN = (sel, at) =>
+        tl.fromTo(
+          sel,
+          { opacity: 0, scale: 0.9, transformOrigin: "50% 50%" },
+          { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+          at
+        );
+      const BADGE_IN = (sel, at) =>
+        tl.fromTo(
+          sel,
+          { opacity: 0, x: 40 },
+          { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" },
+          at
+        );
+      RING_IN("#p03-ring-task", 10.86);
+      BADGE_IN("#p03-badge-task", 10.96);
+      RING_IN("#p03-ring-event", 11.48);
+      BADGE_IN("#p03-badge-event", 11.58);
+      RING_IN("#p03-ring-rem", 12.78);
+      BADGE_IN("#p03-badge-rem", 12.88);
+
+      // ── Scene 4 (13.25–14.61): cursor-dot click on the task chip, popover opens ──
+      tl.fromTo(
+        "#p03-dot",
+        { opacity: 0, x: 70, y: 46 },
+        { opacity: 1, x: 0, y: 0, duration: 0.33, ease: "power3.out" },
+        13.22
+      );
+      tl.fromTo(
+        "#p03-dot",
+        { scale: 1, transformOrigin: "50% 50%" },
+        {
+          scale: 0.75,
+          duration: 0.07,
+          ease: "power2.out",
+          immediateRender: false,
+        },
+        13.6
+      );
+      tl.to("#p03-dot", { scale: 1, duration: 0.2, ease: "power3.out" }, 13.67);
+      tl.fromTo(
+        "#p03-ripple",
+        { opacity: 0, scale: 0.6, transformOrigin: "50% 50%" },
+        { opacity: 0.8, scale: 1, duration: 0.06, ease: "none" },
+        13.6
+      );
+      tl.to(
+        "#p03-ripple",
+        { opacity: 0, scale: 2.1, duration: 0.55, ease: "power2.out" },
+        13.66
+      );
+      tl.fromTo(
+        "#p03-img-pop",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        13.68
+      );
+      tl.to(
+        ["#p03-ring-event", "#p03-ring-rem"],
+        { opacity: 0, duration: 0.2, ease: "power1.out" },
+        13.68
+      );
+
+      // Badge focus helper (active = full, others dimmed)
+      const FOCUS = (active, at) => {
+        ["#p03-badge-task", "#p03-badge-event", "#p03-badge-rem"].forEach(
+          (sel) => {
+            const on = sel === active;
+            tl.to(
+              sel,
+              {
+                opacity: on ? 1 : 0.42,
+                scale: on ? 1.08 : 1,
+                transformOrigin: "0% 50%",
+                duration: 0.35,
+                ease: "power2.out",
+              },
+              at
+            );
+          }
+        );
+      };
+
+      // ── Scene 5 (14.61–18.79): task list ──
+      tl.fromTo(
+        "#p03-img-tasks",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        14.61
+      );
+      tl.to(
+        ["#p03-ring-task", "#p03-dot"],
+        { opacity: 0, duration: 0.15, ease: "none" },
+        14.61
+      );
+      tl.fromTo(
+        "#p03-cam",
+        { x: -337, y: -80, scale: 1.45 },
+        {
+          x: -264,
+          y: 0,
+          scale: 1.45,
+          duration: 0.6,
+          ease: "power3.inOut",
+          force3D: false,
+          immediateRender: false,
+        },
+        14.61
+      );
+      tl.fromTo(
+        "#p03-cam",
+        { x: -264, y: 0, scale: 1.45 },
+        {
+          x: -294.5,
+          y: -8.9,
+          scale: 1.5,
+          duration: 3.5,
+          ease: "sine.inOut",
+          force3D: false,
+          immediateRender: false,
+        },
+        15.21
+      );
+      FOCUS("#p03-badge-task", 14.61);
+      RING_IN("#p03-ring-row", 15.0);
+
+      // ── Scene 6 (18.79–22.96): week calendar, zoom to Kam 22 · 10.00 ──
+      tl.fromTo(
+        "#p03-img-cal",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        18.79
+      );
+      tl.to(
+        "#p03-ring-row",
+        { opacity: 0, duration: 0.15, ease: "none" },
+        18.79
+      );
+      tl.fromTo(
+        "#p03-cam",
+        { x: -294.5, y: -8.9, scale: 1.5 },
+        {
+          x: -592,
+          y: -281,
+          scale: 1.6,
+          duration: 0.85,
+          ease: "power3.inOut",
+          force3D: false,
+          immediateRender: false,
+        },
+        18.79
+      );
+      FOCUS("#p03-badge-event", 18.79);
+      RING_IN("#p03-ring-cal", 19.3);
+
+      // ── Scene 7 (22.96–25.05): reminders, ring the row, hold ──
+      tl.fromTo(
+        "#p03-img-rem",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        22.96
+      );
+      tl.to(
+        "#p03-ring-cal",
+        { opacity: 0, duration: 0.15, ease: "none" },
+        22.96
+      );
+      tl.fromTo(
+        "#p03-cam",
+        { x: -592, y: -281, scale: 1.6 },
+        {
+          x: -260,
+          y: 0,
+          scale: 1.45,
+          duration: 0.6,
+          ease: "power3.inOut",
+          force3D: false,
+          immediateRender: false,
+        },
+        22.96
+      );
+      FOCUS("#p03-badge-rem", 22.96);
+      RING_IN("#p03-ring-remrow", 23.2);
+
+      // One linear time proxy drives the typewriter (seek-safe).
+      const drv = { t: 0 };
+      tl.fromTo(
+        drv,
+        { t: 0 },
+        { t: D, duration: D, ease: "none", onUpdate: () => paint(drv.t) },
+        0
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["03-action"] = tl;
+    })();
+  </script>
+</template>

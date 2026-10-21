@@ -1,0 +1,468 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .p07-word {
+      display: inline-block;
+      margin: 0 0.12em;
+    }
+    .p07-phone {
+      position: absolute;
+      top: 138px;
+      width: 560px;
+      height: 750px;
+      border-radius: 54px;
+      background: #ffffff;
+      border: 1px solid var(--sy-border);
+      box-shadow: var(--sy-shadow-window);
+      padding: 14px;
+      box-sizing: border-box;
+    }
+    .p07-screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 42px;
+      overflow: hidden;
+    }
+    .p07-wa .p07-screen {
+      background: #efeae2;
+    }
+    .p07-tg .p07-screen {
+      background: #dde6ef;
+    }
+    .p07-head {
+      height: 104px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 28px 0;
+      box-sizing: border-box;
+      background: #ffffff;
+      border-bottom: 1px solid var(--sy-border);
+    }
+    .p07-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--sy-pink-08);
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+    .p07-avatar img {
+      width: 30px;
+      height: 30px;
+    }
+    .p07-name {
+      flex: 1;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--sy-ink);
+      letter-spacing: -0.01em;
+    }
+    .p07-glyph {
+      width: 40px;
+      height: 40px;
+      flex: none;
+    }
+    .p07-body {
+      padding: 30px 24px;
+    }
+    .p07-user {
+      position: relative;
+      margin-left: 64px;
+      border-radius: 20px 20px 6px 20px;
+      padding: 16px 22px 30px;
+      font-size: 25px;
+      line-height: 1.42;
+      color: #2b2730;
+      transform-origin: 100% 100%;
+    }
+    .p07-wa .p07-user {
+      background: #d9fdd3;
+    }
+    .p07-tg .p07-user {
+      background: #eef9df;
+    }
+    .p07-ticks {
+      position: absolute;
+      right: 14px;
+      bottom: 8px;
+      width: 30px;
+      height: 18px;
+      transform-origin: 50% 50%;
+    }
+    .p07-wa .p07-ticks {
+      color: #53bdeb;
+    }
+    .p07-tg .p07-ticks {
+      color: #4fae4e;
+    }
+    .p07-reply {
+      position: relative;
+      margin-top: 20px;
+      margin-right: 44px;
+      height: 250px;
+    }
+    .p07-typing {
+      position: absolute;
+      left: 0;
+      top: 0;
+      display: flex;
+      gap: 9px;
+      padding: 22px 24px;
+      border-radius: 20px 20px 20px 6px;
+      background: #ffffff;
+      transform-origin: 0% 100%;
+    }
+    .p07-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--sy-light);
+    }
+    .p07-ans {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      border-radius: 20px 20px 20px 6px;
+      padding: 18px 22px;
+      font-size: 25px;
+      line-height: 1.45;
+      color: var(--sy-ink);
+      background: #ffffff;
+      transform-origin: 0% 0%;
+    }
+    .p07-item {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .p07-item b {
+      font-weight: 700;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-unvx"
+    id="root"
+    data-composition-id="07-messaging"
+    data-width="1920"
+    data-height="1080"
+    data-duration="8.75"
+  >
+    <div
+      data-hf-id="hf-e8zo"
+      id="p07-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.75"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-1fc1"
+        id="p07-bloom-a"
+        class="sy-bloom coral"
+        style="
+          left: 120px;
+          top: 520px;
+          width: 900px;
+          height: 420px;
+          opacity: 0.22;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-3l7s"
+        id="p07-bloom-b"
+        class="sy-bloom violet"
+        style="
+          left: 1040px;
+          top: 160px;
+          width: 820px;
+          height: 420px;
+          opacity: 0.16;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-65xi"
+        class="sy-bloom amber"
+        style="
+          left: 700px;
+          top: 700px;
+          width: 620px;
+          height: 260px;
+          opacity: 0.18;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-gbrq"
+      id="p07-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.75"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-qgbf" id="p07-caption" class="sy-caption">
+        <span data-hf-id="hf-bq2m" class="p07-word">Asistenmu,</span
+        ><span data-hf-id="hf-c20a" class="p07-word">di</span
+        ><span data-hf-id="hf-ciam" class="p07-word">mana</span
+        ><span data-hf-id="hf-et7g" class="p07-word">pun</span
+        ><span data-hf-id="hf-nqtj" class="p07-word">kamu</span
+        ><span data-hf-id="hf-s6l5" class="p07-word"
+          ><em data-hf-id="hf-oecq">berada.</em></span
+        >
+      </div>
+
+      <div
+        data-hf-id="hf-s71s"
+        id="p07-wa"
+        class="p07-phone p07-wa"
+        style="left: 340px"
+      >
+        <div data-hf-id="hf-44xw" class="p07-screen">
+          <div data-hf-id="hf-bgbi" class="p07-head">
+            <div data-hf-id="hf-r3kz" class="p07-avatar">
+              <img data-hf-id="hf-iq76" src="assets/sydia-logo.svg" alt="" />
+            </div>
+            <div data-hf-id="hf-0c0t" class="p07-name">Sydia</div>
+            <img
+              data-hf-id="hf-dowv"
+              class="p07-glyph"
+              src="assets/whatsapp.svg"
+              alt=""
+            />
+          </div>
+          <div data-hf-id="hf-17uc" class="p07-body">
+            <div data-hf-id="hf-vkci" id="p07-wa-user" class="p07-user">
+              Ingatkan aku kirim proposal Aurora ke Nadia besok jam 9 pagi
+              ya<svg
+                data-hf-id="hf-jxyi"
+                id="p07-wa-ticks"
+                class="p07-ticks"
+                viewBox="0 0 30 18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path data-hf-id="hf-egyw" d="M2 10l4.5 4.5L15 4" />
+                <path data-hf-id="hf-41ku" d="M12 13l1.5 1.5L22 4" />
+              </svg>
+            </div>
+            <div data-hf-id="hf-87g4" class="p07-reply">
+              <div data-hf-id="hf-gfa1" id="p07-wa-typing" class="p07-typing">
+                <div data-hf-id="hf-p748" class="p07-dot p07-wa-d"></div>
+                <div data-hf-id="hf-h0w0" class="p07-dot p07-wa-d"></div>
+                <div data-hf-id="hf-ftyx" class="p07-dot p07-wa-d"></div>
+              </div>
+              <div data-hf-id="hf-2mhh" id="p07-wa-ans" class="p07-ans">
+                Siap, pengingatnya sudah dibuat.
+                <div data-hf-id="hf-wg3p" class="p07-item">
+                  <span data-hf-id="hf-ozax">•</span
+                  ><span data-hf-id="hf-chi9"
+                    >Kirim proposal Aurora ke Nadia — Pada 22 Okt 2026,
+                    09.00</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        data-hf-id="hf-2wv8"
+        id="p07-tg"
+        class="p07-phone p07-tg"
+        style="left: 1020px"
+      >
+        <div data-hf-id="hf-e798" class="p07-screen">
+          <div data-hf-id="hf-qama" class="p07-head">
+            <div data-hf-id="hf-ispv" class="p07-avatar">
+              <img data-hf-id="hf-jf9i" src="assets/sydia-logo.svg" alt="" />
+            </div>
+            <div data-hf-id="hf-s3qp" class="p07-name">Sydia</div>
+            <img
+              data-hf-id="hf-4xpg"
+              class="p07-glyph"
+              src="assets/telegram.svg"
+              alt=""
+            />
+          </div>
+          <div data-hf-id="hf-xiq4" class="p07-body">
+            <div data-hf-id="hf-u9kp" id="p07-tg-user" class="p07-user">
+              Ingatkan aku kirim proposal Aurora ke Nadia besok jam 9 pagi
+              ya<svg
+                data-hf-id="hf-nctt"
+                id="p07-tg-ticks"
+                class="p07-ticks"
+                viewBox="0 0 30 18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path data-hf-id="hf-b8tc" d="M2 10l4.5 4.5L15 4" />
+                <path data-hf-id="hf-yx9e" d="M12 13l1.5 1.5L22 4" />
+              </svg>
+            </div>
+            <div data-hf-id="hf-8xqk" class="p07-reply">
+              <div data-hf-id="hf-cgjw" id="p07-tg-typing" class="p07-typing">
+                <div data-hf-id="hf-i3m3" class="p07-dot p07-tg-d"></div>
+                <div data-hf-id="hf-86jv" class="p07-dot p07-tg-d"></div>
+                <div data-hf-id="hf-7s8u" class="p07-dot p07-tg-d"></div>
+              </div>
+              <div data-hf-id="hf-q84y" id="p07-tg-ans" class="p07-ans">
+                Siap, pengingatnya sudah dibuat.
+                <div data-hf-id="hf-j9p5" class="p07-item">
+                  <span data-hf-id="hf-toct">•</span
+                  ><span data-hf-id="hf-rdbw"
+                    ><b data-hf-id="hf-l9vu">Kirim proposal Aurora ke Nadia</b>
+                    — Pada 22 Okt 2026, 09.00</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    // Ambient: blooms warm slowly underneath the whole shot.
+    tl.fromTo(
+      "#p07-bloom-a",
+      { opacity: 0.12 },
+      { opacity: 0.22, duration: 4, ease: "sine.inOut" },
+      0.2
+    );
+    tl.fromTo(
+      "#p07-bloom-b",
+      { opacity: 0.08 },
+      { opacity: 0.16, duration: 4, ease: "sine.inOut" },
+      1.5
+    );
+
+    // Scene 1 (0.0–2.6s): caption per-word reveal from 0.63, then holds.
+    tl.fromTo(
+      "#p07-caption .p07-word",
+      { y: 26, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.5, ease: "power3.out", stagger: 0.11 },
+      0.63
+    );
+    // WhatsApp phone from the left on "WhatsApp" 1.98.
+    tl.fromTo(
+      "#p07-wa",
+      { x: -220, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.8, ease: "expo.out" },
+      1.9
+    );
+    // Telegram phone from the right on "Telegram" 2.79.
+    tl.fromTo(
+      "#p07-tg",
+      { x: 220, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.8, ease: "expo.out" },
+      2.71
+    );
+
+    // Scene 2 (3.0–5.0s): user bubbles pop (3.13 / 3.30), typing dots at 3.6.
+    tl.fromTo(
+      "#p07-wa-user",
+      { scale: 0.6, y: 16, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+      3.13
+    );
+    tl.fromTo(
+      "#p07-tg-user",
+      { scale: 0.6, y: 16, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+      3.3
+    );
+    tl.fromTo(
+      "#p07-wa-typing",
+      { scale: 0.6, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.3, ease: "power3.out" },
+      3.6
+    );
+    tl.fromTo(
+      "#p07-tg-typing",
+      { scale: 0.6, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.3, ease: "power3.out" },
+      3.66
+    );
+    // Typing pulse: explicit, finite dot steps (no repeat).
+    ["wa", "tg"].forEach(function (ch, ci) {
+      const dots = gsap.utils.toArray(".p07-" + ch + "-d");
+      const base = 3.66 + ci * 0.06;
+      const end = ch === "wa" ? 4.18 : 4.4;
+      for (let t = base, k = 0; t < end - 0.1; t += 0.1, k++) {
+        const d = dots[k % 3];
+        tl.fromTo(
+          d,
+          { y: 0, opacity: 0.45 },
+          { y: -6, opacity: 1, duration: 0.1, ease: "power2.out" },
+          t
+        );
+        tl.to(
+          d,
+          { y: 0, opacity: 0.45, duration: 0.12, ease: "power2.in" },
+          t + 0.1
+        );
+      }
+    });
+
+    // Scene 3 (4.18–8.35s): confirmations replace the typing bubble on the downbeat (WA 4.18, TG 4.40); ticks pop; hold.
+    tl.to(
+      "#p07-wa-typing",
+      { opacity: 0, duration: 0.12, ease: "power1.out" },
+      4.18
+    );
+    tl.fromTo(
+      "#p07-wa-ans",
+      { scale: 0.7, y: 12, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+      4.18
+    );
+    tl.fromTo(
+      "#p07-wa-ticks",
+      { scale: 0.3, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.3, ease: "power3.out" },
+      4.24
+    );
+    tl.to(
+      "#p07-tg-typing",
+      { opacity: 0, duration: 0.12, ease: "power1.out" },
+      4.4
+    );
+    tl.fromTo(
+      "#p07-tg-ans",
+      { scale: 0.7, y: 12, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+      4.4
+    );
+    tl.fromTo(
+      "#p07-tg-ticks",
+      { scale: 0.3, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.3, ease: "power3.out" },
+      4.46
+    );
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["07-messaging"] = tl;
+  </script>
+</template>

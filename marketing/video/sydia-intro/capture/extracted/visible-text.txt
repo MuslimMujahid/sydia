@@ -1,0 +1,22 @@
+SYDIA — app copy captured from the running local app (Bahasa Indonesia UI), 20 Oct 2026.
+
+Navigation: Chat baru · Kalender · Catatan · File · Lainnya · Percakapan
+Empty chat: "Ingin melakukan apa hari ini?" · composer placeholder "Tulis pesan atau lampirkan file..."
+
+HERO — natural-language document search (real run):
+User: "Dokumen sewa apartemen aku yang tahun lalu mana ya? Uang jaminannya berapa?"
+Working states: "Sydia sedang menyiapkan jawaban…" → "Sydia sedang menampilkan file…"
+Sydia: "Dokumennya [Kontrak Sewa Apartemen Cendana Residence.pdf] — nomor 017/CR-SEWA/X/2025, Tower B Unit 12-07, Jakarta Selatan.
+Uang jaminannya Rp 13.000.000, dikembalikan paling lambat 14 hari setelah masa sewa berakhir, dikurangi biaya kerusakan bila ada."
+Sumber: Kontrak Sewa Apartemen Cendana Residence.pdf · halaman 1
+
+FEATURE runs (real):
+User: "Ingatkan aku bayar listrik tiap tanggal 25 jam 9 pagi ya" → "Siap, pengingatnya sudah dibuat. [Bayar listrik] — Pada 25 Okt 2026, 09.00 · bulanan"
+User: "Tambahin tugas: kirim draft materi kampanye ke tim, tenggatnya Jumat ini" → "Siap, tugasnya sudah dibuat. [Kirim draft materi kampanye ke tim] — Tenggat 23 Okt 2026, 17.00"
+User: "Besok jam 2 siang meeting sama Pak Budi bahas kampanye Q4, masukin ke kalender ya" → "Siap, acara sudah disimpan di Sydia. [Meeting dengan Pak Budi — bahas kampanye Q4] — 21 Okt 2026, 14.00–15.00"
+User: "Catat ya: ide kado ulang tahun Ibu — tas batik sama voucher spa" → "Baik, sudah dicatat di catatan harian hari ini."
+
+Files page: File saya — 6 item: E-Tiket Jakarta - Denpasar Desember.pdf · Invoice Servis Mobil Agustus 2026.pdf · Kontrak Sewa Apartemen Cendana Residence.pdf · Notulen Rapat Tim Produk Q4.pdf · Polis Asuransi Kesehatan Keluarga 2026.pdf · Resep Rendang Ibu.pdf (status "Siap")
+Channels: Web chat · Telegram · WhatsApp (same assistant, same answer)
+
+PRODUCT (docs/Sydia_PRD.md): Sydia is a chat-first personal productivity and memory SaaS for Indonesian users. One WhatsApp assistant + web dashboard. "Users should not need to open multiple productivity applications or manually organize information." Personal information is fragmented across chats, notes, calendars, task managers, cloud files, screenshots, and voice notes.

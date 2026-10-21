@@ -1,0 +1,437 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f06-win {
+      left: 120px;
+      top: 90px;
+      width: 1180px;
+      height: 738px;
+    }
+    .f06-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1180px;
+      height: 738px;
+      transform-origin: 0 0;
+    }
+    .f06-cam img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1180px;
+      height: 738px;
+    }
+    /* live spinner: a circular crop of the real status plate, rotated about the app's own loader icon */
+    .f06-spin {
+      position: absolute;
+      left: 405.5px;
+      top: 164.5px;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      overflow: hidden;
+    }
+    #f06-spin img {
+      left: -405.5px;
+      top: -164.5px;
+    }
+    .f06-hl {
+      position: absolute;
+      border-radius: 20px;
+      border: 2.5px solid var(--sy-pink);
+      box-shadow: 0 0 0 6px rgba(239, 90, 138, 0.16);
+    }
+    .f06-ul {
+      position: absolute;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--sy-aurora-text);
+    }
+    .f06-side {
+      position: absolute;
+      left: 1350px;
+      width: 470px;
+      padding: 26px 30px;
+    }
+    .f06-k {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #c64a72;
+      margin-bottom: 14px;
+    }
+    .f06-doc {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+      color: #5a19c9;
+    }
+    .f06-doc svg {
+      width: 40px;
+      height: 40px;
+      flex: none;
+      margin-top: 2px;
+    }
+    .f06-money {
+      white-space: nowrap;
+      font-size: 58px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .f06-src {
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--sy-ink);
+    }
+    .f06-src span {
+      color: var(--sy-muted);
+      font-weight: 500;
+    }
+    .f06-page {
+      display: inline-block;
+      transform-origin: 0% 60%;
+    }
+    .f06-badge {
+      position: absolute;
+      left: 860px;
+      top: 272px;
+      font-size: 26px;
+    }
+    .f06-badge svg {
+      width: 26px;
+      height: 26px;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-9o75"
+    id="root"
+    data-composition-id="06-found"
+    data-width="1920"
+    data-height="1080"
+    data-duration="10.938"
+  >
+    <div
+      data-hf-id="hf-t906"
+      id="f06-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.938"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-06e1"
+        class="sy-bloom violet"
+        style="
+          left: 1300px;
+          top: 120px;
+          width: 620px;
+          height: 640px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-80tr"
+        class="sy-bloom amber"
+        style="
+          left: 40px;
+          top: 620px;
+          width: 640px;
+          height: 420px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-2ajo"
+      id="f06-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.938"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-mj87" id="f06-win" class="sy-window f06-win">
+        <div data-hf-id="hf-m5gy" id="f06-cam" class="f06-cam">
+          <img
+            data-hf-id="hf-ru99"
+            id="f06-prep"
+            src="assets/hero-02-preparing.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-74kk"
+            id="f06-show"
+            src="assets/hero-03-showing-file.png"
+            alt=""
+          />
+          <div data-hf-id="hf-vg32" id="f06-spin" class="f06-spin">
+            <img
+              data-hf-id="hf-ijqf"
+              src="assets/hero-02-preparing.png"
+              alt=""
+            />
+          </div>
+          <img
+            data-hf-id="hf-l7a0"
+            id="f06-shot"
+            src="assets/hero-04-answer.png"
+            alt=""
+          />
+          <div
+            data-hf-id="hf-vlv6"
+            id="f06-hl-doc"
+            class="f06-hl"
+            style="left: 492px; top: 160px; width: 310px; height: 32px"
+          ></div>
+          <div
+            data-hf-id="hf-vj8x"
+            id="f06-ul-money"
+            class="f06-ul"
+            style="left: 516px; top: 236px; width: 92px"
+          ></div>
+          <div
+            data-hf-id="hf-l590"
+            id="f06-hl-src"
+            class="f06-hl"
+            style="left: 402px; top: 305px; width: 344px; height: 31px"
+          ></div>
+        </div>
+      </div>
+      <span data-hf-id="hf-p3lu" id="f06-badge" class="sy-stamp f06-badge"
+        ><svg
+          data-hf-id="hf-085v"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path data-hf-id="hf-2q26" d="M20 6 9 17l-5-5" /></svg
+        >Ketemu</span
+      >
+
+      <div
+        data-hf-id="hf-hu3z"
+        id="f06-c1"
+        class="sy-card f06-side"
+        style="top: 150px"
+      >
+        <div data-hf-id="hf-5x23" class="f06-k">Dokumen</div>
+        <div data-hf-id="hf-5yj4" class="f06-doc">
+          <svg
+            data-hf-id="hf-h0hq"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-obz5"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-gpnr" d="M14 2v4a2 2 0 0 0 2 2h4" />
+            <path data-hf-id="hf-eoqm" d="M16 13H8" />
+            <path data-hf-id="hf-bfay" d="M16 17H8" /></svg
+          >Kontrak Sewa Apartemen Cendana Residence.pdf
+        </div>
+      </div>
+      <div
+        data-hf-id="hf-4dxf"
+        id="f06-c2"
+        class="sy-card f06-side"
+        style="top: 395px"
+      >
+        <div data-hf-id="hf-tctt" class="f06-k">Uang jaminan</div>
+        <div
+          data-hf-id="hf-r11z"
+          id="f06-money"
+          class="f06-money sy-aurora-text"
+        >
+          Rp 13.000.000
+        </div>
+      </div>
+      <div
+        data-hf-id="hf-q7ct"
+        id="f06-c3"
+        class="sy-card f06-side"
+        style="top: 600px"
+      >
+        <div data-hf-id="hf-1tms" class="f06-k">Sumber</div>
+        <div data-hf-id="hf-vo1k" class="f06-src">
+          Kontrak Sewa Apartemen <span data-hf-id="hf-1bmq">·</span>
+          <span data-hf-id="hf-w3wm" id="f06-page" class="f06-page"
+            >halaman 1</span
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const D = 10.438;
+      const tl = gsap.timeline({ paused: true });
+
+      // Camera — static at the approved landed framing (no CSS transform on the element).
+      tl.set(
+        "#f06-cam",
+        {
+          x: -402,
+          y: -18.5,
+          scale: 1.55,
+          transformOrigin: "0 0",
+          immediateRender: true,
+        },
+        0
+      );
+
+      // ── Scene 1 (0.0–2.0s): working theater on the real status plates ──
+      // The app's own loader icon spins (1 rev/s, like the app); dies when the answer lands.
+      const SPIN_END = 2.34;
+      tl.fromTo(
+        "#f06-spin",
+        { rotation: 0, transformOrigin: "50% 50%" },
+        { rotation: 360 * SPIN_END, duration: SPIN_END, ease: "none" },
+        0
+      );
+      // "menyiapkan jawaban…" → "menampilkan file…" on "detik"
+      tl.fromTo(
+        "#f06-show",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.15, ease: "none" },
+        0.98
+      );
+
+      // ── Scene 2 (2.09–3.3s): the answer lands, doc ring + "Ketemu" stamp ──
+      tl.fromTo(
+        "#f06-shot",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        2.09
+      );
+      tl.fromTo(
+        "#f06-hl-doc",
+        { opacity: 0, scale: 0.9, transformOrigin: "50% 50%" },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" },
+        2.48
+      );
+      tl.fromTo(
+        "#f06-badge",
+        { opacity: 0, scale: 0.6, transformOrigin: "50% 100%" },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" },
+        2.62
+      );
+
+      // ── Scene 3 (3.0–6.6s): document card, money underline, deposit count-up ──
+      tl.fromTo(
+        "#f06-c1",
+        { opacity: 0, x: 80 },
+        { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" },
+        3.0
+      );
+      tl.fromTo(
+        "#f06-ul-money",
+        { scaleX: 0, transformOrigin: "0% 50%" },
+        { scaleX: 1, duration: 0.55, ease: "power2.inOut" },
+        3.92
+      );
+      tl.fromTo(
+        "#f06-c2",
+        { opacity: 0, y: 50 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" },
+        4.18
+      );
+
+      const COUNT_AT = 4.3;
+      const COUNT_DUR = 2.0; // lands exactly at 6.30 ("rupiah")
+      const COUNT_EASE_NAME = "power2.out";
+      const countEase = gsap.parseEase(COUNT_EASE_NAME);
+      tl.fromTo(
+        "#f06-money",
+        { scale: 0.6, transformOrigin: "0% 50%" },
+        { scale: 1, duration: COUNT_DUR, ease: COUNT_EASE_NAME },
+        COUNT_AT
+      );
+
+      // ── Scene 4 (7.2–10.44s): source ring, source card, "halaman 1" glow ──
+      tl.fromTo(
+        "#f06-hl-src",
+        { opacity: 0, scale: 0.9, transformOrigin: "50% 50%" },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" },
+        7.47
+      );
+      tl.fromTo(
+        "#f06-c3",
+        { opacity: 0, y: 50 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" },
+        8.35
+      );
+
+      // One linear driver renders every time-derived text/glow state (seek-safe).
+      const money = document.getElementById("f06-money");
+      const page = document.getElementById("f06-page");
+      const fmtRp = (n) =>
+        "Rp " + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+      const GLOW = { start: 8.7, end: 9.55 };
+      const ATTACK = 0.2;
+      const RELEASE = 0.5;
+      const REST = 0.2;
+      const MAX_BLUR = 32;
+      const MAX_SCALE_BOOST = 0.15;
+      const REST_RGB = { r: 107, g: 100, b: 112 };
+      const PINK_RGB = { r: 239, g: 90, b: 138 };
+      const lerp = (a, b, k) => Math.round(a + (b - a) * k);
+      const envelope = (t, start, end) => {
+        if (t < start) return 0;
+        if (t < end) return Math.min((t - start) / ATTACK, 1);
+        if (t < end + RELEASE) return 1 - ((t - end) / RELEASE) * (1 - REST);
+        return REST;
+      };
+
+      let lastMoney = "";
+      const render = (t) => {
+        const p = Math.min(Math.max((t - COUNT_AT) / COUNT_DUR, 0), 1);
+        const text = fmtRp(Math.round(13000 * countEase(p)) * 1000);
+        if (text !== lastMoney) {
+          money.textContent = text;
+          lastMoney = text;
+        }
+        const env = envelope(t, GLOW.start, GLOW.end);
+        page.style.color = `rgb(${lerp(REST_RGB.r, PINK_RGB.r, env)}, ${lerp(REST_RGB.g, PINK_RGB.g, env)}, ${lerp(REST_RGB.b, PINK_RGB.b, env)})`;
+        page.style.textShadow = `0 0 ${(MAX_BLUR * env).toFixed(2)}px rgba(239, 90, 138, ${(0.85 * env).toFixed(3)})`;
+        page.style.transform = `scale(${(1 + MAX_SCALE_BOOST * env).toFixed(4)})`;
+      };
+
+      const drv = { t: 0 };
+      tl.fromTo(
+        drv,
+        { t: 0 },
+        { t: D, duration: D, ease: "none", onUpdate: () => render(drv.t) },
+        0
+      );
+      render(0);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["06-found"] = tl;
+    })();
+  </script>
+</template>

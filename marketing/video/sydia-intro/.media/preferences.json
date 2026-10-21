@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "preferences": {
+    "destination": {
+      "value": "website",
+      "confirmed_in": ["sydia-intro"],
+      "updated_at": "2026-10-20T03:56:39.519Z"
+    },
+    "aspect": {
+      "value": "1920x1080",
+      "confirmed_in": ["sydia-intro"],
+      "updated_at": "2026-10-20T03:56:39.648Z"
+    },
+    "language": {
+      "value": "id",
+      "confirmed_in": ["sydia-intro"],
+      "updated_at": "2026-10-20T03:56:39.962Z"
+    },
+    "flow": {
+      "value": "automation",
+      "confirmed_in": ["sydia-intro"],
+      "updated_at": "2026-10-20T03:56:40.044Z"
+    },
+    "storyboard": {
+      "value": "yes",
+      "confirmed_in": ["sydia-intro"],
+      "updated_at": "2026-10-20T03:56:40.121Z"
+    },
+    "voice": {
+      "value": "8507f6910b7e409b85f0f2bdb4d637a6",
+      "confirmed_in": ["sydia-intro"],
+      "updated_at": "2026-10-20T05:08:37.533Z"
+    }
+  },
+  "sightings": {}
+}

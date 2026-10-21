@@ -1,0 +1,353 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f05-win {
+      left: 280px;
+      top: 40px;
+      width: 1360px;
+      height: 850px;
+    }
+    .f05-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1360px;
+      height: 850px;
+      transform-origin: 0 0;
+    }
+    .f05-cam img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1360px;
+      height: 850px;
+    }
+    .f05-pill {
+      position: absolute;
+      left: 196px;
+      top: 70px;
+      padding: 12px 26px;
+      border-radius: 9999px;
+      background: var(--sy-surface);
+      box-shadow: var(--sy-shadow-card);
+      border: 1px solid var(--sy-border);
+    }
+
+    /* Composer overlays, in window coordinates (2880x1800 screenshot drawn at 1360x850; 1 CSS px = 0.9444 window px). */
+    .f05-patch {
+      position: absolute;
+      left: 495px;
+      top: 391px;
+      width: 625px;
+      height: 29px;
+      background: #f1f1f1;
+    }
+    .f05-type {
+      position: absolute;
+      left: 497.8px;
+      top: 394.6px;
+      width: 620px;
+      height: 22.667px;
+      font-size: 14.1667px;
+      line-height: 22.667px;
+      font-weight: 400;
+      color: #171419;
+      white-space: pre;
+    }
+    .f05-caret {
+      display: inline-block;
+      width: 1.1px;
+      height: 17.9px;
+      margin-left: 0.5px;
+      vertical-align: -3.8px;
+      border-radius: 0.6px;
+      background: var(--sy-pink);
+    }
+    .f05-send,
+    .f05-ring {
+      position: absolute;
+      left: 1130.25px;
+      top: 389.85px;
+      width: 32.1px;
+      height: 32.1px;
+      border-radius: 50%;
+    }
+    .f05-send {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: var(--sy-aurora);
+      box-shadow:
+        rgba(240, 102, 148, 0.3) 0 9px 22px -9px,
+        rgba(140, 92, 255, 0.22) 0 5px 16px -7px;
+    }
+    .f05-send::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: var(--sy-grain);
+      background-size: 60px 60px;
+      opacity: 0.3;
+      mix-blend-mode: multiply;
+    }
+    .f05-send svg {
+      position: relative;
+      z-index: 1;
+      width: 15.11px;
+      height: 15.11px;
+    }
+    .f05-ring {
+      box-sizing: border-box;
+      border: 1.4px solid rgba(239, 90, 138, 0.75);
+      background: rgba(239, 90, 138, 0.1);
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-b5oc"
+    id="root"
+    data-composition-id="05-ask"
+    data-width="1920"
+    data-height="1080"
+    data-duration="8.35"
+  >
+    <div
+      data-hf-id="hf-mnfs"
+      id="f05-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.35"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-s602"
+        id="f05-bloom-coral"
+        class="sy-bloom coral"
+        style="
+          left: 180px;
+          top: 520px;
+          width: 700px;
+          height: 460px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-q834"
+        id="f05-bloom-violet"
+        class="sy-bloom violet"
+        style="
+          left: 1160px;
+          top: -80px;
+          width: 700px;
+          height: 460px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-unmi"
+      id="f05-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.35"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-mso1" id="f05-win" class="sy-window f05-win">
+        <div data-hf-id="hf-8epc" id="f05-cam" class="f05-cam">
+          <img
+            data-hf-id="hf-8aoc"
+            id="f05-shot"
+            src="assets/hero-00-empty.png"
+            alt=""
+          />
+          <div data-hf-id="hf-b7x6" id="f05-patch" class="f05-patch"></div>
+          <div data-hf-id="hf-9raa" id="f05-type" class="f05-type">
+            <span data-hf-id="hf-91cm" id="f05-typed"></span
+            ><span data-hf-id="hf-j1it" id="f05-caret" class="f05-caret"></span>
+          </div>
+          <div data-hf-id="hf-o1k6" id="f05-halo" class="f05-ring"></div>
+          <div data-hf-id="hf-gr0i" id="f05-ripple" class="f05-ring"></div>
+          <div data-hf-id="hf-rvb6" id="f05-send" class="f05-send">
+            <svg
+              data-hf-id="hf-3xkb"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ffffff"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-wubm"
+                d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"
+              />
+              <path data-hf-id="hf-kzdh" d="M6 12h16" />
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div data-hf-id="hf-fw2t" id="f05-pill" class="sy-eyebrow f05-pill">
+        Cukup tanya
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const DUR = 8.35;
+
+      // Typed query: [time, chars visible]. Each word lands as the VO speaks it;
+      // "mana ya?" completes at 6.40, "Uang jaminannya berapa?" by 6.90.
+      const QUERY =
+        "Dokumen sewa apartemen aku yang tahun lalu mana ya? Uang jaminannya berapa?";
+      const KEYS = [
+        [3.5, 0],
+        [4.02, 8],
+        [4.42, 13],
+        [4.9, 23],
+        [5.2, 27],
+        [5.4, 32],
+        [5.68, 38],
+        [6.02, 43],
+        [6.27, 48],
+        [6.4, 51],
+        [6.9, QUERY.length],
+      ];
+      const CARET_ON = 3.25;
+      const BLINK_FROM = 6.95;
+      const BLINK_HALF = 0.53;
+
+      const typedEl = document.getElementById("f05-typed");
+      const caretEl = document.getElementById("f05-caret");
+      const patchEl = document.getElementById("f05-patch");
+
+      function charsAt(t) {
+        if (t <= KEYS[0][0]) return 0;
+        for (let i = 1; i < KEYS.length; i++) {
+          if (t < KEYS[i][0]) {
+            const t0 = KEYS[i - 1][0];
+            const c0 = KEYS[i - 1][1];
+            const t1 = KEYS[i][0];
+            const c1 = KEYS[i][1];
+            return Math.floor(c0 + ((c1 - c0) * (t - t0)) / (t1 - t0));
+          }
+        }
+        return QUERY.length;
+      }
+
+      function caretAt(t) {
+        if (t < CARET_ON) return 0;
+        if (t < BLINK_FROM) return 1;
+        return Math.floor((t - BLINK_FROM) / BLINK_HALF) % 2 === 0 ? 1 : 0;
+      }
+
+      // Pure function of time: text slice, caret, placeholder cover.
+      function paint(t) {
+        const n = charsAt(t);
+        typedEl.textContent = QUERY.slice(0, n);
+        caretEl.style.opacity = String(caretAt(t));
+        patchEl.style.opacity = n > 0 ? "1" : "0";
+      }
+      paint(0);
+
+      // Scene 1: window rises into place; pill pops on "tanya".
+      tl.fromTo(
+        "#f05-win",
+        { y: 70, opacity: 0 },
+        { y: 0, opacity: 1, duration: 1.1, ease: "power3.out" },
+        0
+      );
+      tl.fromTo(
+        "#f05-pill",
+        { opacity: 0, scale: 0.6 },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" },
+        0.64
+      );
+      tl.fromTo(
+        "#f05-bloom-coral",
+        { x: 0, y: 0 },
+        { x: 60, y: -20, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+      tl.fromTo(
+        "#f05-bloom-violet",
+        { x: 0, y: 0 },
+        { x: -60, y: 24, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+
+      // Scene 2: coordinate-target zoom onto the composer, landing on the approved framing.
+      tl.fromTo(
+        "#f05-cam",
+        { x: 0, y: 0, scale: 1, transformOrigin: "0 0" },
+        {
+          x: -855,
+          y: -346,
+          scale: 1.9,
+          transformOrigin: "0 0",
+          duration: 1.2,
+          ease: "power3.inOut",
+          force3D: false,
+        },
+        2.09
+      );
+
+      // Scene 3: typing driver (time proxy, seek-safe).
+      const drv = { t: 0 };
+      tl.to(
+        drv,
+        { t: DUR, duration: DUR, ease: "none", onUpdate: () => paint(drv.t) },
+        0
+      );
+
+      // Scene 4: send turns active with a pulse, pressed on the 7.30 beat with a ripple.
+      tl.fromTo(
+        "#f05-send",
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" },
+        6.9
+      );
+      tl.fromTo(
+        "#f05-halo",
+        { opacity: 0, scale: 1 },
+        { opacity: 0.55, scale: 1.1, duration: 0.08, ease: "none" },
+        6.95
+      );
+      tl.to(
+        "#f05-halo",
+        { opacity: 0, scale: 1.5, duration: 0.5, ease: "power2.out" },
+        7.03
+      );
+      tl.to(
+        "#f05-send",
+        { scale: 0.86, duration: 0.09, ease: "power2.out" },
+        7.3
+      );
+      tl.to("#f05-send", { scale: 1, duration: 0.4, ease: "power3.out" }, 7.39);
+      tl.fromTo(
+        "#f05-ripple",
+        { opacity: 0, scale: 1 },
+        { opacity: 0.65, scale: 1.12, duration: 0.06, ease: "none" },
+        7.3
+      );
+      tl.to(
+        "#f05-ripple",
+        { opacity: 0, scale: 1.9, duration: 0.6, ease: "power2.out" },
+        7.36
+      );
+
+      window.__timelines["05-ask"] = tl;
+    })();
+  </script>
+</template>

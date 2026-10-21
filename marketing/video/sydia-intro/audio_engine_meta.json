@@ -1,0 +1,697 @@
+{
+  "tts_provider": "heygen",
+  "voice_id": "8507f6910b7e409b85f0f2bdb4d637a6",
+  "bgm": {
+    "path": "assets/bgm/track.mp3",
+    "volume": 0.12,
+    "query": "upbeat energetic modern pop electronic, bright and positive, driving beat around 120 BPM, punchy drop, no vocals",
+    "mode": "retrieve",
+    "duration_s": 29
+  },
+  "bgm_pending": false,
+  "bgm_provider": "heygen",
+  "bgm_pid": null,
+  "bgm_log": null,
+  "bgm_mode": "retrieve",
+  "bgm_target_duration_s": null,
+  "bgm_seed_duration_s": null,
+  "bgm_loop_count": null,
+  "voices": [
+    {
+      "id": "01",
+      "path": "assets/voice/01.wav",
+      "duration_s": 8.176,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Chat",
+          "start": 0.299,
+          "end": 0.5547
+        },
+        {
+          "id": "w1",
+          "text": "penting",
+          "start": 0.768,
+          "end": 1.1947
+        },
+        {
+          "id": "w2",
+          "text": "di",
+          "start": 1.28,
+          "end": 1.408
+        },
+        {
+          "id": "w3",
+          "text": "WhatsApp.",
+          "start": 1.451,
+          "end": 2.24
+        },
+        {
+          "id": "w4",
+          "text": "Kontrak",
+          "start": 2.56,
+          "end": 3.1147
+        },
+        {
+          "id": "w5",
+          "text": "di",
+          "start": 3.243,
+          "end": 3.3707
+        },
+        {
+          "id": "w6",
+          "text": "email.",
+          "start": 3.413,
+          "end": 4.053
+        },
+        {
+          "id": "w7",
+          "text": "Jadwal",
+          "start": 4.608,
+          "end": 5.12
+        },
+        {
+          "id": "w8",
+          "text": "di",
+          "start": 5.163,
+          "end": 5.2907
+        },
+        {
+          "id": "w9",
+          "text": "kalender.",
+          "start": 5.333,
+          "end": 5.952
+        },
+        {
+          "id": "w10",
+          "text": "Catatan…",
+          "start": 6.315,
+          "end": 6.955
+        },
+        {
+          "id": "w11",
+          "text": "entah",
+          "start": 7.125,
+          "end": 7.4667
+        },
+        {
+          "id": "w12",
+          "text": "di",
+          "start": 7.509,
+          "end": 7.5947
+        },
+        {
+          "id": "w13",
+          "text": "mana.",
+          "start": 7.637,
+          "end": 7.9826303854875285
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "path": "assets/voice/03.wav",
+      "duration_s": 6.687,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Dan",
+          "start": 0.299,
+          "end": 0.469
+        },
+        {
+          "id": "w1",
+          "text": "pas",
+          "start": 0.555,
+          "end": 0.6827
+        },
+        {
+          "id": "w2",
+          "text": "butuh",
+          "start": 0.725,
+          "end": 0.981
+        },
+        {
+          "id": "w3",
+          "text": "satu",
+          "start": 1.024,
+          "end": 1.28
+        },
+        {
+          "id": "w4",
+          "text": "dokumen",
+          "start": 1.323,
+          "end": 1.664
+        },
+        {
+          "id": "w5",
+          "text": "penting?",
+          "start": 1.707,
+          "end": 2.432
+        },
+        {
+          "id": "w6",
+          "text": "Scroll,",
+          "start": 2.773,
+          "end": 3.413
+        },
+        {
+          "id": "w7",
+          "text": "buka",
+          "start": 3.584,
+          "end": 3.8827
+        },
+        {
+          "id": "w8",
+          "text": "folder,",
+          "start": 3.925,
+          "end": 4.459
+        },
+        {
+          "id": "w9",
+          "text": "cari",
+          "start": 4.608,
+          "end": 4.864
+        },
+        {
+          "id": "w10",
+          "text": "lagi…",
+          "start": 4.907,
+          "end": 5.397
+        },
+        {
+          "id": "w11",
+          "text": "nggak",
+          "start": 5.589,
+          "end": 5.8027
+        },
+        {
+          "id": "w12",
+          "text": "ketemu",
+          "start": 5.845,
+          "end": 6.1867
+        },
+        {
+          "id": "w13",
+          "text": "juga.",
+          "start": 6.187,
+          "end": 6.634603174603175
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "path": "assets/voice/04.wav",
+      "duration_s": 7.811,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Kenalin,",
+          "start": 0.299,
+          "end": 0.981
+        },
+        {
+          "id": "w1",
+          "text": "Sydia",
+          "start": 1.237,
+          "end": 1.792
+        },
+        {
+          "id": "w2",
+          "text": "—",
+          "start": 1.806,
+          "end": 1.82
+        },
+        {
+          "id": "w3",
+          "text": "asisten",
+          "start": 1.835,
+          "end": 2.2187
+        },
+        {
+          "id": "w4",
+          "text": "pribadi",
+          "start": 2.261,
+          "end": 2.731
+        },
+        {
+          "id": "w5",
+          "text": "yang",
+          "start": 2.773,
+          "end": 2.8587
+        },
+        {
+          "id": "w6",
+          "text": "ngumpulin",
+          "start": 2.901,
+          "end": 3.2427
+        },
+        {
+          "id": "w7",
+          "text": "chat,",
+          "start": 3.328,
+          "end": 3.797
+        },
+        {
+          "id": "w8",
+          "text": "dokumen,",
+          "start": 4.053,
+          "end": 4.821
+        },
+        {
+          "id": "w9",
+          "text": "jadwal,",
+          "start": 5.035,
+          "end": 5.803
+        },
+        {
+          "id": "w10",
+          "text": "dan",
+          "start": 6.016,
+          "end": 6.229
+        },
+        {
+          "id": "w11",
+          "text": "catatanmu",
+          "start": 6.272,
+          "end": 6.869
+        },
+        {
+          "id": "w12",
+          "text": "jadi",
+          "start": 7.04,
+          "end": 7.253
+        },
+        {
+          "id": "w13",
+          "text": "satu.",
+          "start": 7.296,
+          "end": 7.595
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "path": "assets/voice/05.wav",
+      "duration_s": 6.74,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Cukup",
+          "start": 0.299,
+          "end": 0.597
+        },
+        {
+          "id": "w1",
+          "text": "tanya,",
+          "start": 0.64,
+          "end": 1.237
+        },
+        {
+          "id": "w2",
+          "text": "kayak",
+          "start": 1.493,
+          "end": 1.749
+        },
+        {
+          "id": "w3",
+          "text": "ngobrol",
+          "start": 1.792,
+          "end": 2.133
+        },
+        {
+          "id": "w4",
+          "text": "sama",
+          "start": 2.219,
+          "end": 2.3467
+        },
+        {
+          "id": "w5",
+          "text": "teman:",
+          "start": 2.475,
+          "end": 3.2
+        },
+        {
+          "id": "w6",
+          "text": "dokumen",
+          "start": 3.627,
+          "end": 4.1387
+        },
+        {
+          "id": "w7",
+          "text": "sewa",
+          "start": 4.181,
+          "end": 4.5227
+        },
+        {
+          "id": "w8",
+          "text": "apartemen",
+          "start": 4.565,
+          "end": 4.992
+        },
+        {
+          "id": "w9",
+          "text": "aku",
+          "start": 5.035,
+          "end": 5.291
+        },
+        {
+          "id": "w10",
+          "text": "yang",
+          "start": 5.333,
+          "end": 5.4187
+        },
+        {
+          "id": "w11",
+          "text": "tahun",
+          "start": 5.504,
+          "end": 5.717
+        },
+        {
+          "id": "w12",
+          "text": "lalu",
+          "start": 5.803,
+          "end": 6.101
+        },
+        {
+          "id": "w13",
+          "text": "mana",
+          "start": 6.144,
+          "end": 6.357
+        },
+        {
+          "id": "w14",
+          "text": "ya?",
+          "start": 6.4,
+          "end": 6.528
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "path": "assets/voice/06.wav",
+      "duration_s": 9.482,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Dalam",
+          "start": 0.299,
+          "end": 0.5547
+        },
+        {
+          "id": "w1",
+          "text": "hitungan",
+          "start": 0.64,
+          "end": 0.9387
+        },
+        {
+          "id": "w2",
+          "text": "detik,",
+          "start": 0.981,
+          "end": 1.429
+        },
+        {
+          "id": "w3",
+          "text": "Sydia",
+          "start": 1.579,
+          "end": 2.0907
+        },
+        {
+          "id": "w4",
+          "text": "nemuin",
+          "start": 2.133,
+          "end": 2.432
+        },
+        {
+          "id": "w5",
+          "text": "dokumennya.",
+          "start": 2.475,
+          "end": 3.2
+        },
+        {
+          "id": "w6",
+          "text": "Uang",
+          "start": 3.371,
+          "end": 3.84
+        },
+        {
+          "id": "w7",
+          "text": "jaminannya?",
+          "start": 3.925,
+          "end": 4.821
+        },
+        {
+          "id": "w8",
+          "text": "Tiga",
+          "start": 5.12,
+          "end": 5.376
+        },
+        {
+          "id": "w9",
+          "text": "belas",
+          "start": 5.419,
+          "end": 5.632
+        },
+        {
+          "id": "w10",
+          "text": "juta",
+          "start": 5.717,
+          "end": 5.973
+        },
+        {
+          "id": "w11",
+          "text": "rupiah",
+          "start": 6.016,
+          "end": 6.357
+        },
+        {
+          "id": "w12",
+          "text": "—",
+          "start": 6.428,
+          "end": 6.5
+        },
+        {
+          "id": "w13",
+          "text": "lengkap",
+          "start": 6.571,
+          "end": 7.168
+        },
+        {
+          "id": "w14",
+          "text": "dengan",
+          "start": 7.211,
+          "end": 7.424
+        },
+        {
+          "id": "w15",
+          "text": "sumbernya,",
+          "start": 7.467,
+          "end": 8.149
+        },
+        {
+          "id": "w16",
+          "text": "sampai",
+          "start": 8.32,
+          "end": 8.661
+        },
+        {
+          "id": "w17",
+          "text": "halamannya.",
+          "start": 8.704,
+          "end": 9.432789115646258
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "path": "assets/voice/07.wav",
+      "duration_s": 5.146,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Nggak",
+          "start": 0.299,
+          "end": 0.469
+        },
+        {
+          "id": "w1",
+          "text": "perlu",
+          "start": 0.512,
+          "end": 0.8107
+        },
+        {
+          "id": "w2",
+          "text": "hafal",
+          "start": 0.853,
+          "end": 1.1947
+        },
+        {
+          "id": "w3",
+          "text": "nama",
+          "start": 1.28,
+          "end": 1.493
+        },
+        {
+          "id": "w4",
+          "text": "file.",
+          "start": 1.536,
+          "end": 2.069
+        },
+        {
+          "id": "w5",
+          "text": "Nggak",
+          "start": 2.389,
+          "end": 2.6027
+        },
+        {
+          "id": "w6",
+          "text": "perlu",
+          "start": 2.645,
+          "end": 2.901
+        },
+        {
+          "id": "w7",
+          "text": "ingat",
+          "start": 2.944,
+          "end": 3.2
+        },
+        {
+          "id": "w8",
+          "text": "foldernya.",
+          "start": 3.243,
+          "end": 4.032
+        },
+        {
+          "id": "w9",
+          "text": "Tanya",
+          "start": 4.267,
+          "end": 4.608
+        },
+        {
+          "id": "w10",
+          "text": "aja.",
+          "start": 4.608,
+          "end": 4.917
+        }
+      ]
+    },
+    {
+      "id": "09",
+      "path": "assets/voice/09.wav",
+      "duration_s": 3.736,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Semuanya",
+          "start": 0.299,
+          "end": 0.8107
+        },
+        {
+          "id": "w1",
+          "text": "otomatis",
+          "start": 0.853,
+          "end": 1.365
+        },
+        {
+          "id": "w2",
+          "text": "tersusun",
+          "start": 1.408,
+          "end": 1.8347
+        },
+        {
+          "id": "w3",
+          "text": "rapi,",
+          "start": 1.877,
+          "end": 2.389
+        },
+        {
+          "id": "w4",
+          "text": "di",
+          "start": 2.56,
+          "end": 2.773
+        },
+        {
+          "id": "w5",
+          "text": "satu",
+          "start": 2.816,
+          "end": 3.1147
+        },
+        {
+          "id": "w6",
+          "text": "tempat.",
+          "start": 3.157,
+          "end": 3.499
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "path": "assets/voice/10.wav",
+      "duration_s": 4.754,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Ngobrolnya",
+          "start": 0.299,
+          "end": 0.768
+        },
+        {
+          "id": "w1",
+          "text": "bisa",
+          "start": 0.811,
+          "end": 1.0667
+        },
+        {
+          "id": "w2",
+          "text": "lewat",
+          "start": 1.109,
+          "end": 1.28
+        },
+        {
+          "id": "w3",
+          "text": "WhatsApp,",
+          "start": 1.323,
+          "end": 1.877
+        },
+        {
+          "id": "w4",
+          "text": "Telegram,",
+          "start": 2.048,
+          "end": 2.667
+        },
+        {
+          "id": "w5",
+          "text": "atau",
+          "start": 2.773,
+          "end": 3.157
+        },
+        {
+          "id": "w6",
+          "text": "web",
+          "start": 3.2,
+          "end": 3.3707
+        },
+        {
+          "id": "w7",
+          "text": "—",
+          "start": 3.484,
+          "end": 3.598
+        },
+        {
+          "id": "w8",
+          "text": "terserah",
+          "start": 3.712,
+          "end": 4.1387
+        },
+        {
+          "id": "w9",
+          "text": "kamu.",
+          "start": 4.224,
+          "end": 4.523
+        }
+      ]
+    }
+  ],
+  "sfx": [],
+  "total_duration_s": 52.532
+}

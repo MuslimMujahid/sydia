@@ -1,0 +1,515 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .p08-head {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 56px;
+      text-align: center;
+      font-size: 96px;
+      white-space: nowrap;
+    }
+    .p08-em {
+      font-style: normal;
+      padding-right: 6px;
+    }
+    .p08-tile {
+      border-radius: 22px;
+      padding: 22px 24px 0 24px;
+      box-sizing: border-box;
+      transform-origin: 50% 50%;
+    }
+    .p08-ico {
+      width: 50px;
+      height: 50px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--sy-pink-08);
+      color: var(--sy-pink);
+    }
+    .p08-ico svg {
+      width: 27px;
+      height: 27px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .p08-ico.p08-reminder {
+      background: #fdf3e1;
+      color: #7c3a00;
+    }
+    .p08-ico.p08-task {
+      background: #eef5ff;
+      color: #1d4ed8;
+    }
+    .p08-ico.p08-doc {
+      background: #f3edfd;
+      color: #5a19c9;
+    }
+    .p08-ico.p08-event {
+      background: #e6f6ed;
+      color: #08683b;
+    }
+    .p08-ico.p08-neutral {
+      background: #f1f0f0;
+      color: #57525b;
+    }
+    .p08-label {
+      margin-top: 16px;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--sy-ink);
+    }
+    .p08-line {
+      margin-top: 5px;
+      font-size: 21px;
+      font-weight: 400;
+      line-height: 1.3;
+      color: var(--sy-muted);
+    }
+    .p08-wide .p08-label {
+      font-size: 30px;
+    }
+    .p08-wide .p08-line {
+      font-size: 23px;
+    }
+    .p08-brand {
+      border-radius: 22px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transform-origin: 50% 50%;
+    }
+    .p08-brand img {
+      width: 196px;
+      height: 196px;
+      display: block;
+      position: relative;
+    }
+    .p08-brand-name {
+      position: relative;
+      margin-top: 10px;
+      font-size: 76px;
+    }
+    .p08-sheen {
+      position: absolute;
+      top: -20%;
+      left: 0;
+      width: 260px;
+      height: 140%;
+      background: linear-gradient(
+        100deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 178, 122, 0.22) 30%,
+        rgba(255, 255, 255, 0.75) 50%,
+        rgba(196, 123, 255, 0.22) 70%,
+        rgba(255, 255, 255, 0) 100%
+      );
+    }
+    .p08-sub {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 846px;
+      text-align: center;
+      font-size: 40px;
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      line-height: 1.1;
+      color: var(--sy-muted);
+      white-space: nowrap;
+    }
+    .p08-w {
+      display: inline-block;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-iyeg"
+    id="root"
+    data-composition-id="08-bento"
+    data-width="1920"
+    data-height="1080"
+    data-duration="10.838"
+  >
+    <div
+      data-hf-id="hf-2107"
+      id="p08-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.838"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-oo3j"
+        class="sy-bloom amber"
+        style="
+          left: -160px;
+          top: 640px;
+          width: 760px;
+          height: 460px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-wl23"
+        class="sy-bloom violet"
+        style="
+          left: 1400px;
+          top: -120px;
+          width: 700px;
+          height: 440px;
+          opacity: 0.24;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-8erw"
+        class="sy-bloom coral"
+        style="
+          left: 560px;
+          top: 300px;
+          width: 800px;
+          height: 420px;
+          opacity: 0.16;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-wq2z"
+      id="p08-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.838"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-snju" id="p08-head" class="sy-display p08-head">
+        Everything.
+        <em data-hf-id="hf-4qu9" class="sy-aurora-text p08-em">One chat.</em>
+      </div>
+
+      <!-- center brand tile (cols 3–4, rows 1–2) -->
+      <div
+        data-hf-id="hf-ogm8"
+        id="p08-brand"
+        class="sy-card p08-brand"
+        style="left: 673px; top: 196px; width: 574px; height: 410px"
+      >
+        <div
+          data-hf-id="hf-9zxe"
+          class="sy-bloom amber"
+          style="
+            left: -80px;
+            top: 220px;
+            width: 360px;
+            height: 260px;
+            opacity: 0.3;
+          "
+        ></div>
+        <div
+          data-hf-id="hf-33lk"
+          class="sy-bloom lilac"
+          style="
+            left: 320px;
+            top: -80px;
+            width: 340px;
+            height: 240px;
+            opacity: 0.28;
+          "
+        ></div>
+        <img data-hf-id="hf-iq76" src="assets/sydia-logo.svg" alt="" />
+        <div data-hf-id="hf-aq1b" class="sy-display p08-brand-name">Sydia</div>
+        <div data-hf-id="hf-bpgi" id="p08-sheen" class="p08-sheen"></div>
+      </div>
+
+      <!-- 1 Chat -->
+      <div
+        data-hf-id="hf-qnlh"
+        id="p08-t1"
+        class="sy-card p08-tile"
+        style="left: 81px; top: 410px; width: 278px; height: 196px"
+      >
+        <div data-hf-id="hf-3u24" class="p08-ico">
+          <svg data-hf-id="hf-ulu9" viewBox="0 0 24 24">
+            <path data-hf-id="hf-2fyj" d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-mznf" class="p08-label">Chat</div>
+        <div data-hf-id="hf-a8g5" class="p08-line">Cukup ceritakan</div>
+      </div>
+      <!-- 2 Pengingat -->
+      <div
+        data-hf-id="hf-0juo"
+        id="p08-t2"
+        class="sy-card p08-tile p08-wide"
+        style="left: 81px; top: 196px; width: 574px; height: 196px"
+      >
+        <div data-hf-id="hf-h8sz" class="p08-ico p08-reminder">
+          <svg data-hf-id="hf-1tol" viewBox="0 0 24 24">
+            <path
+              data-hf-id="hf-6a25"
+              d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"
+            />
+            <path data-hf-id="hf-mu5i" d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-fnxq" class="p08-label">Pengingat</div>
+        <div data-hf-id="hf-tcbg" class="p08-line">
+          Review dengan Nadia · 08.00
+        </div>
+      </div>
+      <!-- 3 Tugas -->
+      <div
+        data-hf-id="hf-jnmt"
+        id="p08-t3"
+        class="sy-card p08-tile p08-wide"
+        style="left: 81px; top: 624px; width: 574px; height: 196px"
+      >
+        <div data-hf-id="hf-ok5y" class="p08-ico p08-task">
+          <svg data-hf-id="hf-30lo" viewBox="0 0 24 24">
+            <circle data-hf-id="hf-m1lh" cx="12" cy="12" r="10" />
+            <path data-hf-id="hf-yfzu" d="m9 12 2 2 4-4" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-9rwb" class="p08-label">Tugas</div>
+        <div data-hf-id="hf-whla" class="p08-line">
+          Finalisasi proposal Aurora
+        </div>
+      </div>
+      <!-- 4 Memori -->
+      <div
+        data-hf-id="hf-x609"
+        id="p08-t4"
+        class="sy-card p08-tile p08-wide"
+        style="left: 1265px; top: 196px; width: 574px; height: 196px"
+      >
+        <div data-hf-id="hf-chok" class="p08-ico">
+          <svg data-hf-id="hf-2man" viewBox="0 0 24 24">
+            <path
+              data-hf-id="hf-awj2"
+              d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"
+            />
+            <path data-hf-id="hf-edd0" d="M19 3v4" />
+            <path data-hf-id="hf-1ks4" d="M21 5h-4" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-9nim" class="p08-label">Memori</div>
+        <div data-hf-id="hf-mown" class="p08-line">Preferensi desain Nadia</div>
+      </div>
+      <!-- 5 File -->
+      <div
+        data-hf-id="hf-dwd7"
+        id="p08-t5"
+        class="sy-card p08-tile"
+        style="left: 377px; top: 410px; width: 278px; height: 196px"
+      >
+        <div data-hf-id="hf-euwt" class="p08-ico p08-doc">
+          <svg data-hf-id="hf-3t7q" viewBox="0 0 24 24">
+            <path
+              data-hf-id="hf-obz5"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-gpnr" d="M14 2v4a2 2 0 0 0 2 2h4" />
+            <path data-hf-id="hf-59kx" d="M10 9H8" />
+            <path data-hf-id="hf-eoqm" d="M16 13H8" />
+            <path data-hf-id="hf-bfay" d="M16 17H8" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-z2pf" class="p08-label">File</div>
+        <div data-hf-id="hf-x2hp" class="p08-line">Proyek-Aurora-Brief.pdf</div>
+      </div>
+      <!-- 6 Kalender -->
+      <div
+        data-hf-id="hf-pgnx"
+        id="p08-t6"
+        class="sy-card p08-tile"
+        style="left: 1265px; top: 410px; width: 278px; height: 196px"
+      >
+        <div data-hf-id="hf-8v3v" class="p08-ico p08-event">
+          <svg data-hf-id="hf-3ewp" viewBox="0 0 24 24">
+            <rect
+              data-hf-id="hf-4rv6"
+              width="18"
+              height="18"
+              x="3"
+              y="4"
+              rx="2"
+            />
+            <path data-hf-id="hf-zqia" d="M16 2v4" />
+            <path data-hf-id="hf-adwx" d="M8 2v4" />
+            <path data-hf-id="hf-unwg" d="M3 10h18" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-w043" class="p08-label">Kalender</div>
+        <div data-hf-id="hf-9fah" class="p08-line">Kamis · 10.00–11.00</div>
+      </div>
+      <!-- 7 Ringkasan Harian -->
+      <div
+        data-hf-id="hf-uh2j"
+        id="p08-t7"
+        class="sy-card p08-tile"
+        style="left: 1561px; top: 410px; width: 278px; height: 196px"
+      >
+        <div data-hf-id="hf-hflf" class="p08-ico p08-reminder">
+          <svg data-hf-id="hf-4lts" viewBox="0 0 24 24">
+            <path data-hf-id="hf-puyq" d="M12 2v8" />
+            <path data-hf-id="hf-qnp2" d="m4.93 10.93 1.41 1.41" />
+            <path data-hf-id="hf-zduk" d="M2 18h2" />
+            <path data-hf-id="hf-1ahm" d="M20 18h2" />
+            <path data-hf-id="hf-h92y" d="m19.07 10.93-1.41 1.41" />
+            <path data-hf-id="hf-l6m3" d="M22 22H2" />
+            <path data-hf-id="hf-9ogw" d="m8 6 4-4 4 4" />
+            <path data-hf-id="hf-zjl5" d="M16 18a4 4 0 0 0-8 0" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-0r74" class="p08-label">Ringkasan Harian</div>
+        <div data-hf-id="hf-okqw" class="p08-line">Setiap pagi</div>
+      </div>
+      <!-- 8 Catatan -->
+      <div
+        data-hf-id="hf-90r9"
+        id="p08-t8"
+        class="sy-card p08-tile p08-wide"
+        style="left: 1265px; top: 624px; width: 574px; height: 196px"
+      >
+        <div data-hf-id="hf-h7v5" class="p08-ico p08-doc">
+          <svg data-hf-id="hf-47ir" viewBox="0 0 24 24">
+            <path
+              data-hf-id="hf-4x3r"
+              d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"
+            />
+            <path data-hf-id="hf-b74f" d="M15 3v4a2 2 0 0 0 2 2h4" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-19dh" class="p08-label">Catatan</div>
+        <div data-hf-id="hf-zzdd" class="p08-line">Rangkuman Proyek Aurora</div>
+      </div>
+      <!-- 9 Rahasia -->
+      <div
+        data-hf-id="hf-etl7"
+        id="p08-t9"
+        class="sy-card p08-tile"
+        style="left: 673px; top: 624px; width: 278px; height: 196px"
+      >
+        <div data-hf-id="hf-4fpa" class="p08-ico p08-neutral">
+          <svg data-hf-id="hf-z1je" viewBox="0 0 24 24">
+            <rect
+              data-hf-id="hf-9jn9"
+              width="18"
+              height="11"
+              x="3"
+              y="11"
+              rx="2"
+              ry="2"
+            />
+            <path data-hf-id="hf-4qh8" d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-lh5m" class="p08-label">Rahasia</div>
+        <div data-hf-id="hf-pgdx" class="p08-line">Tersimpan aman</div>
+      </div>
+      <!-- 10 Kontak -->
+      <div
+        data-hf-id="hf-b24t"
+        id="p08-t10"
+        class="sy-card p08-tile"
+        style="left: 969px; top: 624px; width: 278px; height: 196px"
+      >
+        <div data-hf-id="hf-qol6" class="p08-ico p08-task">
+          <svg data-hf-id="hf-yn8d" viewBox="0 0 24 24">
+            <path
+              data-hf-id="hf-frh1"
+              d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+            />
+            <circle data-hf-id="hf-nb88" cx="9" cy="7" r="4" />
+            <path data-hf-id="hf-p3fz" d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path data-hf-id="hf-53jq" d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </div>
+        <div data-hf-id="hf-4dvp" class="p08-label">Kontak</div>
+        <div data-hf-id="hf-c0oa" class="p08-line">Semua kontakmu</div>
+      </div>
+
+      <div data-hf-id="hf-q9pc" id="p08-sub" class="p08-sub">
+        <span data-hf-id="hf-a0xw" class="p08-w">Semua</span>
+        <span data-hf-id="hf-nnh2" class="p08-w">yang</span>
+        <span data-hf-id="hf-ceap" class="p08-w">kamu</span>
+        <span data-hf-id="hf-hzcj" class="p08-w">butuhkan.</span>
+        <span data-hf-id="hf-vmcm" class="p08-w">Dalam</span>
+        <span data-hf-id="hf-w0d8" class="p08-w">satu</span>
+        <span data-hf-id="hf-s0su" class="p08-w">tempat.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var tl = gsap.timeline({ paused: true });
+
+      // Scene 1 — headline slams in on the downbeat
+      tl.fromTo(
+        "#p08-head",
+        { opacity: 0, scale: 1.14, filter: "blur(10px)" },
+        {
+          opacity: 1,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 0.5,
+          ease: "expo.out",
+        },
+        0
+      );
+
+      // Scene 2 — brand tile lands first, then ten tiles pop on 8th notes
+      tl.fromTo(
+        "#p08-brand",
+        { opacity: 0, scale: 0.85 },
+        { opacity: 1, scale: 1, duration: 0.6, ease: "expo.out" },
+        0.52
+      );
+
+      for (var i = 0; i < 10; i++) {
+        var t = Math.round((1.04 + i * 0.261) * 1000) / 1000;
+        tl.fromTo(
+          "#p08-t" + (i + 1),
+          { opacity: 0, scale: 0.85 },
+          { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+          t
+        );
+      }
+
+      // Scene 3 — subtitle on the 4.17 downbeat, aurora sheen at 6.26, then hold
+      tl.fromTo(
+        "#p08-sub .p08-w",
+        { opacity: 0, y: 22 },
+        { opacity: 1, y: 0, duration: 0.55, ease: "power3.out", stagger: 0.06 },
+        4.17
+      );
+
+      tl.fromTo(
+        "#p08-sheen",
+        { x: -320 },
+        { x: 680, duration: 1.2, ease: "power2.inOut" },
+        6.26
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["08-bento"] = tl;
+    })();
+  </script>
+</template>

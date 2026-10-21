@@ -1,0 +1,420 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f08-panel {
+      left: 280px;
+      top: 40px;
+      width: 1360px;
+      height: 850px;
+      border-radius: 22px;
+      overflow: hidden;
+    }
+    .f08-head {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 84px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 40px;
+      border-bottom: 1px solid var(--sy-border);
+      font-size: 28px;
+      font-weight: 700;
+      background: #fff;
+      z-index: 2;
+    }
+    .f08-head img {
+      width: 40px;
+      height: 40px;
+    }
+    .f08-head span {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--sy-muted);
+      margin-left: 6px;
+    }
+    .f08-feed {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 84px;
+      bottom: 0;
+      overflow: hidden;
+    }
+    .f08-list {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      padding: 30px 46px;
+    }
+    .f08-ex {
+      margin-bottom: 30px;
+    }
+    .f08-user {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 16px;
+    }
+    .f08-user .sy-bubble-user {
+      max-width: 920px;
+      font-size: 26px;
+      line-height: 1.4;
+      padding: 14px 26px;
+    }
+    .f08-res {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 26px;
+      color: var(--sy-muted);
+    }
+    .f08-res .sy-chip {
+      font-size: 26px;
+      padding: 6px 18px;
+    }
+    .f08-res b {
+      color: var(--sy-ink);
+      font-weight: 700;
+    }
+    .f08-res .sy-stamp {
+      margin-left: auto;
+      font-size: 24px;
+      padding: 8px 20px;
+      transform-origin: 50% 50%;
+    }
+    .f08-res .sy-stamp svg {
+      width: 22px;
+      height: 22px;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-pl2o"
+    id="root"
+    data-composition-id="08-done-in-chat"
+    data-width="1920"
+    data-height="1080"
+    data-duration="9.794"
+  >
+    <div
+      data-hf-id="hf-du0c"
+      id="f08-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="9.794"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-dy79"
+        id="f08-bloom-a"
+        class="sy-bloom amber"
+        style="
+          left: -80px;
+          top: 120px;
+          width: 560px;
+          height: 640px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-fl2u"
+        id="f08-bloom-b"
+        class="sy-bloom violet"
+        style="
+          left: 1460px;
+          top: 300px;
+          width: 560px;
+          height: 640px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-ejo2"
+      id="f08-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="9.794"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-vxaj" id="f08-panel" class="sy-window f08-panel">
+        <div data-hf-id="hf-drfx" class="f08-head">
+          <img
+            data-hf-id="hf-iq76"
+            src="assets/sydia-logo.svg"
+            alt=""
+          />Sydia<span data-hf-id="hf-al7c">· Chat</span>
+        </div>
+        <div data-hf-id="hf-vfxj" class="f08-feed">
+          <div data-hf-id="hf-1kxu" id="f08-list" class="f08-list">
+            <div data-hf-id="hf-1jcn" id="f08-ex1" class="f08-ex">
+              <div data-hf-id="hf-wkw5" id="f08-u1" class="f08-user">
+                <div data-hf-id="hf-as6p" class="sy-bubble-user">
+                  Ingatkan aku bayar listrik tiap tanggal 25 jam 9 pagi ya
+                </div>
+              </div>
+              <div data-hf-id="hf-klel" id="f08-r1" class="f08-res">
+                <span data-hf-id="hf-n35z" class="sy-chip reminder"
+                  ><svg
+                    data-hf-id="hf-h0hq"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle data-hf-id="hf-hoqb" cx="12" cy="13" r="8" />
+                    <path data-hf-id="hf-a705" d="M12 9v4l2 2" />
+                    <path data-hf-id="hf-2ed7" d="M5 3 2 6" />
+                    <path data-hf-id="hf-7agl" d="m22 6-3-3" /></svg
+                  >Bayar listrik</span
+                >
+                — 25 Okt 2026, 09.00 · bulanan
+                <span data-hf-id="hf-h99x" id="f08-st1" class="sy-stamp"
+                  ><svg
+                    data-hf-id="hf-085v"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      data-hf-id="hf-bv7s"
+                      class="f08-check"
+                      d="M20 6 9 17l-5-5"
+                    /></svg
+                  >Beres</span
+                >
+              </div>
+            </div>
+            <div data-hf-id="hf-qnv0" id="f08-ex2" class="f08-ex">
+              <div data-hf-id="hf-0j06" id="f08-u2" class="f08-user">
+                <div data-hf-id="hf-zi1t" class="sy-bubble-user">
+                  Tambahin tugas: kirim draft materi kampanye ke tim, tenggatnya
+                  Jumat ini
+                </div>
+              </div>
+              <div data-hf-id="hf-xmzf" id="f08-r2" class="f08-res">
+                <span data-hf-id="hf-w4qw" class="sy-chip task"
+                  ><svg
+                    data-hf-id="hf-pmle"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect
+                      data-hf-id="hf-m05h"
+                      width="18"
+                      height="18"
+                      x="3"
+                      y="3"
+                      rx="2"
+                    />
+                    <path data-hf-id="hf-yfzu" d="m9 12 2 2 4-4" /></svg
+                  >Kirim draft materi kampanye ke tim</span
+                >
+                — Tenggat 23 Okt, 17.00
+                <span data-hf-id="hf-dwuc" id="f08-st2" class="sy-stamp"
+                  ><svg
+                    data-hf-id="hf-s9f7"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      data-hf-id="hf-gz0g"
+                      class="f08-check"
+                      d="M20 6 9 17l-5-5"
+                    /></svg
+                  >Beres</span
+                >
+              </div>
+            </div>
+            <div data-hf-id="hf-tn4l" id="f08-ex3" class="f08-ex">
+              <div data-hf-id="hf-4h47" id="f08-u3" class="f08-user">
+                <div data-hf-id="hf-i4uq" class="sy-bubble-user">
+                  Besok jam 2 siang meeting sama Pak Budi bahas kampanye Q4,
+                  masukin ke kalender ya
+                </div>
+              </div>
+              <div data-hf-id="hf-iz3m" id="f08-r3" class="f08-res">
+                <span data-hf-id="hf-g62y" class="sy-chip event"
+                  ><svg
+                    data-hf-id="hf-q0wf"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect
+                      data-hf-id="hf-4rv6"
+                      width="18"
+                      height="18"
+                      x="3"
+                      y="4"
+                      rx="2"
+                    />
+                    <path data-hf-id="hf-zqia" d="M16 2v4" />
+                    <path data-hf-id="hf-adwx" d="M8 2v4" />
+                    <path data-hf-id="hf-unwg" d="M3 10h18" /></svg
+                  >Meeting dengan Pak Budi</span
+                >
+                — 21 Okt, 14.00–15.00
+                <span data-hf-id="hf-5xlr" id="f08-st3" class="sy-stamp"
+                  ><svg
+                    data-hf-id="hf-rv46"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      data-hf-id="hf-fs3d"
+                      class="f08-check"
+                      d="M20 6 9 17l-5-5"
+                    /></svg
+                  >Beres</span
+                >
+              </div>
+            </div>
+            <div data-hf-id="hf-a78i" id="f08-ex4" class="f08-ex">
+              <div data-hf-id="hf-8f88" id="f08-u4" class="f08-user">
+                <div data-hf-id="hf-ct37" class="sy-bubble-user">
+                  Catat ya: ide kado ulang tahun Ibu — tas batik sama voucher
+                  spa
+                </div>
+              </div>
+              <div data-hf-id="hf-oygf" id="f08-r4" class="f08-res">
+                <b data-hf-id="hf-ltcr">Ide kado ulang tahun Ibu</b> — tas batik
+                sama voucher spa
+                <span data-hf-id="hf-s5tz" id="f08-st4" class="sy-stamp"
+                  ><svg
+                    data-hf-id="hf-rgt5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      data-hf-id="hf-g6ee"
+                      class="f08-check"
+                      d="M20 6 9 17l-5-5"
+                    /></svg
+                  >Dicatat</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const DURATION = 9.394;
+      const tl = gsap.timeline({ paused: true });
+
+      // Ambient: blooms drift slowly under the whole shot (keeps the hold alive; layout untouched).
+      tl.fromTo(
+        "#f08-bloom-a",
+        { x: 0, y: 0 },
+        { x: 60, y: -30, duration: DURATION, ease: "sine.inOut" },
+        0
+      );
+      tl.fromTo(
+        "#f08-bloom-b",
+        { x: 0, y: 0 },
+        { x: -60, y: 30, duration: DURATION, ease: "sine.inOut" },
+        0
+      );
+
+      // Scene 1 — panel rises in (hero surface, visible by 0.5s).
+      tl.fromTo(
+        "#f08-panel",
+        { y: 50, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+        0
+      );
+
+      // One chat exchange = user bubble slides in from the right, result row rises into its slot,
+      // then the stamp pops (0.6 -> 1.08 -> 1, the one sanctioned small overshoot) with a check draw-in.
+      function exchange(n, bubbleAt, resultAt, stampAt) {
+        tl.fromTo(
+          "#f08-u" + n,
+          { x: 60, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+          bubbleAt
+        );
+        tl.fromTo(
+          "#f08-r" + n,
+          { y: 22, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+          resultAt
+        );
+        const stamp = "#f08-st" + n;
+        tl.fromTo(
+          stamp,
+          { scale: 0.6, opacity: 0 },
+          { scale: 1.08, opacity: 1, duration: 0.16, ease: "power2.out" },
+          stampAt
+        );
+        tl.fromTo(
+          stamp,
+          { scale: 1.08 },
+          {
+            scale: 1,
+            duration: 0.24,
+            ease: "power2.inOut",
+            immediateRender: false,
+          },
+          stampAt + 0.16
+        );
+        tl.fromTo(
+          stamp + " .f08-check",
+          { strokeDasharray: 24, strokeDashoffset: 24 },
+          { strokeDashoffset: 0, duration: 0.3, ease: "power2.out" },
+          stampAt + 0.06
+        );
+      }
+
+      // Scene 1 (0.0–2.3s): reminder — stamp lands on "Beres!" (2.12).
+      exchange(1, 0.1, 1.2, 2.12);
+      // Scene 2 (3.13–4.4s): task — on the beat.
+      exchange(2, 3.13, 3.65, 4.17);
+      // Scene 3 (4.70–5.95s): event — on the beat.
+      exchange(3, 4.7, 5.22, 5.74);
+      // Scene 4 (6.26–9.39s): note — "Dicatat" at 7.30, then hold still to the cut.
+      exchange(4, 6.26, 6.78, 7.3);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["08-done-in-chat"] = tl;
+    })();
+  </script>
+</template>

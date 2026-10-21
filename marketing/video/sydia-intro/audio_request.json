@@ -1,0 +1,53 @@
+{
+  "provider": "heygen",
+  "speed": "1.0",
+  "lines": [
+    {
+      "id": "01",
+      "text": "Chat penting di WhatsApp. Kontrak di email. Jadwal di kalender. Catatan… entah di mana."
+    },
+    {
+      "id": "03",
+      "text": "Dan pas butuh satu dokumen penting? Scroll, buka folder, cari lagi… nggak ketemu juga."
+    },
+    {
+      "id": "04",
+      "text": "Kenalin, Sydia — asisten pribadi yang ngumpulin chat, dokumen, jadwal, dan catatanmu jadi satu."
+    },
+    {
+      "id": "05",
+      "text": "Cukup tanya, kayak ngobrol sama teman: dokumen sewa apartemen aku yang tahun lalu mana ya?"
+    },
+    {
+      "id": "06",
+      "text": "Dalam hitungan detik, Sydia nemuin dokumennya. Uang jaminannya? Tiga belas juta rupiah — lengkap dengan sumbernya, sampai halamannya."
+    },
+    {
+      "id": "07",
+      "text": "Nggak perlu hafal nama file. Nggak perlu ingat foldernya. Tanya aja."
+    },
+    {
+      "id": "08",
+      "text": "Ingetin bayar listrik tiap bulan? Beres. Tambah tugas buat Jumat? Beres. Meeting besok jam dua? Langsung masuk kalender. Ide kado buat Ibu? Dicatat."
+    },
+    {
+      "id": "09",
+      "text": "Semuanya otomatis tersusun rapi, di satu tempat."
+    },
+    {
+      "id": "10",
+      "text": "Ngobrolnya bisa lewat WhatsApp, Telegram, atau web — terserah kamu."
+    },
+    {
+      "id": "11",
+      "text": "Hidupmu boleh di mana-mana. Sekarang, cukup satu chat. Sydia."
+    }
+  ],
+  "bgm": {
+    "mode": "retrieve",
+    "query": "upbeat energetic modern pop electronic, bright and positive, driving beat around 120 BPM, punchy drop, no vocals",
+    "blob": "Your Life is Everywhere — Sydia brings it into one chat you can just ask.",
+    "arc": "PAS with Demo Loop — hook (scattered life) → headline → pain → Sydia intro → ask → answer → benefit → feature cascade → one place → channels → CTA"
+  },
+  "voice": "8507f6910b7e409b85f0f2bdb4d637a6"
+}

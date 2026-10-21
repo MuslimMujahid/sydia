@@ -1,0 +1,483 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f11-blooms {
+      position: absolute;
+      inset: 0;
+    }
+    .f11-content {
+      position: absolute;
+      inset: 0;
+    }
+    .f11-callback {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 110px;
+      text-align: center;
+      font-size: 64px;
+      white-space: nowrap;
+    }
+    .f11-w {
+      display: inline-block;
+    }
+    .f11-every {
+      position: relative;
+    }
+    .f11-sheen {
+      position: absolute;
+      left: 0;
+      top: 0;
+      white-space: nowrap;
+      pointer-events: none;
+      background: linear-gradient(
+        105deg,
+        rgba(255, 214, 140, 0) 0%,
+        rgba(255, 214, 140, 0) 41%,
+        rgba(255, 196, 120, 0.95) 46%,
+        rgba(255, 240, 226, 0.95) 50%,
+        rgba(196, 123, 255, 0.95) 54%,
+        rgba(196, 123, 255, 0) 59%,
+        rgba(196, 123, 255, 0) 100%
+      );
+      background-size: 300% 100%;
+      background-position: 100% 0;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .f11-lock {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 300px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 44px;
+    }
+    .f11-logo {
+      position: relative;
+      z-index: 2;
+      width: 210px;
+      height: 210px;
+    }
+    .f11-word {
+      position: relative;
+      z-index: 1;
+      font-size: 200px;
+    }
+    .f11-tag {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 590px;
+      text-align: center;
+      font-size: 60px;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      color: var(--sy-muted);
+    }
+    .f11-tag b {
+      color: var(--sy-ink);
+      font-weight: 800;
+    }
+    .f11-tw {
+      display: inline-block;
+    }
+    .f11-cta {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 730px;
+      display: flex;
+      justify-content: center;
+    }
+    .f11-btn {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      padding: 26px 56px;
+      border-radius: 9999px;
+      color: #fff;
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      box-shadow:
+        rgba(240, 102, 148, 0.36) 0 22px 44px -16px,
+        rgba(140, 92, 255, 0.3) 0 12px 30px -14px;
+    }
+    .f11-btn .sy-aurora-fill {
+      z-index: 0;
+    }
+    .f11-btn .sy-grain {
+      opacity: 0.35;
+      z-index: 1;
+    }
+    .f11-btn-sheen {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -40%;
+      width: 30%;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(
+        105deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.42) 50%,
+        rgba(255, 255, 255, 0) 100%
+      );
+    }
+    .f11-btn span,
+    .f11-btn svg {
+      position: relative;
+      z-index: 2;
+    }
+    .f11-btn svg {
+      width: 38px;
+      height: 38px;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-sj2k"
+    id="root"
+    data-composition-id="11-cta"
+    data-width="1920"
+    data-height="1080"
+    data-duration="10.203"
+  >
+    <div
+      data-hf-id="hf-4gaz"
+      id="f11-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.203"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div data-hf-id="hf-4lfi" id="f11-blooms" class="f11-blooms">
+        <div
+          data-hf-id="hf-wsbb"
+          id="f11-bloom-a"
+          class="sy-bloom amber"
+          style="
+            left: 300px;
+            top: 240px;
+            width: 620px;
+            height: 520px;
+            opacity: 0.42;
+          "
+        ></div>
+        <div
+          data-hf-id="hf-i4yz"
+          id="f11-bloom-b"
+          class="sy-bloom coral"
+          style="
+            left: 700px;
+            top: 200px;
+            width: 620px;
+            height: 520px;
+            opacity: 0.34;
+          "
+        ></div>
+        <div
+          data-hf-id="hf-o1mw"
+          id="f11-bloom-c"
+          class="sy-bloom violet"
+          style="
+            left: 1040px;
+            top: 260px;
+            width: 620px;
+            height: 520px;
+            opacity: 0.34;
+          "
+        ></div>
+      </div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-uml3"
+      id="f11-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.203"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-9w6e" id="f11-content" class="f11-content">
+        <div
+          data-hf-id="hf-hv45"
+          id="f11-callback"
+          class="sy-display f11-callback"
+        >
+          <span data-hf-id="hf-sy2r" id="f11-w1" class="f11-w">Your</span>
+          <span data-hf-id="hf-6u1t" id="f11-w2" class="f11-w">Life</span>
+          <span data-hf-id="hf-x9ba" id="f11-w3" class="f11-w">is</span>
+          <span data-hf-id="hf-mv9b" id="f11-w4" class="f11-w f11-every"
+            ><span data-hf-id="hf-7gi2" class="sy-aurora-text">Everywhere.</span
+            ><span
+              data-hf-id="hf-t7no"
+              id="f11-sheen"
+              class="f11-sheen"
+              aria-hidden="true"
+              >Everywhere.</span
+            ></span
+          >
+        </div>
+        <div data-hf-id="hf-us7a" id="f11-lock" class="f11-lock">
+          <img
+            data-hf-id="hf-i9br"
+            id="f11-logo"
+            class="f11-logo"
+            src="assets/sydia-logo.svg"
+            alt=""
+          />
+          <div data-hf-id="hf-cmnh" id="f11-word" class="sy-display f11-word">
+            Sydia
+          </div>
+        </div>
+        <div data-hf-id="hf-a2es" id="f11-tag" class="f11-tag">
+          <span data-hf-id="hf-fk55" id="f11-t1" class="f11-tw">Sekarang,</span>
+          <b data-hf-id="hf-xujp"
+            ><span data-hf-id="hf-u8a2" id="f11-t2" class="f11-tw">cukup</span>
+            <span data-hf-id="hf-q1dg" id="f11-t3" class="f11-tw">satu</span>
+            <span data-hf-id="hf-2jww" id="f11-t4" class="f11-tw"
+              >chat.</span
+            ></b
+          >
+        </div>
+        <div data-hf-id="hf-k5ix" class="f11-cta">
+          <div data-hf-id="hf-lv24" id="f11-btn" class="f11-btn">
+            <div data-hf-id="hf-s6cp" class="sy-aurora-fill"></div>
+            <div data-hf-id="hf-rnby" class="sy-grain"></div>
+            <div
+              data-hf-id="hf-1tcs"
+              id="f11-btn-sheen"
+              class="f11-btn-sheen"
+            ></div>
+            <span data-hf-id="hf-wo3p">Mulai ngobrol dengan Sydia</span>
+            <svg
+              data-hf-id="hf-066x"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path data-hf-id="hf-8gds" d="M5 12h14" />
+              <path data-hf-id="hf-bnog" d="m12 5 7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+
+      // ── Ambient field: slow drift under Scene 1, then the bloom swell on the 3.13 downbeat ──
+      tl.fromTo(
+        "#f11-blooms",
+        { opacity: 0.42, scale: 0.86 },
+        { opacity: 0.55, scale: 0.9, duration: 3.13, ease: "none" },
+        0
+      );
+      tl.fromTo(
+        "#f11-blooms",
+        { opacity: 0.55, scale: 0.9 },
+        {
+          opacity: 1,
+          scale: 1,
+          duration: 0.82,
+          ease: "power2.out",
+          immediateRender: false,
+        },
+        3.13
+      );
+
+      // ── Scene 1 (0.0–2.9s): "Your Life is Everywhere." builds word-by-word at center ──
+      // Opening pose: centered low and large; rises to its top slot in Scene 2.
+      tl.fromTo(
+        "#f11-callback",
+        { y: 360, scale: 1.9 },
+        { y: 0, scale: 1, duration: 0.7, ease: "power3.inOut" },
+        3.13
+      );
+
+      const wordIn = function (sel, at) {
+        tl.fromTo(
+          sel,
+          { opacity: 0, y: 26, filter: "blur(8px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.5,
+            ease: "power3.out",
+          },
+          at
+        );
+      };
+      wordIn("#f11-w1", 0.2);
+      wordIn("#f11-w2", 0.46);
+      wordIn("#f11-w3", 0.72);
+
+      // "Everywhere." slams in, impact on the 1.04 downbeat (blur → 0), then settles.
+      tl.fromTo(
+        "#f11-w4",
+        { scale: 2.2, filter: "blur(14px)" },
+        { scale: 0.96, filter: "blur(0px)", duration: 0.2, ease: "power2.in" },
+        0.84
+      );
+      tl.fromTo(
+        "#f11-w4",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.12, ease: "none" },
+        0.84
+      );
+      tl.fromTo(
+        "#f11-w4",
+        { scale: 0.96 },
+        { scale: 1, duration: 0.4, ease: "power2.out", immediateRender: false },
+        1.04
+      );
+
+      // The aurora sweeps once through "Everywhere." (one-pass raked sheen, off-surface both ends).
+      tl.fromTo(
+        "#f11-sheen",
+        { backgroundPosition: "100% 0%" },
+        { backgroundPosition: "0% 0%", duration: 0.9, ease: "power1.inOut" },
+        1.6
+      );
+
+      // ── Scene 2 (3.13–3.9s): the Sydia mark lands in the lockup as the callback clears ──
+      tl.fromTo(
+        "#f11-logo",
+        { scale: 0.5, rotation: -8 },
+        { scale: 1, rotation: 0, duration: 0.6, ease: "power3.out" },
+        3.35
+      );
+      tl.fromTo(
+        "#f11-logo",
+        { opacity: 0, filter: "blur(16px)" },
+        { opacity: 1, filter: "blur(0px)", duration: 0.45, ease: "power2.out" },
+        3.35
+      );
+
+      // Bounded idle breathe on each bloom after the swell (finite phase tweens, whole half-cycles).
+      const breathe = function (id, base, period, cycles, at) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const phase = { p: 0 };
+        tl.to(
+          phase,
+          {
+            p: Math.PI * 2 * cycles,
+            duration: period * cycles,
+            ease: "none",
+            onUpdate: function () {
+              const s = Math.sin(phase.p);
+              el.style.opacity = String(base + s * 0.02);
+              el.style.transform = "scale(" + (1 + s * 0.012) + ")";
+            },
+          },
+          at
+        );
+      };
+      // breathe("f11-bloom-a", 0.42, 2.8, 2, 3.95); (disabled: no breathing per motion doctrine)
+      // breathe("f11-bloom-b", 0.34, 2.6, 2, 4.2); (disabled: no breathing per motion doctrine)
+      // breathe("f11-bloom-c", 0.34, 3.3, 1.5, 4.4); (disabled: no breathing per motion doctrine)
+
+      // ── Scene 3 (3.13–5.4s): tagline word-by-word with the VO; wordmark slides out from behind the mark ──
+      const tagIn = function (sel, at) {
+        tl.fromTo(
+          sel,
+          { opacity: 0, y: 22, filter: "blur(6px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.5,
+            ease: "power3.out",
+          },
+          at
+        );
+      };
+      tagIn("#f11-t1", 3.13);
+      tagIn("#f11-t2", 3.81);
+      tagIn("#f11-t3", 4.13);
+      tagIn("#f11-t4", 4.45);
+
+      // Clip edge stays pinned at the wordmark's landed left edge while it slides right (lands on "Sydia." 5.22).
+      tl.fromTo(
+        "#f11-word",
+        { x: -120, clipPath: "inset(-40% -20% -40% 120px)" },
+        {
+          x: 0,
+          clipPath: "inset(-40% -20% -40% 0px)",
+          duration: 0.75,
+          ease: "power3.out",
+        },
+        4.47
+      );
+      tl.fromTo(
+        "#f11-word",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.35, ease: "power1.out" },
+        4.47
+      );
+
+      // ── Scene 4 (6.26–10.2s): CTA pill rises, one shimmer pass on 7.31, hold, final fade to bone ──
+      tl.fromTo(
+        "#f11-btn",
+        { y: 40, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" },
+        6.26
+      );
+      tl.fromTo(
+        "#f11-btn-sheen",
+        { xPercent: 0 },
+        { xPercent: 470, duration: 0.9, ease: "power1.inOut" },
+        7.31
+      );
+
+      tl.fromTo(
+        "#f11-content",
+        { opacity: 1 },
+        {
+          opacity: 0,
+          duration: 0.6,
+          ease: "power2.inOut",
+          immediateRender: false,
+        },
+        9.6
+      );
+      tl.fromTo(
+        "#f11-blooms",
+        { opacity: 1 },
+        {
+          opacity: 0,
+          duration: 0.5,
+          ease: "power2.inOut",
+          immediateRender: false,
+        },
+        9.7
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["11-cta"] = tl;
+    })();
+  </script>
+</template>

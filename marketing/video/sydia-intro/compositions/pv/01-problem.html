@@ -1,0 +1,783 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    #p01-cam {
+      position: absolute;
+      inset: 0;
+      transform-origin: 50% 50%;
+      will-change: transform;
+    }
+    #p01-clutter {
+      position: absolute;
+      inset: 0;
+      will-change: opacity, filter;
+    }
+    .p01-frag {
+      position: absolute;
+      transform-origin: 50% 50%;
+      will-change: transform, opacity;
+    }
+    .p01-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--sy-muted);
+      margin-bottom: 16px;
+    }
+    .p01-label img,
+    .p01-label svg {
+      width: 30px;
+      height: 30px;
+      flex: none;
+    }
+
+    /* WhatsApp chat card */
+    .p01-wa {
+      left: 110px;
+      top: 110px;
+      width: 560px;
+      padding: 26px 30px;
+    }
+    .p01-wa-bubble {
+      background: #dcf8c6;
+      color: #1f2a1f;
+      border-radius: 18px 18px 18px 6px;
+      padding: 16px 22px;
+      font-size: 28px;
+      line-height: 1.35;
+    }
+    .p01-wa-meta {
+      font-size: 18px;
+      color: var(--sy-muted);
+      margin-top: 10px;
+      text-align: right;
+    }
+
+    /* toasts */
+    .p01-toast {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 24px;
+      border-radius: 20px;
+    }
+    .p01-toast-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+    .p01-toast-icon img,
+    .p01-toast-icon svg {
+      width: 30px;
+      height: 30px;
+    }
+    .p01-toast-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--sy-muted);
+    }
+    .p01-toast-body {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--sy-ink);
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+    .p01-notif {
+      left: 1400px;
+      top: 56px;
+      width: 440px;
+    }
+    .p01-notif .p01-toast-icon {
+      background: #e7f8ee;
+    }
+    .p01-remind {
+      left: 690px;
+      top: 650px;
+      width: 440px;
+    }
+    .p01-remind .p01-toast-icon {
+      background: #fdf3e1;
+      color: #7c3a00;
+    }
+
+    /* file chip */
+    .p01-file {
+      left: 760px;
+      top: 186px;
+      font-size: 24px;
+    }
+
+    /* calendar card */
+    .p01-cal {
+      left: 1290px;
+      top: 210px;
+      width: 480px;
+      padding: 26px 30px;
+    }
+    .p01-cal-row {
+      display: flex;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .p01-cal-bar {
+      width: 8px;
+      border-radius: 4px;
+      background: #8c5cff;
+      flex: none;
+    }
+    .p01-cal-title {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .p01-cal-time {
+      font-size: 22px;
+      color: var(--sy-muted);
+      margin-top: 6px;
+    }
+
+    /* task card */
+    .p01-task {
+      left: 720px;
+      top: 330px;
+      width: 500px;
+      padding: 26px 30px;
+    }
+    .p01-task-row {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+    }
+    .p01-check {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 2.5px solid #c9c3cc;
+      flex: none;
+    }
+    .p01-task-title {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .p01-task .sy-chip {
+      font-size: 19px;
+      margin-top: 14px;
+      margin-left: 48px;
+    }
+
+    /* sticky note */
+    .p01-note {
+      left: 150px;
+      top: 480px;
+      width: 380px;
+      padding: 34px 34px 40px;
+      background: #fff3b0;
+      border-radius: 6px;
+      box-shadow: var(--sy-shadow-card);
+    }
+    .p01-note-text {
+      font-size: 36px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: #4a3f12;
+    }
+
+    /* email card */
+    .p01-mail {
+      left: 1250px;
+      top: 470px;
+      width: 580px;
+      padding: 26px 30px;
+    }
+    .p01-mail-subj {
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+    .p01-mail-from {
+      font-size: 21px;
+      color: var(--sy-muted);
+      margin-bottom: 18px;
+    }
+    .p01-mail .sy-chip {
+      font-size: 21px;
+    }
+
+    /* scene 3 duplicates — smaller, partly off-edge */
+    .p01-dup {
+      font-size: 19px;
+      box-shadow: var(--sy-shadow-card);
+    }
+    .p01-d1 {
+      left: -70px;
+      top: 392px;
+    }
+    .p01-d2 {
+      left: 1720px;
+      top: 404px;
+    }
+    .p01-d3 {
+      left: 520px;
+      top: 34px;
+    }
+    .p01-d4 {
+      left: 1150px;
+      top: 806px;
+    }
+    .p01-d5 {
+      left: -40px;
+      top: 770px;
+    }
+    .p01-d6 {
+      left: 1640px;
+      top: 760px;
+    }
+    .p01-d7 {
+      left: 420px;
+      top: 800px;
+    }
+    .p01-dtoast {
+      padding: 12px 18px;
+      gap: 12px;
+      border-radius: 16px;
+    }
+    .p01-dtoast .p01-toast-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: #e7f8ee;
+    }
+    .p01-dtoast .p01-toast-icon img {
+      width: 22px;
+      height: 22px;
+    }
+    .p01-dtoast .p01-toast-body {
+      font-size: 19px;
+    }
+
+    /* payoff caption — reuses .sy-caption, re-placed to the center at 84px */
+    #p01-q {
+      top: 438px;
+      font-size: 84px;
+      letter-spacing: -0.04em;
+    }
+    .p01-w {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-3pvr"
+    id="root"
+    data-composition-id="01-problem"
+    data-width="1920"
+    data-height="1080"
+    data-duration="12.442"
+  >
+    <div
+      data-hf-id="hf-2g31"
+      id="p01-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="12.442"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-yyg8"
+        class="sy-bloom amber"
+        style="
+          left: -160px;
+          top: 640px;
+          width: 620px;
+          height: 520px;
+          opacity: 0.28;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-6n38"
+        class="sy-bloom lilac"
+        style="
+          left: 1460px;
+          top: -200px;
+          width: 640px;
+          height: 560px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-m9up"
+        class="sy-bloom coral"
+        style="
+          left: 760px;
+          top: 300px;
+          width: 520px;
+          height: 420px;
+          opacity: 0.12;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-olz5"
+      id="p01-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="12.442"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-hiz8" id="p01-cam">
+        <div data-hf-id="hf-0kwa" id="p01-clutter">
+          <!-- WhatsApp chat -->
+          <div data-hf-id="hf-zf6f" id="p01-wa" class="sy-card p01-frag p01-wa">
+            <div data-hf-id="hf-xbvu" class="p01-label">
+              <img
+                data-hf-id="hf-t69y"
+                src="assets/whatsapp.svg"
+                alt=""
+              />WhatsApp · Nadia
+            </div>
+            <div data-hf-id="hf-7i4o" class="p01-wa-bubble">
+              Jangan lupa review proposal Aurora ya
+            </div>
+            <div data-hf-id="hf-9o1l" class="p01-wa-meta">08.12</div>
+          </div>
+
+          <!-- notification toast (top-right) -->
+          <div
+            data-hf-id="hf-qsey"
+            id="p01-notif"
+            class="sy-card p01-frag p01-toast p01-notif"
+          >
+            <div data-hf-id="hf-h3ln" class="p01-toast-icon">
+              <img data-hf-id="hf-jhu2" src="assets/whatsapp.svg" alt="" />
+            </div>
+            <div data-hf-id="hf-yeow">
+              <div data-hf-id="hf-zmws" class="p01-toast-title">
+                WhatsApp · Nadia
+              </div>
+              <div data-hf-id="hf-7pd1" class="p01-toast-body">Pesan baru</div>
+            </div>
+          </div>
+
+          <!-- file chip -->
+          <span
+            data-hf-id="hf-f1vi"
+            id="p01-file"
+            class="sy-chip doc p01-frag p01-file"
+            ><svg
+              data-hf-id="hf-h0hq"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-obz5"
+                d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+              />
+              <path data-hf-id="hf-gpnr" d="M14 2v4a2 2 0 0 0 2 2h4" />
+              <path data-hf-id="hf-eoqm" d="M16 13H8" />
+              <path data-hf-id="hf-bfay" d="M16 17H8" /></svg
+            >Proyek-Aurora-Brief.pdf</span
+          >
+
+          <!-- calendar card -->
+          <div
+            data-hf-id="hf-bdob"
+            id="p01-cal"
+            class="sy-card p01-frag p01-cal"
+          >
+            <div data-hf-id="hf-1xm2" class="p01-label">
+              <svg
+                data-hf-id="hf-pmle"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect
+                  data-hf-id="hf-4rv6"
+                  width="18"
+                  height="18"
+                  x="3"
+                  y="4"
+                  rx="2"
+                />
+                <path data-hf-id="hf-zqia" d="M16 2v4" />
+                <path data-hf-id="hf-adwx" d="M8 2v4" />
+                <path data-hf-id="hf-unwg" d="M3 10h18" />
+              </svg>
+              Kalender
+            </div>
+            <div data-hf-id="hf-45f9" class="p01-cal-row">
+              <div data-hf-id="hf-7q8y" class="p01-cal-bar"></div>
+              <div data-hf-id="hf-y7yw">
+                <div data-hf-id="hf-xvg9" class="p01-cal-title">
+                  Review proposal Aurora
+                </div>
+                <div data-hf-id="hf-603q" class="p01-cal-time">Kam 10.00</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- task card -->
+          <div
+            data-hf-id="hf-gx0r"
+            id="p01-task"
+            class="sy-card p01-frag p01-task"
+          >
+            <div data-hf-id="hf-xaek" class="p01-label">
+              <svg
+                data-hf-id="hf-q0wf"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect
+                  data-hf-id="hf-469r"
+                  width="18"
+                  height="18"
+                  x="3"
+                  y="3"
+                  rx="4"
+                />
+                <path data-hf-id="hf-t5d2" d="m8 12 3 3 5-6" />
+              </svg>
+              Tugas
+            </div>
+            <div data-hf-id="hf-pkri" class="p01-task-row">
+              <div data-hf-id="hf-gqvq" class="p01-check"></div>
+              <div data-hf-id="hf-tv6t" class="p01-task-title">
+                Finalisasi proposal Aurora
+              </div>
+            </div>
+            <span data-hf-id="hf-v7u8" class="sy-chip task">Jumat</span>
+          </div>
+
+          <!-- sticky note -->
+          <div data-hf-id="hf-qe10" id="p01-note" class="p01-frag p01-note">
+            <div data-hf-id="hf-2d9b" class="p01-note-text">
+              Ide: loyalty program?
+            </div>
+          </div>
+
+          <!-- email card with PDF chip -->
+          <div
+            data-hf-id="hf-pw5z"
+            id="p01-mail"
+            class="sy-card p01-frag p01-mail"
+          >
+            <div data-hf-id="hf-5me8" class="p01-label">
+              <svg
+                data-hf-id="hf-qf7g"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect
+                  data-hf-id="hf-y1eg"
+                  width="20"
+                  height="16"
+                  x="2"
+                  y="4"
+                  rx="2"
+                />
+                <path
+                  data-hf-id="hf-3xbp"
+                  d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"
+                />
+              </svg>
+              Email
+            </div>
+            <div data-hf-id="hf-5xkm" class="p01-mail-subj">
+              Brief Proyek Aurora
+            </div>
+            <div data-hf-id="hf-pn0j" class="p01-mail-from">dari Nadia</div>
+            <span data-hf-id="hf-uz52" class="sy-chip doc"
+              ><svg
+                data-hf-id="hf-qtih"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  data-hf-id="hf-jl4l"
+                  d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+                />
+                <path data-hf-id="hf-atfr" d="M14 2v4a2 2 0 0 0 2 2h4" />
+                <path data-hf-id="hf-crz6" d="M16 13H8" />
+                <path data-hf-id="hf-q7dq" d="M16 17H8" /></svg
+              >Proyek-Aurora-Brief.pdf</span
+            >
+          </div>
+
+          <!-- reminder toast -->
+          <div
+            data-hf-id="hf-iad2"
+            id="p01-remind"
+            class="sy-card p01-frag p01-toast p01-remind"
+          >
+            <div data-hf-id="hf-4t2z" class="p01-toast-icon">
+              <svg
+                data-hf-id="hf-r7ti"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle data-hf-id="hf-hoqb" cx="12" cy="13" r="8" />
+                <path data-hf-id="hf-a705" d="M12 9v4l2 2" />
+                <path data-hf-id="hf-2ed7" d="M5 3 2 6" />
+                <path data-hf-id="hf-7agl" d="m22 6-3-3" />
+              </svg>
+            </div>
+            <div data-hf-id="hf-x11t">
+              <div data-hf-id="hf-kjws" class="p01-toast-title">
+                Pengingat · 08.00
+              </div>
+              <div data-hf-id="hf-vb6a" class="p01-toast-body">
+                Review proposal Aurora
+              </div>
+            </div>
+          </div>
+
+          <!-- scene 3: accelerating duplicates (smaller, partly off-edge) -->
+          <span
+            data-hf-id="hf-kmst"
+            id="p01-d1"
+            class="sy-chip reminder p01-frag p01-dup p01-d1"
+            >Pengingat · 08.00</span
+          >
+          <span
+            data-hf-id="hf-lni7"
+            id="p01-d2"
+            class="sy-chip doc p01-frag p01-dup p01-d2"
+            >Proyek-Aurora-Brief.pdf</span
+          >
+          <div
+            data-hf-id="hf-us8f"
+            id="p01-d3"
+            class="sy-card p01-frag p01-toast p01-dtoast p01-d3"
+          >
+            <div data-hf-id="hf-4ery" class="p01-toast-icon">
+              <img data-hf-id="hf-jw53" src="assets/whatsapp.svg" alt="" />
+            </div>
+            <div data-hf-id="hf-hsoh" class="p01-toast-body">
+              Nadia · Pesan baru
+            </div>
+          </div>
+          <span
+            data-hf-id="hf-x8eh"
+            id="p01-d4"
+            class="sy-chip task p01-frag p01-dup p01-d4"
+            >Finalisasi proposal Aurora</span
+          >
+          <span
+            data-hf-id="hf-hvta"
+            id="p01-d5"
+            class="sy-chip event p01-frag p01-dup p01-d5"
+            >Review proposal Aurora · Kam 10.00</span
+          >
+          <span
+            data-hf-id="hf-6fql"
+            id="p01-d6"
+            class="sy-chip reminder p01-frag p01-dup p01-d6"
+            >Pengingat · 08.00</span
+          >
+          <span
+            data-hf-id="hf-3u3r"
+            id="p01-d7"
+            class="sy-chip doc p01-frag p01-dup p01-d7"
+            >Proyek-Aurora-Brief.pdf</span
+          >
+        </div>
+      </div>
+
+      <!-- payoff caption, centered over the dimmed clutter -->
+      <div
+        data-hf-id="hf-7w0i"
+        id="p01-q"
+        class="sy-caption"
+        data-layout-allow-overlap
+      >
+        <span data-hf-id="hf-69wx" class="p01-w">Terlalu</span>
+        <span data-hf-id="hf-i0h2" class="p01-w">banyak</span>
+        <span data-hf-id="hf-zrlb" class="p01-w">yang</span>
+        <span data-hf-id="hf-q8op" class="p01-w">harus</span>
+        <em data-hf-id="hf-ngit" class="p01-w">diingat?</em>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ---- camera: slow steady zoom-out 1.06 -> 1.0 over 0–8s ----
+      tl.fromTo(
+        "#p01-cam",
+        { scale: 1.06 },
+        { scale: 1.0, duration: 8, ease: "none" },
+        0
+      );
+
+      function pop(sel, rot, at, dur) {
+        tl.fromTo(
+          sel,
+          { opacity: 0, scale: 0.6, y: 18, rotation: rot },
+          {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            rotation: rot,
+            duration: dur || 0.5,
+            ease: "power3.out",
+          },
+          at
+        );
+      }
+
+      // ---- Scene 1 ----
+      tl.fromTo(
+        "#p01-wa",
+        { opacity: 0, scale: 0.85, y: 24, rotation: -3 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          rotation: -3,
+          duration: 0.6,
+          ease: "power3.out",
+        },
+        0.6
+      );
+      tl.fromTo(
+        "#p01-notif",
+        { opacity: 0, x: 90, y: -40 },
+        { opacity: 1, x: 0, y: 0, duration: 0.55, ease: "expo.out" },
+        1.6
+      );
+      pop("#p01-file", 4, 3.04);
+
+      // ---- Scene 2: one fragment per listed word ----
+      tl.fromTo(
+        "#p01-cal",
+        { opacity: 0, x: 70, rotation: -2 },
+        { opacity: 1, x: 0, rotation: -2, duration: 0.6, ease: "power3.out" },
+        3.89
+      );
+      tl.fromTo(
+        "#p01-task",
+        { opacity: 0, scale: 0.88, y: 30, rotation: 1.5 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          rotation: 1.5,
+          duration: 0.55,
+          ease: "power3.out",
+        },
+        4.9
+      );
+      tl.fromTo(
+        "#p01-note",
+        { scale: 1.18, rotation: -10 },
+        { scale: 1, rotation: -5, duration: 0.4, ease: "power3.out" },
+        5.58
+      );
+      tl.fromTo(
+        "#p01-note",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.1, ease: "power1.out" },
+        5.58
+      );
+      tl.fromTo(
+        "#p01-mail",
+        { opacity: 0, y: 44, rotation: 2.5 },
+        { opacity: 1, y: 0, rotation: 2.5, duration: 0.6, ease: "power3.out" },
+        6.37
+      );
+      tl.fromTo(
+        "#p01-remind",
+        { opacity: 0, y: 40, rotation: -1.5 },
+        { opacity: 1, y: 0, rotation: -1.5, duration: 0.5, ease: "expo.out" },
+        7.26
+      );
+
+      // ---- Scene 3: montage accelerates on 16th notes from "tersebar" ----
+      const SIXTEENTH = 0.1305;
+      const DUPS = [
+        ["#p01-d1", -5],
+        ["#p01-d2", 6],
+        ["#p01-d3", -3],
+        ["#p01-d4", 4],
+        ["#p01-d5", -6],
+        ["#p01-d6", 3],
+        ["#p01-d7", -4],
+      ];
+      DUPS.forEach(function (d, i) {
+        pop(d[0], d[1], 8.27 + i * SIXTEENTH, 0.35);
+      });
+      tl.fromTo(
+        "#p01-clutter",
+        { filter: "blur(0px)" },
+        { filter: "blur(1.2px)", duration: 1.4, ease: "power1.in" },
+        8.27
+      );
+
+      // ---- Scene 4: downbeat 9.95 — clutter dims + blurs, question builds word-by-word ----
+      tl.fromTo(
+        "#p01-clutter",
+        { opacity: 1, filter: "blur(1.2px)" },
+        {
+          opacity: 0.55,
+          filter: "blur(3px)",
+          duration: 0.5,
+          ease: "power3.out",
+          immediateRender: false,
+        },
+        9.95
+      );
+      tl.fromTo(
+        "#p01-q .p01-w",
+        { opacity: 0, y: 34 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.14 },
+        10.0
+      );
+
+      window.__timelines["01-problem"] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,688 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f01-cam {
+      position: absolute;
+      inset: 0;
+      transform-origin: 50% 50%;
+      will-change: transform;
+    }
+    .f01-frag {
+      position: absolute;
+      transform-origin: 50% 50%;
+      will-change: transform, opacity;
+    }
+    .f01-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--sy-muted);
+      margin-bottom: 16px;
+    }
+    .f01-label img,
+    .f01-label svg {
+      width: 30px;
+      height: 30px;
+    }
+    .f01-wa {
+      left: 110px;
+      top: 96px;
+      width: 560px;
+      padding: 26px 30px;
+    }
+    .f01-wa-bubble {
+      background: #dcf8c6;
+      color: #1f2a1f;
+      border-radius: 18px 18px 18px 6px;
+      padding: 16px 22px;
+      font-size: 27px;
+      line-height: 1.35;
+    }
+    .f01-wa-meta {
+      font-size: 18px;
+      color: var(--sy-muted);
+      margin-top: 10px;
+      text-align: right;
+    }
+    .f01-mail {
+      left: 1250px;
+      top: 70px;
+      width: 580px;
+      padding: 26px 30px;
+    }
+    .f01-mail-subj {
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+    .f01-mail-from {
+      font-size: 21px;
+      color: var(--sy-muted);
+      margin-bottom: 18px;
+    }
+    .f01-mail .sy-chip {
+      font-size: 21px;
+    }
+    .f01-cal {
+      left: 1330px;
+      top: 470px;
+      width: 470px;
+      padding: 26px 30px;
+    }
+    .f01-cal-row {
+      display: flex;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .f01-cal-bar {
+      width: 8px;
+      border-radius: 4px;
+      background: #8c5cff;
+    }
+    .f01-cal-title {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .f01-cal-time {
+      font-size: 22px;
+      color: var(--sy-muted);
+      margin-top: 6px;
+    }
+    .f01-note {
+      left: 170px;
+      top: 520px;
+      width: 400px;
+      padding: 34px 34px 40px;
+      background: #fff3b0;
+      border-radius: 6px;
+      box-shadow: var(--sy-shadow-card);
+    }
+    .f01-note-text {
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: #4a3f12;
+    }
+    .f01-voice {
+      left: 700px;
+      top: 720px;
+      width: 470px;
+      padding: 22px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-radius: 9999px;
+    }
+    .f01-play {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: var(--sy-ink);
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+    .f01-play svg {
+      width: 22px;
+      height: 22px;
+      fill: #fff;
+      margin-left: 4px;
+    }
+    .f01-wave {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex: 1;
+      height: 44px;
+    }
+    .f01-wave i {
+      display: block;
+      width: 6px;
+      border-radius: 3px;
+      background: #c9c3cc;
+      transform-origin: 50% 50%;
+    }
+    .f01-voice-time {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--sy-muted);
+    }
+    .f01-ticket {
+      left: 700px;
+      top: 150px;
+      font-size: 24px;
+    }
+    .f01-invoice {
+      left: 760px;
+      top: 560px;
+      font-size: 24px;
+    }
+    .f01-reminder {
+      left: 1250px;
+      top: 400px;
+      font-size: 24px;
+    }
+    .f01-q {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 400px;
+      text-align: center;
+      font-size: 84px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--sy-ink);
+    }
+    .f01-q-w {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-2aun"
+    id="root"
+    data-composition-id="01-scattered"
+    data-width="1920"
+    data-height="1080"
+    data-duration="10.354"
+  >
+    <div
+      data-hf-id="hf-jw8b"
+      id="f01-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.354"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-yyg8"
+        class="sy-bloom amber"
+        style="
+          left: -160px;
+          top: 640px;
+          width: 620px;
+          height: 520px;
+          opacity: 0.28;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-6n38"
+        class="sy-bloom lilac"
+        style="
+          left: 1460px;
+          top: -200px;
+          width: 640px;
+          height: 560px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-x7pz"
+      id="f01-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.354"
+      data-track-index="1"
+    >
+      <!-- camera: one wrapper for every fragment + the question (multi-phase-camera) -->
+      <div data-hf-id="hf-v5xs" id="f01-cam" class="f01-cam">
+        <!-- WhatsApp chat fragment (shove vector: up-left, |v|≈100) -->
+        <div
+          data-hf-id="hf-57b4"
+          id="f01-wa"
+          class="sy-card f01-frag f01-wa"
+          data-shove-x="-87"
+          data-shove-y="-50"
+        >
+          <div data-hf-id="hf-yi9a" class="f01-label">
+            <img
+              data-hf-id="hf-t69y"
+              src="assets/whatsapp.svg"
+              alt=""
+            />WhatsApp · Mbak Ratna
+          </div>
+          <div data-hf-id="hf-h1px" class="f01-wa-bubble">
+            Kontrak sewanya udah aku kirim ke email ya, Kak
+          </div>
+          <div data-hf-id="hf-ih5j" class="f01-wa-meta">
+            25 Okt 2025 · 19.42
+          </div>
+        </div>
+
+        <!-- email fragment (shove: up-right, |v|≈106) -->
+        <div
+          data-hf-id="hf-p6et"
+          id="f01-mail"
+          class="sy-card f01-frag f01-mail"
+          data-shove-x="90"
+          data-shove-y="-56"
+        >
+          <div data-hf-id="hf-ebmu" class="f01-label">
+            <svg
+              data-hf-id="hf-h0hq"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect
+                data-hf-id="hf-y1eg"
+                width="20"
+                height="16"
+                x="2"
+                y="4"
+                rx="2"
+              />
+              <path
+                data-hf-id="hf-3xbp"
+                d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"
+              />
+            </svg>
+            Email
+          </div>
+          <div data-hf-id="hf-id5z" class="f01-mail-subj">
+            Re: Kontrak sewa — final
+          </div>
+          <div data-hf-id="hf-06xj" class="f01-mail-from">
+            dari Ratna Prameswari
+          </div>
+          <span data-hf-id="hf-kc7j" class="sy-chip doc"
+            ><svg
+              data-hf-id="hf-pmle"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-obz5"
+                d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+              />
+              <path data-hf-id="hf-gpnr" d="M14 2v4a2 2 0 0 0 2 2h4" />
+              <path data-hf-id="hf-eoqm" d="M16 13H8" />
+              <path data-hf-id="hf-bfay" d="M16 17H8" /></svg
+            >Kontrak Sewa Apartemen Cendana Residence.pdf</span
+          >
+        </div>
+
+        <!-- calendar fragment (shove: right, |v|=110) -->
+        <div
+          data-hf-id="hf-6hw6"
+          id="f01-cal"
+          class="sy-card f01-frag f01-cal"
+          data-shove-x="110"
+          data-shove-y="2"
+        >
+          <div data-hf-id="hf-a92w" class="f01-label">
+            <svg
+              data-hf-id="hf-q0wf"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect
+                data-hf-id="hf-4rv6"
+                width="18"
+                height="18"
+                x="3"
+                y="4"
+                rx="2"
+              />
+              <path data-hf-id="hf-zqia" d="M16 2v4" />
+              <path data-hf-id="hf-adwx" d="M8 2v4" />
+              <path data-hf-id="hf-unwg" d="M3 10h18" />
+            </svg>
+            Kalender
+          </div>
+          <div data-hf-id="hf-vgd7" class="f01-cal-row">
+            <div data-hf-id="hf-56zg" class="f01-cal-bar"></div>
+            <div data-hf-id="hf-yeow">
+              <div data-hf-id="hf-sw8l" class="f01-cal-title">
+                Meeting dengan Pak Budi
+              </div>
+              <div data-hf-id="hf-otu7" class="f01-cal-time">
+                Rab, 21 Okt · 14.00–15.00
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- sticky note fragment (shove: left, |v|≈120) -->
+        <div
+          data-hf-id="hf-6vhp"
+          id="f01-note"
+          class="f01-frag f01-note"
+          data-shove-x="-119"
+          data-shove-y="13"
+        >
+          <div data-hf-id="hf-vjla" class="f01-note-text">
+            Ide kado Ibu: tas batik? voucher spa?
+          </div>
+        </div>
+
+        <!-- voice note fragment (shove: down — clamped to 58px by the y≤900 keep-out after the 1.04 push) -->
+        <div
+          data-hf-id="hf-dp2l"
+          id="f01-voice"
+          class="sy-card f01-frag f01-voice"
+          data-shove-x="-7"
+          data-shove-y="58"
+        >
+          <div data-hf-id="hf-g4uu" class="f01-play">
+            <svg data-hf-id="hf-ulu9" viewBox="0 0 24 24">
+              <polygon data-hf-id="hf-iq02" points="6 3 20 12 6 21 6 3" />
+            </svg>
+          </div>
+          <div data-hf-id="hf-btsj" class="f01-wave">
+            <i data-hf-id="hf-qe0t" style="height: 14px"></i
+            ><i data-hf-id="hf-cpi6" style="height: 26px"></i
+            ><i data-hf-id="hf-myxn" style="height: 38px"></i
+            ><i data-hf-id="hf-ht8a" style="height: 22px"></i
+            ><i data-hf-id="hf-gcjn" style="height: 30px"></i
+            ><i data-hf-id="hf-5tg6" style="height: 44px"></i
+            ><i data-hf-id="hf-nc1t" style="height: 18px"></i
+            ><i data-hf-id="hf-d9fr" style="height: 34px"></i
+            ><i data-hf-id="hf-c4qq" style="height: 26px"></i
+            ><i data-hf-id="hf-0inm" style="height: 40px"></i
+            ><i data-hf-id="hf-0r1r" style="height: 16px"></i
+            ><i data-hf-id="hf-n1bc" style="height: 28px"></i
+            ><i data-hf-id="hf-bab9" style="height: 36px"></i
+            ><i data-hf-id="hf-l168" style="height: 20px"></i
+            ><i data-hf-id="hf-vg97" style="height: 12px"></i
+            ><i data-hf-id="hf-fxg4" style="height: 24px"></i
+            ><i data-hf-id="hf-5zip" style="height: 32px"></i
+            ><i data-hf-id="hf-pdjp" style="height: 18px"></i
+            ><i data-hf-id="hf-xj3t" style="height: 10px"></i>
+          </div>
+          <div data-hf-id="hf-vagg" class="f01-voice-time">0:42</div>
+        </div>
+
+        <!-- loose file chips -->
+        <span
+          data-hf-id="hf-8gli"
+          id="f01-ticket"
+          class="sy-chip doc f01-frag f01-ticket"
+          data-shove-x="-1"
+          data-shove-y="-100"
+          ><svg
+            data-hf-id="hf-qf7g"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-jl4l"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-atfr" d="M14 2v4a2 2 0 0 0 2 2h4" />
+            <path data-hf-id="hf-crz6" d="M16 13H8" />
+            <path data-hf-id="hf-q7dq" d="M16 17H8" /></svg
+          >E-Tiket Jakarta - Denpasar Desember.pdf</span
+        >
+        <span
+          data-hf-id="hf-4g11"
+          id="f01-invoice"
+          class="sy-chip doc f01-frag f01-invoice"
+          data-shove-x="72"
+          data-shove-y="83"
+          ><svg
+            data-hf-id="hf-qtih"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-ks1o"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-af4q" d="M14 2v4a2 2 0 0 0 2 2h4" />
+            <path data-hf-id="hf-d6a7" d="M16 13H8" />
+            <path data-hf-id="hf-qlor" d="M16 17H8" /></svg
+          >Invoice Servis Mobil Agustus 2026.pdf</span
+        >
+        <span
+          data-hf-id="hf-dwo1"
+          id="f01-reminder"
+          class="sy-chip reminder f01-frag f01-reminder"
+          data-shove-x="95"
+          data-shove-y="-30"
+          ><svg
+            data-hf-id="hf-r7ti"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle data-hf-id="hf-hoqb" cx="12" cy="13" r="8" />
+            <path data-hf-id="hf-a705" d="M12 9v4l2 2" />
+            <path data-hf-id="hf-2ed7" d="M5 3 2 6" />
+            <path data-hf-id="hf-7agl" d="m22 6-3-3" /></svg
+          >Bayar listrik?</span
+        >
+
+        <!-- payoff question — builds word by word in the opened center -->
+        <div data-hf-id="hf-ax4c" id="f01-q" class="f01-q">
+          <span data-hf-id="hf-akmz" class="f01-q-w">…di</span>
+          <span data-hf-id="hf-tn11" class="f01-q-w">mana</span>
+          <span data-hf-id="hf-ucd1" class="f01-q-w">ya?</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const DUR = 9.954;
+
+      // ---- Camera (multi-phase-camera): zoom-out 1.08→1.0 under accumulation, reverse push 1.0→1.04 on "mana" ----
+      const CAM = "#f01-cam";
+      const ZOOM_END = 6.3;
+      const PUSH_AT = 7.64;
+      const PUSH_DUR = 0.35;
+      tl.fromTo(
+        CAM,
+        { scale: 1.08 },
+        { scale: 1.0, duration: ZOOM_END, ease: "power1.out" },
+        0
+      );
+      tl.fromTo(
+        CAM,
+        { scale: 1.0 },
+        {
+          scale: 1.04,
+          duration: PUSH_DUR,
+          ease: "expo.out",
+          immediateRender: false,
+        },
+        PUSH_AT
+      );
+      // micro-drift (sine Lissajous, x period = DUR, y period ≈ DUR/1.3) — the hold's only jitter
+      const DX = 3,
+        DY = 1.5,
+        QX = DUR / 4,
+        QY = 1.9;
+      tl.fromTo(CAM, { x: 0 }, { x: DX, duration: QX, ease: "sine.out" }, 0);
+      tl.fromTo(
+        CAM,
+        { x: DX },
+        {
+          x: -DX,
+          duration: QX * 2,
+          ease: "sine.inOut",
+          immediateRender: false,
+        },
+        QX
+      );
+      tl.fromTo(
+        CAM,
+        { x: -DX },
+        { x: 0, duration: QX, ease: "sine.in", immediateRender: false },
+        QX * 3
+      );
+      tl.fromTo(CAM, { y: 0 }, { y: DY, duration: QY, ease: "sine.out" }, 0);
+      tl.fromTo(
+        CAM,
+        { y: DY },
+        {
+          y: -DY,
+          duration: QY * 2,
+          ease: "sine.inOut",
+          immediateRender: false,
+        },
+        QY
+      );
+      tl.fromTo(
+        CAM,
+        { y: -DY },
+        { y: DY, duration: QY * 2, ease: "sine.inOut", immediateRender: false },
+        QY * 3
+      );
+
+      // ---- Scene 1: WhatsApp card on "Chat" (spring-pop, smooth settle), E-Tiket chip on downbeat 1.60 ----
+      tl.fromTo(
+        "#f01-wa",
+        { opacity: 0, scale: 0.85, y: 24, rotation: -3 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          rotation: -3,
+          duration: 0.6,
+          ease: "power3.out",
+        },
+        0.3
+      );
+      function popChip(sel, rot, at) {
+        tl.fromTo(
+          sel,
+          { opacity: 0, scale: 0, y: 16, rotation: rot },
+          {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            rotation: rot,
+            duration: 0.5,
+            ease: "power3.out",
+          },
+          at
+        );
+      }
+      popChip("#f01-ticket", 4, 1.6);
+
+      // ---- Scene 2: email card slides up on "Kontrak", invoice chip on downbeat 3.69 ----
+      tl.fromTo(
+        "#f01-mail",
+        { opacity: 0, y: 40, rotation: 2.5 },
+        { opacity: 1, y: 0, rotation: 2.5, duration: 0.7, ease: "power3.out" },
+        2.56
+      );
+      popChip("#f01-invoice", -4, 3.69);
+
+      // ---- Scene 3: calendar from x+60 on "Jadwal", reminder on "kalender", voice pill on downbeat 5.78 ----
+      tl.fromTo(
+        "#f01-cal",
+        { opacity: 0, x: 60, rotation: -2 },
+        { opacity: 1, x: 0, rotation: -2, duration: 0.7, ease: "power3.out" },
+        4.61
+      );
+      popChip("#f01-reminder", 3, 5.33);
+      tl.fromTo(
+        "#f01-voice",
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" },
+        5.78
+      );
+      tl.fromTo(
+        "#f01-voice .f01-wave i",
+        { scaleY: 0.12 },
+        { scaleY: 1, duration: 0.32, ease: "power3.out", stagger: 0.02 },
+        5.86
+      );
+
+      // ---- Scene 4: sticky note slaps in on "Catatan…" — frame now crowded ----
+      tl.fromTo(
+        "#f01-note",
+        { scale: 1.15, rotation: -9 },
+        { scale: 1, rotation: -5, duration: 0.45, ease: "power3.out" },
+        6.32
+      );
+      tl.fromTo(
+        "#f01-note",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.12, ease: "power1.out" },
+        6.32
+      );
+
+      // ---- Scene 5: camera reverse push + clutter shoved radially OUTWARD (center-outward-expansion inverted) ----
+      document
+        .querySelectorAll("#f01-cam [data-shove-x]")
+        .forEach(function (el) {
+          tl.fromTo(
+            el,
+            { x: 0, y: 0, opacity: 1, filter: "blur(0px)" },
+            {
+              x: Number(el.dataset.shoveX),
+              y: Number(el.dataset.shoveY),
+              opacity: 0.75,
+              filter: "blur(2px)",
+              duration: 0.6,
+              ease: "expo.out",
+              immediateRender: false,
+            },
+            PUSH_AT
+          );
+        });
+
+      // "…di" / "mana" / "ya?" — start times precomputed once (dynamic-content-sequencing), on downbeat 7.87
+      const Q_AT = 7.87;
+      const Q_STEP = 0.12;
+      const Q_START = Array.prototype.map.call(
+        document.querySelectorAll("#f01-q .f01-q-w"),
+        function (el, i) {
+          return { el: el, start: Q_AT + i * Q_STEP };
+        }
+      );
+      Q_START.forEach(function (w) {
+        tl.fromTo(
+          w.el,
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" },
+          w.start
+        );
+      });
+
+      window.__timelines["01-scattered"] = tl;
+    })();
+  </script>
+</template>

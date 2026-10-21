@@ -1,0 +1,295 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f07-win {
+      left: 700px;
+      top: 90px;
+      width: 1180px;
+      height: 738px;
+      --f07-dof: 0px;
+      filter: blur(var(--f07-dof));
+      will-change: filter, transform;
+    }
+    .f07-dim {
+      position: absolute;
+      inset: 0;
+      background: rgba(251, 248, 245, 0.58);
+    }
+    .f07-rig {
+      position: absolute;
+      inset: 0;
+    }
+    .f07-card {
+      position: absolute;
+      left: 1118px;
+      top: 236px;
+      width: 456px;
+      height: 536px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow:
+        rgba(240, 102, 148, 0.35) 0 30px 70px -20px,
+        rgba(140, 92, 255, 0.28) 0 16px 40px -18px;
+      border: 2.5px solid var(--sy-pink);
+      z-index: 2;
+    }
+    .f07-card img {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .f07-col {
+      position: absolute;
+      left: 110px;
+      top: 220px;
+      width: 660px;
+      z-index: 3;
+    }
+    .f07-no {
+      position: relative;
+      display: inline-block;
+      font-size: 76px;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      color: var(--sy-light);
+      margin-bottom: 18px;
+    }
+    .f07-strike {
+      position: absolute;
+      left: -6px;
+      right: -6px;
+      top: 52%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--sy-pink);
+      transform-origin: 0 50%;
+    }
+    .f07-yes {
+      font-size: 150px;
+      margin-top: 40px;
+      padding-bottom: 18px;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-3r5v"
+    id="root"
+    data-composition-id="07-just-ask"
+    data-width="1920"
+    data-height="1080"
+    data-duration="6.763"
+  >
+    <div
+      data-hf-id="hf-f6ys"
+      id="f07-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="6.763"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-e2ke"
+        id="f07-bloom"
+        class="sy-bloom coral"
+        style="
+          left: 1040px;
+          top: 300px;
+          width: 620px;
+          height: 520px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-i064"
+        class="sy-bloom amber"
+        style="
+          left: -120px;
+          top: 640px;
+          width: 700px;
+          height: 420px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-r7t6"
+      id="f07-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="6.763"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-wa4d" id="f07-win" class="sy-window f07-win">
+        <img data-hf-id="hf-jqwb" src="assets/page-files-grid.png" alt="" />
+        <div data-hf-id="hf-7iqa" id="f07-dim" class="f07-dim"></div>
+      </div>
+      <div data-hf-id="hf-is1s" id="f07-cardrig" class="f07-rig">
+        <div data-hf-id="hf-lopi" id="f07-card" class="f07-card">
+          <img
+            data-hf-id="hf-3gwm"
+            src="assets/crops/contract-card.png"
+            alt=""
+          />
+        </div>
+      </div>
+
+      <div data-hf-id="hf-44ww" class="f07-col">
+        <div data-hf-id="hf-yeow">
+          <span data-hf-id="hf-font" id="f07-n1" class="f07-no"
+            >Nama file?<span
+              data-hf-id="hf-dytt"
+              id="f07-s1"
+              class="f07-strike"
+            ></span
+          ></span>
+        </div>
+        <div data-hf-id="hf-y7yw">
+          <span data-hf-id="hf-zq4v" id="f07-n2" class="f07-no"
+            >Folder?<span
+              data-hf-id="hf-hwxu"
+              id="f07-s2"
+              class="f07-strike"
+            ></span
+          ></span>
+        </div>
+        <div
+          data-hf-id="hf-ve7v"
+          id="f07-yes"
+          class="sy-display sy-aurora-text f07-yes"
+        >
+          Tanya aja.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+
+      // Scene 1 (0.0–1.9s) — the File window (and the contract card resting in its grid) slide in.
+      tl.fromTo(
+        ["#f07-win", "#f07-cardrig"],
+        { x: 120 },
+        { x: 0, duration: 0.95, ease: "power3.out" },
+        0
+      );
+      // "Nama file?" rises on "hafal".
+      tl.fromTo(
+        "#f07-n1",
+        { y: 46, opacity: 0, filter: "blur(6px)" },
+        {
+          y: 0,
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.65,
+          ease: "power3.out",
+        },
+        0.85
+      );
+      // Strike draws on "file" (css-marker-patterns: scaleX sweep from the left edge).
+      tl.fromTo(
+        "#f07-s1",
+        { scaleX: 0, transformOrigin: "0% 50%" },
+        { scaleX: 1, duration: 0.34, ease: "power2.out" },
+        1.54
+      );
+
+      // Scene 2 (2.1–3.6s) — "Folder?" rises on "ingat", struck on "foldernya".
+      tl.fromTo(
+        "#f07-n2",
+        { y: 46, opacity: 0, filter: "blur(6px)" },
+        {
+          y: 0,
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.65,
+          ease: "power3.out",
+        },
+        2.39
+      );
+      tl.fromTo(
+        "#f07-s2",
+        { scaleX: 0, transformOrigin: "0% 50%" },
+        { scaleX: 1, duration: 0.34, ease: "power2.out" },
+        3.24
+      );
+
+      // Scene 3 (3.9–6.26s) — on downbeat 4.17 the contract card lifts out of the grid and glows.
+      tl.fromTo(
+        "#f07-card",
+        { x: 200, y: 51, scale: 0.366, transformOrigin: "0 0" },
+        { x: 0, y: 0, scale: 1, duration: 0.6, ease: "power3.out" },
+        4.17
+      );
+      tl.fromTo(
+        "#f07-card",
+        {
+          borderColor: "rgba(239, 90, 138, 0)",
+          boxShadow:
+            "rgba(240, 102, 148, 0) 0px 0px 0px 0px, rgba(140, 92, 255, 0) 0px 0px 0px 0px",
+        },
+        {
+          borderColor: "rgba(239, 90, 138, 1)",
+          boxShadow:
+            "rgba(240, 102, 148, 0.35) 0px 30px 70px -20px, rgba(140, 92, 255, 0.28) 0px 16px 40px -18px",
+          duration: 0.6,
+          ease: "power2.out",
+        },
+        4.17
+      );
+      tl.fromTo(
+        "#f07-bloom",
+        { opacity: 0.14 },
+        { opacity: 0.3, duration: 0.9, ease: "power2.out" },
+        4.17
+      );
+      // Everything else recedes: the window dims and defocuses (depth-of-field-blur, focal pull).
+      tl.fromTo(
+        "#f07-dim",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.7, ease: "power2.out" },
+        4.17
+      );
+      tl.fromTo(
+        "#f07-win",
+        { "--f07-dof": "0px" },
+        { "--f07-dof": "3px", duration: 0.8, ease: "power2.inOut" },
+        4.17
+      );
+      // "Tanya aja." slams in on "Tanya", then the frame holds still.
+      tl.fromTo(
+        "#f07-yes",
+        {
+          scale: 1.3,
+          opacity: 0,
+          filter: "blur(16px)",
+          transformOrigin: "50% 55%",
+        },
+        {
+          scale: 1,
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.4,
+          ease: "expo.out",
+        },
+        4.27
+      );
+
+      // Hold to the end of the frame.
+      tl.set({}, {}, 6.263);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["07-just-ask"] = tl;
+    })();
+  </script>
+</template>

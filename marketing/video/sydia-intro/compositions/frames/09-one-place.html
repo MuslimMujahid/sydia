@@ -1,0 +1,325 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f09-win {
+      left: 330px;
+      top: 60px;
+      width: 1260px;
+      height: 788px;
+    }
+    .f09-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1260px;
+      height: 788px;
+      transform-origin: 0 0;
+    }
+    .f09-cam img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1260px;
+      height: 788px;
+    }
+    .f09-side {
+      position: absolute;
+      width: 470px;
+      padding: 26px 30px;
+    }
+    .f09-k {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #c64a72;
+      margin-bottom: 16px;
+    }
+    .f09-k svg {
+      width: 24px;
+      height: 24px;
+    }
+    .f09-title {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .f09-meta {
+      font-size: 22px;
+      color: var(--sy-muted);
+      margin-top: 6px;
+    }
+    .f09-file {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      font-weight: 500;
+      padding: 10px 0;
+      border-top: 1px solid var(--sy-border);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .f09-file:first-of-type {
+      border-top: 0;
+    }
+    .f09-file svg {
+      width: 24px;
+      height: 24px;
+      color: #5a19c9;
+      flex: none;
+    }
+    .f09-ok {
+      margin-left: auto;
+      font-size: 18px;
+      color: #08683b;
+      font-weight: 600;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-5saf"
+    id="root"
+    data-composition-id="09-one-place"
+    data-width="1920"
+    data-height="1080"
+    data-duration="6.763"
+  >
+    <div
+      data-hf-id="hf-koae"
+      id="f09-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="6.763"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-ah5m"
+        class="sy-bloom violet"
+        style="
+          left: 700px;
+          top: 340px;
+          width: 700px;
+          height: 420px;
+          opacity: 0.24;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-wgcu"
+        class="sy-bloom amber"
+        style="
+          left: -100px;
+          top: 520px;
+          width: 600px;
+          height: 460px;
+          opacity: 0.24;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-51n8"
+      id="f09-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="6.763"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-y1zt" id="f09-win" class="sy-window f09-win">
+        <div data-hf-id="hf-v4kw" id="f09-cam" class="f09-cam">
+          <img
+            data-hf-id="hf-b3be"
+            src="assets/page-calendar-week.png"
+            alt=""
+          />
+        </div>
+      </div>
+
+      <div
+        data-hf-id="hf-vlmk"
+        id="f09-rem"
+        class="sy-card f09-side"
+        style="left: 80px; top: 560px"
+      >
+        <div data-hf-id="hf-rke0" class="f09-k">
+          <svg
+            data-hf-id="hf-h0hq"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle data-hf-id="hf-hoqb" cx="12" cy="13" r="8" />
+            <path data-hf-id="hf-a705" d="M12 9v4l2 2" />
+            <path data-hf-id="hf-2ed7" d="M5 3 2 6" />
+            <path data-hf-id="hf-7agl" d="m22 6-3-3" /></svg
+          >Pengingat
+        </div>
+        <div data-hf-id="hf-oc77" class="f09-title">Bayar listrik</div>
+        <div data-hf-id="hf-raq2" class="f09-meta">
+          25 Okt 2026 · Berulang bulanan
+        </div>
+      </div>
+
+      <div
+        data-hf-id="hf-pqci"
+        id="f09-files"
+        class="sy-card f09-side"
+        style="left: 1380px; top: 110px"
+      >
+        <div data-hf-id="hf-no1a" class="f09-k">
+          <svg
+            data-hf-id="hf-pmle"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-obz5"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-gpnr" d="M14 2v4a2 2 0 0 0 2 2h4" /></svg
+          >File saya · 6
+        </div>
+        <div data-hf-id="hf-zwgh" id="f09-file-1" class="f09-file">
+          <svg
+            data-hf-id="hf-q0wf"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-jl4l"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-atfr" d="M14 2v4a2 2 0 0 0 2 2h4" /></svg
+          >Kontrak Sewa Apartemen…<span data-hf-id="hf-2yj6" class="f09-ok"
+            >Siap</span
+          >
+        </div>
+        <div data-hf-id="hf-y8te" id="f09-file-2" class="f09-file">
+          <svg
+            data-hf-id="hf-qf7g"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-ks1o"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-af4q" d="M14 2v4a2 2 0 0 0 2 2h4" /></svg
+          >Polis Asuransi Kesehatan…<span data-hf-id="hf-pmza" class="f09-ok"
+            >Siap</span
+          >
+        </div>
+        <div data-hf-id="hf-gf8g" id="f09-file-3" class="f09-file">
+          <svg
+            data-hf-id="hf-qtih"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-kdqn"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-a0tp" d="M14 2v4a2 2 0 0 0 2 2h4" /></svg
+          >E-Tiket Jakarta - Denpasar…<span data-hf-id="hf-q1ab" class="f09-ok"
+            >Siap</span
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+
+      // Scene 1 (0.0–1.04s): held tight on the purple meeting block, tiny finite drift.
+      tl.fromTo(
+        "#f09-cam",
+        { x: -1293, y: -761, scale: 3, transformOrigin: "0 0", force3D: false },
+        {
+          x: -1303,
+          y: -761,
+          scale: 3,
+          transformOrigin: "0 0",
+          force3D: false,
+          duration: 1.04,
+          ease: "none",
+        },
+        0
+      );
+
+      // Scene 2 (1.04–1.94s): ONE decelerating zoom-out to the full week; frame locks after.
+      tl.fromTo(
+        "#f09-cam",
+        { x: -1303, y: -761, scale: 3, transformOrigin: "0 0", force3D: false },
+        {
+          x: 0,
+          y: 0,
+          scale: 1,
+          transformOrigin: "0 0",
+          force3D: false,
+          duration: 0.9,
+          ease: "expo.out",
+          immediateRender: false,
+        },
+        1.04
+      );
+
+      // Scene 3: reminder card slides in from the left on "di" (2.56s).
+      tl.fromTo(
+        "#f09-rem",
+        { x: -80, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" },
+        2.56
+      );
+
+      // Files card slides in from the right on the downbeat (3.13s)...
+      tl.fromTo(
+        "#f09-files",
+        { x: 80, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" },
+        3.13
+      );
+
+      // ...and its three file rows tick in, then everything holds still.
+      tl.fromTo(
+        ["#f09-file-1", "#f09-file-2", "#f09-file-3"],
+        { x: 16, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.4, ease: "power2.out", stagger: 0.15 },
+        3.33
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["09-one-place"] = tl;
+    })();
+  </script>
+</template>

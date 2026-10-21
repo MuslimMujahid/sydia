@@ -1,0 +1,1433 @@
+{
+  "bgm": {
+    "path": "assets/bgm/bed.mp3",
+    "source_path": "assets/bgm/track.mp3",
+    "volume": 0.28,
+    "query": "upbeat energetic modern pop electronic, bright and positive, driving beat around 120 BPM, punchy drop, no vocals",
+    "duration_s": 89.601,
+    "bpm": 117.5,
+    "arrangement": [
+      [0.0, 20.387],
+      [3.692, 20.387],
+      [3.692, 20.387],
+      [3.692, 20.387],
+      [3.692, 16.208],
+      [20.387, 27.0]
+    ]
+  },
+  "bgm_pending": false,
+  "voices": [
+    {
+      "frame": 1,
+      "path": "assets/voice/01.wav",
+      "duration_s": 8.176,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Chat",
+          "start": 0.299,
+          "end": 0.5547
+        },
+        {
+          "id": "w1",
+          "text": "penting",
+          "start": 0.768,
+          "end": 1.1947
+        },
+        {
+          "id": "w2",
+          "text": "di",
+          "start": 1.28,
+          "end": 1.408
+        },
+        {
+          "id": "w3",
+          "text": "WhatsApp.",
+          "start": 1.451,
+          "end": 2.24
+        },
+        {
+          "id": "w4",
+          "text": "Kontrak",
+          "start": 2.56,
+          "end": 3.1147
+        },
+        {
+          "id": "w5",
+          "text": "di",
+          "start": 3.243,
+          "end": 3.3707
+        },
+        {
+          "id": "w6",
+          "text": "email.",
+          "start": 3.413,
+          "end": 4.053
+        },
+        {
+          "id": "w7",
+          "text": "Jadwal",
+          "start": 4.608,
+          "end": 5.12
+        },
+        {
+          "id": "w8",
+          "text": "di",
+          "start": 5.163,
+          "end": 5.2907
+        },
+        {
+          "id": "w9",
+          "text": "kalender.",
+          "start": 5.333,
+          "end": 5.952
+        },
+        {
+          "id": "w10",
+          "text": "Catatan\u2026",
+          "start": 6.315,
+          "end": 6.955
+        },
+        {
+          "id": "w11",
+          "text": "entah",
+          "start": 7.125,
+          "end": 7.4667
+        },
+        {
+          "id": "w12",
+          "text": "di",
+          "start": 7.509,
+          "end": 7.5947
+        },
+        {
+          "id": "w13",
+          "text": "mana.",
+          "start": 7.637,
+          "end": 7.9826303854875285
+        }
+      ]
+    },
+    {
+      "frame": 3,
+      "path": "assets/voice/03.wav",
+      "duration_s": 6.687,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Dan",
+          "start": 0.299,
+          "end": 0.469
+        },
+        {
+          "id": "w1",
+          "text": "pas",
+          "start": 0.555,
+          "end": 0.6827
+        },
+        {
+          "id": "w2",
+          "text": "butuh",
+          "start": 0.725,
+          "end": 0.981
+        },
+        {
+          "id": "w3",
+          "text": "satu",
+          "start": 1.024,
+          "end": 1.28
+        },
+        {
+          "id": "w4",
+          "text": "dokumen",
+          "start": 1.323,
+          "end": 1.664
+        },
+        {
+          "id": "w5",
+          "text": "penting?",
+          "start": 1.707,
+          "end": 2.432
+        },
+        {
+          "id": "w6",
+          "text": "Scroll,",
+          "start": 2.773,
+          "end": 3.413
+        },
+        {
+          "id": "w7",
+          "text": "buka",
+          "start": 3.584,
+          "end": 3.8827
+        },
+        {
+          "id": "w8",
+          "text": "folder,",
+          "start": 3.925,
+          "end": 4.459
+        },
+        {
+          "id": "w9",
+          "text": "cari",
+          "start": 4.608,
+          "end": 4.864
+        },
+        {
+          "id": "w10",
+          "text": "lagi\u2026",
+          "start": 4.907,
+          "end": 5.397
+        },
+        {
+          "id": "w11",
+          "text": "nggak",
+          "start": 5.589,
+          "end": 5.8027
+        },
+        {
+          "id": "w12",
+          "text": "ketemu",
+          "start": 5.845,
+          "end": 6.1867
+        },
+        {
+          "id": "w13",
+          "text": "juga.",
+          "start": 6.187,
+          "end": 6.634603174603175
+        }
+      ]
+    },
+    {
+      "frame": 4,
+      "path": "assets/voice/04.wav",
+      "duration_s": 7.811,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Kenalin,",
+          "start": 0.299,
+          "end": 0.981
+        },
+        {
+          "id": "w1",
+          "text": "Sydia",
+          "start": 1.237,
+          "end": 1.792
+        },
+        {
+          "id": "w2",
+          "text": "\u2014",
+          "start": 1.806,
+          "end": 1.82
+        },
+        {
+          "id": "w3",
+          "text": "asisten",
+          "start": 1.835,
+          "end": 2.2187
+        },
+        {
+          "id": "w4",
+          "text": "pribadi",
+          "start": 2.261,
+          "end": 2.731
+        },
+        {
+          "id": "w5",
+          "text": "yang",
+          "start": 2.773,
+          "end": 2.8587
+        },
+        {
+          "id": "w6",
+          "text": "ngumpulin",
+          "start": 2.901,
+          "end": 3.2427
+        },
+        {
+          "id": "w7",
+          "text": "chat,",
+          "start": 3.328,
+          "end": 3.797
+        },
+        {
+          "id": "w8",
+          "text": "dokumen,",
+          "start": 4.053,
+          "end": 4.821
+        },
+        {
+          "id": "w9",
+          "text": "jadwal,",
+          "start": 5.035,
+          "end": 5.803
+        },
+        {
+          "id": "w10",
+          "text": "dan",
+          "start": 6.016,
+          "end": 6.229
+        },
+        {
+          "id": "w11",
+          "text": "catatanmu",
+          "start": 6.272,
+          "end": 6.869
+        },
+        {
+          "id": "w12",
+          "text": "jadi",
+          "start": 7.04,
+          "end": 7.253
+        },
+        {
+          "id": "w13",
+          "text": "satu.",
+          "start": 7.296,
+          "end": 7.595
+        }
+      ]
+    },
+    {
+      "frame": 5,
+      "path": "assets/voice/05.wav",
+      "duration_s": 6.74,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Cukup",
+          "start": 0.299,
+          "end": 0.597
+        },
+        {
+          "id": "w1",
+          "text": "tanya,",
+          "start": 0.64,
+          "end": 1.237
+        },
+        {
+          "id": "w2",
+          "text": "kayak",
+          "start": 1.493,
+          "end": 1.749
+        },
+        {
+          "id": "w3",
+          "text": "ngobrol",
+          "start": 1.792,
+          "end": 2.133
+        },
+        {
+          "id": "w4",
+          "text": "sama",
+          "start": 2.219,
+          "end": 2.3467
+        },
+        {
+          "id": "w5",
+          "text": "teman:",
+          "start": 2.475,
+          "end": 3.2
+        },
+        {
+          "id": "w6",
+          "text": "dokumen",
+          "start": 3.627,
+          "end": 4.1387
+        },
+        {
+          "id": "w7",
+          "text": "sewa",
+          "start": 4.181,
+          "end": 4.5227
+        },
+        {
+          "id": "w8",
+          "text": "apartemen",
+          "start": 4.565,
+          "end": 4.992
+        },
+        {
+          "id": "w9",
+          "text": "aku",
+          "start": 5.035,
+          "end": 5.291
+        },
+        {
+          "id": "w10",
+          "text": "yang",
+          "start": 5.333,
+          "end": 5.4187
+        },
+        {
+          "id": "w11",
+          "text": "tahun",
+          "start": 5.504,
+          "end": 5.717
+        },
+        {
+          "id": "w12",
+          "text": "lalu",
+          "start": 5.803,
+          "end": 6.101
+        },
+        {
+          "id": "w13",
+          "text": "mana",
+          "start": 6.144,
+          "end": 6.357
+        },
+        {
+          "id": "w14",
+          "text": "ya?",
+          "start": 6.4,
+          "end": 6.528
+        }
+      ]
+    },
+    {
+      "frame": 6,
+      "path": "assets/voice/06.wav",
+      "duration_s": 9.482,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Dalam",
+          "start": 0.299,
+          "end": 0.5547
+        },
+        {
+          "id": "w1",
+          "text": "hitungan",
+          "start": 0.64,
+          "end": 0.9387
+        },
+        {
+          "id": "w2",
+          "text": "detik,",
+          "start": 0.981,
+          "end": 1.429
+        },
+        {
+          "id": "w3",
+          "text": "Sydia",
+          "start": 1.579,
+          "end": 2.0907
+        },
+        {
+          "id": "w4",
+          "text": "nemuin",
+          "start": 2.133,
+          "end": 2.432
+        },
+        {
+          "id": "w5",
+          "text": "dokumennya.",
+          "start": 2.475,
+          "end": 3.2
+        },
+        {
+          "id": "w6",
+          "text": "Uang",
+          "start": 3.371,
+          "end": 3.84
+        },
+        {
+          "id": "w7",
+          "text": "jaminannya?",
+          "start": 3.925,
+          "end": 4.821
+        },
+        {
+          "id": "w8",
+          "text": "Tiga",
+          "start": 5.12,
+          "end": 5.376
+        },
+        {
+          "id": "w9",
+          "text": "belas",
+          "start": 5.419,
+          "end": 5.632
+        },
+        {
+          "id": "w10",
+          "text": "juta",
+          "start": 5.717,
+          "end": 5.973
+        },
+        {
+          "id": "w11",
+          "text": "rupiah",
+          "start": 6.016,
+          "end": 6.357
+        },
+        {
+          "id": "w12",
+          "text": "\u2014",
+          "start": 6.428,
+          "end": 6.5
+        },
+        {
+          "id": "w13",
+          "text": "lengkap",
+          "start": 6.571,
+          "end": 7.168
+        },
+        {
+          "id": "w14",
+          "text": "dengan",
+          "start": 7.211,
+          "end": 7.424
+        },
+        {
+          "id": "w15",
+          "text": "sumbernya,",
+          "start": 7.467,
+          "end": 8.149
+        },
+        {
+          "id": "w16",
+          "text": "sampai",
+          "start": 8.32,
+          "end": 8.661
+        },
+        {
+          "id": "w17",
+          "text": "halamannya.",
+          "start": 8.704,
+          "end": 9.432789115646258
+        }
+      ]
+    },
+    {
+      "frame": 7,
+      "path": "assets/voice/07.wav",
+      "duration_s": 5.146,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Nggak",
+          "start": 0.299,
+          "end": 0.469
+        },
+        {
+          "id": "w1",
+          "text": "perlu",
+          "start": 0.512,
+          "end": 0.8107
+        },
+        {
+          "id": "w2",
+          "text": "hafal",
+          "start": 0.853,
+          "end": 1.1947
+        },
+        {
+          "id": "w3",
+          "text": "nama",
+          "start": 1.28,
+          "end": 1.493
+        },
+        {
+          "id": "w4",
+          "text": "file.",
+          "start": 1.536,
+          "end": 2.069
+        },
+        {
+          "id": "w5",
+          "text": "Nggak",
+          "start": 2.389,
+          "end": 2.6027
+        },
+        {
+          "id": "w6",
+          "text": "perlu",
+          "start": 2.645,
+          "end": 2.901
+        },
+        {
+          "id": "w7",
+          "text": "ingat",
+          "start": 2.944,
+          "end": 3.2
+        },
+        {
+          "id": "w8",
+          "text": "foldernya.",
+          "start": 3.243,
+          "end": 4.032
+        },
+        {
+          "id": "w9",
+          "text": "Tanya",
+          "start": 4.267,
+          "end": 4.608
+        },
+        {
+          "id": "w10",
+          "text": "aja.",
+          "start": 4.608,
+          "end": 4.917
+        }
+      ]
+    },
+    {
+      "frame": 8,
+      "path": "assets/voice/08.wav",
+      "duration_s": 2.869,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Ingetin",
+          "start": 0,
+          "end": 0.484
+        },
+        {
+          "id": "w1",
+          "text": "bayar",
+          "start": 0.527,
+          "end": 0.74
+        },
+        {
+          "id": "w2",
+          "text": "listrik",
+          "start": 0.783,
+          "end": 1.081
+        },
+        {
+          "id": "w3",
+          "text": "tiap",
+          "start": 1.167,
+          "end": 1.295
+        },
+        {
+          "id": "w4",
+          "text": "bulan?",
+          "start": 1.38,
+          "end": 1.892
+        },
+        {
+          "id": "w5",
+          "text": "Beres!",
+          "start": 2.148,
+          "end": 2.622
+        }
+      ],
+      "source": "reused HeyGen sample take (same voice) \u2014 see BRIEF Notes"
+    },
+    {
+      "frame": 9,
+      "path": "assets/voice/09.wav",
+      "duration_s": 3.736,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Semuanya",
+          "start": 0.299,
+          "end": 0.8107
+        },
+        {
+          "id": "w1",
+          "text": "otomatis",
+          "start": 0.853,
+          "end": 1.365
+        },
+        {
+          "id": "w2",
+          "text": "tersusun",
+          "start": 1.408,
+          "end": 1.8347
+        },
+        {
+          "id": "w3",
+          "text": "rapi,",
+          "start": 1.877,
+          "end": 2.389
+        },
+        {
+          "id": "w4",
+          "text": "di",
+          "start": 2.56,
+          "end": 2.773
+        },
+        {
+          "id": "w5",
+          "text": "satu",
+          "start": 2.816,
+          "end": 3.1147
+        },
+        {
+          "id": "w6",
+          "text": "tempat.",
+          "start": 3.157,
+          "end": 3.499
+        }
+      ]
+    },
+    {
+      "frame": 10,
+      "path": "assets/voice/10.wav",
+      "duration_s": 4.754,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Ngobrolnya",
+          "start": 0.299,
+          "end": 0.768
+        },
+        {
+          "id": "w1",
+          "text": "bisa",
+          "start": 0.811,
+          "end": 1.0667
+        },
+        {
+          "id": "w2",
+          "text": "lewat",
+          "start": 1.109,
+          "end": 1.28
+        },
+        {
+          "id": "w3",
+          "text": "WhatsApp,",
+          "start": 1.323,
+          "end": 1.877
+        },
+        {
+          "id": "w4",
+          "text": "Telegram,",
+          "start": 2.048,
+          "end": 2.667
+        },
+        {
+          "id": "w5",
+          "text": "atau",
+          "start": 2.773,
+          "end": 3.157
+        },
+        {
+          "id": "w6",
+          "text": "web",
+          "start": 3.2,
+          "end": 3.3707
+        },
+        {
+          "id": "w7",
+          "text": "\u2014",
+          "start": 3.484,
+          "end": 3.598
+        },
+        {
+          "id": "w8",
+          "text": "terserah",
+          "start": 3.712,
+          "end": 4.1387
+        },
+        {
+          "id": "w9",
+          "text": "kamu.",
+          "start": 4.224,
+          "end": 4.523
+        }
+      ]
+    },
+    {
+      "frame": 11,
+      "path": "assets/voice/11.wav",
+      "duration_s": 6.149,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Sekarang,",
+          "start": 3.13,
+          "end": 3.684
+        },
+        {
+          "id": "w1",
+          "text": "cukup",
+          "start": 3.812,
+          "end": 4.068
+        },
+        {
+          "id": "w2",
+          "text": "satu",
+          "start": 4.111,
+          "end": 4.41
+        },
+        {
+          "id": "w3",
+          "text": "chat.",
+          "start": 4.452,
+          "end": 4.922
+        },
+        {
+          "id": "w4",
+          "text": "Sydia.",
+          "start": 5.22,
+          "end": 6.082
+        }
+      ],
+      "words_raw": [
+        {
+          "id": "w0",
+          "text": "Sekarang,",
+          "start": 0.299,
+          "end": 0.853
+        },
+        {
+          "id": "w1",
+          "text": "cukup",
+          "start": 0.981,
+          "end": 1.237
+        },
+        {
+          "id": "w2",
+          "text": "satu",
+          "start": 1.28,
+          "end": 1.5787
+        },
+        {
+          "id": "w3",
+          "text": "chat.",
+          "start": 1.621,
+          "end": 2.091
+        },
+        {
+          "id": "w4",
+          "text": "Sydia.",
+          "start": 2.389,
+          "end": 3.251
+        }
+      ],
+      "raw_duration_s": 3.3177500000000055,
+      "lead_s": 2.831
+    }
+  ],
+  "sfx": [
+    {
+      "frame": 1,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 0.3,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 1.6,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 2.56,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 3.69,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/whoosh-cinematic.mp3",
+      "offset_s": 4.41,
+      "duration_s": 5.54,
+      "volume": 0.22,
+      "source": "host",
+      "name": "whoosh-cinematic"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 4.61,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 5.33,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 5.78,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/click-soft.mp3",
+      "offset_s": 6.32,
+      "duration_s": 0.37,
+      "volume": 0.35,
+      "source": "host",
+      "name": "click-soft"
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/whoosh.mp3",
+      "offset_s": 7.62,
+      "duration_s": 0.57,
+      "volume": 0.32,
+      "source": "host",
+      "name": "whoosh"
+    },
+    {
+      "frame": 2,
+      "file": "assets/sfx/impact-bass-1.mp3",
+      "offset_s": 0.0,
+      "duration_s": 2.12,
+      "volume": 0.5,
+      "source": "host",
+      "name": "impact-bass-1"
+    },
+    {
+      "frame": 2,
+      "file": "assets/sfx/whoosh-cinematic.mp3",
+      "offset_s": 0.0,
+      "duration_s": 5.54,
+      "volume": 0.22,
+      "source": "host",
+      "name": "whoosh-cinematic"
+    },
+    {
+      "frame": 2,
+      "file": "assets/sfx/sparkle.mp3",
+      "offset_s": 2.09,
+      "duration_s": 1.8,
+      "volume": 0.3,
+      "source": "host",
+      "name": "sparkle"
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/typing.mp3",
+      "offset_s": 0.7,
+      "duration_s": 1.5,
+      "volume": 0.25,
+      "source": "host",
+      "name": "typing"
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 2.77,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 3.58,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 4.61,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/error.mp3",
+      "offset_s": 5.84,
+      "duration_s": 1.62,
+      "volume": 0.32,
+      "source": "host",
+      "name": "error"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/chime.mp3",
+      "offset_s": 0.3,
+      "duration_s": 2.5,
+      "volume": 0.3,
+      "source": "host",
+      "name": "chime"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 1.24,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 3.33,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 4.05,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 5.04,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 6.27,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 6.6,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/sparkle.mp3",
+      "offset_s": 7.3,
+      "duration_s": 1.8,
+      "volume": 0.3,
+      "source": "host",
+      "name": "sparkle"
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 0.64,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 2.09,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/typing.mp3",
+      "offset_s": 3.5,
+      "duration_s": 1.5,
+      "volume": 0.25,
+      "source": "host",
+      "name": "typing"
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/typing.mp3",
+      "offset_s": 5.0,
+      "duration_s": 1.5,
+      "volume": 0.25,
+      "source": "host",
+      "name": "typing"
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/key-press.mp3",
+      "offset_s": 6.6,
+      "duration_s": 0.4,
+      "volume": 0.3,
+      "source": "host",
+      "name": "key-press"
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/click.mp3",
+      "offset_s": 7.3,
+      "duration_s": 0.37,
+      "volume": 0.35,
+      "source": "host",
+      "name": "click"
+    },
+    {
+      "frame": 6,
+      "file": "assets/sfx/notification.mp3",
+      "offset_s": 0.98,
+      "duration_s": 2.46,
+      "volume": 0.28,
+      "source": "host",
+      "name": "notification"
+    },
+    {
+      "frame": 6,
+      "file": "assets/sfx/sparkle.mp3",
+      "offset_s": 2.09,
+      "duration_s": 1.8,
+      "volume": 0.3,
+      "source": "host",
+      "name": "sparkle"
+    },
+    {
+      "frame": 6,
+      "file": "assets/sfx/ping.mp3",
+      "offset_s": 2.62,
+      "duration_s": 1.32,
+      "volume": 0.3,
+      "source": "host",
+      "name": "ping"
+    },
+    {
+      "frame": 6,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 3.0,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 6,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 4.18,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 6,
+      "file": "assets/sfx/chime.mp3",
+      "offset_s": 6.3,
+      "duration_s": 2.5,
+      "volume": 0.3,
+      "source": "host",
+      "name": "chime"
+    },
+    {
+      "frame": 6,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 8.35,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 7,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 0.0,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 7,
+      "file": "assets/sfx/click-soft.mp3",
+      "offset_s": 1.54,
+      "duration_s": 0.37,
+      "volume": 0.35,
+      "source": "host",
+      "name": "click-soft"
+    },
+    {
+      "frame": 7,
+      "file": "assets/sfx/click-soft.mp3",
+      "offset_s": 3.24,
+      "duration_s": 0.37,
+      "volume": 0.35,
+      "source": "host",
+      "name": "click-soft"
+    },
+    {
+      "frame": 7,
+      "file": "assets/sfx/whoosh.mp3",
+      "offset_s": 4.17,
+      "duration_s": 0.57,
+      "volume": 0.32,
+      "source": "host",
+      "name": "whoosh"
+    },
+    {
+      "frame": 7,
+      "file": "assets/sfx/impact-bass-2.mp3",
+      "offset_s": 4.27,
+      "duration_s": 2.59,
+      "volume": 0.45,
+      "source": "host",
+      "name": "impact-bass-2"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 0.1,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 1.2,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/ping.mp3",
+      "offset_s": 2.12,
+      "duration_s": 1.32,
+      "volume": 0.3,
+      "source": "host",
+      "name": "ping"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 3.13,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 3.65,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/ping.mp3",
+      "offset_s": 4.17,
+      "duration_s": 1.32,
+      "volume": 0.3,
+      "source": "host",
+      "name": "ping"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 4.7,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 5.22,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/ping.mp3",
+      "offset_s": 5.74,
+      "duration_s": 1.32,
+      "volume": 0.3,
+      "source": "host",
+      "name": "ping"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 6.26,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 6.78,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 8,
+      "file": "assets/sfx/chime.mp3",
+      "offset_s": 7.3,
+      "duration_s": 2.5,
+      "volume": 0.3,
+      "source": "host",
+      "name": "chime"
+    },
+    {
+      "frame": 9,
+      "file": "assets/sfx/whoosh-cinematic.mp3",
+      "offset_s": 1.04,
+      "duration_s": 5.54,
+      "volume": 0.22,
+      "source": "host",
+      "name": "whoosh-cinematic"
+    },
+    {
+      "frame": 9,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 2.56,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 9,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 3.13,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 10,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 0.15,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 10,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 1.32,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 10,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 2.05,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 10,
+      "file": "assets/sfx/pop.mp3",
+      "offset_s": 3.13,
+      "duration_s": 0.72,
+      "volume": 0.28,
+      "source": "host",
+      "name": "pop"
+    },
+    {
+      "frame": 10,
+      "file": "assets/sfx/ping.mp3",
+      "offset_s": 4.22,
+      "duration_s": 1.32,
+      "volume": 0.3,
+      "source": "host",
+      "name": "ping"
+    },
+    {
+      "frame": 11,
+      "file": "assets/sfx/whoosh-short.mp3",
+      "offset_s": 0.2,
+      "duration_s": 0.57,
+      "volume": 0.3,
+      "source": "host",
+      "name": "whoosh-short"
+    },
+    {
+      "frame": 11,
+      "file": "assets/sfx/impact-bass-1.mp3",
+      "offset_s": 1.04,
+      "duration_s": 2.12,
+      "volume": 0.5,
+      "source": "host",
+      "name": "impact-bass-1"
+    },
+    {
+      "frame": 11,
+      "file": "assets/sfx/whoosh.mp3",
+      "offset_s": 3.13,
+      "duration_s": 0.57,
+      "volume": 0.32,
+      "source": "host",
+      "name": "whoosh"
+    },
+    {
+      "frame": 11,
+      "file": "assets/sfx/chime.mp3",
+      "offset_s": 5.22,
+      "duration_s": 2.5,
+      "volume": 0.3,
+      "source": "host",
+      "name": "chime"
+    },
+    {
+      "frame": 11,
+      "file": "assets/sfx/sparkle.mp3",
+      "offset_s": 7.31,
+      "duration_s": 1.8,
+      "volume": 0.3,
+      "source": "host",
+      "name": "sparkle"
+    }
+  ]
+}

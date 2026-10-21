@@ -1,0 +1,406 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f02-head {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 250px;
+      text-align: center;
+    }
+    .f02-l1 {
+      font-size: 150px;
+    }
+    .f02-l2 {
+      font-size: 250px;
+      padding: 0 40px 24px;
+    }
+    /* Aurora sweep: a 2-tile gradient on a 200%-wide image. Each tile reproduces the sketch's
+       aurora-text gradient over the glyph span (stops in px along the 100deg line), so the
+       state before and after the sweep both read as the approved still; the soft seam between
+       the tiles is what travels through the letters during the sweep. */
+    #f02-l2 {
+      background-image: linear-gradient(
+        100deg,
+        #ff8a4c 0px,
+        #f06694 814px,
+        #b45cf0 1454px,
+        #a05cf8 1700px,
+        #fa7f63 2150px,
+        #f06694 2705px,
+        #b45cf0 3345px,
+        #8c5cff 3830px
+      );
+      background-size: 200% 100%;
+      background-repeat: no-repeat;
+      background-position: 0% 50%;
+    }
+    .f02-ghost {
+      position: absolute;
+      filter: blur(5px);
+      opacity: 0.35;
+      font-size: 24px;
+    }
+    .f02-ghost svg {
+      width: 1em;
+      height: 1em;
+    }
+    /* directional streak (SVG blur on the travel axis) chained before the landed 5px ghost blur */
+    #f02-g1 {
+      filter: url(#f02-streak-1) blur(5px);
+    }
+    #f02-g2 {
+      filter: url(#f02-streak-2) blur(5px);
+    }
+    #f02-g3 {
+      filter: url(#f02-streak-3) blur(5px);
+    }
+    #f02-g4 {
+      filter: url(#f02-streak-4) blur(5px);
+    }
+    .f02-defs {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-t0cu"
+    id="root"
+    data-composition-id="02-headline"
+    data-width="1920"
+    data-height="1080"
+    data-duration="4.675"
+  >
+    <div
+      data-hf-id="hf-uoqd"
+      id="f02-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="4.675"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-7phx"
+        id="f02-bloom-a"
+        class="sy-bloom amber"
+        style="
+          left: 120px;
+          top: 420px;
+          width: 760px;
+          height: 520px;
+          opacity: 0.45;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-7u1n"
+        id="f02-bloom-c"
+        class="sy-bloom coral"
+        style="
+          left: 640px;
+          top: 260px;
+          width: 760px;
+          height: 520px;
+          opacity: 0.4;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-8x1j"
+        id="f02-bloom-v"
+        class="sy-bloom violet"
+        style="
+          left: 1080px;
+          top: 320px;
+          width: 760px;
+          height: 520px;
+          opacity: 0.38;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-jf5h"
+      id="f02-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="4.675"
+      data-track-index="1"
+    >
+      <svg
+        data-hf-id="hf-1d7i"
+        class="f02-defs"
+        width="0"
+        height="0"
+        aria-hidden="true"
+      >
+        <filter
+          data-hf-id="hf-5v9t"
+          id="f02-streak-1"
+          x="-60%"
+          y="-200%"
+          width="220%"
+          height="500%"
+          color-interpolation-filters="sRGB"
+        >
+          <feGaussianBlur
+            data-hf-id="hf-b26u"
+            id="f02-streak-blur-1"
+            in="SourceGraphic"
+            stdDeviation="0 0"
+          />
+        </filter>
+        <filter
+          data-hf-id="hf-xp6y"
+          id="f02-streak-2"
+          x="-60%"
+          y="-200%"
+          width="220%"
+          height="500%"
+          color-interpolation-filters="sRGB"
+        >
+          <feGaussianBlur
+            data-hf-id="hf-sgk1"
+            id="f02-streak-blur-2"
+            in="SourceGraphic"
+            stdDeviation="0 0"
+          />
+        </filter>
+        <filter
+          data-hf-id="hf-x56n"
+          id="f02-streak-3"
+          x="-60%"
+          y="-200%"
+          width="220%"
+          height="500%"
+          color-interpolation-filters="sRGB"
+        >
+          <feGaussianBlur
+            data-hf-id="hf-ifl4"
+            id="f02-streak-blur-3"
+            in="SourceGraphic"
+            stdDeviation="0 0"
+          />
+        </filter>
+        <filter
+          data-hf-id="hf-xgqg"
+          id="f02-streak-4"
+          x="-60%"
+          y="-200%"
+          width="220%"
+          height="500%"
+          color-interpolation-filters="sRGB"
+        >
+          <feGaussianBlur
+            data-hf-id="hf-angb"
+            id="f02-streak-blur-4"
+            in="SourceGraphic"
+            stdDeviation="0 0"
+          />
+        </filter>
+      </svg>
+
+      <!-- fragments blown to the edges (echo of frame 1) -->
+      <span
+        data-hf-id="hf-hyg1"
+        id="f02-g1"
+        class="sy-chip doc f02-ghost"
+        style="left: 40px; top: 80px"
+        >Kontrak Sewa Apartemen.pdf</span
+      >
+      <span
+        data-hf-id="hf-lwcl"
+        id="f02-g2"
+        class="sy-chip reminder f02-ghost"
+        style="left: 1560px; top: 110px"
+        >Bayar listrik?</span
+      >
+      <span
+        data-hf-id="hf-2qas"
+        id="f02-g3"
+        class="sy-chip event f02-ghost"
+        style="left: 60px; top: 780px"
+        >Meeting Pak Budi</span
+      >
+      <span
+        data-hf-id="hf-y86g"
+        id="f02-g4"
+        class="sy-chip task f02-ghost"
+        style="left: 1480px; top: 800px"
+        >Kirim draft materi</span
+      >
+
+      <div data-hf-id="hf-qioq" id="f02-head" class="f02-head">
+        <div data-hf-id="hf-fqmo" id="f02-l1" class="sy-display f02-l1">
+          Your Life is
+        </div>
+        <div
+          data-hf-id="hf-jkqw"
+          id="f02-l2"
+          class="sy-display sy-aurora-text f02-l2"
+        >
+          Everywhere
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // One local beat grid drives every hit: downbeats 0.00 · 2.09, beats 0.52 · 1.04 · 1.57.
+      const BEATS = [0.0, 0.52, 1.04, 1.57, 2.09];
+      const DROP = BEATS[0];
+      const SLAM_2 = BEATS[1];
+      const SWEEP = BEATS[4];
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Scene 1 (0.00) — the four ghost chips blow outward from the center cluster to their
+      // edge slots, streaking along their travel axis, and settle blurred at 0.35.
+      const GHOSTS = [
+        {
+          sel: "#f02-g1",
+          blur: "f02-streak-blur-1",
+          dx: -740,
+          dy: -440,
+          rot: -8,
+        },
+        {
+          sel: "#f02-g2",
+          blur: "f02-streak-blur-2",
+          dx: 690,
+          dy: -410,
+          rot: 6,
+        },
+        {
+          sel: "#f02-g3",
+          blur: "f02-streak-blur-3",
+          dx: -785,
+          dy: 260,
+          rot: 5,
+        },
+        {
+          sel: "#f02-g4",
+          blur: "f02-streak-blur-4",
+          dx: 628,
+          dy: 280,
+          rot: -6,
+        },
+      ];
+      const PEAK_BLUR = 12;
+      const MOVE_DUR = 0.35;
+      const PULL = 0.85; // start 85% of the way back toward frame center
+
+      const streak = { v: PEAK_BLUR };
+      const streakNodes = GHOSTS.map(function (g) {
+        const len = Math.hypot(g.dx, g.dy);
+        return {
+          node: document.getElementById(g.blur),
+          ux: Math.abs(g.dx) / len,
+          uy: Math.abs(g.dy) / len,
+        };
+      });
+      const writeStreak = function () {
+        streakNodes.forEach(function (s) {
+          if (!s.node) return;
+          s.node.setAttribute(
+            "stdDeviation",
+            (streak.v * s.ux).toFixed(3) + " " + (streak.v * s.uy).toFixed(3)
+          );
+        });
+      };
+      writeStreak(); // seed t=0 with the streaked start
+
+      GHOSTS.forEach(function (g) {
+        tl.fromTo(
+          g.sel,
+          {
+            x: -g.dx * PULL,
+            y: -g.dy * PULL,
+            rotation: 0,
+            scale: 0.7,
+            opacity: 0.9,
+          },
+          {
+            x: 0,
+            y: 0,
+            rotation: g.rot,
+            scale: 1,
+            opacity: 0.35,
+            duration: MOVE_DUR,
+            ease: "expo.out",
+          },
+          DROP
+        );
+      });
+      tl.fromTo(
+        streak,
+        { v: PEAK_BLUR },
+        { v: 0, duration: MOVE_DUR, ease: "expo.out", onUpdate: writeStreak },
+        DROP
+      );
+
+      // Scene 1 (0.05) — "Your Life is" slams in: scale + blur.
+      tl.fromTo(
+        "#f02-l1",
+        { scale: 1.35, filter: "blur(8px)", opacity: 0 },
+        {
+          scale: 1,
+          filter: "blur(0px)",
+          opacity: 1,
+          duration: 0.4,
+          ease: "expo.out",
+        },
+        DROP + 0.05
+      );
+
+      // Scene 2 (0.52) — "Everywhere" slams in on the next beat: bigger scale + rise + blur.
+      tl.fromTo(
+        "#f02-l2",
+        { scale: 1.5, y: 30, filter: "blur(10px)", opacity: 0 },
+        {
+          scale: 1,
+          y: 0,
+          filter: "blur(0px)",
+          opacity: 1,
+          duration: 0.45,
+          ease: "expo.out",
+        },
+        SLAM_2
+      );
+
+      // Scene 2 — the blooms swell behind it (scale 0.8 → 1.1, opacity +0.15 up to the sketch value).
+      [
+        ["#f02-bloom-a", 0.45],
+        ["#f02-bloom-c", 0.4],
+        ["#f02-bloom-v", 0.38],
+      ].forEach(function (b) {
+        tl.fromTo(
+          b[0],
+          { scale: 0.8, opacity: b[1] - 0.15 },
+          { scale: 1.1, opacity: b[1], duration: 1.4, ease: "power2.out" },
+          SLAM_2
+        );
+      });
+
+      // Scene 3 (2.09) — the aurora sweeps once through "Everywhere", then holds still.
+      tl.fromTo(
+        "#f02-l2",
+        { backgroundPosition: "0% 50%" },
+        { backgroundPosition: "100% 50%", duration: 1.2, ease: "power2.inOut" },
+        SWEEP
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["02-headline"] = tl;
+    })();
+  </script>
+</template>

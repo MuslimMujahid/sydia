@@ -1,0 +1,535 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f04-cam {
+      position: absolute;
+      inset: 0;
+      transform-origin: 960px 430px;
+    }
+    .f04-lines {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    .f04-lines line {
+      stroke: rgba(239, 90, 138, 0.35);
+      stroke-width: 2;
+      stroke-dasharray: 6 10;
+    }
+    .f04-logo {
+      position: absolute;
+      left: 845px;
+      top: 120px;
+      width: 230px;
+      height: 230px;
+    }
+    .f04-word {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 370px;
+      text-align: center;
+      font-size: 180px;
+    }
+    .f04-ch {
+      display: inline-block;
+    }
+    .f04-tag {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 600px;
+      text-align: center;
+      font-size: 54px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--sy-muted);
+    }
+    .f04-tag b {
+      color: var(--sy-ink);
+      font-weight: 700;
+    }
+    .f04-w {
+      display: inline-block;
+    }
+    .f04-node {
+      position: absolute;
+      font-size: 28px;
+      padding: 12px 24px;
+      box-shadow: var(--sy-shadow-card);
+    }
+    .f04-node img {
+      width: 1.1em;
+      height: 1.1em;
+    }
+    .f04-wa {
+      background: #e7f8ee;
+      color: #0b6b3a;
+    }
+    .f04-note {
+      background: #fff3b0;
+      color: #5b4a0c;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-ew88"
+    id="root"
+    data-composition-id="04-meet-sydia"
+    data-width="1920"
+    data-height="1080"
+    data-duration="8.95"
+  >
+    <div
+      data-hf-id="hf-ui21"
+      id="f04-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.95"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-kr6b"
+        id="f04-bloom-amber"
+        class="sy-bloom amber"
+        style="
+          left: 600px;
+          top: 60px;
+          width: 420px;
+          height: 360px;
+          opacity: 0.45;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-32gp"
+        id="f04-bloom-violet"
+        class="sy-bloom violet"
+        style="
+          left: 900px;
+          top: 80px;
+          width: 420px;
+          height: 360px;
+          opacity: 0.35;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-llbi"
+        id="f04-bloom-coral"
+        class="sy-bloom coral"
+        style="
+          left: 520px;
+          top: 420px;
+          width: 880px;
+          height: 360px;
+          opacity: 0.18;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-xq11"
+      id="f04-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.95"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-d5re" id="f04-cam" class="f04-cam">
+        <svg data-hf-id="hf-gf4h" class="f04-lines" viewBox="0 0 1920 1080">
+          <line
+            data-hf-id="hf-jcbt"
+            id="f04-l1"
+            x1="470"
+            y1="210"
+            x2="960"
+            y2="235"
+          />
+          <line
+            data-hf-id="hf-04zf"
+            id="f04-l2"
+            x1="420"
+            y1="470"
+            x2="960"
+            y2="235"
+          />
+          <line
+            data-hf-id="hf-1a9t"
+            id="f04-l3"
+            x1="470"
+            y1="740"
+            x2="960"
+            y2="235"
+          />
+          <line
+            data-hf-id="hf-5e71"
+            id="f04-l4"
+            x1="1450"
+            y1="210"
+            x2="960"
+            y2="235"
+          />
+          <line
+            data-hf-id="hf-noi0"
+            id="f04-l5"
+            x1="1500"
+            y1="470"
+            x2="960"
+            y2="235"
+          />
+          <line
+            data-hf-id="hf-6kgd"
+            id="f04-l6"
+            x1="1450"
+            y1="740"
+            x2="960"
+            y2="235"
+          />
+        </svg>
+
+        <span
+          data-hf-id="hf-okx6"
+          id="f04-n1"
+          class="sy-chip f04-node f04-wa"
+          style="left: 150px; top: 182px"
+          ><img data-hf-id="hf-t69y" src="assets/whatsapp.svg" alt="" />Chat
+          WhatsApp</span
+        >
+        <span
+          data-hf-id="hf-kdd0"
+          id="f04-n2"
+          class="sy-chip doc f04-node"
+          style="left: 90px; top: 442px"
+          ><svg
+            data-hf-id="hf-h0hq"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-obz5"
+              d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+            />
+            <path data-hf-id="hf-gpnr" d="M14 2v4a2 2 0 0 0 2 2h4" />
+            <path data-hf-id="hf-eoqm" d="M16 13H8" />
+            <path data-hf-id="hf-bfay" d="M16 17H8" /></svg
+          >Kontrak Sewa.pdf</span
+        >
+        <span
+          data-hf-id="hf-uru4"
+          id="f04-n3"
+          class="sy-chip f04-node f04-note"
+          style="left: 170px; top: 712px"
+          >Ide kado Ibu</span
+        >
+        <span
+          data-hf-id="hf-1sjn"
+          id="f04-n4"
+          class="sy-chip event f04-node"
+          style="left: 1450px; top: 182px"
+          ><svg
+            data-hf-id="hf-pmle"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect
+              data-hf-id="hf-4rv6"
+              width="18"
+              height="18"
+              x="3"
+              y="4"
+              rx="2"
+            />
+            <path data-hf-id="hf-zqia" d="M16 2v4" />
+            <path data-hf-id="hf-adwx" d="M8 2v4" />
+            <path data-hf-id="hf-unwg" d="M3 10h18" /></svg
+          >Meeting Pak Budi</span
+        >
+        <span
+          data-hf-id="hf-q989"
+          id="f04-n5"
+          class="sy-chip reminder f04-node"
+          style="left: 1500px; top: 442px"
+          ><svg
+            data-hf-id="hf-q0wf"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle data-hf-id="hf-hoqb" cx="12" cy="13" r="8" />
+            <path data-hf-id="hf-a705" d="M12 9v4l2 2" />
+            <path data-hf-id="hf-2ed7" d="M5 3 2 6" />
+            <path data-hf-id="hf-7agl" d="m22 6-3-3" /></svg
+          >Bayar listrik</span
+        >
+        <span
+          data-hf-id="hf-koof"
+          id="f04-n6"
+          class="sy-chip task f04-node"
+          style="left: 1450px; top: 712px"
+          ><svg
+            data-hf-id="hf-qf7g"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect
+              data-hf-id="hf-m05h"
+              width="18"
+              height="18"
+              x="3"
+              y="3"
+              rx="2"
+            />
+            <path data-hf-id="hf-yfzu" d="m9 12 2 2 4-4" /></svg
+          >Kirim draft materi</span
+        >
+
+        <img
+          data-hf-id="hf-0g8z"
+          id="f04-logo"
+          class="f04-logo"
+          src="assets/sydia-logo.svg"
+          alt=""
+        />
+        <div data-hf-id="hf-psx5" id="f04-word" class="sy-display f04-word">
+          <span data-hf-id="hf-fds4" class="f04-ch">S</span
+          ><span data-hf-id="hf-uhf6" class="f04-ch">y</span
+          ><span data-hf-id="hf-m4zl" class="f04-ch">d</span
+          ><span data-hf-id="hf-o4iq" class="f04-ch">i</span
+          ><span data-hf-id="hf-ky2i" class="f04-ch">a</span>
+        </div>
+        <div data-hf-id="hf-adn4" id="f04-tag" class="f04-tag">
+          <span data-hf-id="hf-gasu" class="f04-w">Semua</span>
+          <span data-hf-id="hf-cx6j" class="f04-w">hidupmu,</span>
+          <b data-hf-id="hf-xujp"
+            ><span data-hf-id="hf-v8qa" class="f04-w">satu</span>
+            <span data-hf-id="hf-q2ub" class="f04-w">chat.</span></b
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const byId = (id) => document.getElementById(id);
+      const tl = gsap.timeline({ paused: true });
+      const END = 8.35;
+
+      // ── Macro camera: slow pull-back under the whole shot, landing on the sketch (scale 1) at END.
+      tl.fromTo(
+        byId("f04-cam"),
+        { scale: 1.045 },
+        { scale: 1, duration: END, ease: "power1.out" },
+        0
+      );
+
+      // ── Scene 1 (0.0–1.2s): ambient-glow-bloom — halos swell behind center, landing with the logo;
+      //    then a bounded (1 - cos) breathe of whole cycles so each halo ends exactly at its peak.
+      const BLOOMS = [
+        {
+          id: "f04-bloom-amber",
+          peak: 0.45,
+          at: 0.0,
+          dur: 1.1,
+          period: 3.6,
+          oAmp: 0.05,
+          sAmp: 0.02,
+        },
+        {
+          id: "f04-bloom-violet",
+          peak: 0.35,
+          at: 0.1,
+          dur: 1.15,
+          period: 3.3,
+          oAmp: 0.04,
+          sAmp: 0.018,
+        },
+        {
+          id: "f04-bloom-coral",
+          peak: 0.18,
+          at: 0.2,
+          dur: 1.2,
+          period: 2.9,
+          oAmp: 0.03,
+          sAmp: 0.015,
+        },
+      ];
+      const BREATHS = 0; // breathing disabled (motion doctrine: no lazy breathing)
+      BLOOMS.forEach((b) => {
+        const el = byId(b.id);
+        tl.fromTo(
+          el,
+          { opacity: 0, scale: 0.8 },
+          { opacity: b.peak, scale: 1, duration: b.dur, ease: "power2.out" },
+          b.at
+        );
+        const phase = { p: 0 };
+        tl.fromTo(
+          phase,
+          { p: 0 },
+          {
+            p: Math.PI * 2 * BREATHS,
+            duration: BREATHS * b.period,
+            ease: "none",
+            immediateRender: false,
+            onUpdate: () => {
+              const e = (1 - Math.cos(phase.p)) / 2;
+              gsap.set(el, {
+                opacity: b.peak - e * b.oAmp,
+                scale: 1 + e * b.sAmp,
+              });
+            },
+          },
+          b.at + b.dur
+        );
+      });
+
+      // Hub mark lands on "Kenalin" (0.30): scale 0.6→1, rotation -8°→0, blur 6px→0 — smooth, no overshoot.
+      tl.fromTo(
+        byId("f04-logo"),
+        { opacity: 0, scale: 0.6, rotation: -8, filter: "blur(6px)" },
+        {
+          opacity: 1,
+          scale: 1,
+          rotation: 0,
+          filter: "blur(0px)",
+          duration: 0.9,
+          ease: "power3.out",
+        },
+        0.3
+      );
+
+      // ── Scene 2 (1.24–2.8s): wordmark rises letter-by-letter on "Sydia".
+      const WORD_AT = 1.24;
+      const LETTER_STAGGER = 0.04;
+      byId("f04-word")
+        .querySelectorAll(".f04-ch")
+        .forEach((ch, i) => {
+          tl.fromTo(
+            ch,
+            { y: 40, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" },
+            WORD_AT + i * LETTER_STAGGER
+          );
+        });
+
+      // ── Scene 3 (3.3–6.7s): constellation — each chip flies in from beyond its outer side to its ring slot
+      //    as the VO names it; its dashed connector then draws from the chip into the hub (svg-path-draw).
+      //    Dashed draw: a long dash list (6 on / 10 off) followed by one big gap, so strokeDashoffset both
+      //    hides/reveals the line from the chip end AND later flows the dashes toward the hub.
+      const PERIOD = 16;
+      const FLOW = 96; // flow distance (whole periods) reserved for Scene 4
+      const NODES = [
+        { chip: "f04-n1", line: "f04-l1", side: -1, cue: 3.33, draw: 0.55 },
+        { chip: "f04-n2", line: "f04-l2", side: -1, cue: 4.05, draw: 0.55 },
+        { chip: "f04-n4", line: "f04-l4", side: 1, cue: 5.04, draw: 0.55 },
+        { chip: "f04-n3", line: "f04-l3", side: -1, cue: 6.27, draw: 0.55 },
+        { chip: "f04-n5", line: "f04-l5", side: 1, cue: 6.6, draw: 0.45 },
+        { chip: "f04-n6", line: "f04-l6", side: 1, cue: 6.65, draw: 0.45 },
+      ];
+      const FLY_LEAD = 0.15;
+      const FLY_DUR = 0.6;
+      const FLY_DIST = 560;
+      const DRAW_AFTER_CUE = 0.12;
+
+      NODES.forEach((n) => {
+        const chip = byId(n.chip);
+        const line = byId(n.line);
+        const flyAt = n.cue - FLY_LEAD;
+
+        tl.fromTo(
+          chip,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.2, ease: "power1.out" },
+          flyAt
+        );
+        tl.fromTo(
+          chip,
+          { x: n.side * FLY_DIST, rotation: n.side * -7 },
+          { x: 0, rotation: 0, duration: FLY_DUR, ease: "power3.out" },
+          flyAt
+        );
+        tl.fromTo(
+          chip,
+          { scale: 0.8 },
+          { scale: 1, duration: FLY_DUR, ease: "power3.out" },
+          flyAt
+        );
+
+        const x1 = Number(line.getAttribute("x1"));
+        const y1 = Number(line.getAttribute("y1"));
+        const x2 = Number(line.getAttribute("x2"));
+        const y2 = Number(line.getAttribute("y2"));
+        const len = Math.hypot(x2 - x1, y2 - y1);
+        const k = Math.ceil((len + FLOW + PERIOD) / PERIOD);
+        const dashes = [];
+        for (let j = 0; j < k; j++) dashes.push(6, 10);
+        dashes[dashes.length - 1] = 10 + len + PERIOD * 2;
+        line.style.strokeDasharray = dashes.join(" ");
+        const HIDDEN = k * PERIOD;
+
+        tl.fromTo(
+          line,
+          { strokeDashoffset: HIDDEN },
+          { strokeDashoffset: FLOW, duration: n.draw, ease: "power2.out" },
+          n.cue + DRAW_AFTER_CUE
+        );
+      });
+
+      // ── Scene 4 (7.0–8.35s): tagline word-by-word on "jadi satu" (7.04–7.30).
+      const TAG_START = 7.04;
+      const TAG_END = 7.3;
+      const words = byId("f04-tag").querySelectorAll(".f04-w");
+      const wordStep = (TAG_END - TAG_START) / (words.length - 1);
+      words.forEach((w, i) => {
+        tl.fromTo(
+          w,
+          { y: 24, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" },
+          TAG_START + i * wordStep
+        );
+      });
+
+      // Connector dashes flow once toward the hub (finite, 1.0s), landing on the sketch's dash phase; then hold.
+      const FLOW_AT = 7.25;
+      NODES.forEach((n) => {
+        tl.fromTo(
+          byId(n.line),
+          { strokeDashoffset: FLOW },
+          {
+            strokeDashoffset: 0,
+            duration: 1.0,
+            ease: "sine.inOut",
+            immediateRender: false,
+          },
+          FLOW_AT
+        );
+      });
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["04-meet-sydia"] = tl;
+    })();
+  </script>
+</template>

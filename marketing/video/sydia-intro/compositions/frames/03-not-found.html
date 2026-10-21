@@ -1,0 +1,538 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f03-explorer {
+      left: 120px;
+      top: 150px;
+      width: 900px;
+      height: 660px;
+      padding: 34px 38px;
+    }
+    .f03-search {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 72px;
+      padding: 0 24px;
+      border: 1.5px solid rgba(23, 20, 25, 0.12);
+      border-radius: 14px;
+      font-size: 30px;
+      color: var(--sy-ink);
+    }
+    .f03-search svg {
+      width: 30px;
+      height: 30px;
+      color: var(--sy-light);
+    }
+    #f03-query {
+      white-space: pre;
+    }
+    .f03-caret {
+      display: inline-block;
+      width: 3px;
+      height: 34px;
+      background: var(--sy-pink);
+      margin-left: -10px;
+    }
+    .f03-crumbs {
+      margin: 26px 0 22px;
+      font-size: 22px;
+      color: var(--sy-muted);
+      white-space: nowrap;
+    }
+    .f03-crumbs b {
+      color: var(--sy-ink);
+      font-weight: 600;
+    }
+    .f03-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+    }
+    .f03-folder {
+      height: 128px;
+      border-radius: 14px;
+      background: #f6f3f0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      font-size: 21px;
+      font-weight: 500;
+      color: var(--sy-muted);
+    }
+    .f03-folder svg {
+      width: 46px;
+      height: 46px;
+      color: #b9b1bd;
+    }
+    .f03-empty {
+      margin-top: 26px;
+      height: 64px;
+      border-radius: 14px;
+      border: 1.5px dashed rgba(23, 20, 25, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--sy-light);
+    }
+    .f03-words {
+      position: absolute;
+      left: 1100px;
+      top: 190px;
+      width: 760px;
+    }
+    .f03-word {
+      font-size: 96px;
+      margin-bottom: 18px;
+    }
+    .f03-stamp {
+      position: absolute;
+      left: 1120px;
+      top: 650px;
+      padding: 14px 40px;
+      border: 6px solid var(--sy-pink);
+      border-radius: 18px;
+      color: var(--sy-pink);
+      font-size: 84px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: rgba(255, 255, 255, 0.7);
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-q01p"
+    id="root"
+    data-composition-id="03-not-found"
+    data-width="1920"
+    data-height="1080"
+    data-duration="8.75"
+  >
+    <div
+      data-hf-id="hf-4cse"
+      id="f03-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.75"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-0sqh"
+        id="f03-bloom"
+        class="sy-bloom coral"
+        style="
+          left: 1300px;
+          top: 600px;
+          width: 700px;
+          height: 500px;
+          opacity: 0.18;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-hg4o"
+      id="f03-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="8.75"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-dv1z" id="f03-explorer" class="sy-card f03-explorer">
+        <div data-hf-id="hf-4ejm" class="f03-search">
+          <svg
+            data-hf-id="hf-h0hq"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle data-hf-id="hf-7tjq" cx="11" cy="11" r="8" />
+            <path data-hf-id="hf-61mr" d="m21 21-4.3-4.3" />
+          </svg>
+          <span data-hf-id="hf-7xuc" id="f03-query"></span
+          ><span data-hf-id="hf-4xvt" id="f03-caret" class="f03-caret"></span>
+        </div>
+        <div data-hf-id="hf-j5vv" class="f03-crumbs">
+          Dokumen › Penting › 2025 ›
+          <b data-hf-id="hf-6bb9" id="f03-crumb"
+            ><span data-hf-id="hf-ozq9" id="f03-crumb-a">Final</span
+            ><span data-hf-id="hf-aaye" id="f03-crumb-b" style="display: none"
+              >Final-REVISI-2</span
+            ></b
+          >
+        </div>
+        <div data-hf-id="hf-ieg2" id="f03-grid" class="f03-grid">
+          <div data-hf-id="hf-iacy" class="f03-folder">
+            <svg
+              data-hf-id="hf-rvzf"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-61x5"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Download
+          </div>
+          <div data-hf-id="hf-z3ev" class="f03-folder">
+            <svg
+              data-hf-id="hf-j823"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-lxjh"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Scan
+          </div>
+          <div data-hf-id="hf-sgh2" class="f03-folder">
+            <svg
+              data-hf-id="hf-itr2"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-n4gk"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Kerjaan
+          </div>
+          <div data-hf-id="hf-6nxt" class="f03-folder">
+            <svg
+              data-hf-id="hf-ifg1"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-mq5j"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Pribadi
+          </div>
+          <div data-hf-id="hf-1n8e" class="f03-folder">
+            <svg
+              data-hf-id="hf-i150"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-nx2m"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Final
+          </div>
+          <div data-hf-id="hf-fq01" class="f03-folder">
+            <svg
+              data-hf-id="hf-hmtz"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-nirl"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Final-2
+          </div>
+          <div data-hf-id="hf-j53m" class="f03-folder">
+            <svg
+              data-hf-id="hf-h8iy"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-opoo"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Baru
+          </div>
+          <div data-hf-id="hf-17ix" class="f03-folder">
+            <svg
+              data-hf-id="hf-gu7x"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            >
+              <path
+                data-hf-id="hf-obdn"
+                d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+              /></svg
+            >Lain-lain
+          </div>
+        </div>
+        <div data-hf-id="hf-2306" id="f03-empty" class="f03-empty">
+          0 hasil untuk "kontrak sewa"
+        </div>
+      </div>
+
+      <div data-hf-id="hf-yt2x" class="f03-words">
+        <div data-hf-id="hf-7h3q" id="f03-w1" class="sy-display f03-word">
+          Scroll.
+        </div>
+        <div data-hf-id="hf-l3xx" id="f03-w2" class="sy-display f03-word">
+          Buka folder.
+        </div>
+        <div data-hf-id="hf-v5g1" id="f03-w3" class="sy-display f03-word">
+          Cari lagi.
+        </div>
+      </div>
+      <div data-hf-id="hf-tlsh" id="f03-stamp" class="f03-stamp">
+        Nggak ketemu.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      const INK = "#171419";
+      const LIGHT = "#9a939e";
+
+      const queryEl = document.getElementById("f03-query");
+      const caretEl = document.getElementById("f03-caret");
+      const crumbA = document.getElementById("f03-crumb-a");
+      const crumbB = document.getElementById("f03-crumb-b");
+      const emptyEl = document.getElementById("f03-empty");
+
+      // discrete-text-sequence — the query types in from an empty span (pause at the word break).
+      const QUERY = [
+        { t: 0.0, text: "" },
+        { t: 0.7, text: "k" },
+        { t: 0.78, text: "ko" },
+        { t: 0.85, text: "kon" },
+        { t: 0.93, text: "kont" },
+        { t: 1.0, text: "kontr" },
+        { t: 1.08, text: "kontra" },
+        { t: 1.17, text: "kontrak" },
+        { t: 1.27, text: "kontrak " },
+        { t: 1.47, text: "kontrak s" },
+        { t: 1.57, text: "kontrak se" },
+        { t: 1.68, text: "kontrak sew" },
+        { t: 1.82, text: "kontrak sewa" },
+      ];
+      // discrete-text-sequence — breadcrumb's last token hard-cuts in place on "folder".
+      const CRUMB_SWAP_T = 3.92;
+
+      function queryAt(time) {
+        for (let i = QUERY.length - 1; i >= 0; i--) {
+          if (time >= QUERY[i].t) return QUERY[i].text;
+        }
+        return "";
+      }
+
+      function renderText(time) {
+        if (!queryEl || !caretEl || !crumbA || !crumbB) return;
+        const q = queryAt(time);
+        if (queryEl.textContent !== q) queryEl.textContent = q;
+        // Caret: solid while typing, then a deterministic 0.8s blink.
+        const typing = time >= 0.62 && time < 2.05;
+        const on = typing || (time * 1.25) % 1 < 0.55;
+        caretEl.style.opacity = on ? "1" : "0";
+        const swapped = time >= CRUMB_SWAP_T;
+        crumbA.style.display = swapped ? "none" : "";
+        crumbB.style.display = swapped ? "" : "none";
+      }
+
+      const driver = { t: 0 };
+      tl.fromTo(
+        driver,
+        { t: 0 },
+        {
+          t: 8.35,
+          duration: 8.35,
+          ease: "none",
+          onUpdate: () => renderText(driver.t),
+        },
+        0
+      );
+
+      // Scene 1 (0.0–2.6s) — explorer card rises in; folder tiles pop staggered.
+      tl.fromTo(
+        "#f03-explorer",
+        { y: 50, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" },
+        0.2
+      );
+      tl.fromTo(
+        "#f03-grid .f03-folder",
+        { y: 14, scale: 0.86, opacity: 0 },
+        {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.45,
+          ease: "power3.out",
+          stagger: 0.06,
+        },
+        0.4
+      );
+
+      // Scene 2 (2.6–4.5s) — "Scroll." slams on "Scroll"; the grid does one quick upward flick.
+      tl.fromTo(
+        "#f03-w1",
+        { x: 60, opacity: 0, filter: "blur(14px)" },
+        {
+          x: 0,
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.4,
+          ease: "expo.out",
+        },
+        2.77
+      );
+      tl.fromTo(
+        "#f03-grid",
+        { y: 0, filter: "blur(0px)" },
+        { y: -24, filter: "blur(3px)", duration: 0.13, ease: "power2.out" },
+        2.77
+      );
+      tl.fromTo(
+        "#f03-grid",
+        { y: -24, filter: "blur(3px)" },
+        {
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.22,
+          ease: "power2.inOut",
+          immediateRender: false,
+        },
+        2.9
+      );
+
+      // "Buka folder." slams on "buka"; the previous word dims so the newest is always ink.
+      tl.fromTo(
+        "#f03-w2",
+        { x: 60, opacity: 0, filter: "blur(14px)" },
+        {
+          x: 0,
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.4,
+          ease: "expo.out",
+        },
+        3.58
+      );
+      tl.fromTo(
+        "#f03-w1",
+        { color: INK },
+        { color: LIGHT, duration: 0.35, ease: "power2.out" },
+        3.58
+      );
+
+      // On "folder" the breadcrumb token swaps (driver above) and the grid blinks as the folder opens.
+      tl.fromTo(
+        "#f03-grid",
+        { opacity: 1 },
+        { opacity: 0.15, duration: 0.06, ease: "none" },
+        CRUMB_SWAP_T
+      );
+      tl.fromTo(
+        "#f03-grid",
+        { opacity: 0.15 },
+        {
+          opacity: 1,
+          duration: 0.3,
+          ease: "power2.out",
+          immediateRender: false,
+        },
+        CRUMB_SWAP_T + 0.06
+      );
+
+      // Scene 3 (4.5–5.8s) — "Cari lagi." slams on "cari"; "Buka folder." dims.
+      tl.fromTo(
+        "#f03-w3",
+        { x: 60, opacity: 0, filter: "blur(14px)" },
+        {
+          x: 0,
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.4,
+          ease: "expo.out",
+        },
+        4.61
+      );
+      tl.fromTo(
+        "#f03-w2",
+        { color: INK },
+        { color: LIGHT, duration: 0.35, ease: "power2.out" },
+        4.61
+      );
+
+      // The "0 hasil" row comes back empty, then shakes once on "nggak" (x ±8, 3 cycles, 0.3s).
+      tl.fromTo(
+        "#f03-empty",
+        { y: 12, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" },
+        5.3
+      );
+      const shake = { p: 0 };
+      tl.fromTo(
+        shake,
+        { p: 0 },
+        {
+          p: 1,
+          duration: 0.3,
+          ease: "none",
+          onUpdate: () => {
+            const x = shake.p >= 1 ? 0 : Math.sin(shake.p * Math.PI * 6) * 8;
+            if (emptyEl) gsap.set(emptyEl, { x: x });
+          },
+        },
+        5.59
+      );
+
+      // Scene 4 (5.84–8.35s) — the stamp slams on "ketemu", the bloom behind it warms; then hold still.
+      tl.fromTo(
+        "#f03-stamp",
+        { scale: 1.6, rotation: -14, opacity: 0 },
+        { scale: 1, rotation: -6, opacity: 1, duration: 0.3, ease: "expo.out" },
+        5.84
+      );
+      tl.fromTo(
+        "#f03-bloom",
+        { opacity: 0.06 },
+        { opacity: 0.18, duration: 1.1, ease: "power2.out" },
+        5.84
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["03-not-found"] = tl;
+    })();
+  </script>
+</template>

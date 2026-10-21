@@ -1,0 +1,332 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .p02-blooms {
+      position: absolute;
+      inset: 0;
+    }
+    .p02-group {
+      position: absolute;
+      inset: 0;
+    }
+    .p02-lock {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 250px;
+      height: 220px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+    }
+    .p02-logo {
+      position: relative;
+      z-index: 2;
+      width: 220px;
+      height: 220px;
+    }
+    .p02-word {
+      position: relative;
+      z-index: 1;
+      font-size: 180px;
+    }
+    .p02-sub {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 520px;
+      text-align: center;
+      font-size: 52px;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      color: var(--sy-muted);
+      white-space: nowrap;
+    }
+    .p02-sub em {
+      font-style: normal;
+      font-weight: 800;
+    }
+    .p02-sw {
+      display: inline-block;
+    }
+    .p02-pills {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 640px;
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+    }
+    .p02-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 32px;
+      border-radius: 9999px;
+      background: var(--sy-surface);
+      border: 1px solid var(--sy-border);
+      box-shadow: var(--sy-shadow-card);
+      font-size: 34px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: var(--sy-ink);
+      white-space: nowrap;
+    }
+    .p02-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--sy-pink);
+      flex: none;
+    }
+    .p02-win {
+      left: 344px;
+      top: 130px;
+      width: 1232px;
+      height: 770px;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-k884"
+    id="root"
+    data-composition-id="02-intro"
+    data-width="1920"
+    data-height="1080"
+    data-duration="10.438"
+  >
+    <div
+      data-hf-id="hf-hyt9"
+      id="p02-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.438"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div data-hf-id="hf-hh2q" id="p02-blooms" class="p02-blooms">
+        <div
+          data-hf-id="hf-a578"
+          id="p02-bloom-a"
+          class="sy-bloom amber"
+          style="
+            left: 180px;
+            top: 300px;
+            width: 760px;
+            height: 640px;
+            opacity: 0.46;
+          "
+        ></div>
+        <div
+          data-hf-id="hf-n295"
+          id="p02-bloom-b"
+          class="sy-bloom coral"
+          style="
+            left: 640px;
+            top: 140px;
+            width: 720px;
+            height: 620px;
+            opacity: 0.36;
+          "
+        ></div>
+        <div
+          data-hf-id="hf-7u21"
+          id="p02-bloom-c"
+          class="sy-bloom violet"
+          style="
+            left: 1060px;
+            top: 320px;
+            width: 720px;
+            height: 620px;
+            opacity: 0.34;
+          "
+        ></div>
+      </div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-lvch"
+      id="p02-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.438"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-kz2i" id="p02-group" class="p02-group">
+        <div data-hf-id="hf-a4w2" id="p02-lock" class="p02-lock">
+          <img
+            data-hf-id="hf-x5pf"
+            id="p02-logo"
+            class="p02-logo"
+            src="assets/sydia-logo.svg"
+            alt=""
+          />
+          <div data-hf-id="hf-3ab1" id="p02-word" class="sy-display p02-word">
+            Sydia
+          </div>
+        </div>
+        <div data-hf-id="hf-kudw" id="p02-sub" class="p02-sub">
+          <span data-hf-id="hf-viqs" id="p02-s1" class="p02-sw">Asisten</span>
+          <em data-hf-id="hf-2lav"
+            ><span
+              data-hf-id="hf-9d6z"
+              id="p02-s2"
+              class="p02-sw sy-aurora-text"
+              >AI</span
+            >
+            <span data-hf-id="hf-0531" id="p02-s3" class="p02-sw sy-aurora-text"
+              >Pribadimu</span
+            ></em
+          >
+        </div>
+        <div data-hf-id="hf-3jbx" class="p02-pills">
+          <div data-hf-id="hf-9uwm" id="p02-pill-1" class="p02-pill">
+            <span data-hf-id="hf-6al3" class="p02-dot"></span>Mengingat
+          </div>
+          <div data-hf-id="hf-lnfz" id="p02-pill-2" class="p02-pill">
+            <span data-hf-id="hf-j6s7" class="p02-dot"></span>Merencanakan
+          </div>
+          <div data-hf-id="hf-keph" id="p02-pill-3" class="p02-pill">
+            <span data-hf-id="hf-ish6" class="p02-dot"></span>Mengatur
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-dab3" id="p02-win" class="sy-window p02-win">
+        <img
+          data-hf-id="hf-y3l9"
+          id="p02-shot"
+          src="assets/pv-cap/s3-00-empty.png"
+          alt=""
+        />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+
+      // Scene 1 (0.0–1.6s): warm aurora blooms swell; the logo lands centered on "Kenalkan" (0.63).
+      tl.fromTo(
+        "#p02-blooms",
+        { opacity: 0.35, scale: 0.78 },
+        { opacity: 1, scale: 1, duration: 1.6, ease: "power2.out" },
+        0
+      );
+      // Logo starts centered alone (offset by half the wordmark + gap), then slides left as the wordmark arrives.
+      tl.fromTo(
+        "#p02-logo",
+        { x: 239, scale: 0.6 },
+        { x: 239, scale: 1, duration: 0.7, ease: "power3.out" },
+        0.45
+      );
+      tl.fromTo(
+        "#p02-logo",
+        { opacity: 0, filter: "blur(16px)" },
+        { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power2.out" },
+        0.45
+      );
+
+      // Scene 2 (1.6–4.2s): wordmark slides out beside the logo on "Sydia" (1.41–1.64).
+      tl.fromTo(
+        "#p02-logo",
+        { x: 239 },
+        { x: 0, duration: 0.7, ease: "power3.out", immediateRender: false },
+        1.41
+      );
+      tl.fromTo(
+        "#p02-word",
+        { x: -140, clipPath: "inset(-40% -20% -40% 140px)" },
+        {
+          x: 0,
+          clipPath: "inset(-40% -20% -40% 0px)",
+          duration: 0.7,
+          ease: "power3.out",
+        },
+        1.41
+      );
+      tl.fromTo(
+        "#p02-word",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power1.out" },
+        1.41
+      );
+
+      // Subtitle per-word from 2.12.
+      const wordIn = function (sel, at) {
+        tl.fromTo(
+          sel,
+          { opacity: 0, y: 22, filter: "blur(6px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.5,
+            ease: "power3.out",
+          },
+          at
+        );
+      };
+      wordIn("#p02-s1", 2.12);
+      wordIn("#p02-s2", 2.34);
+      wordIn("#p02-s3", 2.52);
+
+      // Scene 3 (4.2–8.3s): three pills pop on their words.
+      const pillIn = function (sel, at) {
+        tl.fromTo(
+          sel,
+          { opacity: 0, scale: 0.7, y: 18 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "expo.out" },
+          at
+        );
+      };
+      pillIn("#p02-pill-1", 4.39);
+      pillIn("#p02-pill-2", 5.31);
+      pillIn("#p02-pill-3", 6.14);
+
+      // Scene 4 (8.35–10.44s): lockup shrinks and rises out; the real empty chat window rises into its slot. Hold.
+      tl.fromTo(
+        "#p02-group",
+        { scale: 1, y: 0, opacity: 1, transformOrigin: "50% 45%" },
+        {
+          scale: 0.55,
+          y: -260,
+          opacity: 0,
+          duration: 0.7,
+          ease: "power3.inOut",
+          immediateRender: false,
+        },
+        8.35
+      );
+      tl.fromTo(
+        "#p02-win",
+        { y: 820, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.95, ease: "expo.out" },
+        8.4
+      );
+      tl.fromTo(
+        "#p02-blooms",
+        { opacity: 1 },
+        {
+          opacity: 0.7,
+          duration: 0.9,
+          ease: "power2.out",
+          immediateRender: false,
+        },
+        8.4
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["02-intro"] = tl;
+    })();
+  </script>
+</template>

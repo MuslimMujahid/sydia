@@ -1,0 +1,320 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .f10-title {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 70px;
+      text-align: center;
+      font-size: 84px;
+    }
+    /* perspective parent for the mirrored-wing rotateY entry; same box as the stage, so panel positions are unchanged */
+    .f10-deck {
+      position: absolute;
+      inset: 0;
+      perspective: 1800px;
+      perspective-origin: 960px 495px;
+    }
+    .f10-panel {
+      position: absolute;
+      top: 260px;
+      width: 540px;
+      height: 470px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid var(--sy-border);
+      box-shadow: var(--sy-shadow-window);
+      backface-visibility: hidden;
+    }
+    .f10-head {
+      height: 96px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 30px;
+      font-size: 32px;
+      font-weight: 700;
+      background: #fff;
+      border-bottom: 1px solid var(--sy-border);
+    }
+    .f10-head img {
+      width: 46px;
+      height: 46px;
+    }
+    .f10-body {
+      padding: 28px 26px;
+    }
+    .f10-user {
+      margin-left: 50px;
+      border-radius: 18px;
+      padding: 16px 22px;
+      font-size: 25px;
+      line-height: 1.4;
+      color: #2b2730;
+    }
+    .f10-ans {
+      margin-top: 18px;
+      margin-right: 30px;
+      border-radius: 18px;
+      padding: 18px 22px;
+      font-size: 25px;
+      line-height: 1.45;
+      color: var(--sy-ink);
+      background: #fff;
+      transform-origin: 0% 100%;
+    }
+    .f10-ans b {
+      font-weight: 700;
+    }
+    .f10-web {
+      background: #fff;
+    }
+    .f10-web .f10-user {
+      background: #f1f0f0;
+      color: #57525b;
+    }
+    .f10-web .f10-ans {
+      padding-left: 0;
+      color: var(--sy-muted);
+      transform-origin: 0% 50%;
+    }
+    .f10-tg {
+      background: #dde6ef;
+    }
+    .f10-tg .f10-user {
+      background: #eef9df;
+    }
+    .f10-wa {
+      background: #efeae2;
+    }
+    .f10-wa .f10-user {
+      background: #d9fdd3;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-q2b1"
+    id="root"
+    data-composition-id="10-channels"
+    data-width="1920"
+    data-height="1080"
+    data-duration="6.662"
+  >
+    <div
+      data-hf-id="hf-k4yc"
+      id="f10-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="6.662"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-69w1"
+        id="f10-bloom"
+        class="sy-bloom coral"
+        style="
+          left: 260px;
+          top: 420px;
+          width: 1400px;
+          height: 420px;
+          opacity: 0.2;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-uvca"
+      id="f10-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="6.662"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-ukxe" id="f10-title" class="sy-display f10-title">
+        Ngobrol di mana aja.
+      </div>
+
+      <div data-hf-id="hf-k7xe" id="f10-deck" class="f10-deck">
+        <div
+          data-hf-id="hf-3knj"
+          id="f10-p1"
+          class="f10-panel f10-wa"
+          style="left: 120px"
+        >
+          <div data-hf-id="hf-px1e" class="f10-head">
+            <img
+              data-hf-id="hf-t69y"
+              src="assets/whatsapp.svg"
+              alt=""
+            />WhatsApp
+          </div>
+          <div data-hf-id="hf-emii" class="f10-body">
+            <div data-hf-id="hf-twpb" class="f10-user">
+              Ingatkan aku bayar listrik tiap tanggal 25 jam 9 pagi ya
+            </div>
+            <div data-hf-id="hf-6zi0" id="f10-a1" class="f10-ans">
+              Siap, pengingatnya sudah dibuat.
+              <div data-hf-id="hf-itt3">
+                • Bayar listrik — Pada 25 Okt 2026, 09.00 · bulanan
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-hf-id="hf-612h"
+          id="f10-p2"
+          class="f10-panel f10-tg"
+          style="left: 690px"
+        >
+          <div data-hf-id="hf-dmj3" class="f10-head">
+            <img
+              data-hf-id="hf-6orx"
+              src="assets/telegram.svg"
+              alt=""
+            />Telegram
+          </div>
+          <div data-hf-id="hf-199a" class="f10-body">
+            <div data-hf-id="hf-wv73" class="f10-user">
+              Ingatkan aku bayar listrik tiap tanggal 25 jam 9 pagi ya
+            </div>
+            <div data-hf-id="hf-ceoj" id="f10-a2" class="f10-ans">
+              Siap, pengingatnya sudah dibuat.
+              <div data-hf-id="hf-4jay">
+                • <b data-hf-id="hf-86eq">Bayar listrik</b> — Pada 25 Okt 2026,
+                09.00 · bulanan
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-hf-id="hf-jeon"
+          id="f10-p3"
+          class="f10-panel f10-web"
+          style="left: 1260px"
+        >
+          <div data-hf-id="hf-1qvu" class="f10-head">
+            <img data-hf-id="hf-iq76" src="assets/sydia-logo.svg" alt="" />Web
+          </div>
+          <div data-hf-id="hf-1nkb" class="f10-body">
+            <div data-hf-id="hf-wgw2" class="f10-user">
+              Ingatkan aku bayar listrik tiap tanggal 25 jam 9 pagi ya
+            </div>
+            <div data-hf-id="hf-qhgm" id="f10-a3" class="f10-ans">
+              Siap, pengingatnya sudah dibuat.
+              <div data-hf-id="hf-zfls" style="margin-top: 12px">
+                <span
+                  data-hf-id="hf-2lnk"
+                  class="sy-chip reminder"
+                  style="font-size: 24px"
+                  ><svg
+                    data-hf-id="hf-h0hq"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle data-hf-id="hf-hoqb" cx="12" cy="13" r="8" />
+                    <path data-hf-id="hf-a705" d="M12 9v4l2 2" />
+                    <path data-hf-id="hf-2ed7" d="M5 3 2 6" />
+                    <path data-hf-id="hf-7agl" d="m22 6-3-3" /></svg
+                  >Bayar listrik</span
+                >
+                — 25 Okt 2026, 09.00 · bulanan
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    // Ambient: the coral bloom under the deck warms up as the channels assemble (lands at the sketch's 0.20).
+    tl.fromTo(
+      "#f10-bloom",
+      { opacity: 0.08 },
+      { opacity: 0.2, duration: 3.2, ease: "sine.inOut" },
+      1.0
+    );
+
+    // Scene 1 (0.0–1.0s): title slides down from just above and settles (whoosh @0.15).
+    tl.fromTo(
+      "#f10-title",
+      { y: -30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.85, ease: "power3.out" },
+      0.15
+    );
+
+    // Scene 2 (1.2–3.4s): split-tilt entry — mirrored wings + rising center, under the #f10-deck perspective parent.
+    // WhatsApp from the left wing, facing right (rotateY +28 → 0) on "WhatsApp" 1.32.
+    tl.fromTo(
+      "#f10-p1",
+      { x: -160, rotationY: 28, scale: 0.85, opacity: 0 },
+      {
+        x: 0,
+        rotationY: 0,
+        scale: 1,
+        opacity: 1,
+        duration: 0.85,
+        ease: "power3.out",
+      },
+      1.2
+    );
+    // Telegram rises from below on "Telegram" 2.05.
+    tl.fromTo(
+      "#f10-p2",
+      { y: 80, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" },
+      1.95
+    );
+    // Web from the right wing, facing left (rotateY −28 → 0) on "web" 3.13.
+    tl.fromTo(
+      "#f10-p3",
+      { x: 160, rotationY: -28, scale: 0.85, opacity: 0 },
+      {
+        x: 0,
+        rotationY: 0,
+        scale: 1,
+        opacity: 1,
+        duration: 0.8,
+        ease: "power3.out",
+      },
+      3.03
+    );
+
+    // Scene 3 (3.7–6.26s): the same answer pops in every channel, staggered 0.15s on "terserah kamu"; then hold still.
+    tl.fromTo(
+      "#f10-a1",
+      { scale: 0.6, y: 14, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+      3.71
+    );
+    tl.fromTo(
+      "#f10-a2",
+      { scale: 0.6, y: 14, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+      3.86
+    );
+    tl.fromTo(
+      "#f10-a3",
+      { scale: 0.6, y: 14, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+      4.01
+    );
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["10-channels"] = tl;
+  </script>
+</template>

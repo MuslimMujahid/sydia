@@ -1,0 +1,599 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Scene 1 — morning card */
+    .p06-morning {
+      left: 580px;
+      top: 300px;
+      width: 760px;
+      height: 400px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .p06-sunrise {
+      position: absolute;
+      left: 130px;
+      top: 250px;
+      width: 500px;
+      height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(
+        ellipse at 50% 50%,
+        rgba(255, 178, 122, 0.55) 0%,
+        rgba(255, 138, 76, 0.18) 45%,
+        rgba(255, 178, 122, 0) 70%
+      );
+    }
+    .p06-time {
+      position: relative;
+      font-size: 180px;
+      font-variant-numeric: tabular-nums;
+    }
+    .p06-date {
+      position: relative;
+      margin-top: 18px;
+      font-size: 40px;
+      font-weight: 500;
+      color: var(--sy-muted);
+      letter-spacing: -0.01em;
+    }
+
+    /* Scene 2 — phone mockup (WhatsApp-style) */
+    .p06-phone {
+      position: absolute;
+      left: 120px;
+      top: 130px;
+      width: 520px;
+      height: 760px;
+      padding: 12px;
+      box-sizing: border-box;
+      border-radius: 56px;
+      background: #1a171c;
+      box-shadow: var(--sy-shadow-window);
+    }
+    .p06-screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 44px;
+      overflow: hidden;
+      background: #efeae2;
+    }
+    .p06-status {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 0 34px;
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--sy-ink);
+      background: #fff;
+    }
+    .p06-head {
+      height: 84px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 22px;
+      background: #fff;
+      border-bottom: 1px solid var(--sy-border);
+    }
+    .p06-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid var(--sy-border);
+      display: grid;
+      place-items: center;
+    }
+    .p06-avatar img {
+      width: 32px;
+      height: 32px;
+    }
+    .p06-name {
+      font-size: 25px;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+    .p06-sub {
+      font-size: 17px;
+      color: var(--sy-muted);
+    }
+    .p06-wa {
+      margin-left: auto;
+      width: 34px;
+      height: 34px;
+    }
+    .p06-chat {
+      padding: 26px 22px;
+    }
+    .p06-bubble {
+      position: relative;
+      width: 452px;
+      box-sizing: border-box;
+      background: #fff;
+      border-radius: 4px 18px 18px 18px;
+      padding: 18px 20px 12px;
+      font-size: 22px;
+      line-height: 1.45;
+      color: var(--sy-ink);
+      box-shadow: rgba(23, 20, 25, 0.08) 0 1px 2px;
+    }
+    .p06-sec {
+      margin-top: 14px;
+    }
+    .p06-sec-title {
+      font-weight: 700;
+    }
+    .p06-meta {
+      margin-top: 6px;
+      text-align: right;
+      font-size: 15px;
+      color: #6f6a62;
+    }
+
+    /* Scene 3–4 — app window at right */
+    .p06-win {
+      left: 740px;
+      top: 170px;
+      width: 1040px;
+      height: 650px;
+    }
+    .p06-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1040px;
+      height: 650px;
+    }
+    .p06-shot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1040px;
+      height: 650px;
+      display: block;
+    }
+    .p06-ring {
+      position: absolute;
+      box-sizing: border-box;
+      border: 2.5px solid var(--sy-pink);
+      box-shadow:
+        0 0 0 6px rgba(239, 90, 138, 0.16),
+        0 0 22px rgba(239, 90, 138, 0.35);
+    }
+    .p06-ring-event {
+      left: 254px;
+      top: 446px;
+      width: 768px;
+      height: 48px;
+      border-radius: 10px;
+    }
+    .p06-ring-check {
+      left: 222px;
+      top: 131px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+    .p06-dot {
+      position: absolute;
+      left: 231px;
+      top: 140px;
+      width: 22px;
+      height: 22px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid var(--sy-pink);
+      box-shadow: rgba(23, 20, 25, 0.25) 0 3px 8px;
+    }
+    .p06-ripple {
+      position: absolute;
+      left: 212px;
+      top: 121px;
+      width: 60px;
+      height: 60px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      border: 3px solid var(--sy-pink);
+    }
+    .p06-stamp {
+      position: absolute;
+      left: 440px;
+      top: 184px;
+      font-size: 26px;
+    }
+    .p06-stamp svg {
+      width: 26px;
+      height: 26px;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-14st"
+    id="root"
+    data-composition-id="06-proactive"
+    data-width="1920"
+    data-height="1080"
+    data-duration="10.938"
+  >
+    <div
+      data-hf-id="hf-cqp5"
+      id="p06-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.938"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-gyrp"
+        id="p06-bloom-amber"
+        class="sy-bloom amber"
+        style="
+          left: 560px;
+          top: 420px;
+          width: 800px;
+          height: 480px;
+          opacity: 0.45;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-wfde"
+        id="p06-bloom-coral"
+        class="sy-bloom coral"
+        style="
+          left: -120px;
+          top: 520px;
+          width: 760px;
+          height: 420px;
+          opacity: 0.16;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-pdbs"
+        id="p06-bloom-violet"
+        class="sy-bloom violet"
+        style="
+          left: 1340px;
+          top: 80px;
+          width: 620px;
+          height: 420px;
+          opacity: 0.14;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-srn9"
+      id="p06-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="10.938"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-37ca" id="p06-caption" class="sy-caption">
+        <span data-hf-id="hf-ptv7" class="p06-w">Mulai</span>
+        <span data-hf-id="hf-v7xf" class="p06-w">hari</span>
+        <span data-hf-id="hf-68ai" class="p06-w">dengan</span>
+        <span data-hf-id="hf-s3ix" class="p06-w">lebih</span>
+        <em data-hf-id="hf-5bem" class="p06-w">terarah.</em>
+      </div>
+
+      <!-- Scene 1: morning card -->
+      <div data-hf-id="hf-iu7p" id="p06-morning" class="sy-card p06-morning">
+        <div data-hf-id="hf-ylzi" id="p06-sunrise" class="p06-sunrise"></div>
+        <div data-hf-id="hf-24dm" id="p06-time" class="sy-display p06-time">
+          07.00
+        </div>
+        <div data-hf-id="hf-5rq1" id="p06-date" class="p06-date">
+          Kamis, 22 Oktober
+        </div>
+      </div>
+
+      <!-- Scene 2: WhatsApp-style phone -->
+      <div data-hf-id="hf-wlow" id="p06-phone" class="p06-phone">
+        <div data-hf-id="hf-jifn" class="p06-screen">
+          <div data-hf-id="hf-2ogy" class="p06-status">07.00</div>
+          <div data-hf-id="hf-mwsx" class="p06-head">
+            <div data-hf-id="hf-mv98" class="p06-avatar">
+              <img data-hf-id="hf-iq76" src="assets/sydia-logo.svg" alt="" />
+            </div>
+            <div data-hf-id="hf-yeow">
+              <div data-hf-id="hf-91zo" class="p06-name">Sydia</div>
+              <div data-hf-id="hf-68o8" class="p06-sub">online</div>
+            </div>
+            <img
+              data-hf-id="hf-55wa"
+              class="p06-wa"
+              src="assets/whatsapp.svg"
+              alt=""
+            />
+          </div>
+          <div data-hf-id="hf-y1wh" class="p06-chat">
+            <div data-hf-id="hf-2m6m" id="p06-bubble" class="p06-bubble">
+              <div data-hf-id="hf-dswv">
+                Selamat pagi! Hari ini fokus ke review proposal Aurora bersama
+                Nadia.
+              </div>
+              <div data-hf-id="hf-9b07" id="p06-sec1" class="p06-sec">
+                <div data-hf-id="hf-mmkt" class="p06-sec-title">Agenda (1)</div>
+                <div data-hf-id="hf-fuak">
+                  • Review proposal Aurora dengan Nadia — 10.00–11.00
+                </div>
+              </div>
+              <div data-hf-id="hf-0n4c" id="p06-sec2" class="p06-sec">
+                <div data-hf-id="hf-njjm" class="p06-sec-title">
+                  Pengingat hari ini (1)
+                </div>
+                <div data-hf-id="hf-szro">
+                  • Review proposal Aurora dengan Nadia — 08.00
+                </div>
+              </div>
+              <div data-hf-id="hf-hrrl" class="p06-meta">07.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenes 3–4: app window -->
+      <div data-hf-id="hf-16jj" id="p06-win" class="sy-window p06-win">
+        <div data-hf-id="hf-mgze" id="p06-cam" class="p06-cam">
+          <img
+            data-hf-id="hf-ujn4"
+            id="p06-shot-day"
+            class="p06-shot"
+            src="assets/pv-cap/s6-40-day-kamis.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-qot1"
+            id="p06-shot-before"
+            class="p06-shot"
+            src="assets/pv-cap/s6-41-tasks-before.png"
+            alt=""
+            style="opacity: 0"
+          />
+          <img
+            data-hf-id="hf-evs9"
+            id="p06-shot-after"
+            class="p06-shot"
+            src="assets/pv-cap/s6-43-tasks-after.png"
+            alt=""
+            style="opacity: 0"
+          />
+          <div
+            data-hf-id="hf-49sg"
+            id="p06-ring-event"
+            class="p06-ring p06-ring-event"
+            style="opacity: 0"
+          ></div>
+          <div
+            data-hf-id="hf-85xc"
+            id="p06-ring-check"
+            class="p06-ring p06-ring-check"
+            style="opacity: 0"
+          ></div>
+          <div
+            data-hf-id="hf-rm8b"
+            id="p06-ripple"
+            class="p06-ripple"
+            style="opacity: 0"
+          ></div>
+          <div
+            data-hf-id="hf-7zor"
+            id="p06-dot"
+            class="p06-dot"
+            style="opacity: 0"
+          ></div>
+          <div
+            data-hf-id="hf-7lpd"
+            id="p06-stamp"
+            class="sy-stamp p06-stamp"
+            style="opacity: 0"
+          >
+            <svg
+              data-hf-id="hf-085v"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path data-hf-id="hf-s5bw" d="M5 12.5l4.5 4.5L19 7.5" /></svg
+            >Selesai
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    // Scene 1 (0.0–1.6s): morning card + amber sunrise bloom; caption per-word from 0.61.
+    tl.fromTo(
+      "#p06-morning",
+      { y: 30, scale: 0.94, opacity: 0 },
+      { y: 0, scale: 1, opacity: 1, duration: 0.6, ease: "power3.out" },
+      0.0
+    );
+    tl.fromTo(
+      "#p06-sunrise",
+      { y: 90, opacity: 0.2 },
+      { y: 0, opacity: 1, duration: 1.4, ease: "power3.out" },
+      0.1
+    );
+    tl.fromTo(
+      "#p06-bloom-amber",
+      { opacity: 0.2 },
+      { opacity: 0.45, duration: 1.4, ease: "sine.inOut" },
+      0.0
+    );
+    tl.fromTo(
+      "#p06-caption .p06-w",
+      { y: 24, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.45, ease: "power3.out", stagger: 0.09 },
+      0.61
+    );
+
+    // Scene 2 (1.6–4.2s): card docks to the right as a widget, phone slides in at left; briefing pops on 3.00.
+    tl.fromTo(
+      "#p06-morning",
+      { x: 0, scale: 1 },
+      {
+        x: 300,
+        scale: 0.78,
+        duration: 0.8,
+        ease: "power3.out",
+        immediateRender: false,
+      },
+      1.6
+    );
+    tl.fromTo(
+      "#p06-bloom-amber",
+      { x: 0 },
+      { x: 300, duration: 0.8, ease: "power3.out", immediateRender: false },
+      1.6
+    );
+    tl.fromTo(
+      "#p06-phone",
+      { x: -220, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.8, ease: "power3.out" },
+      1.6
+    );
+    tl.fromTo(
+      "#p06-bubble",
+      { scale: 0.85, y: 16, opacity: 0, transformOrigin: "0% 0%" },
+      { scale: 1, y: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+      3.0
+    );
+    tl.fromTo(
+      "#p06-sec1",
+      { y: 10, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" },
+      3.45
+    );
+    tl.fromTo(
+      "#p06-sec2",
+      { y: 10, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" },
+      3.98
+    );
+
+    // Scene 3 (4.18–6.2s): calendar day window slides in at right over the widget; ring the 10.00 review at 4.74.
+    tl.fromTo(
+      "#p06-win",
+      { x: 140, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" },
+      4.18
+    );
+    tl.fromTo(
+      "#p06-morning",
+      { opacity: 1 },
+      { opacity: 0, duration: 0.3, ease: "power2.out", immediateRender: false },
+      4.2
+    );
+    tl.fromTo(
+      "#p06-cam",
+      { scale: 1, x: 0, y: 0, transformOrigin: "0 0", force3D: false },
+      { scale: 1.04, x: -21, y: -13, duration: 2.0, ease: "sine.inOut" },
+      4.26
+    );
+    tl.fromTo(
+      "#p06-ring-event",
+      { scale: 1.06, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.4, ease: "power3.out" },
+      4.74
+    );
+
+    // Scene 4 (6.26–10.44s): swap to the task list, click the checkbox at 6.45, swap to done, stamp at 6.80, hold.
+    tl.fromTo(
+      "#p06-shot-before",
+      { opacity: 0 },
+      { opacity: 1, duration: 0.25, ease: "power2.out" },
+      6.26
+    );
+    tl.fromTo(
+      "#p06-ring-event",
+      { opacity: 1 },
+      { opacity: 0, duration: 0.2, ease: "power2.out", immediateRender: false },
+      6.26
+    );
+    tl.fromTo(
+      "#p06-ring-check",
+      { scale: 1.2, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.3, ease: "power3.out" },
+      6.28
+    );
+    tl.fromTo(
+      "#p06-dot",
+      { x: 60, y: 40, opacity: 0 },
+      { x: 0, y: 0, opacity: 1, duration: 0.17, ease: "power3.out" },
+      6.28
+    );
+    tl.fromTo(
+      "#p06-dot",
+      { scale: 1 },
+      {
+        scale: 0.8,
+        duration: 0.08,
+        ease: "power2.out",
+        immediateRender: false,
+      },
+      6.45
+    );
+    tl.fromTo(
+      "#p06-dot",
+      { scale: 0.8 },
+      { scale: 1, duration: 0.12, ease: "power2.out", immediateRender: false },
+      6.53
+    );
+    tl.fromTo(
+      "#p06-ripple",
+      { scale: 0.4, opacity: 0.7 },
+      { scale: 1.5, opacity: 0, duration: 0.5, ease: "power2.out" },
+      6.45
+    );
+    tl.fromTo(
+      "#p06-shot-after",
+      { opacity: 0 },
+      { opacity: 1, duration: 0.22, ease: "power2.out" },
+      6.5
+    );
+    tl.fromTo(
+      "#p06-ring-check",
+      { y: 0 },
+      { y: 61, duration: 0.3, ease: "power3.out", immediateRender: false },
+      6.5
+    );
+    tl.fromTo(
+      "#p06-dot",
+      { opacity: 1 },
+      { opacity: 0, duration: 0.2, ease: "power2.out", immediateRender: false },
+      6.62
+    );
+    tl.fromTo(
+      "#p06-stamp",
+      { scale: 0.6, x: -10, opacity: 0, transformOrigin: "0% 50%" },
+      { scale: 1, x: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+      6.8
+    );
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["06-proactive"] = tl;
+  </script>
+</template>

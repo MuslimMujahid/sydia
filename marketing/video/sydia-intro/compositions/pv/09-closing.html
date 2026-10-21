@@ -1,0 +1,649 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .p09-ambient {
+      position: absolute;
+      inset: 0;
+    }
+    .p09-grid {
+      position: absolute;
+      inset: 0;
+    }
+    .p09-card {
+      position: absolute;
+      width: 640px;
+      height: 400px;
+    }
+    .p09-card .sy-window {
+      position: absolute;
+      inset: 0;
+    }
+    .p09-shotbox {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 640px;
+      height: 340px;
+      overflow: hidden;
+      background: #ffffff;
+      border-bottom: 1px solid var(--sy-border);
+    }
+    .p09-shotbox img {
+      position: absolute;
+      display: block;
+      max-width: none;
+    }
+    .p09-cropbox {
+      position: absolute;
+      overflow: hidden;
+    }
+    .p09-cropbox img {
+      position: absolute;
+      display: block;
+      max-width: none;
+    }
+    .p09-label {
+      position: absolute;
+      left: 26px;
+      right: 26px;
+      bottom: 0;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .p09-label .sy-eyebrow {
+      font-size: 20px;
+      color: #c64a72;
+    }
+    .p09-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--sy-pink);
+      flex: none;
+    }
+    .p09-content {
+      position: absolute;
+      inset: 0;
+    }
+    .p09-bloom {
+      position: absolute;
+      left: 260px;
+      top: -60px;
+      width: 1400px;
+      height: 1100px;
+      border-radius: 50%;
+      background: var(--sy-aurora);
+      filter: blur(110px);
+    }
+    .p09-bloom-grain {
+      position: absolute;
+      inset: 0;
+      background-image: var(--sy-grain);
+      background-size: 240px 240px;
+      opacity: 0.3;
+      mix-blend-mode: multiply;
+    }
+    .p09-logo {
+      position: absolute;
+      left: 840px;
+      top: 120px;
+      width: 240px;
+      height: 240px;
+    }
+    .p09-word {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 378px;
+      text-align: center;
+      font-size: 132px;
+      white-space: nowrap;
+    }
+    .p09-letter {
+      display: inline-block;
+    }
+    .p09-tag {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 566px;
+      text-align: center;
+      font-size: 48px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--sy-ink);
+      white-space: nowrap;
+    }
+    .p09-half {
+      display: inline-block;
+    }
+    .p09-cta {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 690px;
+      display: flex;
+      justify-content: center;
+    }
+    .p09-btn {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      padding: 26px 56px;
+      border-radius: 9999px;
+      color: #fff;
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      box-shadow:
+        rgba(240, 102, 148, 0.36) 0 22px 44px -16px,
+        rgba(140, 92, 255, 0.3) 0 12px 30px -14px;
+    }
+    .p09-btn .sy-aurora-fill {
+      z-index: 0;
+    }
+    .p09-btn .sy-grain {
+      opacity: 0.35;
+      z-index: 1;
+    }
+    .p09-sheen {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -40%;
+      width: 30%;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(
+        105deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.45) 50%,
+        rgba(255, 255, 255, 0) 100%
+      );
+    }
+    .p09-btn span,
+    .p09-btn svg {
+      position: relative;
+      z-index: 2;
+    }
+    .p09-btn svg {
+      width: 36px;
+      height: 36px;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-gjxp"
+    id="root"
+    data-composition-id="09-closing"
+    data-width="1920"
+    data-height="1080"
+    data-duration="13.517"
+  >
+    <!-- ground -->
+    <div
+      data-hf-id="hf-ager"
+      id="p09-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="13.517"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div data-hf-id="hf-pw0y" id="p09-ambient" class="p09-ambient">
+        <div
+          data-hf-id="hf-1k9o"
+          class="sy-bloom amber"
+          style="
+            left: 80px;
+            top: 620px;
+            width: 640px;
+            height: 460px;
+            opacity: 0.32;
+          "
+        ></div>
+        <div
+          data-hf-id="hf-cpn7"
+          class="sy-bloom violet"
+          style="
+            left: 1260px;
+            top: -80px;
+            width: 620px;
+            height: 480px;
+            opacity: 0.26;
+          "
+        ></div>
+        <div
+          data-hf-id="hf-2qh7"
+          class="sy-bloom coral"
+          style="
+            left: 760px;
+            top: 300px;
+            width: 520px;
+            height: 420px;
+            opacity: 0.18;
+          "
+        ></div>
+      </div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <!-- recap cards -->
+    <div
+      data-hf-id="hf-h150"
+      id="p09-recap"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="13.517"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-lei2" id="p09-grid" class="p09-grid">
+        <div
+          data-hf-id="hf-q0x5"
+          id="p09-card-1"
+          class="p09-card"
+          style="left: 296px; top: 40px"
+        >
+          <div data-hf-id="hf-uzph" class="sy-window">
+            <div data-hf-id="hf-43qd" class="p09-shotbox">
+              <img
+                data-hf-id="hf-w7de"
+                src="assets/pv-cap/s6-43-tasks-after.png"
+                alt=""
+                style="
+                  width: 1117.4px;
+                  height: 698.4px;
+                  left: -232.8px;
+                  top: -15.5px;
+                "
+              />
+            </div>
+            <div data-hf-id="hf-fprk" class="p09-label">
+              <div data-hf-id="hf-udr7" class="p09-dot"></div>
+              <div data-hf-id="hf-zs34" class="sy-eyebrow">Tugas selesai</div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-hf-id="hf-ak00"
+          id="p09-card-2"
+          class="p09-card"
+          style="left: 984px; top: 40px"
+        >
+          <div data-hf-id="hf-8x3t" class="sy-window">
+            <div data-hf-id="hf-0kl5" class="p09-shotbox">
+              <img
+                data-hf-id="hf-bpoj"
+                src="assets/pv-cap/s3-12-calendar-week.png"
+                alt=""
+                style="
+                  width: 830.3px;
+                  height: 518.9px;
+                  left: -174.1px;
+                  top: -80.7px;
+                "
+              />
+            </div>
+            <div data-hf-id="hf-83yg" class="p09-label">
+              <div data-hf-id="hf-z2g3" class="p09-dot"></div>
+              <div data-hf-id="hf-uxus" class="sy-eyebrow">Kalender</div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-hf-id="hf-t52v"
+          id="p09-card-3"
+          class="p09-card"
+          style="left: 296px; top: 480px"
+        >
+          <div data-hf-id="hf-a40w" class="sy-window">
+            <div data-hf-id="hf-1ri8" class="p09-shotbox">
+              <!-- question bubble (CSS 735..1220 × 76..131 @0.9) -->
+              <div
+                data-hf-id="hf-be94"
+                class="p09-cropbox"
+                style="right: 28px; top: 30px; width: 436.5px; height: 49.5px"
+              >
+                <img
+                  data-hf-id="hf-4729"
+                  src="assets/pv-cap/s4-09-answer.png"
+                  alt=""
+                  style="
+                    width: 1296px;
+                    height: 810px;
+                    left: -661.5px;
+                    top: -68.4px;
+                  "
+                />
+              </div>
+              <!-- answer + bullets only (CSS 484..1070 × 168..326 @1.05), stops above the memory-search line -->
+              <div
+                data-hf-id="hf-d09k"
+                class="p09-cropbox"
+                style="left: 20px; top: 112px; width: 615.3px; height: 165.9px"
+              >
+                <img
+                  data-hf-id="hf-1hf4"
+                  src="assets/pv-cap/s4-09-answer.png"
+                  alt=""
+                  style="
+                    width: 1512px;
+                    height: 945px;
+                    left: -508.2px;
+                    top: -176.4px;
+                  "
+                />
+              </div>
+            </div>
+            <div data-hf-id="hf-6x1d" class="p09-label">
+              <div data-hf-id="hf-yo52" class="p09-dot"></div>
+              <div data-hf-id="hf-17a6" class="sy-eyebrow">Diingat</div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-hf-id="hf-99ic"
+          id="p09-card-4"
+          class="p09-card"
+          style="left: 984px; top: 480px"
+        >
+          <div data-hf-id="hf-9ppv" class="sy-window">
+            <div data-hf-id="hf-1d77" class="p09-shotbox">
+              <img
+                data-hf-id="hf-w405"
+                src="assets/pv-cap/s5-31-notes-workspace.png"
+                alt=""
+                style="
+                  width: 1094.4px;
+                  height: 684px;
+                  left: -437.8px;
+                  top: -125.4px;
+                "
+              />
+            </div>
+            <div data-hf-id="hf-7bce" class="p09-label">
+              <div data-hf-id="hf-y9u1" class="p09-dot"></div>
+              <div data-hf-id="hf-l7ok" class="sy-eyebrow">Catatan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- bloom + lockup + CTA -->
+    <div
+      data-hf-id="hf-inba"
+      id="p09-lockup"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="13.517"
+      data-track-index="2"
+    >
+      <div data-hf-id="hf-jpps" id="p09-content" class="p09-content">
+        <div data-hf-id="hf-vqgo" id="p09-bloom" class="p09-bloom"></div>
+        <div
+          data-hf-id="hf-nwrs"
+          id="p09-bloom-grain"
+          class="p09-bloom-grain"
+        ></div>
+        <img
+          data-hf-id="hf-g243"
+          id="p09-logo"
+          class="p09-logo"
+          src="assets/sydia-logo.svg"
+          alt=""
+        />
+        <div data-hf-id="hf-2ovp" id="p09-word" class="sy-display p09-word">
+          <span data-hf-id="hf-5hp0" class="p09-letter">S</span
+          ><span data-hf-id="hf-r3r6" class="p09-letter">y</span
+          ><span data-hf-id="hf-vh4h" class="p09-letter">d</span
+          ><span data-hf-id="hf-1imq" class="p09-letter">i</span
+          ><span data-hf-id="hf-ua7e" class="p09-letter">a</span>
+        </div>
+        <div data-hf-id="hf-3136" id="p09-tag" class="p09-tag">
+          <span data-hf-id="hf-uxl8" id="p09-half-1" class="p09-half"
+            >Bukan sekadar menjawab.</span
+          >
+          <span data-hf-id="hf-g740" id="p09-half-2" class="p09-half"
+            >Membantu kamu menjalani hari.</span
+          >
+        </div>
+        <div data-hf-id="hf-v1ic" class="p09-cta">
+          <div data-hf-id="hf-0802" id="p09-btn" class="p09-btn">
+            <div data-hf-id="hf-s6cp" class="sy-aurora-fill"></div>
+            <div data-hf-id="hf-rnby" class="sy-grain"></div>
+            <div data-hf-id="hf-79a8" id="p09-sheen" class="p09-sheen"></div>
+            <span data-hf-id="hf-dmic">Mulai percakapan dengan Sydia</span>
+            <svg
+              data-hf-id="hf-066x"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path data-hf-id="hf-8gds" d="M5 12h14" />
+              <path data-hf-id="hf-bnog" d="m12 5 7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+
+      // ── Ambient drift under everything ──
+      tl.fromTo(
+        "#p09-ambient",
+        { scale: 1 },
+        { scale: 1.06, duration: 13.517, ease: "none" },
+        0
+      );
+
+      // ── Scene 1: four recap cards land on the downbeats, slight depth differences ──
+      const cards = [
+        {
+          id: "#p09-card-1",
+          t: 0.0,
+          s: 1.0,
+          fx: -60,
+          fy: -40,
+          ox: -1150,
+          oy: -760,
+        },
+        {
+          id: "#p09-card-2",
+          t: 0.52,
+          s: 0.97,
+          fx: 60,
+          fy: -40,
+          ox: 1150,
+          oy: -760,
+        },
+        {
+          id: "#p09-card-3",
+          t: 1.04,
+          s: 0.985,
+          fx: -60,
+          fy: 40,
+          ox: -1150,
+          oy: 760,
+        },
+        {
+          id: "#p09-card-4",
+          t: 1.57,
+          s: 0.955,
+          fx: 60,
+          fy: 40,
+          ox: 1150,
+          oy: 760,
+        },
+      ];
+      cards.forEach(function (c) {
+        tl.fromTo(
+          c.id,
+          {
+            x: c.fx,
+            y: c.fy + 40,
+            scale: c.s * 0.9,
+            opacity: 0,
+            filter: "blur(10px)",
+          },
+          {
+            x: 0,
+            y: 0,
+            scale: c.s,
+            opacity: 1,
+            filter: "blur(0px)",
+            duration: 0.6,
+            ease: "power3.out",
+          },
+          c.t
+        );
+      });
+      // slow push on the grid while the recap holds
+      tl.fromTo(
+        "#p09-grid",
+        { scale: 1 },
+        {
+          scale: 1.025,
+          duration: 3.5,
+          ease: "sine.inOut",
+          transformOrigin: "50% 45%",
+        },
+        2.1
+      );
+
+      // ── Scene 2: cards fly to the four corners with blur; bloom swells; logo + wordmark ──
+      cards.forEach(function (c) {
+        tl.fromTo(
+          c.id,
+          { x: 0, y: 0, scale: c.s, opacity: 1, filter: "blur(0px)" },
+          {
+            x: c.ox,
+            y: c.oy,
+            scale: c.s * 1.12,
+            opacity: 0,
+            filter: "blur(22px)",
+            duration: 0.6,
+            ease: "power2.in",
+            immediateRender: false,
+          },
+          5.6
+        );
+      });
+      tl.fromTo(
+        "#p09-bloom",
+        { opacity: 0, scale: 0.35 },
+        { opacity: 0.5, scale: 1, duration: 1.4, ease: "expo.out" },
+        5.6
+      );
+      tl.fromTo(
+        "#p09-bloom-grain",
+        { opacity: 0 },
+        { opacity: 0.3, duration: 1.0, ease: "power2.out" },
+        5.7
+      );
+      tl.fromTo(
+        "#p09-logo",
+        { opacity: 0, scale: 0.55, filter: "blur(14px)" },
+        {
+          opacity: 1,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 0.7,
+          ease: "expo.out",
+        },
+        5.68
+      );
+      tl.fromTo(
+        "#p09-word .p09-letter",
+        { opacity: 0, y: 46, filter: "blur(8px)" },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.6,
+          ease: "power3.out",
+          stagger: 0.05,
+        },
+        6.26
+      );
+
+      // ── Scene 3: tagline in two halves ──
+      tl.fromTo(
+        "#p09-half-1",
+        { opacity: 0, y: 26, filter: "blur(6px)" },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.6,
+          ease: "power3.out",
+        },
+        6.66
+      );
+      tl.fromTo(
+        "#p09-half-2",
+        { opacity: 0, y: 26, filter: "blur(6px)" },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.6,
+          ease: "power3.out",
+        },
+        7.64
+      );
+      // quiet life in the lockup hold
+      tl.fromTo(
+        "#p09-bloom",
+        { scale: 1 },
+        { scale: 1.05, duration: 5.8, ease: "none", immediateRender: false },
+        7.0
+      );
+
+      // ── Scene 4: CTA pill rises, sheen sweeps, hold, final fade ──
+      tl.fromTo(
+        "#p09-btn",
+        { opacity: 0, y: 44, scale: 0.94 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" },
+        10.44
+      );
+      tl.fromTo(
+        "#p09-sheen",
+        { x: 0 },
+        { x: 1300, duration: 0.8, ease: "power2.inOut" },
+        11.5
+      );
+      tl.fromTo(
+        "#p09-content",
+        { opacity: 1 },
+        { opacity: 0, duration: 0.717, ease: "power2.inOut" },
+        12.8
+      );
+      tl.fromTo(
+        "#p09-ambient",
+        { opacity: 1 },
+        { opacity: 0.6, duration: 0.717, ease: "power2.inOut" },
+        12.8
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["09-closing"] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,507 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .p04-win {
+      left: 344px;
+      top: 130px;
+      width: 1232px;
+      height: 770px;
+    }
+    .p04-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1232px;
+      height: 770px;
+      transform-origin: 0 0;
+    }
+    .p04-cam img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1232px;
+      height: 770px;
+    }
+    /* Covers the extra (local-env) sentence under the bullets: cam y 276-420 (CSS 322-491). */
+    .p04-patch {
+      position: absolute;
+      left: 400px;
+      top: 276px;
+      width: 760px;
+      height: 150px;
+      background: #ffffff;
+    }
+    /* Marker sweeps behind bullet text (cam coords, 1 CSS px = 0.8556 window px). */
+    .p04-mark {
+      position: absolute;
+      height: 20px;
+      border-radius: 6px;
+      background: rgba(239, 90, 138, 0.26);
+      mix-blend-mode: multiply;
+    }
+
+    .p04-composer {
+      left: 340px;
+      top: 436px;
+      width: 1240px;
+      box-sizing: border-box;
+    }
+    .p04-send {
+      position: relative;
+    }
+    .p04-halo {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2.5px solid #ef5a8a;
+      box-shadow: 0 0 0 8px rgba(239, 90, 138, 0.16);
+    }
+    .p04-dot {
+      position: absolute;
+      left: 22px;
+      top: 22px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(239, 90, 138, 0.35);
+    }
+
+    .p04-w {
+      display: inline-block;
+    }
+
+    .p04-tag {
+      left: 470px;
+      top: 566px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 28px 18px 22px;
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--sy-ink);
+      white-space: nowrap;
+    }
+    .p04-tag svg {
+      width: 32px;
+      height: 32px;
+      flex: none;
+    }
+    .p04-tag .p04-sep {
+      color: var(--sy-light);
+      font-weight: 500;
+    }
+    .p04-tag .p04-date {
+      color: var(--sy-muted);
+      font-weight: 500;
+    }
+    .p04-conn {
+      position: absolute;
+      left: 426px;
+      top: 330px;
+      width: 50px;
+      height: 290px;
+      overflow: visible;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-f3fs"
+    id="root"
+    data-composition-id="04-remembers"
+    data-width="1920"
+    data-height="1080"
+    data-duration="17.2"
+  >
+    <div
+      data-hf-id="hf-btv5"
+      id="p04-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="17.2"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-vgfg"
+        id="p04-bloom-coral"
+        class="sy-bloom coral"
+        style="
+          left: 120px;
+          top: 560px;
+          width: 720px;
+          height: 460px;
+          opacity: 0.28;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-5knt"
+        id="p04-bloom-violet"
+        class="sy-bloom violet"
+        style="
+          left: 1200px;
+          top: -60px;
+          width: 680px;
+          height: 440px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-98cj"
+        id="p04-bloom-amber"
+        class="sy-bloom amber"
+        style="
+          left: 1380px;
+          top: 620px;
+          width: 520px;
+          height: 380px;
+          opacity: 0.22;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-7j55"
+      id="p04-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="17.2"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-8ovr" id="p04-win" class="sy-window p04-win">
+        <div data-hf-id="hf-hmwi" id="p04-cam" class="p04-cam">
+          <img
+            data-hf-id="hf-6zhx"
+            id="p04-empty"
+            src="assets/pv-cap/s4-00-empty.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-xfy2"
+            id="p04-run"
+            src="assets/pv-cap/s4-run-10.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-umga"
+            id="p04-answer"
+            src="assets/pv-cap/s4-09-answer.png"
+            alt=""
+          />
+          <div data-hf-id="hf-i4go" id="p04-patch" class="p04-patch"></div>
+          <div
+            data-hf-id="hf-vh53"
+            id="p04-mark1"
+            class="p04-mark"
+            style="left: 443px; top: 202.5px; width: 60px"
+          ></div>
+          <div
+            data-hf-id="hf-2be4"
+            id="p04-mark2"
+            class="p04-mark"
+            style="left: 443px; top: 226.5px; width: 211px"
+          ></div>
+          <div
+            data-hf-id="hf-rzs8"
+            id="p04-mark3"
+            class="p04-mark"
+            style="left: 443px; top: 250.5px; width: 183px"
+          ></div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-pxcs" id="p04-caption" class="sy-caption">
+        <span data-hf-id="hf-bg00" class="p04-w">Bukan</span>
+        <span data-hf-id="hf-hllx" class="p04-w">cuma</span>
+        <span data-hf-id="hf-wvuc" class="p04-w">menjawab.</span>
+        <span data-hf-id="hf-l1tz" class="p04-w">Sydia</span>
+        <span data-hf-id="hf-p1le" class="p04-w">juga</span>
+        <em data-hf-id="hf-fc8d" class="p04-w">mengingat.</em>
+      </div>
+
+      <div
+        data-hf-id="hf-kum3"
+        id="p04-composer"
+        class="sy-composer p04-composer"
+      >
+        <div data-hf-id="hf-zzs1" class="sy-composer-text">
+          <span data-hf-id="hf-3d7t" id="p04-typed"></span
+          ><span data-hf-id="hf-wik9" id="p04-caret" class="sy-caret"></span>
+        </div>
+        <div data-hf-id="hf-givr" id="p04-send" class="sy-send p04-send">
+          <div data-hf-id="hf-0bse" id="p04-halo" class="p04-halo"></div>
+          <svg
+            data-hf-id="hf-3xkb"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ffffff"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-wubm"
+              d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"
+            />
+            <path data-hf-id="hf-kzdh" d="M6 12h16" />
+          </svg>
+          <div data-hf-id="hf-okwy" id="p04-dot" class="p04-dot"></div>
+        </div>
+      </div>
+
+      <svg
+        data-hf-id="hf-9db8"
+        id="p04-conn"
+        class="p04-conn"
+        viewBox="0 0 50 290"
+      >
+        <defs data-hf-id="hf-mh0t">
+          <clipPath data-hf-id="hf-nugq" id="p04-clip">
+            <rect
+              data-hf-id="hf-56bq"
+              id="p04-cliprect"
+              x="-10"
+              y="-10"
+              width="70"
+              height="0"
+            />
+          </clipPath>
+        </defs>
+        <g data-hf-id="hf-nk7s" clip-path="url(#p04-clip)">
+          <path
+            data-hf-id="hf-zpun"
+            d="M 28 10 H 10 V 270 H 44"
+            fill="none"
+            stroke="#ef5a8a"
+            stroke-width="2.5"
+            stroke-dasharray="6 7"
+            stroke-linecap="round"
+          />
+          <circle data-hf-id="hf-kc53" cx="28" cy="10" r="4.5" fill="#ef5a8a" />
+        </g>
+      </svg>
+
+      <div data-hf-id="hf-ryfl" id="p04-tag" class="sy-card p04-tag">
+        <svg
+          data-hf-id="hf-pyrx"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#ef5a8a"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            data-hf-id="hf-4xvg"
+            d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"
+          />
+          <path data-hf-id="hf-bbr5" d="M2 6h4" />
+          <path data-hf-id="hf-bdlm" d="M2 10h4" />
+          <path data-hf-id="hf-byn2" d="M2 14h4" />
+          <path data-hf-id="hf-ix82" d="M2 18h4" />
+          <path
+            data-hf-id="hf-jvf7"
+            d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"
+          />
+        </svg>
+        <span data-hf-id="hf-9dna">Dari catatan harian</span
+        ><span data-hf-id="hf-520t" class="p04-sep">·</span
+        ><span data-hf-id="hf-gbmz" class="p04-date">Rabu, 21 Okt</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      window.__timelines = window.__timelines || {};
+      const DUR = 16.7;
+      const tl = gsap.timeline({ paused: true });
+
+      // ── Seek-safe typing: text and caret are pure functions of timeline time ──
+      const QUERY =
+        "Sydia, apa preferensi desain Nadia yang pernah kita bahas?";
+      const TYPE_START = 0.3;
+      const TYPE_END = 1.9;
+      const BLINK_HALF = 0.4;
+      const typedEl = document.getElementById("p04-typed");
+      const caretEl = document.getElementById("p04-caret");
+      const charsAt = (t) => {
+        if (t <= TYPE_START) return 0;
+        if (t >= TYPE_END) return QUERY.length;
+        return Math.floor(
+          (QUERY.length * (t - TYPE_START)) / (TYPE_END - TYPE_START)
+        );
+      };
+      const caretAt = (t) => {
+        if (t < TYPE_END) return 1;
+        return Math.floor((t - TYPE_END) / BLINK_HALF) % 2 === 0 ? 1 : 0;
+      };
+      let lastN = -1;
+      const paint = (t) => {
+        const n = charsAt(t);
+        if (n !== lastN) {
+          typedEl.textContent = QUERY.slice(0, n);
+          lastN = n;
+        }
+        caretEl.style.opacity = String(caretAt(t));
+      };
+      paint(0);
+      const drv = { t: 0 };
+      tl.fromTo(
+        drv,
+        { t: 0 },
+        { t: DUR, duration: DUR, ease: "none", onUpdate: () => paint(drv.t) },
+        0
+      );
+
+      // Ambient bloom drift (one slow pass, no loop).
+      tl.fromTo(
+        "#p04-bloom-coral",
+        { x: 0, y: 0 },
+        { x: 70, y: -24, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+      tl.fromTo(
+        "#p04-bloom-violet",
+        { x: 0, y: 0 },
+        { x: -60, y: 26, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+      tl.fromTo(
+        "#p04-bloom-amber",
+        { x: 0, y: 0 },
+        { x: -40, y: -20, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+
+      // Initial states for later layers.
+      tl.set(
+        "#p04-cam",
+        { x: 0, y: 0, scale: 1, transformOrigin: "0 0", force3D: false },
+        0
+      );
+      tl.set(["#p04-run", "#p04-answer", "#p04-patch"], { opacity: 0 }, 0);
+      tl.set(
+        ["#p04-mark1", "#p04-mark2", "#p04-mark3"],
+        { scaleX: 0, transformOrigin: "0% 50%" },
+        0
+      );
+      tl.set(["#p04-halo", "#p04-dot"], { opacity: 0 }, 0);
+
+      // ── Scene 1 (0.0–2.1): new chat in place; big composer types; send press on 2.09 ──
+      tl.fromTo(
+        "#p04-composer",
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" },
+        0
+      );
+      tl.fromTo(
+        "#p04-halo",
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.2, ease: "power2.out" },
+        1.85
+      );
+      tl.to(
+        "#p04-send",
+        { scale: 0.9, duration: 0.08, ease: "power2.out" },
+        2.09
+      );
+      tl.to("#p04-send", { scale: 1, duration: 0.3, ease: "power3.out" }, 2.17);
+      tl.fromTo(
+        "#p04-dot",
+        { opacity: 0.9, scale: 0.4 },
+        { opacity: 0, scale: 2.4, duration: 0.45, ease: "power2.out" },
+        2.09
+      );
+      tl.to(
+        "#p04-halo",
+        { opacity: 0, scale: 1.4, duration: 0.4, ease: "power2.out" },
+        2.12
+      );
+
+      // ── Scene 2 (2.1–4.2): fast cut to the sent bubble + thinking; caption reveals from 3.44 ──
+      tl.to(
+        "#p04-composer",
+        { opacity: 0, y: -16, duration: 0.2, ease: "power2.in" },
+        2.14
+      );
+      tl.fromTo(
+        "#p04-run",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.2, ease: "power1.out" },
+        2.15
+      );
+      tl.fromTo(
+        "#p04-caption .p04-w",
+        { opacity: 0, y: 26 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.11 },
+        3.44
+      );
+
+      // ── Scene 3 (4.18–8.3): answer crossfades in; cam pushes onto bubble + answer + bullets ──
+      // Patch goes opaque first (area is blank white on s4-run-10), so the extra line never shows.
+      tl.set("#p04-patch", { opacity: 1 }, 4.16);
+      tl.fromTo(
+        "#p04-answer",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power1.out" },
+        4.18
+      );
+      tl.fromTo(
+        "#p04-cam",
+        { x: 0, y: 0, scale: 1, transformOrigin: "0 0" },
+        {
+          x: -560,
+          y: -48,
+          scale: 1.6,
+          transformOrigin: "0 0",
+          duration: 1.3,
+          ease: "power3.inOut",
+          force3D: false,
+        },
+        4.18
+      );
+      tl.fromTo(
+        "#p04-mark1",
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.4, ease: "power2.out" },
+        6.26
+      );
+      tl.fromTo(
+        "#p04-mark2",
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.45, ease: "power2.out" },
+        6.78
+      );
+      tl.fromTo(
+        "#p04-mark3",
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.45, ease: "power2.out" },
+        7.3
+      );
+
+      // ── Scene 4 (8.35–16.7): source tag pops with a dashed connector to the first line; hold ──
+      tl.fromTo(
+        "#p04-tag",
+        { opacity: 0, scale: 0.85, transformOrigin: "0% 50%" },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" },
+        8.35
+      );
+      tl.fromTo(
+        "#p04-cliprect",
+        { attr: { height: 0 } },
+        { attr: { height: 310 }, duration: 0.55, ease: "power2.inOut" },
+        8.4
+      );
+
+      window.__timelines["04-remembers"] = tl;
+    })();
+  </script>
+</template>

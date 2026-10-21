@@ -1,0 +1,17 @@
+# dependencies & HyperFrames caches
+node_modules/
+.hyperframes/
+.thumbnails/
+.waveform-cache/
+
+# rendered output (large; share the MP4 separately)
+renders/
+
+# raw capture dumps and review boards (regenerable)
+capture-app/
+boards/
+
+# superseded v1 audio (HeyGen samples / AI VO / v1 music bed)
+voice-samples/
+assets/voice/
+assets/bgm/bed.mp3

@@ -1,0 +1,763 @@
+<template>
+  <link rel="stylesheet" href="assets/sydia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    /* App window: 1440x900 CSS screenshots drawn at 1232x770 (1 app px = 0.8556 window px). */
+    .p05-win {
+      left: 344px;
+      top: 130px;
+      width: 1232px;
+      height: 770px;
+    }
+    .p05-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1232px;
+      height: 770px;
+      transform-origin: 0 0;
+    }
+    .p05-cam img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1232px;
+      height: 770px;
+      display: block;
+    }
+    .p05-ring {
+      position: absolute;
+      box-sizing: border-box;
+      border-style: solid;
+      border-color: #ef5a8a;
+    }
+    .p05-dot {
+      position: absolute;
+      box-sizing: border-box;
+      border-radius: 50%;
+      background: #ffffff;
+      border-style: solid;
+      border-color: rgba(23, 20, 25, 0.28);
+    }
+    .p05-ripple {
+      position: absolute;
+      box-sizing: border-box;
+      border-radius: 50%;
+      border-style: solid;
+      border-color: #ef5a8a;
+      background: rgba(239, 90, 138, 0.12);
+    }
+    .p05-dim {
+      position: absolute;
+      inset: 0;
+      background: rgba(251, 248, 245, 0.74);
+      opacity: 0;
+    }
+    .p05-comp {
+      left: 370px;
+      width: 1180px;
+      box-sizing: border-box;
+    }
+    .p05-stamp {
+      position: absolute;
+      font-size: 26px;
+    }
+    .p05-stamp svg {
+      width: 26px;
+      height: 26px;
+    }
+    .p05-w {
+      display: inline-block;
+      position: relative;
+    }
+    .p05-em {
+      position: absolute;
+      left: 0;
+      top: 0;
+      white-space: nowrap;
+    }
+  </style>
+
+  <div
+    data-hf-id="hf-iwo1"
+    id="root"
+    data-composition-id="05-knowledge"
+    data-width="1920"
+    data-height="1080"
+    data-duration="29.625"
+  >
+    <div
+      data-hf-id="hf-g0gs"
+      id="p05-bg"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="29.625"
+      data-track-index="0"
+    >
+      <div data-hf-id="hf-x100" class="sy-ground"></div>
+      <div
+        data-hf-id="hf-9w94"
+        id="p05-bloom-coral"
+        class="sy-bloom coral"
+        style="
+          left: 120px;
+          top: 560px;
+          width: 720px;
+          height: 460px;
+          opacity: 0.3;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-dcpq"
+        id="p05-bloom-violet"
+        class="sy-bloom violet"
+        style="
+          left: 1180px;
+          top: -60px;
+          width: 700px;
+          height: 460px;
+          opacity: 0.26;
+        "
+      ></div>
+      <div
+        data-hf-id="hf-be8s"
+        id="p05-bloom-amber"
+        class="sy-bloom amber"
+        style="
+          left: 1300px;
+          top: 640px;
+          width: 560px;
+          height: 380px;
+          opacity: 0.22;
+        "
+      ></div>
+      <div data-hf-id="hf-3bqy" class="sy-grain"></div>
+    </div>
+
+    <div
+      data-hf-id="hf-f6ma"
+      id="p05-stage"
+      class="clip sy-stage"
+      data-start="0"
+      data-duration="29.625"
+      data-track-index="1"
+    >
+      <div data-hf-id="hf-k9fx" id="p05-win" class="sy-window p05-win">
+        <div data-hf-id="hf-6vpw" id="p05-cam" class="p05-cam">
+          <img
+            data-hf-id="hf-zsaq"
+            id="p05-i1"
+            src="assets/pv-cap/s5-run-15.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-q5y3"
+            id="p05-i2"
+            src="assets/pv-cap/s5-09-answer.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-rpl1"
+            id="p05-i3"
+            src="assets/pv-cap/s5-20-run-20.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-ailw"
+            id="p05-i4"
+            src="assets/pv-cap/s5-20-answer.png"
+            alt=""
+          />
+          <div
+            id="p05-gap"
+            style="
+              position: absolute;
+              left: 416px;
+              top: 418px;
+              width: 300px;
+              height: 56px;
+              background: #ffffff;
+              opacity: 0;
+            "
+          ></div>
+          <img
+            data-hf-id="hf-4ja4"
+            id="p05-i5"
+            src="assets/pv-cap/s5-30-note-drawer.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-e8kb"
+            id="p05-i6"
+            src="assets/pv-cap/s5-31-notes-workspace.png"
+            alt=""
+          />
+          <img
+            data-hf-id="hf-qvpu"
+            id="p05-i7"
+            src="assets/pv-cap/s5-33-files.png"
+            alt=""
+          />
+          <div data-hf-id="hf-rcwv" id="p05-ring1" class="p05-ring"></div>
+          <div data-hf-id="hf-ip10" id="p05-ring2" class="p05-ring"></div>
+          <div data-hf-id="hf-yzof" id="p05-ripple1" class="p05-ripple"></div>
+          <div data-hf-id="hf-p4b5" id="p05-dot1" class="p05-dot"></div>
+          <div data-hf-id="hf-jgot" id="p05-ring3" class="p05-ring"></div>
+          <div data-hf-id="hf-qbsk" id="p05-ripple2" class="p05-ripple"></div>
+          <div data-hf-id="hf-t2f6" id="p05-dot2" class="p05-dot"></div>
+          <div data-hf-id="hf-00sq" id="p05-ring4" class="p05-ring"></div>
+        </div>
+      </div>
+
+      <span data-hf-id="hf-l08w" id="p05-stamp" class="sy-stamp p05-stamp"
+        ><svg
+          data-hf-id="hf-085v"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path data-hf-id="hf-2q26" d="M20 6 9 17l-5-5" /></svg
+        >Ketemu</span
+      >
+
+      <div data-hf-id="hf-czpe" id="p05-dim" class="p05-dim"></div>
+
+      <div
+        data-hf-id="hf-hwux"
+        id="p05-comp1"
+        class="sy-composer p05-comp"
+        style="top: 420px"
+      >
+        <div data-hf-id="hf-zzs1" class="sy-composer-text">
+          <span data-hf-id="hf-d2rh" id="p05-t1"></span
+          ><span data-hf-id="hf-qzfz" id="p05-c1" class="sy-caret"></span>
+        </div>
+        <div data-hf-id="hf-4ywi" id="p05-send1" class="sy-send">
+          <svg
+            data-hf-id="hf-buz9"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-wubm"
+              d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"
+            />
+            <path data-hf-id="hf-kzdh" d="M6 12h16" />
+          </svg>
+        </div>
+      </div>
+
+      <div
+        data-hf-id="hf-xn4c"
+        id="p05-comp2"
+        class="sy-composer p05-comp"
+        style="top: 372px"
+      >
+        <div data-hf-id="hf-v46t" class="sy-composer-text">
+          <span data-hf-id="hf-h0vi" id="p05-t2"></span
+          ><span data-hf-id="hf-mdj8" id="p05-c2" class="sy-caret"></span>
+        </div>
+        <div data-hf-id="hf-10sh" id="p05-send2" class="sy-send">
+          <svg
+            data-hf-id="hf-1fbd"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              data-hf-id="hf-uy1y"
+              d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"
+            />
+            <path data-hf-id="hf-eqtl" d="M6 12h16" />
+          </svg>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-686v" id="p05-cap" class="sy-caption">
+        <span data-hf-id="hf-1d12" id="p05-w1" class="p05-w"
+          ><span data-hf-id="hf-4p6f" id="p05-w1p">Dokumen.</span
+          ><em data-hf-id="hf-9vdr" id="p05-w1e" class="p05-em"
+            >Dokumen.</em
+          ></span
+        >
+        <span data-hf-id="hf-tcxx" id="p05-w2" class="p05-w"
+          ><span data-hf-id="hf-3i9l" id="p05-w2p">Catatan.</span
+          ><em data-hf-id="hf-f8wx" id="p05-w2e" class="p05-em"
+            >Catatan.</em
+          ></span
+        >
+        <span data-hf-id="hf-wn98" id="p05-w3" class="p05-w"
+          ><span data-hf-id="hf-uqm0" id="p05-w3p">Informasi.</span
+          ><em data-hf-id="hf-ko7o" id="p05-w3e" class="p05-em"
+            >Informasi.</em
+          ></span
+        >
+        <span data-hf-id="hf-k4qr" id="p05-w4" class="p05-w"
+          ><em data-hf-id="hf-y1vt">Saling terhubung.</em></span
+        >
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const DUR = 29.225;
+
+      // ── geometry: app CSS px → window px ──
+      const K = 1232 / 1440;
+      const WIN_X = 344;
+      const WIN_Y = 130;
+      function cam(cx, cy, S) {
+        let x = 616 - S * cx * K;
+        let y = 385 - S * cy * K;
+        x = Math.min(0, Math.max(1232 - 1232 * S, x));
+        y = Math.min(0, Math.max(770 - 770 * S, y));
+        return { x: x, y: y, scale: S, transformOrigin: "0 0", force3D: false };
+      }
+      // ring around an app-CSS box, drawn inside the cam at camera scale S
+      function ring(id, b, pad, S, radius) {
+        const el = document.getElementById(id);
+        el.style.left = (b.x - pad) * K + "px";
+        el.style.top = (b.y - pad) * K + "px";
+        el.style.width = (b.w + pad * 2) * K + "px";
+        el.style.height = (b.h + pad * 2) * K + "px";
+        el.style.borderWidth = 2.5 / S + "px";
+        el.style.borderRadius =
+          radius === "pill" ? "9999px" : radius / S + "px";
+        el.style.boxShadow = "0 0 0 " + 6 / S + "px rgba(239, 90, 138, 0.16)";
+      }
+      // cursor dot + ripple centered on an app-CSS point at camera scale S
+      function dot(dotId, ripId, px, py, S) {
+        const d = 22 / S;
+        [dotId, ripId].forEach((id) => {
+          const el = document.getElementById(id);
+          el.style.left = px * K - d / 2 + "px";
+          el.style.top = py * K - d / 2 + "px";
+          el.style.width = d + "px";
+          el.style.height = d + "px";
+          el.style.borderWidth = (id === dotId ? 1.5 : 2.5) / S + "px";
+        });
+        document.getElementById(dotId).style.boxShadow =
+          "0 " + 3 / S + "px " + 10 / S + "px rgba(23, 20, 25, 0.25)";
+      }
+
+      // Camera stops (app CSS centers)
+      const C2a = cam(780, 352, 1.35); // sent bubble + "mencari dokumen…"
+      const C2b = cam(740, 420, 1.7); // answer + Sumber list
+      const C4a = cam(850, 650, 1.5); // second bubble + "membaca dokumen…"
+      const C4b = cam(800, 430, 1.75); // summary title + paragraph
+      const C4c = cam(800, 600, 1.75); // "Arah desain" + note line
+      const C5a = cam(720, 450, 1.0); // conversation + note drawer
+      const C5b = cam(1150, 200, 1.5); // drawer header (clamps top-right)
+      const C6a = cam(480, 290, 1.8); // Notes: daily notes / folders panel
+      const C6b = cam(990, 430, 1.8); // the open note
+      const C7a = cam(856, 380, 1.3); // File list top
+      const C7b = cam(856, 554, 1.3); // File list, Aurora row (clamps bottom)
+
+      // Targets from capture-app/pv/s5b/*.boxes.json
+      ring(
+        "p05-ring1",
+        { x: 498, y: 325, w: 179.22, h: 28 },
+        4,
+        C2b.scale,
+        "pill"
+      ); // Sumber chip
+      ring(
+        "p05-ring2",
+        { x: 560.63, y: 621, w: 216.27, h: 28 },
+        4,
+        C4c.scale,
+        "pill"
+      ); // note chip
+      ring(
+        "p05-ring3",
+        { x: 1252.02, y: 23.5, w: 135.98, h: 32 },
+        4,
+        C5b.scale,
+        12
+      ); // Buka di Catatan
+      ring("p05-ring4", { x: 312, y: 599.5, w: 1088, h: 64 }, 2, C7b.scale, 14); // Aurora file row
+      dot("p05-dot1", "p05-ripple1", 560.63 + 216.27 / 2, 635, C4c.scale);
+      dot("p05-dot2", "p05-ripple2", 1252.02 + 135.98 / 2, 39.5, C5b.scale);
+
+      // "Ketemu" stamp in stage px, right of "· halaman 1" on the Sumber row (cam holds at C2b)
+      const stamp = document.getElementById("p05-stamp");
+      stamp.style.left = WIN_X + C2b.x + C2b.scale * 776 * K + "px";
+      stamp.style.top = WIN_Y + C2b.y + C2b.scale * 339 * K - 24 + "px";
+
+      // ── seek-safe typing: text = pure function of timeline time ──
+      const T1 = "Sydia, cari dokumen tentang Proyek Aurora.";
+      const T2 =
+        "Sydia, rangkum kebutuhan utama dari brief proyek Aurora, lalu buatkan catatan baru berjudul Rangkuman Proyek Aurora berisi poin-poin pentingnya.";
+      const t1El = document.getElementById("p05-t1");
+      const t2El = document.getElementById("p05-t2");
+      const c1El = document.getElementById("p05-c1");
+      const c2El = document.getElementById("p05-c2");
+      function chars(t, a, b, len) {
+        if (t <= a) return 0;
+        if (t >= b) return len;
+        return Math.floor((len * (t - a)) / (b - a));
+      }
+      function caret(t, a, b) {
+        if (t >= a && t <= b) return 1;
+        return Math.floor(t / 0.53) % 2 === 0 ? 1 : 0;
+      }
+      function paint(t) {
+        t1El.textContent = T1.slice(0, chars(t, 0.2, 1.6, T1.length));
+        t2El.textContent = T2.slice(0, chars(t, 4.3, 7.6, T2.length));
+        c1El.style.opacity = String(caret(t, 0.2, 1.6));
+        c2El.style.opacity = String(caret(t, 4.3, 7.6));
+      }
+      paint(0);
+      const drv = { t: 0 };
+      tl.to(
+        drv,
+        { t: DUR, duration: DUR, ease: "none", onUpdate: () => paint(drv.t) },
+        0
+      );
+
+      // ambient blooms
+      tl.fromTo(
+        "#p05-bloom-coral",
+        { x: 0, y: 0 },
+        { x: 80, y: -30, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+      tl.fromTo(
+        "#p05-bloom-violet",
+        { x: 0, y: 0 },
+        { x: -80, y: 30, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+      tl.fromTo(
+        "#p05-bloom-amber",
+        { x: 0, y: 0 },
+        { x: -50, y: -24, duration: DUR, ease: "sine.inOut" },
+        0
+      );
+
+      // ── caption builds progressively ──
+      tl.fromTo(
+        "#p05-w1",
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" },
+        0.96
+      );
+      tl.fromTo(
+        "#p05-w2",
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" },
+        11.51
+      );
+      tl.fromTo(
+        "#p05-w3",
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" },
+        13.23
+      );
+      tl.fromTo(
+        "#p05-w4",
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" },
+        17.0
+      );
+      // gradient hands over to the newest word
+      tl.fromTo(
+        "#p05-w1p",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.35, ease: "power1.out" },
+        11.51
+      );
+      tl.to(
+        "#p05-w1e",
+        { opacity: 0, duration: 0.35, ease: "power1.out" },
+        11.51
+      );
+      tl.fromTo(
+        "#p05-w2p",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.35, ease: "power1.out" },
+        13.23
+      );
+      tl.to(
+        "#p05-w2e",
+        { opacity: 0, duration: 0.35, ease: "power1.out" },
+        13.23
+      );
+      tl.fromTo(
+        "#p05-w3p",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.35, ease: "power1.out" },
+        17.0
+      );
+      tl.to(
+        "#p05-w3e",
+        { opacity: 0, duration: 0.35, ease: "power1.out" },
+        17.0
+      );
+
+      // ── Scene 1 (0–2.1): big composer types request 1, send on 2.09 ──
+      tl.fromTo(
+        "#p05-comp1",
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" },
+        0
+      );
+      tl.fromTo(
+        "#p05-send1",
+        { scale: 1 },
+        { scale: 0.9, duration: 0.08, ease: "power2.out" },
+        2.01
+      );
+      tl.to(
+        "#p05-send1",
+        { scale: 1, duration: 0.25, ease: "power3.out" },
+        2.09
+      );
+      tl.to(
+        "#p05-comp1",
+        { opacity: 0, scale: 1.04, duration: 0.15, ease: "power2.in" },
+        2.15
+      );
+
+      // ── Scene 2 (2.1–4.1): cut into the app, answer + Sumber chip ──
+      tl.fromTo(
+        "#p05-win",
+        { opacity: 0, scale: 0.975 },
+        { opacity: 1, scale: 1, duration: 0.3, ease: "power3.out" },
+        2.15
+      );
+      tl.set("#p05-cam", C2a, 0);
+      tl.to(
+        "#p05-cam",
+        Object.assign({ duration: 0.8, ease: "power3.inOut" }, C2b),
+        2.3
+      );
+      tl.fromTo(
+        "#p05-i2",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        2.6
+      );
+      tl.fromTo(
+        "#p05-ring1",
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+        3.13
+      );
+      tl.fromTo(
+        "#p05-stamp",
+        { opacity: 0, scale: 0.6 },
+        { opacity: 1, scale: 1, duration: 0.4, ease: "expo.out" },
+        3.4
+      );
+
+      // ── Scene 3 (4.17–8.35): composer returns over the dimmed window ──
+      tl.fromTo(
+        "#p05-dim",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.4, ease: "power2.out" },
+        4.17
+      );
+      tl.fromTo(
+        "#p05-comp2",
+        { opacity: 0, y: 26 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" },
+        4.17
+      );
+      tl.fromTo(
+        "#p05-send2",
+        { scale: 1 },
+        { scale: 0.9, duration: 0.08, ease: "power2.out" },
+        8.27
+      );
+      tl.to(
+        "#p05-send2",
+        { scale: 1, duration: 0.25, ease: "power3.out" },
+        8.35
+      );
+
+      // ── Scene 4 (8.35–12.5): cut to the run, then the summary answer ──
+      const CUT4 = 8.4;
+      tl.to(
+        "#p05-comp2",
+        { opacity: 0, scale: 1.04, duration: 0.15, ease: "power2.in" },
+        CUT4
+      );
+      tl.to(
+        "#p05-dim",
+        { opacity: 0, duration: 0.15, ease: "power1.out" },
+        CUT4
+      );
+      tl.to("#p05-stamp", { opacity: 0, duration: 0.05, ease: "none" }, CUT4);
+      tl.to("#p05-ring1", { opacity: 0, duration: 0.05, ease: "none" }, CUT4);
+      tl.fromTo(
+        "#p05-i3",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.05, ease: "none" },
+        CUT4
+      );
+      tl.set("#p05-cam", C4a, CUT4);
+      tl.fromTo(
+        "#p05-i4",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        9.0
+      );
+      tl.fromTo(
+        "#p05-gap",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, ease: "power1.out" },
+        9.0
+      );
+      tl.to("#p05-gap", { opacity: 0, duration: 0.2, ease: "none" }, 12.62);
+      tl.to(
+        "#p05-cam",
+        Object.assign({ duration: 0.9, ease: "power3.inOut" }, C4b),
+        9.0
+      );
+      tl.to(
+        "#p05-cam",
+        Object.assign({ duration: 0.85, ease: "power3.inOut" }, C4c),
+        10.45
+      );
+      tl.fromTo(
+        "#p05-ring2",
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+        11.51
+      );
+
+      // ── Scene 5 (12.52–16.6): click the note chip → drawer; click "Buka di Catatan" ──
+      tl.fromTo(
+        "#p05-dot1",
+        { opacity: 0, x: 34 / C4c.scale, y: 26 / C4c.scale },
+        { opacity: 1, x: 0, y: 0, duration: 0.35, ease: "power3.out" },
+        12.12
+      );
+      tl.to(
+        "#p05-dot1",
+        { scale: 0.78, duration: 0.06, ease: "power2.out" },
+        12.47
+      );
+      tl.to(
+        "#p05-dot1",
+        { scale: 1, duration: 0.2, ease: "power3.out" },
+        12.53
+      );
+      tl.fromTo(
+        "#p05-ripple1",
+        { opacity: 0.75, scale: 1 },
+        { opacity: 0, scale: 2.6, duration: 0.5, ease: "power2.out" },
+        12.52
+      );
+      const SW5 = 12.62;
+      tl.to(
+        ["#p05-dot1", "#p05-ring2"],
+        { opacity: 0, duration: 0.15, ease: "power1.out" },
+        SW5
+      );
+      tl.fromTo(
+        "#p05-i5",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power1.out" },
+        SW5
+      );
+      tl.to(
+        "#p05-cam",
+        Object.assign({ duration: 0.75, ease: "power3.inOut" }, C5a),
+        SW5
+      );
+      tl.to(
+        "#p05-cam",
+        Object.assign({ duration: 0.8, ease: "power3.inOut" }, C5b),
+        14.3
+      );
+      tl.fromTo(
+        "#p05-ring3",
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+        14.95
+      );
+      tl.fromTo(
+        "#p05-dot2",
+        { opacity: 0, x: -34 / C5b.scale, y: 30 / C5b.scale },
+        { opacity: 1, x: 0, y: 0, duration: 0.35, ease: "power3.out" },
+        14.8
+      );
+      tl.to(
+        "#p05-dot2",
+        { scale: 0.78, duration: 0.06, ease: "power2.out" },
+        15.15
+      );
+      tl.to(
+        "#p05-dot2",
+        { scale: 1, duration: 0.2, ease: "power3.out" },
+        15.21
+      );
+      tl.fromTo(
+        "#p05-ripple2",
+        { opacity: 0.75, scale: 1 },
+        { opacity: 0, scale: 2.6, duration: 0.5, ease: "power2.out" },
+        15.2
+      );
+
+      // ── Scene 6 (16.70–22.9): Notes workspace, slow glide left → right ──
+      const SW6 = 16.7;
+      tl.to(
+        ["#p05-dot2", "#p05-ring3"],
+        { opacity: 0, duration: 0.05, ease: "none" },
+        SW6
+      );
+      tl.fromTo(
+        "#p05-i6",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.2, ease: "power1.out" },
+        SW6
+      );
+      tl.set("#p05-cam", C6a, SW6);
+      tl.to(
+        "#p05-cam",
+        Object.assign({ duration: 5.9, ease: "power2.inOut" }, C6b),
+        16.85
+      );
+
+      // ── Scene 7 (22.96–29.2): File workspace, pan down, ring the brief ──
+      const SW7 = 22.96;
+      tl.fromTo(
+        "#p05-i7",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.2, ease: "power1.out" },
+        SW7
+      );
+      tl.set("#p05-cam", C7a, SW7);
+      tl.to(
+        "#p05-cam",
+        Object.assign({ duration: 0.85, ease: "power3.out" }, C7b),
+        23.05
+      );
+      tl.fromTo(
+        "#p05-ring4",
+        { opacity: 0, scale: 0.97 },
+        { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+        24.0
+      );
+
+      window.__timelines["05-knowledge"] = tl;
+    })();
+  </script>
+</template>
