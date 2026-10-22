@@ -250,7 +250,6 @@ function OnboardingPage() {
             {step === 4 ? (
               // Rendered outside the form: the checkout owns its own form.
               <OnboardingPlanStep
-                timezone={form.state.values.timezone}
                 saving={saving}
                 error={submitError}
                 onBack={() => goToStep(3)}

@@ -1,21 +1,23 @@
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   BellRing,
   Brain,
   CalendarDays,
+  ChevronRight,
   FileText,
   HardDrive,
+  Infinity as InfinityIcon,
   MessageCircle,
+  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { DomainPageHeader } from "@/components/domain/domain-page";
-import { Badge, type BadgeDot } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   billingOrdersQueryOptions,
   billingStatusQueryOptions,
-  type BillingStatus,
 } from "@/lib/services/api/billing/billing.api";
 import {
   BillingCheckout,
@@ -27,26 +29,15 @@ import {
   BILLING_PITCH,
   billingLanguage,
   formatBillingCurrency,
-  formatBillingDate,
-  formatBillingRemaining,
+  formatBillingDay,
   type BillingBenefit,
 } from "./billing-copy";
+import { showTestEnvironment } from "./billing-plan";
 
 interface BillingPageProps {
   locale: string;
   timezone: string;
-  now?: () => number;
 }
-
-const DAY_MS = 86_400_000;
-const SECTION_HEADING = "font-display text-[17px] leading-[1.6] font-semibold";
-
-const STATE_DOT: Record<BillingStatus["state"], BadgeDot> = {
-  disabled: "ink-weak",
-  trial: "brand",
-  paid: "brand",
-  expired: "destructive",
-};
 
 const BENEFIT_ICON: Record<BillingBenefit["icon"], LucideIcon> = {
   chat: MessageCircle,
@@ -55,20 +46,20 @@ const BENEFIT_ICON: Record<BillingBenefit["icon"], LucideIcon> = {
   document: FileText,
   calendar: CalendarDays,
   storage: HardDrive,
+  unlimited: InfinityIcon,
+  manual: WalletCards,
 };
 
-export function BillingPage({
-  locale,
-  timezone,
-  now = Date.now,
-}: BillingPageProps) {
+const SECTION_HEADING = "font-display text-[17px] leading-[1.6] font-semibold";
+
+export function BillingPage({ locale, timezone }: BillingPageProps) {
   const language = billingLanguage(locale);
   const text = BILLING_COPY[language];
   const pitch = BILLING_PITCH[language];
   const status = useQuery(billingStatusQueryOptions());
   const orders = useQuery(billingOrdersQueryOptions());
   const currency = (value: number) => formatBillingCurrency(value, language);
-  const date = (value: string) => formatBillingDate(value, language, timezone);
+  const date = (value: string) => formatBillingDay(value, language, timezone);
   const pending = findOpenBillingOrder(orders.data);
 
   if (status.isPending)
@@ -106,119 +97,72 @@ export function BillingPage({
 
   const billing = status.data;
   const hero = pitch.hero[billing.state];
-
-  const until =
-    billing.state === "trial"
-      ? billing.trialEndsAt
-      : (billing.paidUntil ?? billing.trialEndsAt);
-
-  const counting = billing.state === "trial" || billing.state === "paid";
-  const periodMs =
-    (billing.state === "trial" ? billing.trialDays : billing.durationDays) *
-    DAY_MS;
-
-  const leftMs = until ? Math.max(Date.parse(until) - now(), 0) : 0;
-  const left = until ? formatBillingRemaining(until, now(), language) : "";
-
-  const saving =
-    billing.price < billing.normalPrice
-      ? Math.round((1 - billing.price / billing.normalPrice) * 100)
-      : 0;
+  const trialing = billing.state === "trial";
 
   return (
     <div className="max-w-3xl space-y-6 lg:space-y-10">
       <DomainPageHeader title={text.title} divided={false} />
-      <Card className="space-y-8 p-6 sm:p-8">
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge dot={STATE_DOT[billing.state]}>{hero.eyebrow}</Badge>
-            {billing.environment === "sandbox" && billing.checkoutEnabled ? (
-              <Badge dot="warn">{text.sandbox}</Badge>
-            ) : null}
-          </div>
-          <h2 className="font-display text-[28px] leading-[1.15] font-bold tracking-[-0.03em] text-ink sm:text-[36px]">
-            {hero.title}
-          </h2>
-          <p className="max-w-xl text-ink-muted">
-            {hero.body(billing.state === "paid" && until ? date(until) : left)}
-          </p>
-        </div>
-        {counting && until ? (
-          <div className="space-y-3">
-            <p className="font-display text-3xl font-semibold tabular-nums">
-              {left}
-            </p>
-            <progress
-              aria-label={text.state[billing.state]}
-              value={Math.min(leftMs, periodMs)}
-              max={periodMs}
-              className="h-2 w-full overflow-hidden rounded-pill bg-hairline [&::-moz-progress-bar]:bg-brand [&::-webkit-progress-bar]:bg-hairline [&::-webkit-progress-value]:bg-brand"
-            />
-            {billing.state === "trial" ? (
-              <p className="text-sm text-ink-muted">
-                {pitch.endsOn} <time dateTime={until}>{date(until)}</time>
+      <Card className="border-brand/40 p-6 sm:p-8">
+        <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:gap-10">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <p className="font-display text-[17px] font-semibold">
+                {pitch.planName}
               </p>
-            ) : null}
-          </div>
-        ) : billing.state === "expired" && until ? (
-          <p className="text-sm text-ink-muted">
-            {pitch.expiredOn} <time dateTime={until}>{date(until)}</time>
-          </p>
-        ) : null}
-        <div className="flex flex-col gap-5 border-t border-hairline pt-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="font-display text-4xl font-bold tracking-[-0.03em] tabular-nums">
-                {currency(billing.price)}
-              </span>
-              <span className="text-ink-muted">{text.term}</span>
-              {saving > 0 ? (
-                <Badge dot="brand" className="px-2 py-0.5 text-xs">
-                  {pitch.save(saving)}
-                </Badge>
-              ) : null}
+              <h2 className="font-display text-[28px] leading-[1.15] font-bold tracking-[-0.03em] text-ink">
+                {hero.title(billing.trialDays)}
+              </h2>
+              <p className="text-ink-muted">{hero.body}</p>
             </div>
-            {saving > 0 ? (
-              <p className="text-sm text-ink-muted">
-                {pitch.promo(currency(billing.normalPrice))}
-              </p>
-            ) : null}
-            <p className="max-w-sm text-sm text-ink-muted">{pitch.prepaid}</p>
-          </div>
-          <div className="space-y-3">
             <BillingCheckout
               billing={billing}
               language={language}
               inline={false}
               quiet
+              fullWidth
             />
+            <div>
+              <p className="flex items-baseline gap-2">
+                <span className="font-display text-4xl font-bold tracking-[-0.03em] tabular-nums">
+                  {currency(billing.price)}
+                </span>
+                {billing.price < billing.normalPrice ? (
+                  <del
+                    className="text-ink-muted tabular-nums"
+                    aria-label={text.normal}
+                  >
+                    {currency(billing.normalPrice)}
+                  </del>
+                ) : null}
+              </p>
+              <p className="mt-1 text-ink-muted">
+                {trialing ? `${pitch.afterTrial}, ` : null}
+                {text.term}
+              </p>
+              {showTestEnvironment(billing) ? (
+                <p className="mt-3 text-xs text-ink-weak">{text.sandbox}</p>
+              ) : null}
+            </div>
+          </div>
+          <div className="space-y-4">
+            <p className="font-semibold text-ink">{pitch.tagline}</p>
+            <ul className="space-y-4">
+              {pitch.benefits.map((benefit) => {
+                const Icon = BENEFIT_ICON[benefit.icon];
+
+                return (
+                  <li key={benefit.text} className="flex items-start gap-3">
+                    <Icon
+                      className="mt-0.5 size-5 shrink-0 text-ink-muted"
+                      aria-hidden="true"
+                    />
+                    {benefit.text}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
-      </Card>
-      <Card className="p-6 sm:p-8">
-        <div className="max-w-xl">
-          <h2 className={SECTION_HEADING}>{pitch.includedTitle}</h2>
-          <p className="mt-2 text-ink-muted">{pitch.includedDescription}</p>
-        </div>
-        <ul className="mt-6 grid gap-x-8 gap-y-6 sm:grid-cols-2">
-          {pitch.benefits.map((benefit) => {
-            const Icon = BENEFIT_ICON[benefit.icon];
-
-            return (
-              <li key={benefit.title} className="flex gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-pill bg-brand/12 text-brand-deep">
-                  <Icon className="size-4" aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold text-ink">{benefit.title}</p>
-                  <p className="mt-1 text-sm text-ink-muted">
-                    {benefit.description}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
       </Card>
       <Card className="p-6 sm:p-8">
         <div className="max-w-xl">
@@ -262,28 +206,55 @@ export function BillingPage({
           ) : orders.data.length === 0 ? (
             <p className="text-ink-muted">{text.empty}</p>
           ) : (
-            <ul className="divide-y divide-surface-1">
-              {orders.data.map((order) => (
-                <li
-                  key={order.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
-                >
-                  <div className="space-y-1">
-                    <p className="font-semibold tabular-nums">
-                      {currency(order.amount)} · {text.order[order.status]}
-                    </p>
+            <ul className="divide-y divide-hairline rounded-md border border-hairline">
+              {orders.data.map((order) => {
+                const row = (
+                  <>
+                    <span className="font-semibold">{text.plan}</span>
                     <time
                       dateTime={order.createdAt}
-                      className="text-sm text-ink-muted"
+                      className="text-ink-muted sm:w-28"
                     >
                       {date(order.createdAt)}
                     </time>
-                  </div>
-                  {order.id !== pending?.id && order.status === "pending" ? (
-                    <BillingPaymentActions order={order} language={language} />
-                  ) : null}
-                </li>
-              ))}
+                    <span className="text-ink-muted sm:w-28">
+                      {text.order[order.status]}
+                    </span>
+                    <span className="tabular-nums sm:w-24 sm:text-right">
+                      {currency(order.amount)}
+                    </span>
+                  </>
+                );
+
+                return (
+                  <li key={order.id}>
+                    {order.status === "paid" ? (
+                      <Link
+                        to="/receipt/$orderId"
+                        params={{ orderId: order.id }}
+                        className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3.5 hover:bg-surface-1 sm:flex-nowrap [&>:first-child]:flex-1"
+                      >
+                        {row}
+                        <ChevronRight
+                          className="hidden size-4 shrink-0 text-ink-muted sm:block"
+                          aria-hidden="true"
+                        />
+                      </Link>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3.5 sm:flex-nowrap [&>:first-child]:flex-1">
+                        {row}
+                        {order.id !== pending?.id &&
+                        order.status === "pending" ? (
+                          <BillingPaymentActions
+                            order={order}
+                            language={language}
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

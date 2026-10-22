@@ -32,6 +32,7 @@ import { Route as AppSettingsRouteImport } from "./routes/_app.settings";
 import { Route as AppTasksRouteImport } from "./routes/_app.tasks";
 import { Route as AdminLoginRouteImport } from "./routes/admin_.login";
 import { Route as AdminWhatsappRouteImport } from "./routes/admin_.whatsapp";
+import { Route as ReceiptOrderIdRouteImport } from "./routes/receipt.$orderId";
 import { Route as AppSettingsAssistantRouteImport } from "./routes/_app.settings.assistant";
 import { Route as AppSettingsBillingRouteImport } from "./routes/_app.settings.billing";
 import { Route as AppSettingsIntegrationsRouteImport } from "./routes/_app.settings.integrations";
@@ -154,6 +155,11 @@ const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
   path: "/admin/whatsapp",
   getParentRoute: () => rootRouteImport,
 } as any);
+const ReceiptOrderIdRoute = ReceiptOrderIdRouteImport.update({
+  id: "/receipt/$orderId",
+  path: "/receipt/$orderId",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const AppSettingsAssistantRoute = AppSettingsAssistantRouteImport.update({
   id: "/assistant",
   path: "/assistant",
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   "/tasks": typeof AppTasksRoute;
   "/admin/login": typeof AdminLoginRoute;
   "/admin/whatsapp": typeof AdminWhatsappRoute;
+  "/receipt/$orderId": typeof ReceiptOrderIdRoute;
   "/settings/assistant": typeof AppSettingsAssistantRoute;
   "/settings/billing": typeof AppSettingsBillingRoute;
   "/settings/integrations": typeof AppSettingsIntegrationsRoute;
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   "/tasks": typeof AppTasksRoute;
   "/admin/login": typeof AdminLoginRoute;
   "/admin/whatsapp": typeof AdminWhatsappRoute;
+  "/receipt/$orderId": typeof ReceiptOrderIdRoute;
   "/": typeof AppIndexRoute;
   "/settings/assistant": typeof AppSettingsAssistantRoute;
   "/settings/billing": typeof AppSettingsBillingRoute;
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   "/_app/tasks": typeof AppTasksRoute;
   "/admin_/login": typeof AdminLoginRoute;
   "/admin_/whatsapp": typeof AdminWhatsappRoute;
+  "/receipt/$orderId": typeof ReceiptOrderIdRoute;
   "/_app/": typeof AppIndexRoute;
   "/_app/settings/assistant": typeof AppSettingsAssistantRoute;
   "/_app/settings/billing": typeof AppSettingsBillingRoute;
@@ -311,6 +320,7 @@ export interface FileRouteTypes {
     | "/tasks"
     | "/admin/login"
     | "/admin/whatsapp"
+    | "/receipt/$orderId"
     | "/settings/assistant"
     | "/settings/billing"
     | "/settings/integrations"
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | "/tasks"
     | "/admin/login"
     | "/admin/whatsapp"
+    | "/receipt/$orderId"
     | "/"
     | "/settings/assistant"
     | "/settings/billing"
@@ -373,6 +384,7 @@ export interface FileRouteTypes {
     | "/_app/tasks"
     | "/admin_/login"
     | "/admin_/whatsapp"
+    | "/receipt/$orderId"
     | "/_app/"
     | "/_app/settings/assistant"
     | "/_app/settings/billing"
@@ -394,6 +406,7 @@ export interface RootRouteChildren {
   SignUpRoute: typeof SignUpRoute;
   AdminLoginRoute: typeof AdminLoginRoute;
   AdminWhatsappRoute: typeof AdminWhatsappRoute;
+  ReceiptOrderIdRoute: typeof ReceiptOrderIdRoute;
 }
 
 declare module "@tanstack/react-router" {
@@ -559,6 +572,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminWhatsappRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/receipt/$orderId": {
+      id: "/receipt/$orderId";
+      path: "/receipt/$orderId";
+      fullPath: "/receipt/$orderId";
+      preLoaderRoute: typeof ReceiptOrderIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/_app/settings/assistant": {
       id: "/_app/settings/assistant";
       path: "/assistant";
@@ -680,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignUpRoute: SignUpRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminWhatsappRoute: AdminWhatsappRoute,
+  ReceiptOrderIdRoute: ReceiptOrderIdRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

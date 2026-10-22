@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ExternalLink, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -178,6 +179,8 @@ interface BillingCheckoutProps {
   inline?: boolean;
   /** For a paid account, show only the renew action (the page already says it is paid). */
   quiet?: boolean;
+  /** Stretch the action across its container (plan card). */
+  fullWidth?: boolean;
 }
 
 /** The single payment flow: open invoice status, or the way to request one. */
@@ -186,6 +189,7 @@ export function BillingCheckout({
   language,
   inline = true,
   quiet = false,
+  fullWidth = false,
 }: BillingCheckoutProps) {
   const text = BILLING_COPY[language];
   const { orders, pending, mobile, setMobile, checkout, submit } =
@@ -213,7 +217,7 @@ export function BillingCheckout({
             inline ? (
               <Button
                 type="button"
-                variant="dark-outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setRenewing(true)}
               >
@@ -222,10 +226,13 @@ export function BillingCheckout({
             ) : (
               <Link
                 to="/checkout"
-                className={buttonVariants({
-                  variant: "dark-outline",
-                  size: "sm",
-                })}
+                className={cn(
+                  buttonVariants({
+                    variant: "secondary",
+                    size: fullWidth ? "default" : "sm",
+                  }),
+                  fullWidth && "w-full"
+                )}
               >
                 {text.renew}
               </Link>
@@ -279,7 +286,13 @@ export function BillingCheckout({
         ) : (
           <Link
             to="/checkout"
-            className={buttonVariants({ variant: "secondary", size: "sm" })}
+            className={cn(
+              buttonVariants({
+                variant: "secondary",
+                size: fullWidth ? "default" : "sm",
+              }),
+              fullWidth && "w-full"
+            )}
           >
             {`${action} · ${formatBillingCurrency(billing.price, language)}`}
           </Link>

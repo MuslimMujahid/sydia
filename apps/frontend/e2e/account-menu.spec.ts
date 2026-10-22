@@ -16,7 +16,9 @@ test("a trial account sees its remaining days, storage, and a way to subscribe",
 }) => {
   const menu = await open(page, "plan=trial");
   await expect(menu.getByText("mrdevip15@gmail.com")).toBeVisible();
-  await expect(menu.getByText("Trial gratis · 5 hari lagi")).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Langganan", exact: true })
+  ).toBeVisible();
   await expect(menu.getByText("1,5 GB / 10 GB")).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: /Penyimpanan/ })
@@ -29,14 +31,13 @@ test("a trial account sees its remaining days, storage, and a way to subscribe",
   ).toHaveAttribute("href", "/settings/profile");
   // The account button states the plan under the name.
   await page.keyboard.press("Escape");
-  await expect(accountButton(page)).toContainText("Trial · 5 hari lagi");
+  await expect(accountButton(page)).toContainText("Trial gratis");
 });
 
 test("an active subscription shows its end date without a purchase prompt", async ({
   page,
 }) => {
   const menu = await open(page, "plan=paid");
-  await expect(menu.getByText("Aktif hingga 21 Nov 2026")).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /Perpanjang/ })).toHaveCount(
     0
   );
@@ -51,26 +52,27 @@ test("a subscription about to end offers renewal", async ({ page }) => {
     menu.getByRole("menuitem", { name: /Perpanjang langganan/ })
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(accountButton(page)).toContainText("Langganan · 2 hari lagi");
+  await expect(accountButton(page)).toContainText("Langganan aktif");
 });
 
 test("an expired account is told it is read-only and can renew", async ({
   page,
 }) => {
   const menu = await open(page, "plan=expired");
-  await expect(menu.getByText("Habis · akses baca saja")).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: /Perpanjang langganan/ })
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(accountButton(page)).toContainText("Masa aktif habis");
+  await expect(accountButton(page)).toContainText("Perlu perpanjangan");
 });
 
 test("without a payment option the plan is shown but no purchase is offered", async ({
   page,
 }) => {
   const menu = await open(page, "plan=unavailable");
-  await expect(menu.getByText("Trial gratis · 5 hari lagi")).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Langganan", exact: true })
+  ).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: /Berlangganan sekarang/ })
   ).toHaveCount(0);
@@ -99,5 +101,7 @@ test("the collapsed sidebar keeps the full plan menu behind the avatar", async (
   page,
 }) => {
   const menu = await open(page, "plan=trial&collapsed=1");
-  await expect(menu.getByText("Trial gratis · 5 hari lagi")).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Langganan", exact: true })
+  ).toBeVisible();
 });

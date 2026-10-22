@@ -23,11 +23,7 @@ function Fixture() {
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
         <SettingsNav />
         <div className="min-w-0 flex-1">
-          <BillingPage
-            locale={locale}
-            timezone="Asia/Makassar"
-            now={() => Date.parse("2026-10-24T00:00:00Z")}
-          />
+          <BillingPage locale={locale} timezone="Asia/Makassar" />
         </div>
       </div>
     </main>
@@ -53,8 +49,14 @@ const checkout = createRoute({
   component: () => <h1>Checkout</h1>,
 });
 
+const receipt = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/receipt/$orderId",
+  component: () => <h1>Receipt</h1>,
+});
+
 const router = createRouter({
-  routeTree: rootRoute.addChildren([fixture, billing, checkout]),
+  routeTree: rootRoute.addChildren([fixture, billing, checkout, receipt]),
 });
 
 const root = document.getElementById("root");

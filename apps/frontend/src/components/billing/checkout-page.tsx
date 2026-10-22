@@ -10,13 +10,12 @@ import {
   BILLING_COPY,
   billingLanguage,
   formatBillingCurrency,
-  formatBillingDate,
-  formatBillingRemaining,
   type BillingLanguage,
 } from "@/components/settings/billing-copy";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { showTestEnvironment } from "@/components/settings/billing-plan";
 import { billingStatusQueryOptions } from "@/lib/services/api/billing/billing.api";
 
 const LOADING_MINIMUM_MS = 1_800;
@@ -36,8 +35,6 @@ const COPY: Record<
     due: string;
     subscribe: string;
     terms: string;
-    trialNote: (left: string) => string;
-    paidNote: (until: string) => string;
     waitingTitle: string;
     waitingDescription: string;
     successTitle: string;
@@ -66,10 +63,6 @@ const COPY: Record<
     subscribe: "Berlangganan",
     terms:
       "Pembayaran di muka untuk 30 hari, tanpa penagihan otomatis. Perpanjangan dilakukan manual, dan harga promo berlaku sampai promo diubah.",
-    trialNote: (left) =>
-      `Trial gratis Anda masih ${left}. Langganan berlaku 30 hari sejak pembayaran diterima.`,
-    paidNote: (until) =>
-      `Langganan Anda aktif hingga ${until}. Perpanjangan ditambahkan setelah masa aktif tersebut.`,
     waitingTitle: "Selesaikan pembayaran di Mayar",
     waitingDescription:
       "Buka halaman pembayaran di tab baru, lalu kembali ke sini. Sydia memeriksa pembayaran Anda secara otomatis.",
@@ -95,10 +88,6 @@ const COPY: Record<
     subscribe: "Subscribe",
     terms:
       "Prepaid for 30 days with no automatic billing. Renewal is manual, and the promotional price applies until the promotion changes.",
-    trialNote: (left) =>
-      `Your free trial has ${left}. The subscription runs 30 days from when payment is received.`,
-    paidNote: (until) =>
-      `Your subscription is active until ${until}. A renewal is added after that.`,
     waitingTitle: "Finish paying on Mayar",
     waitingDescription:
       "Open the payment page in a new tab, then come back here. Sydia checks your payment automatically.",
@@ -112,15 +101,9 @@ const COPY: Record<
 
 interface CheckoutPageProps {
   locale: string;
-  timezone: string;
-  now?: () => number;
 }
 
-export function CheckoutPage({
-  locale,
-  timezone,
-  now = Date.now,
-}: CheckoutPageProps) {
+export function CheckoutPage({ locale }: CheckoutPageProps) {
   const language = billingLanguage(locale);
   const text = COPY[language];
   const shared = BILLING_COPY[language];
@@ -155,17 +138,7 @@ export function CheckoutPage({
 
   const billing = status.data;
   const currency = (value: number) => formatBillingCurrency(value, language);
-  const date = (value: string) => formatBillingDate(value, language, timezone);
   const available = billing.enforced && billing.checkoutEnabled;
-
-  const note =
-    billing.state === "trial" && billing.trialEndsAt
-      ? text.trialNote(
-          formatBillingRemaining(billing.trialEndsAt, now(), language)
-        )
-      : billing.state === "paid" && billing.paidUntil
-        ? text.paidNote(date(billing.paidUntil))
-        : null;
 
   return (
     <main className="min-h-screen bg-background px-5 py-8 sm:px-8 lg:py-12">
@@ -265,7 +238,7 @@ export function CheckoutPage({
             </div>
             <div className="space-y-4">
               <Card className="space-y-6 p-6 sm:p-8">
-                {billing.environment === "sandbox" ? (
+                {showTestEnvironment(billing) ? (
                   <p
                     role="status"
                     className="text-sm font-semibold text-ink-muted"
@@ -308,7 +281,6 @@ export function CheckoutPage({
                     </dd>
                   </div>
                 </dl>
-                {note ? <p className="text-sm text-ink-muted">{note}</p> : null}
                 <Button
                   type="submit"
                   form="checkout-form"

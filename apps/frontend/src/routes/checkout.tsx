@@ -27,5 +27,5 @@ export const Route = createFileRoute("/checkout")({
 function CheckoutRoute() {
   const user = Route.useRouteContext();
 
-  return <CheckoutPage locale={user.locale} timezone={user.timezone} />;
+  return <CheckoutPage locale={user.locale} />;
 }

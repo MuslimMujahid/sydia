@@ -50,7 +50,8 @@ export const BILLING_COPY = {
       "Satu paket mencakup semua fitur Sydia. Pembayaran dilakukan di muka dan diperpanjang secara manual; harga promo berlaku untuk pembelian dan perpanjangan sampai promo diubah.",
     storageDescription:
       "Ruang untuk file asli yang Anda unggah dari semua kanal. Setiap file berukuran maksimal 100 MB.",
-    historyDescription: "Tagihan dan pembayaran terbaru Anda.",
+    historyDescription: "Ketuk pembayaran untuk melihat struk dan invoice.",
+    plan: "Langganan Sydia",
     review:
       "Tagihan ini sedang diperiksa. Hubungi dukungan Sydia dan jangan membuat pembayaran ulang.",
     unavailable: "Pembayaran belum tersedia. Hubungi dukungan Sydia.",
@@ -111,7 +112,8 @@ export const BILLING_COPY = {
       "One plan includes every Sydia feature. Payment is prepaid and renewed manually; the promotional price applies to purchases and renewals until the promotion changes.",
     storageDescription:
       "Space for the original files you upload from every channel. Each file can be up to 100 MB.",
-    historyDescription: "Your recent invoices and payments.",
+    historyDescription: "Open a payment to see its receipt and invoice.",
+    plan: "Sydia subscription",
     review:
       "This invoice needs review. Contact Sydia support and do not make another payment.",
     unavailable: "Payments are not available yet. Contact Sydia support.",
@@ -171,174 +173,161 @@ export function formatBillingRemaining(
 }
 
 export type BillingBenefit = {
-  icon: "chat" | "reminder" | "memory" | "document" | "calendar" | "storage";
-  title: string;
-  description: string;
+  icon:
+    | "chat"
+    | "reminder"
+    | "memory"
+    | "document"
+    | "calendar"
+    | "storage"
+    | "unlimited"
+    | "manual";
+  text: string;
 };
 
 type BillingPitch = {
   hero: Record<
     "disabled" | "trial" | "paid" | "expired",
-    { eyebrow: string; title: string; body: (details: string) => string }
+    { title: (trialDays: number) => string; body: string }
   >;
-  includedTitle: string;
-  includedDescription: string;
+  planName: string;
+  tagline: string;
+  afterTrial: string;
   benefits: readonly BillingBenefit[];
-  save: (percent: number) => string;
-  promo: (regular: string) => string;
-  prepaid: string;
-  endsOn: string;
-  expiredOn: string;
+  startTrial: (trialDays: number) => string;
+  payNow: string;
 };
 
-/** Marketing copy for the subscription page; facts match PRODUCT.md. */
+/** Marketing copy for the subscription surfaces; facts match PRODUCT.md. */
 export const BILLING_PITCH: Record<BillingLanguage, BillingPitch> = {
   id: {
     hero: {
       disabled: {
-        eyebrow: "Akses terbuka",
-        title: "Semua fitur terbuka untuk Anda",
-        body: () =>
-          "Pembayaran belum dibuka, jadi Anda bisa memakai Sydia tanpa batas waktu.",
+        title: () => "Semua fitur terbuka untuk Anda",
+        body: "Nikmati Sydia sepenuhnya, tanpa batas waktu.",
       },
       trial: {
-        eyebrow: "Trial gratis",
-        title: "Sydia sudah bekerja untuk Anda",
-        body: () =>
-          "Lanjutkan tanpa jeda agar catatan, pengingat, dan tugas Anda tetap terkelola.",
+        title: (days) => `Selamat! ${days} hari gratis untuk Anda`,
+        body: "Tanpa kartu, tanpa pembayaran. Pakai semua fitur Sydia dulu, bayar nanti kalau sudah cocok.",
       },
       paid: {
-        eyebrow: "Langganan aktif",
-        title: "Terima kasih, Sydia siap membantu",
-        body: (until) =>
-          `Aktif hingga ${until}. Perpanjang kapan saja; hari yang tersisa tetap dihitung.`,
+        title: () => "Terima kasih sudah berlangganan",
+        body: "Semua fitur Sydia terbuka untuk Anda.",
       },
       expired: {
-        eyebrow: "Masa aktif habis",
-        title: "Sydia sedang berhenti sejenak",
-        body: () =>
-          "Data Anda aman dan tetap bisa dibaca, diunduh, dan dihapus. Perpanjang untuk kembali dibantu asisten.",
+        title: () => "Sydia siap membantu Anda lagi",
+        body: "Data Anda aman. Berlangganan lagi untuk kembali dibantu Sydia.",
       },
     },
-    includedTitle: "Satu harga, semua fitur",
-    includedDescription:
-      "Tanpa paket bertingkat dan tanpa batas pesan. Anda membayar satu kali untuk 30 hari.",
+    planName: "Sydia",
+    tagline: "Asisten yang ingat dan menindaklanjuti",
+    afterTrial: "Setelah itu",
     benefits: [
       {
         icon: "chat",
-        title: "Catat dengan ngobrol",
-        description:
-          "Tulis atau kirim pesan suara lewat WhatsApp, Telegram, atau web. Sydia mengubahnya menjadi tugas, pengingat, dan catatan.",
+        text: "Catat lewat WhatsApp, Telegram, atau web. Cukup ngobrol atau kirim suara",
       },
       {
         icon: "reminder",
-        title: "Pengingat yang menindaklanjuti",
-        description:
-          "Sydia mengingatkan tepat waktu dan bertanya lagi bila tugas belum selesai.",
+        text: "Pengingat yang menindaklanjuti sampai selesai",
       },
+      { icon: "memory", text: "Memori yang bisa Anda koreksi atau hapus" },
+      { icon: "document", text: "Paham invoice, tangkapan layar, dan PDF" },
+      { icon: "calendar", text: "Google Calendar dan briefing harian" },
+      { icon: "storage", text: "Penyimpanan 10 GB, file hingga 100 MB" },
+      { icon: "unlimited", text: "Tanpa batas pesan" },
       {
-        icon: "memory",
-        title: "Memori yang Anda kendalikan",
-        description:
-          "Hal penting tersimpan rapi, dan bisa Anda koreksi atau hapus kapan saja.",
-      },
-      {
-        icon: "document",
-        title: "Paham dokumen dan gambar",
-        description:
-          "Kirim invoice, tangkapan layar, atau PDF. Sydia membacanya untuk Anda.",
-      },
-      {
-        icon: "calendar",
-        title: "Kalender dan briefing harian",
-        description:
-          "Terhubung ke Google Calendar, dengan ringkasan harian pada jam pilihan Anda.",
-      },
-      {
-        icon: "storage",
-        title: "Ruang 10 GB",
-        description:
-          "Simpan file asli hingga 100 MB per file, dari semua kanal.",
+        icon: "manual",
+        text: "Tanpa tagihan otomatis. Perpanjang saat Anda siap",
       },
     ],
-    save: (percent) => `Hemat ${percent}%`,
-    promo: (regular) => `Harga promo, normalnya ${regular}`,
-    prepaid: "Bayar di muka tanpa tagihan otomatis. Perpanjang saat Anda siap.",
-    endsOn: "Berakhir pada",
-    expiredOn: "Berakhir pada",
+    startTrial: (days) => `Mulai ${days} hari gratis`,
+    payNow: "Atau langsung berlangganan",
   },
   en: {
     hero: {
       disabled: {
-        eyebrow: "Open access",
-        title: "Every feature is open to you",
-        body: () =>
-          "Payments are not open yet, so you can use Sydia without a time limit.",
+        title: () => "Every feature is open to you",
+        body: "Enjoy Sydia fully, with no time limit.",
       },
       trial: {
-        eyebrow: "Free trial",
-        title: "Sydia is already working for you",
-        body: () =>
-          "Continue without a gap to keep your notes, reminders, and tasks organized.",
+        title: (days) => `Congratulations! ${days} free days are yours`,
+        body: "No card, no payment. Use every Sydia feature first, and pay later if it fits.",
       },
       paid: {
-        eyebrow: "Subscription active",
-        title: "Thank you, Sydia is ready to help",
-        body: (until) =>
-          `Active until ${until}. Renew any time; the days you have left still count.`,
+        title: () => "Thank you for subscribing",
+        body: "Every Sydia feature is open to you.",
       },
       expired: {
-        eyebrow: "Access expired",
-        title: "Sydia is taking a pause",
-        body: () =>
-          "Your data is safe and you can still read, download, and delete it. Renew to get the assistant back.",
+        title: () => "Sydia is ready to help you again",
+        body: "Your data is safe. Subscribe again to get Sydia's help back.",
       },
     },
-    includedTitle: "One price, every feature",
-    includedDescription:
-      "No tiers and no message limits. You pay once for 30 days.",
+    planName: "Sydia",
+    tagline: "The assistant that remembers and follows through",
+    afterTrial: "After that",
     benefits: [
       {
         icon: "chat",
-        title: "Capture by chatting",
-        description:
-          "Write or send a voice note on WhatsApp, Telegram, or the web. Sydia turns it into tasks, reminders, and notes.",
+        text: "Capture on WhatsApp, Telegram, or the web. Just chat or send a voice note",
       },
+      { icon: "reminder", text: "Reminders that follow up until it is done" },
+      { icon: "memory", text: "Memory you can correct or delete" },
+      { icon: "document", text: "Understands invoices, screenshots, and PDFs" },
+      { icon: "calendar", text: "Google Calendar and daily briefings" },
+      { icon: "storage", text: "10 GB of storage, files up to 100 MB" },
+      { icon: "unlimited", text: "No message limits" },
       {
-        icon: "reminder",
-        title: "Reminders that follow up",
-        description:
-          "Sydia reminds you on time and asks again when a task is not done.",
-      },
-      {
-        icon: "memory",
-        title: "Memory you control",
-        description:
-          "Important things are kept tidy, and you can correct or delete them any time.",
-      },
-      {
-        icon: "document",
-        title: "Understands documents and images",
-        description:
-          "Send an invoice, a screenshot, or a PDF. Sydia reads it for you.",
-      },
-      {
-        icon: "calendar",
-        title: "Calendar and daily briefing",
-        description:
-          "Connected to Google Calendar, with a daily summary at the time you choose.",
-      },
-      {
-        icon: "storage",
-        title: "10 GB of space",
-        description:
-          "Keep original files up to 100 MB each, from every channel.",
+        icon: "manual",
+        text: "No automatic billing. Renew when you are ready",
       },
     ],
-    save: (percent) => `Save ${percent}%`,
-    promo: (regular) => `Promotional price, normally ${regular}`,
-    prepaid: "Prepaid with no automatic billing. Renew when you are ready.",
-    endsOn: "Ends on",
-    expiredOn: "Ended on",
+    startTrial: (days) => `Start ${days} free days`,
+    payNow: "Or subscribe right away",
   },
 };
+
+export function formatBillingDay(
+  value: string,
+  language: BillingLanguage,
+  timezone: string
+): string {
+  return new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-GB", {
+    dateStyle: "medium",
+    timeZone: timezone,
+  }).format(new Date(value));
+}
+
+const EWALLET_NAMES: Record<string, string> = {
+  GOPAY: "GoPay",
+  SHOPEEPAY: "ShopeePay",
+  LINKAJA: "LinkAja",
+};
+
+const titleCase = (value: string) =>
+  value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+
+/** Friendly name for a provider channel such as `qris` or `ewallet/DANA`. */
+export function formatPaymentMethod(
+  method: string | null,
+  language: BillingLanguage
+): string {
+  if (!method) return "Mayar";
+  const [type = "", code = ""] = method.split("/");
+  const name = EWALLET_NAMES[code.toUpperCase()] ?? code;
+
+  switch (type.toLowerCase()) {
+    case "qris":
+      return "QRIS";
+    case "ewallet":
+      return name || "E-wallet";
+    case "va":
+      return `${language === "id" ? "Transfer bank" : "Bank transfer"}${code ? ` ${titleCase(code)}` : ""}`;
+    case "card":
+      return language === "id" ? "Kartu" : "Card";
+    case "retail":
+      return code ? titleCase(code) : "Retail";
+    default:
+      return method;
+  }
+}

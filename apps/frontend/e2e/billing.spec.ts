@@ -77,19 +77,14 @@ test("billing shows one promotional price, trial, and global storage", async ({
   await setup(page);
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Sydia sudah bekerja untuk Anda" })
+    page.getByRole("heading", { name: "Selamat! 7 hari gratis untuk Anda" })
   ).toBeVisible();
-  await expect(page.getByText("Trial gratis", { exact: true })).toBeVisible();
-  await expect(page.getByText("Hemat 51%")).toBeVisible();
+  await expect(page.getByText(/Tanpa kartu, tanpa pembayaran/)).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Satu harga, semua fitur" })
-  ).toBeVisible();
-  await expect(page.getByText("5 hari lagi", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("Berakhir pada 29 Okt 2026, 08.00")
+    page.getByText("Asisten yang ingat dan menindaklanjuti")
   ).toBeVisible();
   await expect(page.getByText("Rp 29.000", { exact: true })).toBeVisible();
-  await expect(page.getByText(/normalnya Rp\s59\.000/)).toBeVisible();
+  await expect(page.getByText("Rp 59.000", { exact: true })).toBeVisible();
   await expect(page.getByText("1,5 GB terpakai dari 10 GB")).toBeVisible();
   await expect(
     page.getByRole("progressbar", { name: "Penyimpanan" })
@@ -122,9 +117,8 @@ test("a paid account sees its payment confirmed and can renew instead of paying 
   });
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Terima kasih, Sydia siap membantu" })
+    page.getByRole("heading", { name: "Terima kasih sudah berlangganan" })
   ).toBeVisible();
-  await expect(page.getByText(/Aktif hingga 21 Nov 2026/)).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Perpanjang langganan" })
   ).toHaveAttribute("href", "/checkout");
@@ -138,10 +132,7 @@ test("expired billing explains read-only access while keeping renewal available"
   await setup(page, { ...trial(), active: false, state: "expired" });
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Sydia sedang berhenti sejenak" })
-  ).toBeVisible();
-  await expect(
-    page.getByText(/tetap bisa dibaca, diunduh, dan dihapus/)
+    page.getByRole("heading", { name: "Sydia siap membantu Anda lagi" })
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Perpanjang langganan" })
@@ -178,15 +169,16 @@ test("billing retains English labels and the subscribe link", async ({
   await setup(page);
   await page.goto("/e2e/billing.html?lang=en");
   await expect(
-    page.getByRole("heading", { name: "Sydia is already working for you" })
+    page.getByRole("heading", {
+      name: "Congratulations! 7 free days are yours",
+    })
   ).toBeVisible();
-  await expect(page.getByText("5 days left", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /^Subscribe/ })).toHaveAttribute(
     "href",
     "/checkout"
   );
   await expect(
-    page.getByRole("heading", { name: "One price, every feature" })
+    page.getByText("The assistant that remembers and follows through")
   ).toBeVisible();
 });
 
@@ -202,7 +194,7 @@ test("expired paid access shows the paid expiry instead of the old trial date", 
   });
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByText("Berakhir pada 21 Okt 2026, 08.00")
+    page.getByRole("heading", { name: "Sydia siap membantu Anda lagi" })
   ).toBeVisible();
   await mkdir("../../.impeccable/review", { recursive: true });
   await page.screenshot({
@@ -210,4 +202,26 @@ test("expired paid access shows the paid expiry instead of the old trial date", 
     fullPage: true,
     animations: "disabled",
   });
+});
+
+test("each paid payment opens its receipt from the history", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  state.setOrders([
+    {
+      id: "order-9",
+      status: "paid",
+      amount: 29_000,
+      durationDays: 30,
+      paymentUrl: "https://merchant.myr.id/invoices/paid",
+      expiresAt: "2026-10-22T00:15:00Z",
+      createdAt: "2026-10-22T00:00:00Z",
+      appliedAt: "2026-10-22T00:05:00Z",
+    },
+  ]);
+  await page.goto("/e2e/billing.html");
+  const row = page.getByRole("link", { name: /Langganan Sydia.*Lunas/ });
+  await expect(row).toHaveAttribute("href", "/receipt/order-9");
+  await expect(row).toContainText("Rp 29.000");
 });

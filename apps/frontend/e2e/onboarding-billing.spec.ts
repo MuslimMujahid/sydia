@@ -149,15 +149,16 @@ test("onboarding asks for payment before it can be completed", async ({
     page.getByRole("heading", { name: "Pilih cara memulai" })
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Bayar sekarang" })
+    page.getByRole("heading", { name: "Selamat! 7 hari gratis untuk Anda" })
   ).toBeVisible();
   await expect(page.getByText("Rp 29.000", { exact: true })).toBeVisible();
   await expect(page.getByText("Rp 59.000", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText(/Trial gratis 7 hari aktif hingga/)
-  ).toBeVisible();
+  await expect(page.getByText(/Tanpa kartu, tanpa pembayaran/)).toBeVisible();
   // Nothing is saved or completed until the user chooses how to start.
   expect(saved.profile).toBeUndefined();
+  await page
+    .getByRole("button", { name: "Atau langsung berlangganan" })
+    .click();
   await page.getByLabel("Nomor telepon untuk tagihan").fill("+6281234567890");
   await page.getByRole("button", { name: /Buat tagihan/ }).click();
   await expect(
@@ -176,6 +177,9 @@ test("a paid user finishes onboarding from the payment step", async ({
   const saved = await setup(page, status());
   await page.goto("/e2e/onboarding.html");
   await advance(page, 3);
+  await page
+    .getByRole("button", { name: "Atau langsung berlangganan" })
+    .click();
   await page.getByLabel("Nomor telepon untuk tagihan").fill("+6281234567890");
   await page.getByRole("button", { name: /Buat tagihan/ }).click();
   await page.getByRole("button", { name: "Periksa pembayaran" }).click();
@@ -191,9 +195,7 @@ test("the free trial remains an explicit way to finish onboarding", async ({
   const saved = await setup(page, status());
   await page.goto("/e2e/onboarding.html");
   await advance(page, 3);
-  await page
-    .getByRole("button", { name: "Lanjut dengan trial gratis" })
-    .click();
+  await page.getByRole("button", { name: "Mulai 7 hari gratis" }).click();
   await expect(page.getByRole("heading", { name: "Chat Sydia" })).toBeVisible();
   expect(saved.profile).toMatchObject({ onboardingCompleted: true });
   expect(saved.preferences).toMatchObject({ persona: "professional" });
@@ -206,7 +208,7 @@ test("an expired account cannot finish onboarding without paying", async ({
   await page.goto("/e2e/onboarding.html");
   await advance(page, 3);
   await expect(
-    page.getByRole("heading", { name: "Masa aktif habis" })
+    page.getByRole("heading", { name: "Sydia siap membantu Anda lagi" })
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Bayar untuk melanjutkan" })

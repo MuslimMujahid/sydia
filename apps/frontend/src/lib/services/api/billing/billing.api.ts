@@ -23,6 +23,7 @@ export type BillingOrder = {
   durationDays: number;
   status: "creating" | "pending" | "review" | "failed" | "expired" | "paid";
   paymentUrl: string | null;
+  paymentMethod: string | null;
   expiresAt: string;
   appliedAt: string | null;
   createdAt: string;

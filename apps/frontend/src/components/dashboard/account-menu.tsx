@@ -51,12 +51,7 @@ export function AccountMenu({
   onSignOut,
   now = Date.now,
 }: AccountMenuProps) {
-  const plan = billing
-    ? summarizeBillingPlan(billing, {
-        now: now(),
-        timezone: user.timezone,
-      })
-    : null;
+  const plan = billing ? summarizeBillingPlan(billing, { now: now() }) : null;
 
   return (
     <DropdownMenu>
@@ -96,13 +91,7 @@ export function AccountMenu({
           {plan ? (
             <>
               <DropdownMenuItem render={<Link to="/settings/billing" />}>
-                <CreditCard />
-                <span className="min-w-0">
-                  <span className="block">Langganan</span>
-                  <span className="block truncate text-xs text-ink-weak">
-                    {plan.detail}
-                  </span>
-                </span>
+                <CreditCard /> Langganan
               </DropdownMenuItem>
               <DropdownMenuItem render={<Link to="/settings/billing" />}>
                 <HardDrive /> Penyimpanan

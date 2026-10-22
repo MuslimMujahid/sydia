@@ -119,7 +119,6 @@ test("the order summary shows the plan, price, and what is due today", async ({
   await expect(page.getByText("Penyimpanan 10 GB")).toBeVisible();
   await expect(page.getByText("Jatuh tempo hari ini")).toBeVisible();
   await expect(page.getByText("Rp 59.000", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Trial gratis Anda masih/)).toBeVisible();
   await expect(page.getByText(/mengarahkan Anda ke Mayar/)).toBeVisible();
 });
 
@@ -173,7 +172,9 @@ test("a subscriber renewing is told the renewal is added after the current perio
     status({ state: "paid", paidUntil: "2099-11-21T00:00:00Z" })
   );
   await page.goto("/e2e/checkout.html");
-  await expect(page.getByText(/Langganan Anda aktif hingga/)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Ringkasan pesanan" })
+  ).toBeVisible();
 });
 
 test("without a payment option the page says so instead of offering a form", async ({
@@ -185,4 +186,46 @@ test("without a payment option the page says so instead of offering a form", asy
   await expect(page.getByRole("button", { name: "Berlangganan" })).toHaveCount(
     0
   );
+});
+
+test("a paid order has a printable receipt", async ({ page }) => {
+  await setup(page);
+  await page.route("**/billing/orders", (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          {
+            id: "order-abc12345",
+            amount: 29_000,
+            durationDays: 30,
+            status: "paid",
+            paymentUrl: "https://merchant.myr.id/invoices/paid",
+            paymentMethod: "ewallet/DANA",
+            expiresAt: "2026-10-22T00:15:00Z",
+            appliedAt: "2026-10-22T00:05:00Z",
+            createdAt: "2026-10-22T00:00:00Z",
+          },
+        ],
+      },
+    })
+  );
+  await page.goto("/e2e/checkout.html?to=/receipt/order-abc12345");
+  await expect(
+    page.getByRole("heading", { name: "Struk pembayaran" })
+  ).toBeVisible();
+  await expect(page.getByText("SYD-ABC12345").first()).toBeVisible();
+  await expect(page.getByText("Rp 29.000 dibayar pada")).toBeVisible();
+  await expect(page.getByText("sari@example.test")).toBeVisible();
+  await expect(page.getByText("INV-ABC12345")).toBeVisible();
+  await expect(page.getByText("Dibayar melalui DANA")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Lihat invoice" })).toHaveCount(
+    0
+  );
+  await expect(page.getByRole("button", { name: "Unduh resi" })).toBeVisible();
+});
+
+test("an unpaid or unknown order has no receipt", async ({ page }) => {
+  await setup(page);
+  await page.goto("/e2e/checkout.html?to=/receipt/missing");
+  await expect(page.getByText(/Struk tidak ditemukan/)).toBeVisible();
 });

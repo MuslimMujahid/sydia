@@ -8,6 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { Route as CheckoutRoute } from "../src/routes/checkout";
+import { Route as ReceiptRoute } from "../src/routes/receipt.$orderId";
 import "../src/styles/globals.css";
 
 // Mounts the real /checkout route (guards, summary, hand-off) in isolation;
@@ -23,6 +24,12 @@ const checkout = CheckoutRoute.update({
   getParentRoute: () => rootRoute,
 } as never);
 
+const receipt = ReceiptRoute.update({
+  id: "/receipt/$orderId",
+  path: "/receipt/$orderId",
+  getParentRoute: () => rootRoute,
+} as never);
+
 const stub = (path: string, title: string) =>
   createRoute({
     getParentRoute: () => rootRoute,
@@ -33,10 +40,15 @@ const stub = (path: string, title: string) =>
 const router = createRouter({
   routeTree: rootRoute.addChildren([
     checkout,
+    receipt,
     stub("/", "Chat Sydia"),
     stub("/settings/billing", "Langganan"),
   ]) as never,
-  history: createMemoryHistory({ initialEntries: ["/checkout"] }),
+  history: createMemoryHistory({
+    initialEntries: [
+      new URLSearchParams(window.location.search).get("to") ?? "/checkout",
+    ],
+  }),
   context: { queryClient } as never,
 });
 
