@@ -655,3 +655,25 @@ test("multi-day preview references display included dates without fetching user 
   ).toBeVisible();
   expect(requests).toEqual([]);
 });
+
+test("mixed same-title items render badges at every mention without a duplicate footer", async ({
+  page,
+}) => {
+  await page.goto("/e2e/entity-renderer.html?mode=mixed-items");
+  const answer = page.getByRole("main");
+  await expect(
+    answer.getByRole("button", { name: "Tugas: Baca buku" })
+  ).toHaveCount(1);
+  await expect(
+    answer.getByRole("button", { name: "Acara: Review Aurora" })
+  ).toHaveCount(2);
+  await expect(
+    answer.getByRole("button", { name: "Pengingat: Review Aurora" })
+  ).toHaveCount(1);
+  await expect(answer.getByRole("listitem")).toHaveCount(3);
+  await expect(answer.getByRole("listitem").nth(1)).toContainText(
+    "10.00–11.00 · sinkronisasi tertunda"
+  );
+  await expect(answer.getByRole("listitem").nth(2)).toContainText("08.00");
+  await expect(answer.getByRole("link")).toHaveCount(0);
+});

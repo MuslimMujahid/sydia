@@ -30,6 +30,115 @@ function tree(...children: Element[]): Root {
 }
 
 describe("entity Markdown enrichment", () => {
+  const event: ChatEntity = {
+    kind: "event",
+    id: "shared/id",
+    title: "Review Aurora",
+    startAt: "2026-10-29T02:00:00Z",
+    endAt: "2026-10-29T03:00:00Z",
+    timezone: "Asia/Makassar",
+    mutation: true,
+    observedAt: task.observedAt,
+  };
+
+  const reminder: ChatEntity = {
+    kind: "reminder",
+    id: "shared/id",
+    title: "Review Aurora",
+    scheduledAt: "2026-10-29T00:00:00Z",
+    mutation: true,
+    observedAt: task.observedAt,
+  };
+
+  it("renders same-title event and reminder references inline without appending duplicates", () => {
+    const markdown = tree(
+      element("a", "Review Aurora", { href: "#event/shared%2Fid" }),
+      element("a", "Review Aurora", { href: "#reminder/shared%2Fid" }),
+      element("p", "Kamis, 10:00–11:00 · sinkronisasi tertunda")
+    );
+
+    rehypeEntityMentions([event, reminder])()(markdown);
+    assert.deepEqual(
+      markdown,
+      tree(
+        element("span", "Review Aurora", {
+          "data-entity-key": "event:shared/id",
+        }),
+        element("span", "Review Aurora", {
+          "data-entity-key": "reminder:shared/id",
+        }),
+        element("p", "Kamis, 10:00–11:00 · sinkronisasi tertunda")
+      )
+    );
+  });
+
+  it("renders a badge at every explicit mention of the same event", () => {
+    const markdown = tree(
+      element("a", "Review Aurora", { href: "#event/shared%2Fid" }),
+      element("a", "Review Aurora", { href: "#event/shared%2Fid" })
+    );
+
+    rehypeEntityMentions([event])()(markdown);
+    assert.deepEqual(
+      markdown,
+      tree(
+        element("span", "Review Aurora", {
+          "data-entity-key": "event:shared/id",
+        }),
+        element("span", "Review Aurora", {
+          "data-entity-key": "event:shared/id",
+        })
+      )
+    );
+  });
+
+  it("appends only the omitted reminder when the event is already referenced", () => {
+    const markdown = tree(
+      element("a", "Review Aurora", { href: "#event/shared%2Fid" })
+    );
+
+    rehypeEntityMentions([event, reminder])()(markdown);
+    assert.deepEqual(
+      markdown,
+      tree(
+        element("span", "Review Aurora", {
+          "data-entity-key": "event:shared/id",
+        }),
+        {
+          type: "element",
+          tagName: "p",
+          properties: {},
+          children: [
+            element("span", "Review Aurora", {
+              "data-entity-key": "reminder:shared/id",
+            }),
+          ],
+        }
+      )
+    );
+  });
+
+  it("uses explicit kind labels to resolve older same-title mentions", () => {
+    const markdown = tree(element("strong", "Pengingat: Review Aurora"));
+    const mentioned = enrichEntityMentions(markdown, [event, reminder]);
+    assert.deepEqual([...mentioned], ["reminder:shared/id"]);
+  });
+
+  it("leaves older ambiguous mentions unresolved", () => {
+    const markdown = tree(element("strong", "Review Aurora"));
+    assert.equal(enrichEntityMentions(markdown, [event, reminder]).size, 0);
+    assert.deepEqual(markdown, tree(element("strong", "Review Aurora")));
+  });
+
+  it("does not treat a reminder ID as a confirmed event ID", () => {
+    const markdown = tree(
+      element("a", "Review Aurora", { href: "#event/shared%2Fid" })
+    );
+
+    enrichEntityMentions(markdown, [reminder], false);
+    assert.deepEqual(markdown, tree(element("span", "Review Aurora")));
+  });
+
   it("uses a confirmed task ID when two lookup results have the same title", () => {
     const markdown = tree(element("a", "Baca buku", { href: "#task/task-1" }));
 
