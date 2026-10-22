@@ -11,7 +11,13 @@ RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lock
 
 FROM oven/bun:1.3 AS build
 ARG VITE_API_URL=http://localhost:5000
+ARG VITE_WHATSAPP_ENABLED=false
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WHATSAPP_ENABLED=$VITE_WHATSAPP_ENABLED
+RUN case "$VITE_WHATSAPP_ENABLED" in \
+      true|false) echo "Building frontend with VITE_WHATSAPP_ENABLED=$VITE_WHATSAPP_ENABLED" ;; \
+      *) echo 'VITE_WHATSAPP_ENABLED must be true or false.' >&2; exit 1 ;; \
+    esac
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=prune /app/out/full/ .
