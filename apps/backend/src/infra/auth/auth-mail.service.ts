@@ -1,6 +1,5 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import nodemailer, { type Transporter } from 'nodemailer';
 import { APIError } from 'better-auth/api';
 
 export type AuthMail = {
@@ -17,42 +16,63 @@ const SUBJECTS: Record<AuthMail['type'], string> = {
 };
 
 @Injectable()
-export class AuthMailService implements OnModuleDestroy {
+export class AuthMailService {
   private readonly logger = new Logger(AuthMailService.name);
-  private readonly transport: Transporter;
+  private readonly apiKey: string;
   private readonly sender: string;
 
   constructor(config: ConfigService) {
     this.sender = config.getOrThrow<string>('BACKEND_MAIL_FROM');
-    this.transport = nodemailer.createTransport({
-      url: config.getOrThrow<string>('BACKEND_SMTP_URL'),
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 15_000,
-    });
+    this.apiKey = config.getOrThrow<string>('BACKEND_RESEND_API_KEY');
+
+    if (!this.sender.trim() || !this.apiKey.trim()) {
+      throw new Error(
+        'BACKEND_MAIL_FROM and BACKEND_RESEND_API_KEY must be non-empty.',
+      );
+    }
   }
 
   async send({ email, otp, type }: AuthMail): Promise<void> {
     try {
-      await this.transport.sendMail({
-        from: this.sender,
-        to: email,
-        subject: SUBJECTS[type],
-        text: `${SUBJECTS[type]}\n\nKode Anda: ${otp}\n\nKode ini berlaku selama 10 menit dan hanya dapat digunakan sekali. Jangan bagikan kode ini kepada siapa pun. Jika Anda tidak meminta kode ini, abaikan email ini.`,
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(15_000),
+        body: JSON.stringify({
+          from: this.sender,
+          to: [email],
+          subject: SUBJECTS[type],
+          text: `${SUBJECTS[type]}\n\nKode Anda: ${otp}\n\nKode ini berlaku selama 10 menit dan hanya dapat digunakan sekali. Jangan bagikan kode ini kepada siapa pun. Jika Anda tidak meminta kode ini, abaikan email ini.`,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Resend rejected authentication email delivery.');
+      }
+
+      const result: unknown = await response.json();
+
+      if (
+        !result ||
+        typeof result !== 'object' ||
+        !('id' in result) ||
+        typeof result.id !== 'string' ||
+        !result.id.trim()
+      ) {
+        throw new Error('Resend did not return an email ID.');
+      }
     } catch {
-      // Never log the transport error: it may contain credentials or message data.
+      // Never log provider responses or fetch errors: they may contain authentication data.
       this.logger.error(
-        'Authentication email delivery failed. Check BACKEND_SMTP_URL and the mail server.',
+        'Authentication email delivery failed. Check BACKEND_RESEND_API_KEY, the verified BACKEND_MAIL_FROM domain, and Resend delivery logs.',
       );
       throw new APIError('SERVICE_UNAVAILABLE', {
         code: 'AUTH_DELIVERY_FAILED',
         message: 'Kode belum terkirim. Silakan coba lagi.',
       });
     }
-  }
-
-  onModuleDestroy(): void {
-    this.transport.close();
   }
 }

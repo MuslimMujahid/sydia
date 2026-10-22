@@ -63,12 +63,12 @@ Initial engineering defaults, per normalized target email and shared across purp
 | Wrong guesses/challenge | 5           | Fixed product rule                |
 | Recent ownership proof  | 600 seconds | Fixed initial engineering default |
 
-Redis connection/command failures fail closed with safe operator diagnostics. Configure `BACKEND_REDIS_URL`; authentication must not continue without protection storage. SMTP failures also surface explicitly. Passwords, OTPs, OAuth tokens, cookies, and recovery credentials must never be logged.
+Redis connection/command failures fail closed with safe operator diagnostics. Configure `BACKEND_REDIS_URL`; authentication must not continue without protection storage. Resend delivery failures also surface explicitly. Passwords, OTPs, OAuth tokens, cookies, and recovery credentials must never be logged.
 
 ## Local and production configuration
 
-1. Install dependencies with Bun. Keep the existing database/Redis services running. The development compose file adds Mailpit on loopback SMTP `1025` and inbox UI `8025`.
-2. Set `BACKEND_SMTP_URL` and `BACKEND_MAIL_FROM`. Local values are shown in `.env.example`. Production requires a real SMTP service, verified sender/domain, delivery monitoring, and provider ownership; choosing that provider remains an operational decision. Mailpit acceptance is not proof of external inbox delivery.
+1. Install dependencies with Bun. Keep the existing database/Redis services running. Authentication mail now uses the Resend HTTPS API; local SMTP and Mailpit are no longer required.
+2. Set server-only `BACKEND_RESEND_API_KEY` (send permission) and `BACKEND_MAIL_FROM=Sydia <no-reply@sydia.id>` in the ignored root `.env` (linked into the backend). Verify `sydia.id` in Resend before sending. See [Send Email](https://resend.com/docs/api-reference/emails/send-email). Requests have a 15-second timeout and require a successful response with an email ID. Rejections, rate limits, malformed responses, and network failures return `AUTH_DELIVERY_FAILED` with safe operator diagnostics; raw provider messages are never logged. No automatic retries are made. API acceptance is not proof of inbox delivery; monitor delivery/bounce events in Resend.
 3. Keep `BACKEND_AUTH_SECRET`, `BACKEND_AUTH_URL`, `FRONTEND_URL`, Redis configuration, and existing encryption configuration consistent across backend replicas. Use `localhost` consistently in local browser tests; `127.0.0.1` is a different trusted origin.
 4. Configure `BACKEND_GOOGLE_IDENTITY_CLIENT_ID` and `BACKEND_GOOGLE_IDENTITY_CLIENT_SECRET` server-side. Never place secrets in a `VITE_*` setting or chat. Both must be supplied together. The backend rejects an apparent identity/Calendar project-ID collision.
 5. Register both identity redirect URIs in the **identity** Cloud project: `${BACKEND_AUTH_URL}/api/auth/callback/google` and `${BACKEND_AUTH_URL}/api/auth/registration/google/callback`. Keep the existing Calendar redirect URI in its **separate Calendar** Cloud project. Configure consent/test users and production consent requirements for each deployment.
@@ -128,7 +128,7 @@ Before release:
 
 1. Identity OAuth configuration is complete locally: **Sydia Identity Local Web** in `sydia-identity-dev`, consent app **Sydia Development**, External testing audience, and owner-approved support/developer contact `xcaptcha15@gmail.com`. The downloaded credentials matched both callback URIs and were saved only to the ignored environment. Real sign-in succeeded; the [persisted baseline](../.impeccable/review/account-registration/implementation/google-real-sign-in-baseline.json) records the verified Google-only account with onboarding complete and Calendar absent. Real repeat login and Google account switching have also succeeded. Dedicated fresh linked-Google confirmation has also passed. Further live identity rejection/cancellation, existing-email collision, and explicit-linking tests were stopped at the owner's request; their controlled automated coverage does not establish a real provider round trip. Verify a linked user's ID/data/Calendar account remain unchanged after Sydia email correction.
 2. Different-account Calendar connection and disconnect/re-login have passed, followed by same-account Calendar revocation and fresh identity re-login across the separate Cloud projects. See the real-provider evidence table below. The owner-approved `muslimmujahid1712@gmail.com` was added to the Calendar testing audience after Google initially rejected it with 403; three testers are now listed. The seed account's existing `xcaptcha15@gmail.com` Calendar grant was preserved. The owner cancelled a real Calendar consent attempt; Sydia returned to `/settings/integrations?googleCalendar=denied` with the intended cancellation message, the same active Sydia session, unchanged verified user, and disconnected/token-free Calendar state. The owner then approved a fresh retry. Reconnection restored the same Calendar integration ID and primary calendar, with access and refresh credentials present, while preserving the Sydia user ID and Google identity. Finish manual calendar switching. Review late callbacks and account deletion across both projects, including identity-grant cleanup.
-3. Confirm external SMTP delivery, bounce handling, operational monitoring, and the production sender. Review quotas and retention with the owner.
+3. Confirm external Resend delivery, bounce handling, operational monitoring, and the production sender. Review quotas and retention with the owner.
 4. Complete live Penpot comparison of remaining provider/error/linked settings states and keyboard/screen-reader review. Penpot reconnected on 19 October; the restarted watchdog confirmed healthy plugin round trips. The Google collision screen now places recovery and the linking explanation before submission as designed. Its email remains editable because the provider error redirect does not supply a trusted selected address; the design's example identity must not be invented in the application. The Aurora contrast limitation above remains recorded following the owner's request to restore the original fill.
 
 ### Real Google verification evidence
@@ -168,3 +168,21 @@ In the Google Auth Platform **Clients** page for `sydia-identity-dev` (x Captcha
 Keep the new client in the identity project; the existing Calendar client remains in `sydia-dev`. Save the resulting client ID and secret only in the local backend environment as `BACKEND_GOOGLE_IDENTITY_CLIENT_ID` and `BACKEND_GOOGLE_IDENTITY_CLIENT_SECRET`; do not paste the secret into chat or commit it. The development backend must restart with those values before real OAuth testing. The client was created with owner approval, and the downloaded credentials were validated and saved locally. Their values are excluded from this document and chat.
 
 These are release gates, not evidence of completed provider or production testing.
+
+## Resend migration (23 October 2026)
+
+SMTP/Nodemailer and the Mailpit compose service have been removed. Earlier validation entries above describe historical SMTP runs. Browser registration/recovery tests now launch a dedicated backend with `e2e/resend-fixture.mjs` preloaded at the HTTP boundary, a fake key, and an in-memory inbox on `127.0.0.1:8026`; they never send real email. Stop any backend already using the configured Playwright port before running these tests.
+
+Targeted checks:
+
+```sh
+cd apps/backend
+bun run test --runInBand src/infra/auth/auth-mail.service.spec.ts
+bun run check-types
+cd ../frontend
+bun run test:e2e e2e/account-registration.spec.ts
+```
+
+Migration validation: all 72 backend authentication tests (5 suites) passed; backend/frontend type checks and targeted lint passed. An endpoint mutation was detected by the new Resend boundary test. The compiled backend mail service also passed the local browser-fixture capture check. A live request through `AuthMailService` using the configured sender/key was accepted by Resend for its official `delivered@resend.dev` test sink; this proves API acceptance, not real inbox placement. The full browser registration suite could not start because the existing billing configuration enables checkout without `MAYAR_WEBHOOK_TOKEN`.
+
+Follow-up validation on 23 October 2026: after `MAYAR_WEBHOOK_TOKEN` was configured, all **13 registration/recovery Chromium tests passed** with the local Resend fixture. The Playwright backend now explicitly sets `NODE_ENV=test`. The successful run inherited the root `.env` values through Bun and set both Playwright URLs to `localhost`, using the existing PostgreSQL service on port `55432`. Billing requests during the run still reported missing `billing_account` and `storage_reservation` tables; those errors did not fail the authentication scenarios and remain a database migration follow-up.
