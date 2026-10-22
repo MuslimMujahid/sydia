@@ -103,6 +103,7 @@ export class TelegramService implements OnModuleInit {
   async deliverNotification(input: {
     kind?: string;
     eventReminder?: CalendarReminderDispatch;
+    reminderOccurrenceKey?: string;
     userId: string;
     content: string;
     idempotencyKey: string;
@@ -138,7 +139,16 @@ export class TelegramService implements OnModuleInit {
       return { status: 'skipped_obsolete' };
     }
 
-    if (!(await this.notifications.claimDelivery(input.userId, existing.id))) {
+    if (
+      !(await this.notifications.claimDelivery(input.userId, existing.id, {
+        createdAt: existing.createdAt,
+        occurrenceAt:
+          input.eventReminder?.scheduledAt ??
+          input.reminderOccurrenceKey?.slice(
+            input.reminderOccurrenceKey.indexOf(':') + 1,
+          ),
+      }))
+    ) {
       const current = await this.notifications.findByIdempotencyKey(
         input.userId,
         input.idempotencyKey,

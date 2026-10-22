@@ -1,8 +1,11 @@
-export const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
+import { Logger } from '@nestjs/common';
+import { BILLING_FILE_BYTES } from '../billing-policy';
+
+export const MAX_MEDIA_BYTES = BILLING_FILE_BYTES;
 
 export class MediaDownloadLimitError extends Error {
   constructor() {
-    super('Ukuran file maksimal 25 MiB. Perkecil file lalu unggah kembali.');
+    super('Ukuran file maksimal 100 MB. Perkecil file lalu unggah kembali.');
     this.name = 'MediaDownloadLimitError';
   }
 }
@@ -11,7 +14,12 @@ export async function readMediaResponse(response: Response): Promise<Buffer> {
   const declared = Number(response.headers?.get('content-length'));
 
   if (Number.isFinite(declared) && declared > MAX_MEDIA_BYTES) {
-    await response.body?.cancel().catch(() => undefined);
+    await response.body?.cancel().catch(() => {
+      Logger.warn(
+        'Media stream cancellation failed during bounded cleanup; no retry will be attempted.',
+        'MediaDownload',
+      );
+    });
     throw new MediaDownloadLimitError();
   }
 
@@ -35,7 +43,12 @@ export async function readMediaResponse(response: Response): Promise<Buffer> {
       chunks.push(Buffer.from(result.value));
     }
   } finally {
-    await reader.cancel().catch(() => undefined);
+    await reader.cancel().catch(() => {
+      Logger.warn(
+        'Media stream cancellation failed during bounded cleanup; no retry will be attempted.',
+        'MediaDownload',
+      );
+    });
     reader.releaseLock();
   }
 }

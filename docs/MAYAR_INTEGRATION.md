@@ -8,6 +8,27 @@
 
 Read this before writing billing code. It records what was tested, what came from documentation, and what is still open.
 
+## Implementation update — 22 October 2026
+
+The research below is the historical 21 October snapshot. Billing is now implemented
+as one prepaid Sydia product, using standalone V2 invoices and manual renewals rather
+than Mayar memberships. See [billing operations](./runbooks/BILLING_MAYAR.md) for
+configuration, migration order, operator recovery, and release checks.
+
+The implementation's sandbox contract verified `POST /invoices/create`,
+`GET /invoices/{id}`, and `GET /transactions/{id}` against a synthetic unpaid invoice:
+invoice and transaction IDs, merchant identity, decimal IDR amount, 15-minute expiry,
+and local order reference. Creation accepts an `extraData` object; transaction detail
+returns it as **JSON text**. Merchant identity is `invoice.userId` and
+`transaction.user.id`; the invoice is also `transaction.paymentLink.id` and lists its
+transaction in `invoice.transactions`.
+The unpaid invoice automatically reported `closed` after the 15-minute expiry.
+
+The prior QRIS/payment-link callback test below does not establish the paid-invoice
+callback contract for this integration. Complete an actual sandbox invoice payment
+and callback verification before enabling production checkout. Automated callback
+tests use fixtures. Production checkout and enforcement default to disabled.
+
 Evidence labels used below:
 
 - **[sandbox]** tested against the Mayar sandbox API with a real key.

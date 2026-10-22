@@ -1,3 +1,8 @@
+import {
+  billingTestAccess,
+  billingAccountTestAccess,
+} from '../../../test/support/billing-fixtures';
+import type { BillingAccessService } from '../billing';
 import { CalendarReminderService } from '../calendar/calendar-reminder.service';
 import { CalendarReadService } from '../calendar/calendar-read.service';
 import type { ICalendarRepository } from '../../database/interfaces';
@@ -48,7 +53,10 @@ function preferences(input: Partial<UserPreference> = {}): UserPreference {
   };
 }
 
-function setup(storedPreferences: UserPreference | null) {
+function setup(
+  storedPreferences: UserPreference | null,
+  access: BillingAccessService = billingTestAccess(),
+) {
   const findDeliveryByIdempotencyKey = jest
     .fn<INotificationRepository['findDeliveryByIdempotencyKey']>()
     .mockResolvedValue(null);
@@ -69,6 +77,25 @@ function setup(storedPreferences: UserPreference | null) {
     findDeliveryByIdempotencyKey,
     createDelivery,
     rearmEventReminder,
+    claimDelivery: jest
+      .fn<INotificationRepository['claimDelivery']>()
+      .mockResolvedValue(true),
+    updateDelivery: jest
+      .fn<INotificationRepository['updateDelivery']>()
+      .mockResolvedValue(delivery('telegram')),
+    createAttempt: jest
+      .fn<INotificationRepository['createAttempt']>()
+      .mockResolvedValue({
+        id: 'attempt',
+        deliveryId: 'delivery-telegram',
+        attemptNumber: 1,
+        providerMessageId: null,
+        status: 'skipped_inactive',
+        errorMessage: null,
+        attemptedAt: new Date(0),
+        deliveredAt: null,
+        createdAt: new Date(0),
+      }),
   } as unknown as INotificationRepository;
 
   type AddNotificationJob = (
@@ -85,6 +112,7 @@ function setup(storedPreferences: UserPreference | null) {
 
   return {
     service: new NotificationService(
+      access,
       repository,
       queues,
       new CalendarReminderService(
@@ -99,6 +127,7 @@ function setup(storedPreferences: UserPreference | null) {
     findDeliveryByIdempotencyKey,
     whatsappAdd,
     telegramAdd,
+    repository,
   };
 }
 
@@ -233,6 +262,81 @@ describe('NotificationService channel routing', () => {
     expect(createDelivery).toHaveBeenCalledTimes(1);
     expect(whatsappAdd).toHaveBeenCalledTimes(1);
     expect(telegramAdd).not.toHaveBeenCalled();
+  });
+});
+
+describe('NotificationService paid access', () => {
+  const account = {
+    userId: 'user-1',
+    trialStartsAt: new Date('2026-10-22T00:00:00Z'),
+    trialEndsAt: new Date('2026-10-29T00:00:00Z'),
+    paidUntil: null,
+    lastActivatedAt: new Date('2026-10-22T00:00:00Z'),
+  };
+
+  afterEach(() => jest.useRealTimers());
+
+  test('expired access stops reminder enqueue without changing saved preferences', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-01T00:00:00Z'));
+    const { service, createDelivery, telegramAdd, whatsappAdd } = setup(
+      preferences(),
+      billingAccountTestAccess(account),
+    );
+
+    expect(await service.enqueue(intent)).toMatchObject({
+      policyOutcome: 'skipped_inactive',
+    });
+    expect(createDelivery).not.toHaveBeenCalled();
+    expect(telegramAdd).not.toHaveBeenCalled();
+    expect(whatsappAdd).not.toHaveBeenCalled();
+  });
+
+  test('renewal discards queued occurrences from the expired period', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-02T00:00:00Z'));
+    const { service, repository } = setup(
+      preferences(),
+      billingAccountTestAccess({
+        ...account,
+        paidUntil: new Date('2026-12-01T00:00:00Z'),
+        lastActivatedAt: new Date('2026-11-01T00:00:00Z'),
+      }),
+    );
+
+    expect(
+      await service.claimDelivery('user-1', 'delivery-telegram', {
+        createdAt: new Date('2026-10-30T00:00:00Z'),
+        occurrenceAt: '2026-10-30T00:00:00Z',
+      }),
+    ).toBe(false);
+    expect(repository.claimDelivery).not.toHaveBeenCalled();
+    expect(repository.updateDelivery).toHaveBeenCalledWith(
+      'user-1',
+      'delivery-telegram',
+      expect.objectContaining({ status: 'skipped_inactive' }),
+    );
+  });
+
+  test('renewal allows future reminder occurrences', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-02T00:00:00Z'));
+    const { service, repository } = setup(
+      preferences(),
+      billingAccountTestAccess({
+        ...account,
+        paidUntil: new Date('2026-12-01T00:00:00Z'),
+        lastActivatedAt: new Date('2026-11-01T00:00:00Z'),
+      }),
+    );
+
+    expect(
+      await service.claimDelivery('user-1', 'delivery-telegram', {
+        createdAt: new Date('2026-10-30T00:00:00Z'),
+        occurrenceAt: '2026-11-02T00:00:00Z',
+      }),
+    ).toBe(true);
+    expect(repository.claimDelivery).toHaveBeenCalledWith(
+      'user-1',
+      'delivery-telegram',
+    );
   });
 });
 

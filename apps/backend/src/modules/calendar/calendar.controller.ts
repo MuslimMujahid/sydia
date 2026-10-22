@@ -1,3 +1,4 @@
+import { AllowInactiveBilling } from '../billing';
 import {
   Body,
   Controller,
@@ -231,7 +232,9 @@ export class CalendarController {
     return this.service.retrySync(session.user.id, id);
   }
 
-  @Post('events/occurrences/resolve') async resolveOccurrence(
+  @AllowInactiveBilling()
+  @Post('events/occurrences/resolve')
+  async resolveOccurrence(
     @Session() session: UserSession,
     @Body() input: ResolveCalendarOccurrenceDto,
   ) {
@@ -436,7 +439,9 @@ export class CalendarController {
     return { url: request.authorizationUrl };
   }
 
-  @Post('disconnect') async disconnect(@Session() session: UserSession) {
+  @AllowInactiveBilling()
+  @Post('disconnect')
+  async disconnect(@Session() session: UserSession) {
     return this.oauth.disconnect(session.user.id);
   }
 

@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { AppModule } from './app.module';
+import { BillingService } from './modules/billing';
 import { processCalendarReminderJob } from './modules/notifications/calendar-reminder-job.processor';
 import { CalendarReminderService } from './modules/calendar/calendar-reminder.service';
 import { processReminderJob } from './modules/reminders/reminder-job.processor';
@@ -46,6 +47,7 @@ import {
 
 async function bootstrap(): Promise<void> {
   const context = await NestFactory.createApplicationContext(AppModule);
+  const billing = context.get(BillingService);
   const config = context.get(ConfigService);
   const memoryDeliveries = context.get(HindsightDeliveryService);
   const memoryIngestion = context.get(HindsightIngestionService);
@@ -69,6 +71,24 @@ async function bootstrap(): Promise<void> {
   const connection = {
     url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
   };
+
+  const billingWorker = new Worker('billing', () => billing.recover(), {
+    connection,
+    concurrency: 1,
+  });
+
+  billingWorker.on('failed', (_job, error) =>
+    Logger.error(
+      'Billing recovery failed; inspect billing orders and provider configuration',
+      error.stack,
+      'BillingWorker',
+    ),
+  );
+  await queues.billing.upsertJobScheduler(
+    'billing-recovery',
+    { every: 30_000 },
+    { name: 'recover', data: { kind: 'recover' } },
+  );
 
   const reminderWorker = new Worker<ReminderJob>(
     'reminders',
@@ -278,6 +298,7 @@ async function bootstrap(): Promise<void> {
 
   const close = async () => {
     await Promise.all([
+      billingWorker.close(),
       reminderWorker.close(),
       calendarReminderWorker.close(),
       documentWorker.close(),

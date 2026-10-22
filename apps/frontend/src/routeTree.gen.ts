@@ -32,6 +32,7 @@ import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
 import { Route as AdminWhatsappRouteImport } from './routes/admin_.whatsapp'
 import { Route as AppSettingsAssistantRouteImport } from './routes/_app.settings.assistant'
+import { Route as AppSettingsBillingRouteImport } from './routes/_app.settings.billing'
 import { Route as AppSettingsIntegrationsRouteImport } from './routes/_app.settings.integrations'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/_app.settings.notifications'
 import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
@@ -152,6 +153,11 @@ const AppSettingsAssistantRoute = AppSettingsAssistantRouteImport.update({
   path: '/assistant',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsBillingRoute = AppSettingsBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsIntegrationsRoute = AppSettingsIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -202,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/settings/assistant': typeof AppSettingsAssistantRoute
+  '/settings/billing': typeof AppSettingsBillingRoute
   '/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/': typeof AppIndexRoute
   '/settings/assistant': typeof AppSettingsAssistantRoute
+  '/settings/billing': typeof AppSettingsBillingRoute
   '/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/admin_/whatsapp': typeof AdminWhatsappRoute
   '/_app/': typeof AppIndexRoute
   '/_app/settings/assistant': typeof AppSettingsAssistantRoute
+  '/_app/settings/billing': typeof AppSettingsBillingRoute
   '/_app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/whatsapp'
     | '/settings/assistant'
+    | '/settings/billing'
     | '/settings/integrations'
     | '/settings/notifications'
     | '/settings/profile'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/admin/whatsapp'
     | '/'
     | '/settings/assistant'
+    | '/settings/billing'
     | '/settings/integrations'
     | '/settings/notifications'
     | '/settings/profile'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/admin_/whatsapp'
     | '/_app/'
     | '/_app/settings/assistant'
+    | '/_app/settings/billing'
     | '/_app/settings/integrations'
     | '/_app/settings/notifications'
     | '/_app/settings/profile'
@@ -534,6 +546,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsAssistantRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/billing': {
+      id: '/_app/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof AppSettingsBillingRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/integrations': {
       id: '/_app/settings/integrations'
       path: '/integrations'
@@ -574,6 +593,7 @@ declare module '@tanstack/react-router' {
 
 interface AppSettingsRouteChildren {
   AppSettingsAssistantRoute: typeof AppSettingsAssistantRoute
+  AppSettingsBillingRoute: typeof AppSettingsBillingRoute
   AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
   AppSettingsProfileRoute: typeof AppSettingsProfileRoute
@@ -583,6 +603,7 @@ interface AppSettingsRouteChildren {
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAssistantRoute: AppSettingsAssistantRoute,
+  AppSettingsBillingRoute: AppSettingsBillingRoute,
   AppSettingsIntegrationsRoute: AppSettingsIntegrationsRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
   AppSettingsProfileRoute: AppSettingsProfileRoute,

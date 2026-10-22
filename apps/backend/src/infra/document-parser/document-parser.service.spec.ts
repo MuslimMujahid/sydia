@@ -43,7 +43,7 @@ describe('DocumentParserService lifecycle', () => {
         service.parse({
           originalname: 'huge.txt',
           mimetype: 'text/plain',
-          buffer: Buffer.alloc(25 * 1024 * 1024 + 1),
+          buffer: Buffer.alloc(100_000_000 + 1),
         }),
       ).rejects.toMatchObject({ code: 'FILE_TOO_LARGE' });
     } finally {

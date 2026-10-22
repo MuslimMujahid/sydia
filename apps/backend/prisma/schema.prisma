@@ -69,10 +69,94 @@ model User {
   secretVaultUnlocks       SecretVaultUnlock[]
   dailyNotes               DailyNote[]
   workspaceItems           WorkspaceItem[]
+  billingAccount           BillingAccount?
+  billingOrders            BillingOrder[]
+  storageReservations      StorageReservation[]
 
   @@index([role])
   @@index([banned])
   @@map("user")
+}
+
+model BillingAccount {
+  userId           String   @id
+  trialStartsAt    DateTime
+  trialEndsAt      DateTime
+  paidUntil        DateTime?
+  lastActivatedAt  DateTime?
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("billing_account")
+}
+
+model BillingOrder {
+  id                    String   @id @default(cuid())
+  userId                String?
+  environment           String
+  idempotencyKey        String
+  amount                Int
+  durationDays          Int      @default(30)
+  status                String   @default("creating")
+  providerInvoiceId     String?
+  providerTransactionId String?
+  paymentUrl            String?
+  expiresAt             DateTime
+  appliedAt             DateTime?
+  nextCheckAt           DateTime @default(now())
+  attempts              Int      @default(0)
+  errorCode             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payment               BillingPayment?
+
+  @@unique([userId, idempotencyKey])
+  @@unique([environment, providerInvoiceId])
+  @@unique([environment, providerTransactionId])
+  @@index([status, nextCheckAt])
+  @@index([userId, createdAt])
+  @@map("billing_order")
+}
+
+model BillingPayment {
+  id                    String   @id @default(cuid())
+  orderId               String   @unique
+  environment           String
+  providerTransactionId String
+  amount                Int
+  verifiedAt            DateTime
+  order                 BillingOrder @relation(fields: [orderId], references: [id])
+
+  @@unique([environment, providerTransactionId])
+  @@map("billing_payment")
+}
+
+model BillingWebhook {
+  id            String   @id
+  environment   String
+  event         String
+  transactionId String?
+  invoiceId     String?
+  status        String   @default("pending")
+  receivedAt    DateTime @default(now())
+  processedAt   DateTime?
+  attempts      Int      @default(0)
+  errorCode     String?
+
+  @@index([status, receivedAt])
+  @@map("billing_webhook")
+}
+
+model StorageReservation {
+  storageKey String   @id
+  userId     String
+  bytes      BigInt
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("storage_reservation")
 }
 
 model ExternalIdentity {

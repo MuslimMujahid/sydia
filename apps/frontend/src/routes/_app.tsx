@@ -1,3 +1,4 @@
+import { BillingAccessBanner } from "@/components/settings/billing-access-banner";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ErrorState, LoadingState } from "@/components/app-states";
@@ -21,6 +22,7 @@ function AppLayout() {
 
   return (
     <DashboardShell user={user}>
+      <BillingAccessBanner locale={user.locale} />
       <Outlet />
       {/* eslint-disable-next-line turbo/no-undeclared-env-vars -- Vite build-time constant. */}
       {import.meta.env.DEV ? <DevToolbar locale={user.locale} /> : null}

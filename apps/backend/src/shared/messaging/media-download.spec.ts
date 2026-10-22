@@ -46,7 +46,7 @@ describe('bounded connector media downloads', () => {
         MediaDownloadLimitError,
       );
       expect(cancel).toHaveBeenCalledTimes(1);
-      expect(chunks).toBeLessThanOrEqual(27);
+      expect(chunks).toBeLessThanOrEqual(97);
     },
   );
 

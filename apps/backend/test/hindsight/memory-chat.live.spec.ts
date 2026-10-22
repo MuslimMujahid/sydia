@@ -1,3 +1,7 @@
+import {
+  billingTestAccess,
+  billingTestStorage,
+} from '../support/billing-fixtures';
 import { createFactReviewer } from './create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -275,6 +279,8 @@ type Turn = {
         new PrismaContactRepository(prisma),
         new PrismaContactGroupRepository(prisma),
         new DocumentService(
+          billingTestAccess(),
+          billingTestStorage(),
           documents,
           new StorageService(config),
           embeddings,
@@ -708,6 +714,7 @@ type Turn = {
           toolExecutor,
           queues,
           new MemoryDreamSchedulerService(conversations, queues, config, users),
+          billingTestAccess(),
           audit,
         );
 

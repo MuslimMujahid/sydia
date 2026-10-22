@@ -1,9 +1,10 @@
-import { Bell, Cable, Sparkles, UserRound } from "lucide-react";
+import { Bell, Cable, CreditCard, Sparkles, UserRound } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils/cn";
 
 const SETTINGS_NAV_ITEMS = [
+  { to: "/settings/billing", label: "Langganan", icon: CreditCard },
   { to: "/settings/profile", label: "Profil", icon: UserRound },
   { to: "/settings/assistant", label: "Asisten", icon: Sparkles },
   { to: "/settings/notifications", label: "Notifikasi", icon: Bell },
