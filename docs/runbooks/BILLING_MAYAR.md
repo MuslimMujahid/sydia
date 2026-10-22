@@ -48,8 +48,8 @@ token rather than a body signature, so durable transaction idempotency is essent
 - Sign up a new account. Once `BACKEND_BILLING_ROLLOUT_AT` is set, onboarding gains a
   fourth "Pilih cara memulai" step: pay now through Mayar or continue on the free trial.
   Onboarding cannot finish for an account whose access already expired until it pays.
-  The step is skipped while billing is unconfigured (`state: disabled`) or when the
-  status request fails, so check the browser console if it does not appear.
+  The step is skipped until enforcement is enabled (and when the
+  status request fails), so check the browser console if it does not appear.
 - Verify an expired account can read, download, delete, export, and pay, but cannot
   send AI messages, upload, or change product data. Notification workers record
   `skipped_inactive` and do not send missed notifications in a batch on renewal.

@@ -105,7 +105,7 @@ export const Route = createFileRoute("/onboarding")({
 
     if (user.onboardingCompleted) throw redirect({ to: "/" });
 
-    // The payment step appears only once billing is configured. A status
+    // The payment step appears only once billing is enforced. A status
     // failure must not block onboarding; billing stays reachable in settings.
     const billing = await context.queryClient
       .ensureQueryData(billingStatusQueryOptions())
@@ -113,7 +113,7 @@ export const Route = createFileRoute("/onboarding")({
 
     return {
       user,
-      hasPlanStep: billing !== null && billing.state !== "disabled",
+      hasPlanStep: billing !== null && billing.enforced,
     };
   },
   head: () => ({

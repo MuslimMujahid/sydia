@@ -6,6 +6,7 @@ export default defineConfig({
   testMatch: [
     "billing.spec.ts",
     "onboarding-billing.spec.ts",
+    "account-menu.spec.ts",
     "note-drawer.spec.ts",
     "notes-move.spec.ts",
     "entity-renderer.spec.ts",
