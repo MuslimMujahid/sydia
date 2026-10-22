@@ -1,5 +1,7 @@
 # Sydia — Implementation Roadmap
 
+> WhatsApp update, 22 October 2026: [Per-user WhatsApp assistant accounts](./WHATSAPP_PER_USER_SPEC.md) supersedes the shared-number WhatsApp scope tracked below. Historical completion checkboxes do not establish completion of the per-user integration.
+
 > Tracking-oriented roadmap for the Sydia MVP.  
 > Detailed product and technical specifications are defined in the PRD and System Architecture Document.
 

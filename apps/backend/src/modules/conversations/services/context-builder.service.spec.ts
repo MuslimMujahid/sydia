@@ -760,6 +760,27 @@ describe('ContextBuilderService prompt prefix stability', () => {
 });
 
 describe('ContextBuilderService channel formatting', () => {
+  it('supplies native emphasis markers to the WhatsApp model context', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+      'message-1',
+      'whatsapp',
+    );
+
+    const channelPrompt = messages.find(
+      (entry) =>
+        entry.role === 'system' &&
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('# WhatsApp Message Formatting'),
+    );
+
+    expect(channelPrompt?.content).toContain('`*bold*` and `_italic_`');
+    expect(channelPrompt?.content).toContain(
+      'not Markdown `**bold**` or `*italic*`',
+    );
+  });
+
   it('injects Telegram formatting guidance and accounts for its tokens', async () => {
     const { messages, tokenUsage } = await createBuilder(10_000).build(
       user,

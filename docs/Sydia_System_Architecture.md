@@ -1,5 +1,7 @@
 # Sydia — System Architecture Document (SAD)
 
+> WhatsApp update, 22 October 2026: [Per-user WhatsApp assistant accounts](./WHATSAPP_PER_USER_SPEC.md) supersedes this document's shared-number architecture and conflicting WhatsApp delivery restrictions. Other architecture requirements remain unchanged.
+
 | Product | Sydia                                    |
 | ------- | ---------------------------------------- |
 | Version | 0.1                                      |

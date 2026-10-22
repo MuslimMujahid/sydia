@@ -1,17 +1,3 @@
-import type { NormalizedInboundMessage } from '../../shared/messaging';
-
-export type WhatsAppGatewayStatus =
-  | 'disconnected'
-  | 'connecting'
-  | 'connected'
-  | 'awaiting_pair'
-  | 'enforced'
-  | 'logged_out';
-
-export type WhatsAppInboundMessage = NormalizedInboundMessage & {
-  provider: 'whatsapp';
-};
-
 export type GoWaStatus = {
   device_id: string;
   is_connected: boolean;
@@ -37,6 +23,7 @@ export type GoWaDownloadResult = {
 export type GoWaWebhookMessage = {
   event: 'message';
   device_id?: string;
+  session_id?: string;
   timestamp?: string;
   payload: {
     id: string;
@@ -59,6 +46,7 @@ export type GoWaWebhookMessage = {
 export type GoWaWebhookReceipt = {
   event: 'message.ack';
   device_id?: string;
+  session_id?: string;
   timestamp?: string;
   payload: {
     ids: string[];
@@ -85,7 +73,6 @@ export type GoWaWebhookEvent =
 export interface WhatsAppClient {
   ensureDevice(deviceId: string): Promise<void>;
   status(): Promise<GoWaStatus>;
-  pairCode(phone: string): Promise<string>;
   logout(): Promise<void>;
   reconnect(): Promise<void>;
   sendText(phone: string, message: string): Promise<GoWaSendResult>;
@@ -110,9 +97,3 @@ export type WhatsAppClientOptions = {
   deviceId?: string;
   timeoutMs?: number;
 };
-
-export type WhatsAppClientFactory = (
-  options: WhatsAppClientOptions,
-) => WhatsAppClient;
-
-export const WHATSAPP_CLIENT_FACTORY = Symbol('WHATSAPP_CLIENT_FACTORY');

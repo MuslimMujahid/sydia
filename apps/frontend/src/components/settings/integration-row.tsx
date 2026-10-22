@@ -28,25 +28,25 @@ export function IntegrationRow({
 
   return (
     <section
-      className="py-5 first:pt-0 last:pb-0"
+      className="py-4 first:pt-0 last:pb-0"
       aria-labelledby={`${id}-title`}
     >
       <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           {logoSrc ? (
             <img
               src={logoSrc}
               alt=""
               aria-hidden="true"
-              width={32}
-              height={32}
-              className="size-8 shrink-0 object-contain"
+              width={28}
+              height={28}
+              className="size-7 shrink-0 object-contain"
             />
           ) : null}
           <div className="min-w-0 flex-1">
             <h3
               id={`${id}-title`}
-              className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] font-semibold text-ink"
+              className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm font-semibold text-ink"
             >
               <label htmlFor={id}>{title}</label>
               {account ? (
@@ -59,7 +59,7 @@ export function IntegrationRow({
             {description ? (
               <div
                 id={`${id}-description`}
-                className="mt-1.5 text-sm text-ink-muted break-words"
+                className="mt-1 text-[13px] leading-5 text-ink-muted break-words"
               >
                 {description}
               </div>

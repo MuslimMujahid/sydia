@@ -132,6 +132,23 @@ export class CalendarReminderService {
   ): Promise<CalendarEventOccurrence | null> {
     const start = new Date(job.startAt);
     if (start <= now || new Date(job.scheduledAt) > now) return null;
+
+    return this.resolveMissed(job, now);
+  }
+
+  /** Historical source validation for outage summaries, never ordinary sends. */
+  async resolveMissed(
+    job: CalendarReminderDispatch,
+    now = new Date(),
+  ): Promise<CalendarEventOccurrence | null> {
+    const start = new Date(job.startAt);
+    const due = new Date(job.scheduledAt);
+    if (
+      !Number.isFinite(start.getTime()) ||
+      !Number.isFinite(due.getTime()) ||
+      due > now
+    )
+      return null;
     const events = await this.read.list(
       job.userId,
       new Date(start.getTime() - DAY_MS),

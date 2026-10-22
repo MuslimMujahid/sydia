@@ -39,7 +39,7 @@ export function SettingsNav() {
       aria-label="Navigasi pengaturan"
       // Below `lg` this is a swipeable row that runs to the screen edges, like
       // the task status chips; from `lg` it is a side rail.
-      className="relative -mx-5 flex gap-1 overflow-x-auto overscroll-x-contain scroll-px-5 px-5 [scrollbar-width:none] sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:mx-0 lg:w-52 lg:shrink-0 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
+      className="relative -mx-5 flex gap-1 max-sm:justify-between overflow-x-auto overscroll-x-contain scroll-px-5 px-5 [scrollbar-width:none] sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:mx-0 lg:w-52 lg:shrink-0 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
     >
       {SETTINGS_NAV_ITEMS.map((item) => {
         const Icon = item.icon;
@@ -51,13 +51,13 @@ export function SettingsNav() {
             to={item.to}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex min-h-10 shrink-0 items-center gap-2.5 rounded-md px-3 py-2 text-sm font-semibold whitespace-nowrap outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50",
+              "flex min-h-10 shrink-0 items-center gap-2.5 rounded-none border-b-2 border-transparent px-0 py-2 text-sm sm:rounded-md sm:px-3 font-semibold whitespace-nowrap outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50",
               active
-                ? "bg-surface-1 text-ink [&_svg]:text-brand"
+                ? "border-brand text-ink sm:border-transparent sm:bg-surface-1 [&_svg]:text-brand"
                 : "text-ink-muted hover:bg-surface-1 hover:text-ink"
             )}
           >
-            <Icon className="size-4" />
+            <Icon className="hidden size-4 sm:block" />
             {item.label}
           </Link>
         );

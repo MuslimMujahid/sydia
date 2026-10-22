@@ -1,12 +1,11 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import {
   CALENDAR_REPOSITORY,
   USER_PRIVACY_REPOSITORY,
-  WHATSAPP_REPOSITORY,
   type ICalendarRepository,
   type IUserPrivacyRepository,
-  type IWhatsAppRepository,
 } from '../../../database/interfaces';
+import { WhatsAppConnectionsGateway } from '../../../infra/whatsapp/whatsapp-connections.gateway';
 import { GoogleCalendarService } from '../../../infra/calendar';
 import { StorageService } from '../../../infra/storage';
 import { ApiException, ErrorCodes } from '../../../shared/errors';
@@ -15,13 +14,13 @@ import { MemoryArchiveService } from '../../memories/memory-archive.service';
 
 @Injectable()
 export class UserPrivacyService {
+  private readonly logger = new Logger(UserPrivacyService.name);
   constructor(
     @Inject(USER_PRIVACY_REPOSITORY)
     private readonly privacy: IUserPrivacyRepository,
     @Inject(CALENDAR_REPOSITORY)
     private readonly calendars: ICalendarRepository,
-    @Inject(WHATSAPP_REPOSITORY)
-    private readonly whatsapp: IWhatsAppRepository,
+    private readonly whatsapp: WhatsAppConnectionsGateway,
     private readonly google: GoogleCalendarService,
     private readonly storage: StorageService,
     private readonly memoryArchive: MemoryArchiveService,
@@ -63,7 +62,9 @@ export class UserPrivacyService {
     await this.calendars.disconnect(userId);
 
     try {
-      await this.whatsapp.revokeIdentity(userId);
+      const result = await this.whatsapp.disconnect(userId);
+      if (result.cleanupPending)
+        throw new Error('WhatsApp device cleanup is still pending.');
     } catch (error) {
       throw this.cleanupError('WhatsApp access could not be revoked', error);
     }
@@ -86,7 +87,11 @@ export class UserPrivacyService {
     // account deletion. Later writes are cleaned up by their processing finally.
     try {
       for (const key of keys) await this.storage.delete(extractionKey(key));
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        'Final document artifact cleanup failed after account deletion.',
+        error,
+      );
       throw new ApiException({
         code: ErrorCodes.INTERNAL_SERVER_ERROR,
         message:
@@ -107,6 +112,7 @@ export class UserPrivacyService {
   }
 
   private cleanupError(message: string, cause?: unknown): ApiException {
+    this.logger.error(message, cause);
     const detail = cause instanceof Error ? `: ${cause.message}` : '';
 
     return new ApiException({
