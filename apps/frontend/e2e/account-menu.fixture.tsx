@@ -11,7 +11,6 @@ import type { BillingStatus } from "../src/lib/services/api/billing/billing.api"
 import "../src/styles/globals.css";
 
 const params = new URLSearchParams(window.location.search);
-const NOW = Date.parse("2026-10-24T00:00:00Z");
 
 const base: BillingStatus = {
   enforced: true,
@@ -63,7 +62,6 @@ function Fixture() {
           collapsed={params.get("collapsed") === "1"}
           signingOut={false}
           onSignOut={() => undefined}
-          now={() => NOW}
         />
       </div>
     </main>

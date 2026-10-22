@@ -13,7 +13,7 @@ import type { IUserRepository } from '../../database/interfaces';
 import {
   PaymentGatewayError,
   type PaymentGateway,
-  type VerifiedInvoice,
+  type VerifiedPayment,
 } from '../../infra/mayar';
 import { BillingAccessService } from './billing-access.service';
 import { BillingService } from './billing.service';
@@ -66,6 +66,9 @@ function runtime(overrides: Partial<BillingOrder> = {}, role = 'user') {
     markOrder: jest.fn(() => Promise.resolve(undefined)),
     attachInvoice: jest.fn(() => Promise.resolve(undefined)),
     applyPayment: jest.fn(() => Promise.resolve(true)),
+    findMember: jest.fn(() => Promise.resolve<string | null>('MBR8X2QK')),
+    saveMember: jest.fn(() => Promise.resolve(undefined)),
+    findByProvider: jest.fn(() => Promise.resolve<BillingOrder | null>(null)),
     reviewOrder: () => Promise.resolve(row),
     linkReviewedInvoice: jest.fn(() => Promise.resolve(true)),
   });
@@ -77,33 +80,36 @@ function runtime(overrides: Partial<BillingOrder> = {}, role = 'user') {
     BACKEND_BILLING_PRICE_IDR: 29_000,
     MAYAR_ENVIRONMENT: 'sandbox',
     MAYAR_MERCHANT_ID: 'merchant',
+    MAYAR_MEMBERSHIP_PRODUCT_ID: 'product',
     FRONTEND_URL: 'http://localhost:3000',
   });
 
-  const paid: VerifiedInvoice = {
-    orderReference: 'order',
+  const paid: VerifiedPayment = {
     invoiceId: 'invoice',
-    transactionId: 'transaction',
     merchantId: 'merchant',
-    transactionMerchantId: 'merchant',
-    invoiceAmount: 29_000,
     amount: 29_000,
     invoiceStatus: 'paid',
-    status: 'paid',
-    paymentLinkId: 'invoice',
-    paymentMethod: 'ewallet/DANA',
+    transaction: {
+      id: 'transaction',
+      merchantId: 'merchant',
+      amount: 29_000,
+      status: 'paid',
+      paymentMethod: 'ewallet/DANA',
+    },
   };
 
   const gateway: PaymentGateway = {
+    ensureMember: jest.fn(() => Promise.resolve('MBR8X2QK')),
     createInvoice: jest.fn(() =>
       Promise.resolve({
         id: 'invoice',
         transactionId: 'transaction',
-        link: 'https://merchant.myr.id/invoices/test',
+        link: 'https://merchant.mayar.shop/pl/test',
+        amount: row.amount,
         expiresAt: row.expiresAt,
       }),
     ),
-    inspectInvoice: jest.fn(() => Promise.resolve(paid)),
+    inspectPayment: jest.fn(() => Promise.resolve(paid)),
   };
 
   const users = {
@@ -145,16 +151,16 @@ describe('Ambiguous payment operator recovery', () => {
     await expect(
       operations.linkInvoice('order', 'invoice', 'transaction', 'owner'),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-    expect(gateway.inspectInvoice).not.toHaveBeenCalled();
+    expect(gateway.inspectPayment).not.toHaveBeenCalled();
     expect(repository.linkReviewedInvoice).not.toHaveBeenCalled();
   });
-  test('a paid invoice for another local order cannot be linked by an admin', async () => {
+  test('a paid invoice other than the requested one cannot be linked by an admin', async () => {
     const { operations, paid, repository } = runtime(
       { status: 'review' },
       'admin',
     );
 
-    paid.orderReference = 'another-order';
+    paid.invoiceId = 'another-invoice';
     await expect(
       operations.linkInvoice('order', 'invoice', 'transaction', 'admin'),
     ).rejects.toThrow('does not match');
@@ -220,14 +226,92 @@ describe('Single-plan prepaid billing', () => {
       state: 'paid',
     });
   });
-  test('invoice creation uses the price persisted on the order', async () => {
-    const { service, gateway } = runtime({ amount: 59_000 });
+  test('an account with paid time left cannot buy another term', async () => {
+    const { service, repository, gateway } = runtime();
+
+    repository.ensureAccount = () =>
+      Promise.resolve(account({ paidUntil: new Date('2026-11-30T00:00:00Z') }));
+    repository.createOrder = jest.fn(() =>
+      Promise.resolve({ order: order(), created: true }),
+    );
+    await expect(
+      service.checkout('owner', {
+        mobile: '+6281234567890',
+        idempotencyKey: 'key',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+    expect(repository.createOrder).not.toHaveBeenCalled();
+    expect(gateway.createInvoice).not.toHaveBeenCalled();
+  });
+  test('checkout bills the member already registered for this environment', async () => {
+    const { service, gateway, repository } = runtime();
     await service.checkout('owner', {
       mobile: '+6281234567890',
       idempotencyKey: 'key',
     });
-    expect(gateway.createInvoice).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 59_000, orderId: 'order' }),
+    expect(gateway.ensureMember).not.toHaveBeenCalled();
+    expect(repository.findMember).toHaveBeenCalledWith('owner', 'sandbox');
+    expect(gateway.createInvoice).toHaveBeenCalledWith({
+      memberId: 'MBR8X2QK',
+    });
+  });
+  test('first checkout registers and remembers the member', async () => {
+    const { service, gateway, repository } = runtime();
+
+    repository.findMember = () => Promise.resolve(null);
+    await service.checkout('owner', {
+      mobile: '+6281234567890',
+      idempotencyKey: 'key',
+    });
+    expect(gateway.ensureMember).toHaveBeenCalledWith({
+      name: 'Customer',
+      email: 'customer@example.test',
+      mobile: '+6281234567890',
+    });
+    expect(repository.saveMember).toHaveBeenCalledWith(
+      'owner',
+      'sandbox',
+      'MBR8X2QK',
+    );
+  });
+  test('an invoice priced differently from the shown price is never offered', async () => {
+    const { service, repository, gateway } = runtime();
+
+    gateway.createInvoice = () =>
+      Promise.resolve({
+        id: 'invoice',
+        transactionId: 'transaction',
+        link: 'https://merchant.mayar.shop/pl/test',
+        amount: 59_000,
+        expiresAt: new Date('2026-11-01T00:15:00Z'),
+      });
+    await service.checkout('owner', {
+      mobile: '+6281234567890',
+      idempotencyKey: 'key',
+    });
+    expect(repository.attachInvoice).not.toHaveBeenCalled();
+    expect(repository.markOrder).toHaveBeenCalledWith(
+      'order',
+      'failed',
+      'price_mismatch',
+      now,
+    );
+  });
+  test('an already billed term is not attached to a new order', async () => {
+    const { service, repository } = runtime();
+
+    repository.findByProvider = () =>
+      Promise.resolve(order({ id: 'earlier', status: 'paid' }));
+    await service.checkout('owner', {
+      mobile: '+6281234567890',
+      idempotencyKey: 'key',
+    });
+    expect(repository.attachInvoice).not.toHaveBeenCalled();
+    expect(repository.markOrder).toHaveBeenCalledWith(
+      'order',
+      'failed',
+      'mayar_period_not_open',
+      now,
     );
   });
   test('repeated checkout returns the unresolved order without another provider write', async () => {
@@ -267,6 +351,41 @@ describe('Single-plan prepaid billing', () => {
       'ewallet/DANA',
     );
   });
+  test('a payment on an invoice whose transaction was not known yet records it', async () => {
+    const { service, repository, row } = runtime({
+      providerTransactionId: null,
+    });
+
+    await service.verify(row);
+    expect(repository.applyPayment).toHaveBeenCalledWith(
+      'order',
+      'transaction',
+      now,
+      'ewallet/DANA',
+    );
+  });
+  test('a paid invoice with no visible transaction waits instead of granting access', async () => {
+    const { service, repository, paid, row } = runtime({
+      providerTransactionId: null,
+    });
+
+    paid.transaction = null;
+    await service.verify(row);
+    expect(repository.applyPayment).not.toHaveBeenCalled();
+    expect(repository.markOrder).toHaveBeenCalledWith(
+      'order',
+      'pending',
+      null,
+      expect.any(Date),
+    );
+  });
+  test('another transaction than the one recorded cannot settle the order', async () => {
+    const { service, repository, paid, row } = runtime();
+
+    if (paid.transaction) paid.transaction.id = 'stranger';
+    await service.verify(row);
+    expect(repository.applyPayment).not.toHaveBeenCalled();
+  });
   test('reconciliation verifies and settles a pending payment without any webhook', async () => {
     const { service, repository, row } = runtime();
     repository.pendingWebhooks = () => Promise.resolve([]);
@@ -282,15 +401,19 @@ describe('Single-plan prepaid billing', () => {
   });
   test('a success webhook cannot override an unpaid provider transaction', async () => {
     const { service, repository, paid, row } = runtime();
-    paid.status = 'unpaid';
+    paid.invoiceStatus = 'unpaid';
     await service.verify(row);
     expect(repository.applyPayment).not.toHaveBeenCalled();
   });
-  test.each(['amount', 'invoiceAmount'] as const)(
+  test.each(['amount', 'transactionAmount', 'invoice'] as const)(
     'mismatched %s enters review without granting access',
     async (field) => {
       const { service, repository, paid, row } = runtime();
-      paid[field] = 1;
+
+      if (field === 'amount') paid.amount = 1;
+      else if (field === 'transactionAmount' && paid.transaction)
+        paid.transaction.amount = 1;
+      else paid.invoiceId = 'another-invoice';
       await service.verify(row);
       expect(repository.markOrder).toHaveBeenCalledWith(
         'order',
@@ -303,7 +426,7 @@ describe('Single-plan prepaid billing', () => {
   );
   test('a different merchant cannot activate an order', async () => {
     const { service, repository, paid, row } = runtime();
-    paid.transactionMerchantId = 'stranger';
+    paid.merchantId = 'stranger';
     await service.verify(row);
     expect(repository.applyPayment).not.toHaveBeenCalled();
   });
@@ -313,7 +436,7 @@ describe('Single-plan prepaid billing', () => {
     });
 
     await service.verify(row);
-    expect(gateway.inspectInvoice).not.toHaveBeenCalled();
+    expect(gateway.inspectPayment).not.toHaveBeenCalled();
     expect(repository.applyPayment).not.toHaveBeenCalled();
   });
   test('another user cannot refresh an order', async () => {
@@ -325,7 +448,7 @@ describe('Single-plan prepaid billing', () => {
   });
   test('provider downtime gives a retryable verification error without creating another invoice', async () => {
     const { service, repository, gateway } = runtime();
-    gateway.inspectInvoice = () =>
+    gateway.inspectPayment = () =>
       Promise.reject(
         new PaymentGatewayError('mayar_transport_error', false, 60),
       );
@@ -395,7 +518,7 @@ describe('Global upload capacity', () => {
       appliedAt: now,
     });
 
-    paid.status = 'unpaid';
+    if (paid.transaction) paid.transaction.status = 'unpaid';
     repository.paidOrdersWithoutMethod = () => Promise.resolve([row]);
     repository.setPaymentMethod = jest.fn(() => Promise.resolve(undefined));
     await expect(operations.backfillPaymentMethods()).resolves.toBe(0);

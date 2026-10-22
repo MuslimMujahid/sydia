@@ -26,7 +26,7 @@ export const BILLING_COPY = {
     renew: "Perpanjang langganan",
     paidNotice: "Pembayaran diterima. Langganan Anda aktif.",
     renewHint:
-      "Perpanjangan ditambahkan setelah masa aktif saat ini berakhir, jadi tidak ada hari yang hilang.",
+      "Semua fitur Sydia siap Anda pakai. Perpanjangan tersedia setelah masa aktif berakhir.",
     create: "Buat tagihan",
     creating: "Menyiapkan tagihan…",
     pay: "Bayar melalui Mayar",
@@ -88,7 +88,7 @@ export const BILLING_COPY = {
     renew: "Renew subscription",
     paidNotice: "Payment received. Your subscription is active.",
     renewHint:
-      "A renewal is added after the current period ends, so no days are lost.",
+      "Every Sydia feature is ready for you. Renewal opens once your current period ends.",
     create: "Create invoice",
     creating: "Preparing invoice…",
     pay: "Pay with Mayar",

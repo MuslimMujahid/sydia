@@ -11,8 +11,11 @@ Read this before writing billing code. It records what was tested, what came fro
 ## Implementation update — 22 October 2026
 
 The research below is the historical 21 October snapshot. Billing is now implemented
-as one prepaid Sydia product, using standalone V2 invoices and manual renewals rather
-than Mayar memberships. See [billing operations](./runbooks/BILLING_MAYAR.md) for
+as one prepaid Sydia product on a Mayar Membership & SaaS product (one monthly tier).
+Each user is registered as a member; each term is paid through the member's V2 invoice
+(`membershipBillUrl`), and paid time is never stacked: checkout is refused while paid time
+remains. The membership flow has not yet run against sandbox: validate it with
+`billing:sandbox-smoke` before enabling checkout. Standalone invoices were used before. See [billing operations](./runbooks/BILLING_MAYAR.md) for
 configuration, migration order, operator recovery, and release checks.
 
 The implementation's sandbox contract verified `POST /invoices/create`,

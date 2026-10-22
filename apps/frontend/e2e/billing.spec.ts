@@ -107,7 +107,7 @@ test("a trial account is sent to the checkout page to subscribe", async ({
   ).toHaveAttribute("href", "/checkout");
   await expect(page.getByLabel("Nomor telepon untuk tagihan")).toHaveCount(0);
 });
-test("a paid account sees its payment confirmed and can renew instead of paying again", async ({
+test("a paid account sees its payment confirmed and is not offered another payment", async ({
   page,
 }) => {
   await setup(page, {
@@ -121,7 +121,7 @@ test("a paid account sees its payment confirmed and can renew instead of paying 
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Perpanjang langganan" })
-  ).toHaveAttribute("href", "/checkout");
+  ).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^Berlangganan/ })).toHaveCount(
     0
   );

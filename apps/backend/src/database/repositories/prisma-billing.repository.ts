@@ -183,6 +183,22 @@ export class PrismaBillingRepository implements IBillingRepository {
     });
   }
 
+  async findMember(userId: string, environment: string) {
+    const member = await this.prisma.billingMember.findUnique({
+      where: { userId_environment: { userId, environment } },
+    });
+
+    return member?.memberId ?? null;
+  }
+
+  async saveMember(userId: string, environment: string, memberId: string) {
+    await this.prisma.billingMember.upsert({
+      where: { userId_environment: { userId, environment } },
+      update: { memberId },
+      create: { userId, environment, memberId },
+    });
+  }
+
   async attachInvoice(
     id: string,
     invoice: Parameters<IBillingRepository['attachInvoice']>[1],
@@ -232,7 +248,10 @@ export class PrismaBillingRepository implements IBillingRepository {
       if (!users.length) return false;
       const order = await tx.billingOrder.findUniqueOrThrow({ where: { id } });
       if (order.appliedAt) return false;
-      if (order.providerTransactionId !== transactionId)
+      if (
+        order.providerTransactionId &&
+        order.providerTransactionId !== transactionId
+      )
         throw new Error('Verified payment does not match order transaction');
       const account = await tx.billingAccount.findUniqueOrThrow({
         where: { userId: candidate.userId },
@@ -268,6 +287,7 @@ export class PrismaBillingRepository implements IBillingRepository {
         data: {
           status: 'paid',
           appliedAt: now,
+          providerTransactionId: transactionId,
           errorCode: null,
           ...(paymentMethod ? { paymentMethod } : {}),
         },

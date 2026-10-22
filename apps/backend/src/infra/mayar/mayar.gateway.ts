@@ -6,7 +6,7 @@ import {
   PaymentGatewayError,
   type CreatedInvoice,
   type PaymentGateway,
-  type VerifiedInvoice,
+  type VerifiedPayment,
 } from './payment-gateway';
 
 function object(value: unknown): Record<string, unknown> {
@@ -72,10 +72,27 @@ export class MayarGateway implements PaymentGateway, OnModuleDestroy {
     this.redis.disconnect();
   }
 
-  private async request(
+  private async requestObject(
     path: string,
     body?: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
+    const data = await this.request(path, body);
+
+    try {
+      return object(data);
+    } catch {
+      this.logger.error('Mayar returned an invalid response schema');
+      throw new PaymentGatewayError(
+        'mayar_invalid_response',
+        body !== undefined,
+      );
+    }
+  }
+
+  private async request(
+    path: string,
+    body?: Record<string, unknown>,
+  ): Promise<unknown> {
     const post = body !== undefined;
     if (!this.key) throw new PaymentGatewayError('mayar_not_configured', false);
     let wait: number;
@@ -146,45 +163,109 @@ export class MayarGateway implements PaymentGateway, OnModuleDestroy {
     }
 
     try {
-      return object(object(await response.json()).data);
+      return object(await response.json()).data;
     } catch {
       this.logger.error('Mayar returned an invalid response schema');
       throw new PaymentGatewayError('mayar_invalid_response', post);
     }
   }
 
+  private get productId(): string {
+    return this.config.getOrThrow<string>('MAYAR_MEMBERSHIP_PRODUCT_ID');
+  }
+
+  private async findMemberByEmail(email: string): Promise<string | null> {
+    const data = await this.request(
+      `/memberships/members?productId=${encodeURIComponent(this.productId)}&limit=50&searchTerm=${encodeURIComponent(email)}`,
+    );
+
+    if (!Array.isArray(data)) return null;
+
+    for (const entry of data) {
+      const member = object(entry);
+      const customer = member.customer;
+
+      if (
+        customer &&
+        typeof customer === 'object' &&
+        typeof (customer as Record<string, unknown>).email === 'string' &&
+        (
+          (customer as Record<string, unknown>).email as string
+        ).toLowerCase() === email.toLowerCase() &&
+        typeof member.memberId === 'string' &&
+        member.memberId.trim()
+      )
+        return member.memberId;
+    }
+
+    return null;
+  }
+
+  async ensureMember(
+    input: Parameters<PaymentGateway['ensureMember']>[0],
+  ): Promise<string> {
+    try {
+      const data = await this.requestObject('/memberships/members/create', {
+        productId: this.productId,
+        membershipTierId: this.config.getOrThrow<string>(
+          'MAYAR_MEMBERSHIP_TIER_ID',
+        ),
+        membershipMonthlyPeriod: 1,
+        customerInfo: {
+          name: input.name,
+          email: input.email,
+          mobile: input.mobile,
+        },
+      });
+
+      // Sandbox returns the member record directly; the docs nest it.
+      return string(object(data.membershipCustomer ?? data).memberId);
+    } catch (error) {
+      // Registration is repeatable: a member that already exists is looked up
+      // rather than duplicated, so a failure here never needs manual review.
+      if (
+        error instanceof PaymentGatewayError &&
+        error.code === 'mayar_http_400'
+      ) {
+        const existing = await this.findMemberByEmail(input.email);
+
+        if (existing) return existing;
+      }
+
+      if (error instanceof PaymentGatewayError)
+        throw new PaymentGatewayError(
+          error.code,
+          false,
+          error.retryAfterSeconds,
+        );
+      this.logger.error('Mayar member registration response unreadable');
+      throw new PaymentGatewayError('mayar_member_schema', false);
+    }
+  }
+
   async createInvoice(
     input: Parameters<PaymentGateway['createInvoice']>[0],
   ): Promise<CreatedInvoice> {
-    const data = await this.request('/invoices/create', {
-      name: input.name,
-      email: input.email,
-      mobile: input.mobile,
-      description: 'Sydia — 30 hari',
-      expiredAt: input.expiresAt.toISOString(),
-      items: [
-        { quantity: 1, rate: input.amount, description: 'Sydia — 30 hari' },
-      ],
-      extraData: { orderId: input.orderId },
-    });
+    const data = await this.requestObject(
+      `/memberships/members/${encodeURIComponent(input.memberId)}/invoice/create`,
+      { productId: this.productId },
+    );
+
+    let created: Omit<CreatedInvoice, 'expiresAt'>;
 
     try {
-      const link = string(data.link);
-      const url = new URL(link);
-      const expiresAt = new Date(
-        typeof data.expiredAt === 'number'
-          ? data.expiredAt
-          : string(data.expiredAt),
-      );
+      const link = string(data.membershipBillUrl);
 
-      if (url.protocol !== 'https:' || !Number.isFinite(expiresAt.getTime()))
-        throw new Error('Invalid invoice checkout URL or expiry');
-
-      return {
+      if (new URL(link).protocol !== 'https:')
+        throw new Error('Invalid invoice checkout URL');
+      created = {
         id: string(data.id),
-        transactionId: string(data.transactionId),
+        transactionId:
+          typeof data.transactionId === 'string' && data.transactionId
+            ? data.transactionId
+            : null,
         link,
-        expiresAt,
+        amount: amount(data.amount),
       };
     } catch {
       this.logger.error(
@@ -192,61 +273,82 @@ export class MayarGateway implements PaymentGateway, OnModuleDestroy {
       );
       throw new PaymentGatewayError('mayar_invoice_schema', true);
     }
+
+    return { ...created, expiresAt: await this.invoiceExpiry(created.id) };
   }
 
-  async inspectInvoice(
-    invoiceId: string,
-    transactionId: string,
-  ): Promise<VerifiedInvoice> {
-    const invoice = await this.request(
+  /** The creation response omits the expiry, which only the invoice itself reports. */
+  private async invoiceExpiry(invoiceId: string): Promise<Date> {
+    try {
+      const invoice = await this.requestObject(
+        `/invoices/${encodeURIComponent(invoiceId)}`,
+      );
+
+      const expiresAt = new Date(
+        typeof invoice.expiredAt === 'number'
+          ? invoice.expiredAt
+          : string(invoice.expiredAt),
+      );
+
+      if (Number.isFinite(expiresAt.getTime())) return expiresAt;
+    } catch {
+      this.logger.warn('Mayar invoice expiry unavailable; using a short hold');
+    }
+
+    return new Date(Date.now() + 60 * 60_000);
+  }
+
+  async inspectPayment(invoiceId: string): Promise<VerifiedPayment> {
+    const invoice = await this.requestObject(
       `/invoices/${encodeURIComponent(invoiceId)}`,
     );
 
-    const transaction = await this.request(
-      `/transactions/${encodeURIComponent(transactionId)}`,
-    );
+    let result: VerifiedPayment;
+    let transactionIds: string[];
 
     try {
-      const transactions = invoice.transactions;
-      if (
-        !Array.isArray(transactions) ||
-        !transactions.some(
-          (entry: unknown) => object(entry).id === transactionId,
-        )
-      )
-        throw new Error('Invoice transaction mismatch');
-
-      // V2 returns extraData as JSON text, although creation accepts an object.
-      const extraData: unknown =
-        typeof transaction.extraData === 'string'
-          ? JSON.parse(transaction.extraData)
-          : transaction.extraData;
-
-      const orderReference =
-        extraData == null ? null : object(extraData).orderId;
-
-      return {
-        orderReference:
-          typeof orderReference === 'string' ? orderReference : null,
+      result = {
         invoiceId: string(invoice.id),
-        transactionId: string(transaction.id),
         merchantId: string(invoice.userId),
-        transactionMerchantId: string(object(transaction.user).id),
-        invoiceAmount: amount(invoice.amount),
-        amount: amount(transaction.amount),
+        amount: amount(invoice.amount),
         invoiceStatus: string(invoice.status),
-        status: string(transaction.status),
-        paymentLinkId: string(object(transaction.paymentLink).id),
-        paymentMethod:
-          typeof transaction.paymentMethod === 'string'
-            ? transaction.paymentMethod
-            : null,
+        transaction: null,
       };
+      transactionIds = Array.isArray(invoice.transactions)
+        ? invoice.transactions.map((entry: unknown) => string(object(entry).id))
+        : [];
     } catch {
-      this.logger.error(
-        'Mayar invoice verification schema or correlation failed',
-      );
+      this.logger.error('Mayar invoice verification schema failed');
       throw new PaymentGatewayError('mayar_verification_schema', false);
     }
+
+    // A customer may retry a failed attempt, so settle on the transaction that paid.
+    for (const id of transactionIds.slice(0, 5)) {
+      const transaction = await this.requestObject(
+        `/transactions/${encodeURIComponent(id)}`,
+      );
+
+      try {
+        const verified = {
+          id: string(transaction.id),
+          merchantId: string(object(transaction.user).id),
+          amount: amount(transaction.amount),
+          status: string(transaction.status),
+          paymentMethod:
+            typeof transaction.paymentMethod === 'string'
+              ? transaction.paymentMethod
+              : null,
+        };
+
+        if (!result.transaction || verified.status === 'paid')
+          result.transaction = verified;
+        if (verified.status === 'paid') break;
+      } catch {
+        this.logger.error('Mayar transaction verification schema failed');
+        throw new PaymentGatewayError('mayar_verification_schema', false);
+      }
+    }
+
+    return result;
   }
 }

@@ -164,7 +164,7 @@ test("coming back from paying confirms the payment without a manual check", asyn
   ).toBeVisible();
 });
 
-test("a subscriber renewing is told the renewal is added after the current period", async ({
+test("a subscriber with paid time left is told it is active instead of getting a second order", async ({
   page,
 }) => {
   await setup(
@@ -173,8 +173,11 @@ test("a subscriber renewing is told the renewal is added after the current perio
   );
   await page.goto("/e2e/checkout.html");
   await expect(
-    page.getByRole("heading", { name: "Ringkasan pesanan" })
+    page.getByRole("heading", { name: "Langganan Anda sudah aktif" })
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Berlangganan" })).toHaveCount(
+    0
+  );
 });
 
 test("without a payment option the page says so instead of offering a form", async ({

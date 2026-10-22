@@ -26,6 +26,8 @@ export function billingRepositoryFixture(
     findOrder: unused,
     findByProvider: unused,
     createOrder: unused,
+    findMember: unused,
+    saveMember: unused,
     attachInvoice: unused,
     markOrder: unused,
     applyPayment: unused,

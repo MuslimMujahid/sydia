@@ -41,6 +41,8 @@ const COPY: Record<
     successDescription: string;
     start: string;
     unavailable: string;
+    activeTitle: string;
+    activeDescription: string;
   }
 > = {
   id: {
@@ -71,6 +73,9 @@ const COPY: Record<
       "Terima kasih. Langganan Anda sudah aktif dan semua fitur Sydia dapat Anda gunakan.",
     start: "Mulai gunakan Sydia",
     unavailable: "Pembayaran belum tersedia. Hubungi dukungan Sydia.",
+    activeTitle: "Langganan Anda sudah aktif",
+    activeDescription:
+      "Semua fitur Sydia siap Anda pakai. Perpanjangan tersedia setelah masa aktif berakhir.",
   },
   en: {
     title: "Order summary",
@@ -96,6 +101,9 @@ const COPY: Record<
       "Thank you. Your subscription is active and every Sydia feature is available.",
     start: "Start using Sydia",
     unavailable: "Payments are not available yet. Contact Sydia support.",
+    activeTitle: "Your subscription is active",
+    activeDescription:
+      "Every Sydia feature is ready for you. Renewal opens once your current period ends.",
   },
 };
 
@@ -187,6 +195,20 @@ export function CheckoutPage({ locale }: CheckoutPageProps) {
                 : text.waitingDescription}
             </p>
             <BillingPaymentActions order={pending} language={language} />
+          </Card>
+        ) : billing.state === "paid" ? (
+          <Card className="mx-auto max-w-xl space-y-4 p-6 sm:p-8" role="status">
+            <h2 className="font-display text-xl font-semibold">
+              {text.activeTitle}
+            </h2>
+            <p className="text-ink-muted">{text.activeDescription}</p>
+            <Link
+              to="/"
+              search={{ conversation: undefined, attachment: undefined }}
+              className={buttonVariants({ variant: "secondary", size: "sm" })}
+            >
+              {text.start}
+            </Link>
           </Card>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">

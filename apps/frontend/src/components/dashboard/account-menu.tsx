@@ -29,7 +29,6 @@ interface AccountMenuProps {
   collapsed: boolean;
   signingOut: boolean;
   onSignOut: () => void;
-  now?: () => number;
 }
 
 export function initialsFor(name: string): string {
@@ -49,9 +48,8 @@ export function AccountMenu({
   collapsed,
   signingOut,
   onSignOut,
-  now = Date.now,
 }: AccountMenuProps) {
-  const plan = billing ? summarizeBillingPlan(billing, { now: now() }) : null;
+  const plan = billing ? summarizeBillingPlan(billing) : null;
 
   return (
     <DropdownMenu>

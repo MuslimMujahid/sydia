@@ -47,19 +47,17 @@ export class BillingOperationsService {
       order.environment !== this.config.getOrThrow<string>('MAYAR_ENVIRONMENT')
     )
       throw new Error('Review must use the order environment');
-    const result = await this.gateway.inspectInvoice(invoiceId, transactionId);
+    const result = await this.gateway.inspectPayment(invoiceId);
     const merchant = this.config.getOrThrow<string>('MAYAR_MERCHANT_ID');
     if (
-      result.orderReference !== order.id ||
       result.invoiceId !== invoiceId ||
-      result.transactionId !== transactionId ||
-      result.paymentLinkId !== invoiceId ||
       result.merchantId !== merchant ||
-      result.transactionMerchantId !== merchant ||
       result.amount !== order.amount ||
-      result.invoiceAmount !== order.amount ||
-      result.status !== 'paid' ||
-      result.invoiceStatus !== 'paid'
+      result.invoiceStatus !== 'paid' ||
+      result.transaction?.id !== transactionId ||
+      result.transaction.status !== 'paid' ||
+      result.transaction.merchantId !== merchant ||
+      result.transaction.amount !== order.amount
     )
       throw new Error(
         'Invoice does not match a verified paid transaction for this order; nothing was applied',
@@ -79,7 +77,7 @@ export class BillingOperationsService {
       orderId,
       transactionId,
       new Date(),
-      result.paymentMethod,
+      result.transaction.paymentMethod,
     );
     this.logger.log(`billing.review_resolved orderId=${orderId}`);
   }
@@ -89,19 +87,22 @@ export class BillingOperationsService {
     let filled = 0;
 
     for (const order of await this.repository.paidOrdersWithoutMethod()) {
-      if (!order.providerInvoiceId || !order.providerTransactionId) continue;
+      if (!order.providerInvoiceId) continue;
       if (
         order.environment !==
         this.config.getOrThrow<string>('MAYAR_ENVIRONMENT')
       )
         continue;
-      const result = await this.gateway.inspectInvoice(
+      const { transaction } = await this.gateway.inspectPayment(
         order.providerInvoiceId,
-        order.providerTransactionId,
       );
 
-      if (result.status !== 'paid' || !result.paymentMethod) continue;
-      await this.repository.setPaymentMethod(order.id, result.paymentMethod);
+      if (transaction?.status !== 'paid' || !transaction.paymentMethod)
+        continue;
+      await this.repository.setPaymentMethod(
+        order.id,
+        transaction.paymentMethod,
+      );
       filled += 1;
     }
 

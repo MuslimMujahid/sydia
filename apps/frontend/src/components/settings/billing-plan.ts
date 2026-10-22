@@ -1,8 +1,5 @@
 import type { BillingStatus } from "@/lib/services/api/billing/billing.api";
 
-const DAY_MS = 86_400_000;
-const RENEWAL_NUDGE_DAYS = 3;
-
 export type BillingPlanSummary = {
   state: "trial" | "paid" | "expired";
   /** One short line for the account button under the user's name. */
@@ -12,16 +9,13 @@ export type BillingPlanSummary = {
   storage: string;
 };
 
-type BillingPlanOptions = { now: number };
-
 function formatGigabytes(bytes: number): string {
   return `${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(bytes / 1_000_000_000)} GB`;
 }
 
 /** Compact Indonesian plan status for the account menu; null when no plan applies. */
 export function summarizeBillingPlan(
-  billing: BillingStatus,
-  { now }: BillingPlanOptions
+  billing: BillingStatus
 ): BillingPlanSummary | null {
   // Nothing is restricted until enforcement starts, so no plan is shown.
   if (!billing.enforced || billing.state === "disabled") return null;
@@ -36,14 +30,11 @@ export function summarizeBillingPlan(
     };
 
   if (billing.state === "paid") {
-    const ending =
-      billing.paidUntil !== null &&
-      Date.parse(billing.paidUntil) - now <= RENEWAL_NUDGE_DAYS * DAY_MS;
-
+    // A term is paid once; renewal opens when the paid time has run out.
     return {
       state: "paid",
       footer: "Langganan aktif",
-      cta: ending && billing.checkoutEnabled ? "Perpanjang langganan" : null,
+      cta: null,
       storage,
     };
   }

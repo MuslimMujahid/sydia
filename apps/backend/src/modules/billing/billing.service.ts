@@ -106,7 +106,15 @@ export class BillingService {
         status: HttpStatus.NOT_FOUND,
         message: 'Account no longer exists',
       });
-    await this.access.snapshot(userId);
+    // One payment per billing term: while paid time remains there is nothing to
+    // buy, so durations can never stack from repeated payments.
+    if ((await this.access.snapshot(userId)).state === 'paid')
+      throw new ApiException({
+        code: ErrorCodes.CONFLICT,
+        status: HttpStatus.CONFLICT,
+        message:
+          'Langganan Anda masih aktif. Perpanjangan tersedia setelah masa aktif berakhir.',
+      });
     const now = new Date();
     const { order, created } = await this.repository.createOrder({
       userId,
@@ -120,15 +128,31 @@ export class BillingService {
     if (!created) return presentBillingOrder(order);
 
     try {
-      const invoice = await this.gateway.createInvoice({
-        orderId: order.id,
-        name: user.name,
-        email: user.email,
-        mobile: input.mobile,
-        amount: order.amount,
-        expiresAt: order.expiresAt,
-      });
+      let memberId = await this.repository.findMember(userId, this.environment);
 
+      if (!memberId) {
+        memberId = await this.gateway.ensureMember({
+          name: user.name,
+          email: user.email,
+          mobile: input.mobile,
+        });
+        await this.repository.saveMember(userId, this.environment, memberId);
+      }
+
+      const invoice = await this.gateway.createInvoice({ memberId });
+
+      // Mayar prices the membership tier; never show a price the invoice contradicts.
+      if (invoice.amount !== order.amount)
+        throw new PaymentGatewayError('price_mismatch', false);
+      // A term that is already billed returns its existing invoice rather than a new one.
+      if (
+        await this.repository.findByProvider(
+          this.environment,
+          undefined,
+          invoice.id,
+        )
+      )
+        throw new PaymentGatewayError('mayar_period_not_open', false);
       await this.repository.attachInvoice(order.id, invoice);
     } catch (error) {
       const known = error instanceof PaymentGatewayError;
@@ -195,13 +219,7 @@ export class BillingService {
   }
 
   async verify(order: BillingOrder): Promise<void> {
-    if (
-      !order.userId ||
-      !order.providerInvoiceId ||
-      !order.providerTransactionId ||
-      order.appliedAt
-    )
-      return;
+    if (!order.userId || !order.providerInvoiceId || order.appliedAt) return;
     const now = new Date();
 
     if (order.environment !== this.environment) {
@@ -219,22 +237,20 @@ export class BillingService {
       return;
     }
 
-    const result = await this.gateway.inspectInvoice(
-      order.providerInvoiceId,
-      order.providerTransactionId,
-    );
+    const result = await this.gateway.inspectPayment(order.providerInvoiceId);
 
     const merchant = this.config.getOrThrow<string>('MAYAR_MERCHANT_ID');
+    const transaction = result.transaction;
 
     if (
-      (result.orderReference !== null && result.orderReference !== order.id) ||
       result.invoiceId !== order.providerInvoiceId ||
-      result.transactionId !== order.providerTransactionId ||
-      result.paymentLinkId !== order.providerInvoiceId ||
       result.merchantId !== merchant ||
-      result.transactionMerchantId !== merchant ||
       result.amount !== order.amount ||
-      result.invoiceAmount !== order.amount
+      (transaction &&
+        (transaction.merchantId !== merchant ||
+          transaction.amount !== order.amount ||
+          (order.providerTransactionId !== null &&
+            transaction.id !== order.providerTransactionId)))
     ) {
       await this.repository.markOrder(
         order.id,
@@ -248,13 +264,17 @@ export class BillingService {
       return;
     }
 
-    if (result.status === 'paid' && result.invoiceStatus === 'paid') {
+    if (
+      result.invoiceStatus === 'paid' &&
+      transaction &&
+      transaction.status === 'paid'
+    ) {
       if (
         await this.repository.applyPayment(
           order.id,
-          order.providerTransactionId,
+          transaction.id,
           now,
-          result.paymentMethod,
+          transaction.paymentMethod,
         )
       ) {
         recordBillingEvent('payment_applied');

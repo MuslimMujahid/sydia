@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import { MayarGateway } from '../infra/mayar/mayar.gateway';
@@ -12,39 +11,31 @@ async function main() {
   const gateway = new MayarGateway(new ConfigService());
 
   try {
-    const orderId = `sandbox-contract-${randomUUID()}`;
-    const invoice = await gateway.createInvoice({
-      orderId,
+    const memberId = await gateway.ensureMember({
       name: 'Sydia sandbox contract',
       email: 'billing-contract@example.test',
       mobile: '+12025550123',
-      amount: 29_000,
-      expiresAt: new Date(Date.now() + 15 * 60_000),
     });
 
-    const result = await gateway.inspectInvoice(
-      invoice.id,
-      invoice.transactionId,
-    );
+    const invoice = await gateway.createInvoice({ memberId });
+    const result = await gateway.inspectPayment(invoice.id);
 
     if (
-      result.orderReference !== orderId ||
-      result.amount !== 29_000 ||
-      result.invoiceAmount !== 29_000 ||
       result.invoiceId !== invoice.id ||
-      result.transactionId !== invoice.transactionId ||
-      result.paymentLinkId !== invoice.id ||
-      result.merchantId !== result.transactionMerchantId
+      result.amount !== invoice.amount ||
+      result.merchantId.length === 0
     )
-      throw new Error('Sandbox invoice and transaction correlation failed');
+      throw new Error('Sandbox membership invoice mismatch');
     Logger.log(
       JSON.stringify({
         environment: 'sandbox',
+        memberId,
         invoiceId: invoice.id,
         transactionId: invoice.transactionId,
+        paidTransaction: result.transaction?.id ?? null,
         merchantId: result.merchantId,
+        amount: invoice.amount,
         invoiceStatus: result.invoiceStatus,
-        transactionStatus: result.status,
         expiresAt: invoice.expiresAt.toISOString(),
         correlationVerified: true,
       }),
