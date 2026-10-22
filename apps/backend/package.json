@@ -30,7 +30,9 @@
     "test:parser": "node test/document-parser/smoke.cjs",
     "documents:reprocess": "node dist/src/scripts/document-reprocess.js",
     "documents:queue": "node dist/src/scripts/document-queue.js",
-    "calendar:credentials:migrate": "node dist/src/scripts/calendar-credential-migration.js"
+    "calendar:credentials:migrate": "node dist/src/scripts/calendar-credential-migration.js",
+    "billing:ops": "node dist/src/scripts/billing-operations.js",
+    "billing:sandbox-smoke": "node dist/src/scripts/mayar-sandbox-smoke.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

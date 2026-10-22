@@ -1,3 +1,4 @@
+import { billingTestAccess } from '../../../test/support/billing-fixtures';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { CalendarEventForRead } from '../../database/entities';
 import type { ICalendarRepository } from '../../database/interfaces';
@@ -324,6 +325,7 @@ test('event reminders use the normal notification pipeline without creating remi
   } as unknown as QueueService;
 
   const notifications = new NotificationService(
+    billingTestAccess(),
     notificationRepository,
     notificationQueues,
     service,

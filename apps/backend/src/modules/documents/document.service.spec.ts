@@ -1,3 +1,9 @@
+import {
+  billingTestAccess,
+  billingRepositoryFixture,
+} from '../../../test/support/billing-fixtures';
+import { StorageQuotaService } from '../billing';
+import type { IBillingRepository } from '../../database/interfaces';
 import { DocumentProcessingPendingError } from '../../shared/documents';
 import { describe, expect, jest, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
@@ -53,7 +59,9 @@ function document(status: DocumentStatus = 'processing'): Document {
   };
 }
 
-function dependencies() {
+function dependencies(
+  storageRepository: IBillingRepository = billingRepositoryFixture(),
+) {
   const storage = {
     put: jest
       .fn<(key: string, value: Buffer, contentType: string) => Promise<void>>()
@@ -260,6 +268,8 @@ function dependencies() {
 
   return {
     service: new DocumentService(
+      billingTestAccess(),
+      new StorageQuotaService(storageRepository),
       documents,
       storage,
       embeddings,
@@ -501,6 +511,47 @@ describe('DocumentService ingest', () => {
     expect(extraction.deleteCheckpoint).toHaveBeenCalledTimes(1);
     expect(storage.delete).toHaveBeenCalledTimes(1);
   });
+
+  test('a completely cleaned failed upload releases its reserved bytes', async () => {
+    const releaseStorage = jest
+      .fn<IBillingRepository['releaseStorage']>()
+      .mockResolvedValue(undefined);
+
+    const { service, storage } = dependencies(
+      billingRepositoryFixture({ releaseStorage }),
+    );
+
+    storage.put = jest
+      .fn<StorageService['put']>()
+      .mockRejectedValue(new Error('storage unavailable'));
+    await expect(service.ingest(userId, file)).rejects.toThrow(
+      'storage unavailable',
+    );
+    expect(releaseStorage).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\//),
+    );
+  });
+
+  test('incomplete upload cleanup retains reserved bytes for durable recovery', async () => {
+    const releaseStorage = jest
+      .fn<IBillingRepository['releaseStorage']>()
+      .mockResolvedValue(undefined);
+
+    const { service, storage } = dependencies(
+      billingRepositoryFixture({ releaseStorage }),
+    );
+
+    storage.put = jest
+      .fn<StorageService['put']>()
+      .mockRejectedValue(new Error('partial write'));
+    storage.delete = jest
+      .fn<StorageService['delete']>()
+      .mockRejectedValue(new Error('cleanup unavailable'));
+    await expect(service.ingest(userId, file)).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+    });
+    expect(releaseStorage).not.toHaveBeenCalled();
+  });
 });
 
 describe('DocumentService readiness', () => {
@@ -537,7 +588,7 @@ describe('DocumentService processDocument', () => {
     const { service, storage, documents } = dependencies();
 
     await service.processDocument('document-1', userId);
-    expect(storage.get).toHaveBeenCalledWith('user-1/blob', 25 * 1024 * 1024);
+    expect(storage.get).toHaveBeenCalledWith('user-1/blob', 100_000_000);
     expect(documents.replaceChunks).toHaveBeenCalledWith('document-1', userId, [
       { chunkIndex: 0, pageNumber: null, content: 'hello world' },
     ]);

@@ -1,3 +1,4 @@
+import { BillingAccessService } from '../billing';
 import { followUpIntervalKey } from './follow-up-interval';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
@@ -69,6 +70,7 @@ export class DailyBriefingService {
   private readonly logger = new Logger(DailyBriefingService.name);
 
   constructor(
+    private readonly billing: BillingAccessService,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly preferences: INotificationRepository,
@@ -88,6 +90,8 @@ export class DailyBriefingService {
     requestId?: string,
     mode: BriefingMode = 'scheduled',
   ) {
+    if (!(await this.billing.isActive(userId)))
+      return { status: 'skipped_inactive' as const };
     const user = await this.users.findById(userId);
     if (!user) return { status: 'skipped_user_missing' as const };
     const preferences = await this.preferences.getPreferences(userId);
@@ -357,6 +361,7 @@ export class DailyBriefingService {
 @Injectable()
 export class FollowUpService {
   constructor(
+    private readonly billing: BillingAccessService,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
     @Inject(TASK_REPOSITORY) private readonly tasks: ITaskRepository,
     private readonly notifications: NotificationService,
@@ -364,6 +369,8 @@ export class FollowUpService {
   ) {}
 
   async run(userId: string, now = new Date(), requestId?: string) {
+    if (!(await this.billing.isActive(userId)))
+      return { status: 'skipped_inactive' as const };
     const user = await this.users.findById(userId);
     if (!user)
       return { status: 'skipped_user_missing' as const, deliveries: [] };

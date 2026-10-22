@@ -1,3 +1,4 @@
+import { BillingAccessService } from '../billing';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import {
@@ -29,12 +30,13 @@ export type NotificationIntent = {
 export type NotificationEnqueueResult = {
   deliveries: NotificationDelivery[];
   replayed: boolean;
-  policyOutcome: 'queued' | 'skipped_disabled';
+  policyOutcome: 'queued' | 'skipped_disabled' | 'skipped_inactive';
 };
 
 @Injectable()
 export class NotificationService {
   constructor(
+    private readonly billing: BillingAccessService,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly notifications: INotificationRepository,
     private readonly queue: QueueService,
@@ -42,6 +44,12 @@ export class NotificationService {
   ) {}
 
   async enqueue(input: NotificationIntent): Promise<NotificationEnqueueResult> {
+    if (!(await this.billing.isActive(input.userId)))
+      return {
+        deliveries: [],
+        replayed: false,
+        policyOutcome: 'skipped_inactive',
+      };
     const preferences = await this.notifications.getPreferences(input.userId);
     const channels: NotificationChannel[] = [];
     if (preferences?.whatsappNotificationsEnabled !== false)
@@ -231,7 +239,33 @@ export class NotificationService {
     );
   }
 
-  async claimDelivery(userId: string, deliveryId: string): Promise<boolean> {
+  async claimDelivery(
+    userId: string,
+    deliveryId: string,
+    timing?: { createdAt: Date; occurrenceAt?: string },
+  ): Promise<boolean> {
+    const access = await this.billing.snapshot(userId);
+    const dueAt = timing?.occurrenceAt
+      ? new Date(timing.occurrenceAt)
+      : timing?.createdAt;
+
+    if (
+      !access.active ||
+      (access.enforced &&
+        dueAt &&
+        access.lastActivatedAt &&
+        dueAt < access.lastActivatedAt)
+    ) {
+      await this.recordOutcome({
+        userId,
+        deliveryId,
+        status: 'skipped_inactive',
+        policyOutcome: 'subscription_inactive',
+      });
+
+      return false;
+    }
+
     return this.notifications.claimDelivery(userId, deliveryId);
   }
 

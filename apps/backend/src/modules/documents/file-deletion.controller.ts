@@ -1,3 +1,4 @@
+import { AllowInactiveBilling } from '../billing';
 import {
   Body,
   Controller,
@@ -23,6 +24,7 @@ import {
 import { FileLibraryService } from './file-library.service';
 
 @Roles(['user'])
+@AllowInactiveBilling()
 @Controller('file-library')
 export class FileDeletionController {
   constructor(

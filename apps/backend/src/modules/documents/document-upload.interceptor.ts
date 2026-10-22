@@ -14,7 +14,7 @@ import { documentParserFailureMessage } from './document-parser-errors';
 
 const MultipartDocumentInterceptor = FileInterceptor('file', {
   // Busboy emits its size-limit error when the byte count reaches the limit.
-  // One byte of headroom accepts exactly 25 MiB; the next byte is rejected.
+  // One byte of headroom accepts exactly 100 MB; the next byte is rejected.
   limits: { fileSize: MAX_DOCUMENT_BYTES + 1, files: 1 },
 });
 

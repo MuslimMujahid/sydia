@@ -1,3 +1,4 @@
+import { AllowInactiveBilling } from '../billing';
 import {
   Body,
   Controller,
@@ -19,6 +20,7 @@ import {
 } from './services';
 import { UpdateUserPreferencesDto, UpdateUserProfileDto } from './dto';
 
+@AllowInactiveBilling()
 @Controller('users')
 export class UsersController {
   constructor(

@@ -38,7 +38,10 @@ Sydia is a personal assistant that remembers and follows through, not a generic 
 - The dashboard must expose concise action state and low-friction edit, undo, cancel, complete, snooze, and reschedule paths without exposing prompts, vector scores, or raw model data.
 - Users must remain isolated from one another at every data and retrieval boundary. Sensitive conversation and document content must not be sent to analytics by default.
 - Bahasa Indonesia is first-class, and multilingual support must be preserved.
-- Pricing, packaging, provider selections, usage limits, retention periods, automatic-memory defaults, proactive-follow-up defaults, and the degree of web-chat parity with WhatsApp remain open product decisions.
+- One plan includes all features: Rp59,000 normally or Rp29,000 during the configured promotion per 30 days. The promotional price applies to both purchases and renewals until the promotion configuration changes. Each user receives one seven-day trial.
+- Payment is manual prepaid through Mayar. Storage is capped at 10 GB per user across channels, with a maximum of 100 MB per file. There are no product quotas or product rate limits.
+- When access expires, users retain read, download, delete, export, account-management, and payment access. Other mutations, AI assistance, uploads, and automatic notifications stop until access is renewed.
+- Provider selections outside billing, retention periods, automatic-memory defaults, proactive-follow-up defaults, and the degree of web-chat parity with WhatsApp remain open product decisions.
 
 ## Brand Commitments
 
@@ -49,7 +52,7 @@ The product name is Sydia. Product language should be concise, action-oriented, 
 - `../../docs/Sydia_PRD.md` contains the approved product scope, users, journeys, requirements, success metrics, release strategy, and open decisions.
 - `../../docs/Sydia_System_Architecture.md` defines the approved system boundaries and product invariants that affect the frontend.
 - `../../docs/Sydia_Implementation_Roadmap.md` tracks the planned frontend and backend delivery phases.
-- The repository currently contains no approved testimonials, customer logos, case studies, pricing, or launch claims. Future work must not fabricate them.
+- The billing decisions in Capabilities and Constraints are approved. The repository currently contains no approved testimonials, customer logos, case studies, or launch claims. Future work must not fabricate them.
 
 ## Product Principles
 

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { billingTestAccess } from '../support/billing-fixtures';
 import { createHash, randomUUID } from 'node:crypto';
 import { Queue, QueueEvents } from 'bullmq';
 import { Redis } from 'ioredis';
@@ -101,6 +102,7 @@ const originallyVerifiedAt = new Date('2026-10-21T03:00:00Z');
         new ConfigService(),
       );
       const notifications = new NotificationService(
+        billingTestAccess(),
         records,
         {} as never,
         new CalendarReminderService(

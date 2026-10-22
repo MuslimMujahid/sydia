@@ -20,6 +20,19 @@ export const USER_EXPORT_SELECT = {
   preferredAddress: true,
   createdAt: true,
   updatedAt: true,
+  billingAccount: {
+    select: { trialStartsAt: true, trialEndsAt: true, paidUntil: true },
+  },
+  billingOrders: {
+    select: {
+      id: true,
+      amount: true,
+      durationDays: true,
+      status: true,
+      createdAt: true,
+      appliedAt: true,
+    },
+  },
   userPreference: {
     select: {
       briefingEnabled: true,

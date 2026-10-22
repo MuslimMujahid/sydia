@@ -37,6 +37,8 @@ import { parseTimeOfDay } from './shared/date-time';
 import { validateHindsightEnvironment } from './infra/hindsight';
 import { validateDecisionEnvironment } from './infra/decision-gateway';
 import { validateDocumentParserEnvironment } from './infra/document-parser';
+import { validateBillingEnvironment } from './infra/mayar';
+import { BillingModule } from './modules/billing';
 
 function parsePort(
   config: Record<string, unknown>,
@@ -256,6 +258,7 @@ export function validateEnvironment(
 
   return {
     ...config,
+    ...validateBillingEnvironment(config),
     ...validateHindsightEnvironment(config),
     ...validateDecisionEnvironment(config),
     ...validateDocumentParserEnvironment(config),
@@ -422,6 +425,7 @@ export function validateEnvironment(
       validate: validateEnvironment,
     }),
     PrismaModule,
+    BillingModule,
     QueueModule,
     CategoriesModule,
     AuthModule,

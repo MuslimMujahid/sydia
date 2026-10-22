@@ -601,8 +601,29 @@ export class WhatsAppService implements OnModuleInit {
       !(await this.connections.reminderIsCurrent(input.userId, existing.id))
     )
       return outcome('skipped_obsolete');
-    if (!(await this.notifications.claimDelivery(input.userId, existing.id)))
-      return { status: 'in_progress' };
+
+    if (
+      !(await this.notifications.claimDelivery(input.userId, existing.id, {
+        createdAt: existing.createdAt,
+        occurrenceAt:
+          input.eventReminder?.scheduledAt ??
+          input.reminderOccurrenceKey?.slice(
+            input.reminderOccurrenceKey.indexOf(':') + 1,
+          ),
+      }))
+    ) {
+      const current = await this.notifications.findByIdempotencyKey(
+        input.userId,
+        input.idempotencyKey,
+        'whatsapp',
+      );
+
+      return {
+        status: current?.status ?? 'in_progress',
+        providerMessageId: current?.providerMessageId ?? undefined,
+      };
+    }
+
     const user = await this.users.findById(input.userId);
     if (!user?.emailVerified) return outcome('skipped_user_unavailable');
 

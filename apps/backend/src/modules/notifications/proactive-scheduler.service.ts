@@ -1,3 +1,4 @@
+import { BillingAccessService } from '../billing';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -35,6 +36,7 @@ export class ProactiveSchedulerService {
   private readonly windowMinutes: number;
 
   constructor(
+    private readonly billing: BillingAccessService,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly notifications: INotificationRepository,
     private readonly queues: QueueService,
@@ -108,7 +110,12 @@ export class ProactiveSchedulerService {
     for (const target of targets) {
       const { due, enabled } = eligibility(target);
 
-      if (!enabled || !due || !target.notifiable) {
+      if (
+        !enabled ||
+        !due ||
+        !target.notifiable ||
+        !(await this.billing.isActive(target.userId))
+      ) {
         skipped += 1;
         continue;
       }

@@ -1,3 +1,7 @@
+import {
+  billingTestAccess,
+  billingAccountTestAccess,
+} from '../../../../test/support/billing-fixtures';
 import type { ActiveNoteService } from './active-note.service';
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
@@ -58,6 +62,61 @@ const user = {
   User,
   'id' | 'name' | 'timezone' | 'locale' | 'persona' | 'preferredAddress'
 >;
+
+describe('AssistantOrchestratorService expired access', () => {
+  test.each([
+    ['web', undefined],
+    ['telegram', 'telegram'],
+    ['whatsapp', 'whatsapp'],
+  ] as const)(
+    '%s cannot write messages or invoke AI after trial expiry',
+    async (_label, channel) => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-11-01T00:00:00Z'));
+      const repository = {
+        writeUserMessage:
+          jest.fn<IConversationRepository['writeUserMessage']>(),
+      } as unknown as IConversationRepository;
+
+      const model: LanguageModelGateway = {
+        provider: 'openrouter',
+        model: 'test-model',
+        generate: jest.fn<LanguageModelGateway['generate']>(),
+      };
+
+      const config = new ConfigService();
+      const orchestrator = new AssistantOrchestratorService(
+        repository,
+        model,
+        new ContextBuilderService(repository, config),
+        new ConversationSummarizerService(repository, model, config),
+        new ToolExecutorService(repository, []),
+        { conversationSummaries: { add: resolved({}) } } as never,
+        { schedule: resolved(undefined) } as never,
+        billingAccountTestAccess({
+          userId: 'user-1',
+          trialStartsAt: new Date('2026-10-22T00:00:00Z'),
+          trialEndsAt: new Date('2026-10-29T00:00:00Z'),
+          paidUntil: null,
+          lastActivatedAt: new Date('2026-10-22T00:00:00Z'),
+        }),
+      );
+
+      try {
+        await expect(
+          orchestrator.sendAndWait(user, {
+            content: 'Halo',
+            idempotencyKey: '9ad63d74-6c9d-4e1c-9ec7-31ce196ccf33',
+            channel,
+          }),
+        ).rejects.toMatchObject({ code: 'BILLING_REQUIRED' });
+        expect(repository.writeUserMessage).not.toHaveBeenCalled();
+        expect(model.generate).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    },
+  );
+});
 
 function createRun(status = 'queued'): AssistantRun {
   return {
@@ -151,6 +210,7 @@ async function runReceiptTurn(
     new ToolExecutorService(repository, []),
     { conversationSummaries: { add: resolved({}) } } as never,
     { schedule: resolved(undefined) } as never,
+    billingTestAccess(),
   );
 
   for await (const chunk of orchestrator.stream(
@@ -245,6 +305,7 @@ describe('AssistantOrchestratorService', () => {
       toolExecutor,
       { conversationSummaries: { add: addConversationSummary } } as never,
       { schedule: scheduleMemoryDream } as never,
+      billingTestAccess(),
     );
 
     const result = await orchestrator.sendQueued(user, {
@@ -341,6 +402,7 @@ describe('AssistantOrchestratorService', () => {
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: addConversationSummary } } as never,
       { schedule: scheduleMemoryDream } as never,
+      billingTestAccess(),
     );
 
     const result = await orchestrator.sendQueued(user, {
@@ -412,6 +474,7 @@ describe('AssistantOrchestratorService', () => {
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: resolved({}) } } as never,
       { schedule: resolved(undefined) } as never,
+      billingTestAccess(),
     );
 
     const chunks: Array<{ type: string; data?: unknown; delta?: string }> = [];
@@ -491,6 +554,7 @@ describe('AssistantOrchestratorService', () => {
       toolExecutor,
       { conversationSummaries: { add: resolved({}) } } as never,
       { schedule: resolved(undefined) } as never,
+      billingTestAccess(),
     );
 
     const result = await orchestrator.sendAndWait(user, {
@@ -569,6 +633,7 @@ describe('AssistantOrchestratorService', () => {
       toolExecutor,
       { conversationSummaries: { add: resolved({}) } } as never,
       { schedule: resolved(undefined) } as never,
+      billingTestAccess(),
       { record },
     );
 
@@ -632,6 +697,7 @@ describe('AssistantOrchestratorService', () => {
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: addConversationSummary } } as never,
       { schedule: scheduleMemoryDream } as never,
+      billingTestAccess(),
     );
 
     await orchestrator.sendQueued(user, {
@@ -747,6 +813,7 @@ describe('AssistantOrchestratorService', () => {
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: resolved({}) } } as never,
       { schedule: resolved(undefined) } as never,
+      billingTestAccess(),
     );
 
     await orchestrator.sendAndWait(user, {
@@ -803,6 +870,7 @@ describe('active-note message idempotency', () => {
         new ToolExecutorService(repository, []),
         { assistantTurns: { add: resolved({}) } } as never,
         { schedule: resolved(undefined) } as never,
+        billingTestAccess(),
         undefined,
         { validate } as unknown as ActiveNoteService,
       );

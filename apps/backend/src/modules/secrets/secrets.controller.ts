@@ -1,3 +1,4 @@
+import { AllowInactiveBilling } from '../billing';
 import {
   Body,
   Controller,
@@ -51,6 +52,7 @@ export class SecretsController {
     }
   }
 
+  @AllowInactiveBilling()
   @Post(':id/reveal-links')
   async createRevealLink(
     @Session() session: UserSession,
@@ -62,6 +64,7 @@ export class SecretsController {
     return link;
   }
 
+  @AllowInactiveBilling()
   @Post('unlock')
   async unlock(
     @Session() session: UserSession,
@@ -90,6 +93,7 @@ export class SecretsController {
     return { expiresAt };
   }
 
+  @AllowInactiveBilling()
   @Post(':id/reveal')
   async revealInSession(
     @Session() session: UserSession,
@@ -127,6 +131,7 @@ export class SecretsController {
   }
 }
 
+@AllowInactiveBilling()
 @Controller('secret-reveals')
 export class SecretRevealsController {
   constructor(private readonly secrets: SecretsService) {}
