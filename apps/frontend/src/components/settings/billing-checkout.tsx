@@ -196,7 +196,7 @@ export function BillingCheckout({
     useBillingCheckoutFlow();
 
   const paid = billing.state === "paid" && !pending;
-  const action = text.subscribe;
+  const action = billing.state === "expired" ? text.renew : text.subscribe;
 
   return (
     <>

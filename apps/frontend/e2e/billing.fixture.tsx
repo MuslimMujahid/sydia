@@ -7,7 +7,6 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { BillingPage } from "../src/components/settings/billing-page";
-import { BillingAccessBanner } from "../src/components/settings/billing-access-banner";
 import { SettingsNav } from "../src/components/settings/settings-nav";
 import "../src/styles/globals.css";
 
@@ -19,7 +18,6 @@ const locale =
 function Fixture() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
-      <BillingAccessBanner locale={locale} />
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
         <SettingsNav />
         <div className="min-w-0 flex-1">

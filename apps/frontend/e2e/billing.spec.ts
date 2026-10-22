@@ -135,10 +135,7 @@ test("expired billing explains read-only access while keeping renewal available"
     page.getByRole("heading", { name: "Sydia siap membantu Anda lagi" })
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Perpanjang langganan" })
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Berlangganan · Rp 29.000" })
+    page.getByRole("link", { name: "Perpanjang langganan · Rp 29.000" })
   ).toBeVisible();
 });
 test("an ambiguous invoice prevents a second checkout and explains review", async ({
