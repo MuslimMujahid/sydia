@@ -104,7 +104,12 @@ export function OnboardingPlanStep({
       {showPayment ? (
         <BillingCheckout billing={billing} language={LANGUAGE} />
       ) : !paid && billing.checkoutEnabled ? (
-        <Button type="button" variant="ghost" onClick={() => setPaying(true)}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setPaying(true)}
+        >
           {pitch.payNow}
         </Button>
       ) : null}
