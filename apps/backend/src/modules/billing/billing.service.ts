@@ -27,6 +27,7 @@ export function presentBillingOrder(order: BillingOrder) {
     durationDays: order.durationDays,
     status: order.status,
     paymentUrl: order.paymentUrl,
+    paymentMethod: order.paymentMethod,
     expiresAt: order.expiresAt,
     appliedAt: order.appliedAt,
     createdAt: order.createdAt,
@@ -253,6 +254,7 @@ export class BillingService {
           order.id,
           order.providerTransactionId,
           now,
+          result.paymentMethod,
         )
       ) {
         recordBillingEvent('payment_applied');

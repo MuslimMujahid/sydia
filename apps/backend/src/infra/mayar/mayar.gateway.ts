@@ -237,6 +237,10 @@ export class MayarGateway implements PaymentGateway, OnModuleDestroy {
         invoiceStatus: string(invoice.status),
         status: string(transaction.status),
         paymentLinkId: string(object(transaction.paymentLink).id),
+        paymentMethod:
+          typeof transaction.paymentMethod === 'string'
+            ? transaction.paymentMethod
+            : null,
       };
     } catch {
       this.logger.error(

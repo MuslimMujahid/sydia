@@ -45,6 +45,7 @@ function order(overrides: Partial<BillingOrder> = {}): BillingOrder {
     providerInvoiceId: 'invoice',
     providerTransactionId: 'transaction',
     paymentUrl: 'https://merchant.myr.id/invoices/test',
+    paymentMethod: null,
     expiresAt: new Date('2026-11-01T00:15:00Z'),
     appliedAt: null,
     nextCheckAt: now,
@@ -90,6 +91,7 @@ function runtime(overrides: Partial<BillingOrder> = {}, role = 'user') {
     invoiceStatus: 'paid',
     status: 'paid',
     paymentLinkId: 'invoice',
+    paymentMethod: 'ewallet/DANA',
   };
 
   const gateway: PaymentGateway = {
@@ -172,6 +174,7 @@ describe('Ambiguous payment operator recovery', () => {
       'order',
       'transaction',
       now,
+      'ewallet/DANA',
     );
   });
 });
@@ -261,6 +264,7 @@ describe('Single-plan prepaid billing', () => {
       'order',
       'transaction',
       now,
+      'ewallet/DANA',
     );
   });
   test('reconciliation verifies and settles a pending payment without any webhook', async () => {
@@ -273,6 +277,7 @@ describe('Single-plan prepaid billing', () => {
       'order',
       'transaction',
       now,
+      'ewallet/DANA',
     );
   });
   test('a success webhook cannot override an unpaid provider transaction', async () => {
@@ -369,5 +374,31 @@ describe('Global upload capacity', () => {
     await expect(
       new StorageQuotaService(repository).reserve('owner', 'file', 1),
     ).rejects.toMatchObject({ code: 'STORAGE_FULL' });
+  });
+  test('backfill stores the provider payment method on paid orders that lack it', async () => {
+    const { operations, repository, row } = runtime({
+      status: 'paid',
+      appliedAt: now,
+    });
+
+    repository.paidOrdersWithoutMethod = () => Promise.resolve([row]);
+    repository.setPaymentMethod = jest.fn(() => Promise.resolve(undefined));
+    await expect(operations.backfillPaymentMethods()).resolves.toBe(1);
+    expect(repository.setPaymentMethod).toHaveBeenCalledWith(
+      'order',
+      'ewallet/DANA',
+    );
+  });
+  test('backfill skips a transaction the provider no longer reports as paid', async () => {
+    const { operations, repository, paid, row } = runtime({
+      status: 'paid',
+      appliedAt: now,
+    });
+
+    paid.status = 'unpaid';
+    repository.paidOrdersWithoutMethod = () => Promise.resolve([row]);
+    repository.setPaymentMethod = jest.fn(() => Promise.resolve(undefined));
+    await expect(operations.backfillPaymentMethods()).resolves.toBe(0);
+    expect(repository.setPaymentMethod).not.toHaveBeenCalled();
   });
 });

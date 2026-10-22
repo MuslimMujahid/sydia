@@ -16,6 +16,8 @@ export type VerifiedInvoice = {
   invoiceStatus: string;
   status: string;
   paymentLinkId: string;
+  /** Provider channel such as `qris` or `ewallet/DANA`; absent on older data. */
+  paymentMethod: string | null;
 };
 export interface PaymentGateway {
   createInvoice(input: {

@@ -18,6 +18,11 @@ async function main() {
         'BillingOperations',
       );
     else if (command === 'recover') await billing.recover();
+    else if (command === 'backfill-methods')
+      Logger.log(
+        `Filled the payment method on ${await operations.backfillPaymentMethods()} paid orders.`,
+        'BillingOperations',
+      );
     else if (command === 'reviews')
       Logger.log(
         JSON.stringify(await operations.reviews()),
@@ -29,7 +34,7 @@ async function main() {
       await operations.closeUnpaid(args[0]!, args[1]!, args[2]!);
     else
       throw new Error(
-        'Usage: billing:ops rollout|recover|reviews|link-invoice ORDER INVOICE TRANSACTION ADMIN_USER|close-unpaid ORDER ADMIN_USER "dashboard evidence"',
+        'Usage: billing:ops rollout|recover|backfill-methods|reviews|link-invoice ORDER INVOICE TRANSACTION ADMIN_USER|close-unpaid ORDER ADMIN_USER "dashboard evidence"',
       );
   } finally {
     await context.close();

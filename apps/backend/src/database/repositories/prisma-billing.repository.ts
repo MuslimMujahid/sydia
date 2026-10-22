@@ -39,6 +39,25 @@ export class PrismaBillingRepository implements IBillingRepository {
       FROM "user" WHERE role = 'user' AND id NOT LIKE 'chat-preview-%' ON CONFLICT ("userId") DO NOTHING`;
   }
 
+  paidOrdersWithoutMethod() {
+    return this.prisma.billingOrder.findMany({
+      where: {
+        status: 'paid',
+        paymentMethod: null,
+        providerInvoiceId: { not: null },
+        providerTransactionId: { not: null },
+      },
+      take: 200,
+    });
+  }
+
+  async setPaymentMethod(id: string, paymentMethod: string) {
+    await this.prisma.billingOrder.updateMany({
+      where: { id, status: 'paid', paymentMethod: null },
+      data: { paymentMethod },
+    });
+  }
+
   listOrders(userId: string) {
     return this.prisma.billingOrder.findMany({
       where: { userId },
@@ -193,7 +212,12 @@ export class PrismaBillingRepository implements IBillingRepository {
     });
   }
 
-  async applyPayment(id: string, transactionId: string, now: Date) {
+  async applyPayment(
+    id: string,
+    transactionId: string,
+    now: Date,
+    paymentMethod?: string | null,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const candidate = await tx.billingOrder.findUnique({
         where: { id },
@@ -241,7 +265,12 @@ export class PrismaBillingRepository implements IBillingRepository {
       });
       await tx.billingOrder.update({
         where: { id },
-        data: { status: 'paid', appliedAt: now, errorCode: null },
+        data: {
+          status: 'paid',
+          appliedAt: now,
+          errorCode: null,
+          ...(paymentMethod ? { paymentMethod } : {}),
+        },
       });
       await tx.auditEvent.create({
         data: {

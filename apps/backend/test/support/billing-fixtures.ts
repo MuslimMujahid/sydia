@@ -29,6 +29,8 @@ export function billingRepositoryFixture(
     attachInvoice: unused,
     markOrder: unused,
     applyPayment: unused,
+    paidOrdersWithoutMethod: unused,
+    setPaymentMethod: unused,
     dueOrders: unused,
     receiveWebhook: unused,
     pendingWebhooks: unused,

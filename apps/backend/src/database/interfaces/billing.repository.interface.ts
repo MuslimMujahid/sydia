@@ -51,7 +51,14 @@ export interface IBillingRepository {
     errorCode: string | null,
     nextCheckAt: Date,
   ): Promise<void>;
-  applyPayment(id: string, transactionId: string, now: Date): Promise<boolean>;
+  applyPayment(
+    id: string,
+    transactionId: string,
+    now: Date,
+    paymentMethod?: string | null,
+  ): Promise<boolean>;
+  paidOrdersWithoutMethod(): Promise<BillingOrder[]>;
+  setPaymentMethod(id: string, paymentMethod: string): Promise<void>;
   dueOrders(now: Date): Promise<BillingOrder[]>;
   receiveWebhook(input: {
     id: string;

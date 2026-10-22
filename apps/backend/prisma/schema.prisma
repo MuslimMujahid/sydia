@@ -101,6 +101,7 @@ model BillingOrder {
   providerInvoiceId     String?
   providerTransactionId String?
   paymentUrl            String?
+  paymentMethod         String?
   expiresAt             DateTime
   appliedAt             DateTime?
   nextCheckAt           DateTime @default(now())

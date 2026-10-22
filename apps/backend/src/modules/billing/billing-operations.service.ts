@@ -75,8 +75,37 @@ export class BillingOperationsService {
       throw new Error(
         'Review order changed concurrently; inspect its current state',
       );
-    await this.repository.applyPayment(orderId, transactionId, new Date());
+    await this.repository.applyPayment(
+      orderId,
+      transactionId,
+      new Date(),
+      result.paymentMethod,
+    );
     this.logger.log(`billing.review_resolved orderId=${orderId}`);
+  }
+
+  /** Fills the payment method on paid orders that were applied before it was stored. */
+  async backfillPaymentMethods(): Promise<number> {
+    let filled = 0;
+
+    for (const order of await this.repository.paidOrdersWithoutMethod()) {
+      if (!order.providerInvoiceId || !order.providerTransactionId) continue;
+      if (
+        order.environment !==
+        this.config.getOrThrow<string>('MAYAR_ENVIRONMENT')
+      )
+        continue;
+      const result = await this.gateway.inspectInvoice(
+        order.providerInvoiceId,
+        order.providerTransactionId,
+      );
+
+      if (result.status !== 'paid' || !result.paymentMethod) continue;
+      await this.repository.setPaymentMethod(order.id, result.paymentMethod);
+      filled += 1;
+    }
+
+    return filled;
   }
 
   async closeUnpaid(orderId: string, actorId: string, reason: string) {
