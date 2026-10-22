@@ -104,6 +104,9 @@ Close an ambiguous order only after confirming in Mayar that it was not paid and
 cannot still be paid. Document the dashboard evidence without personal contact data.
 This releases the single unresolved-order restriction so the customer can try again.
 
+Refunds are handled by support in the Mayar dashboard. This release does not expose
+a refund endpoint or automatically revoke access based on undocumented refund events.
+
 ## Monitor and roll back
 
 - OpenTelemetry counter `sydia.billing.events`, attribute `event`, tracks
