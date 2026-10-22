@@ -1,3 +1,4 @@
+import { billingTestAccess } from '../../../test/support/billing-fixtures';
 import { CalendarReminderService } from '../calendar/calendar-reminder.service';
 import type { ICalendarRepository } from '../../database/interfaces';
 import { describe, expect, jest, test } from '@jest/globals';
@@ -109,6 +110,7 @@ function setup(
   } as unknown as QueueService;
 
   const notifications = new NotificationService(
+    billingTestAccess(),
     notificationRepository,
     queues,
     new CalendarReminderService(
@@ -143,6 +145,7 @@ function setup(
   const calendar = new CalendarReadService(calendarRepository);
 
   const briefings = new DailyBriefingService(
+    billingTestAccess(),
     users,
     notificationRepository,
     tasks,
@@ -152,6 +155,7 @@ function setup(
   );
 
   const followUps = new FollowUpService(
+    billingTestAccess(),
     users,
     tasks,
     notifications,

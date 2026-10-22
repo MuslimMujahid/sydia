@@ -1,3 +1,4 @@
+import { billingTestAccess } from '../../../test/support/billing-fixtures';
 import { expect, jest, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import type {
@@ -47,6 +48,7 @@ function setup(
 
   return {
     service: new ProactiveSchedulerService(
+      billingTestAccess(),
       repository,
       queues,
       new ConfigService(),

@@ -1,5 +1,6 @@
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { Check, ChevronRight } from "lucide-react";
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils/cn";
 
 const DropdownMenu = MenuPrimitive.Root;
@@ -44,6 +45,35 @@ function DropdownMenuContent({
         />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
+  );
+}
+
+const DropdownMenuGroup = MenuPrimitive.Group;
+
+function DropdownMenuLabel({
+  className,
+  ...props
+}: MenuPrimitive.GroupLabel.Props) {
+  return (
+    <MenuPrimitive.GroupLabel
+      data-slot="dropdown-menu-label"
+      className={cn(
+        "truncate px-2.5 pt-1 pb-1.5 font-sans text-xs text-ink-weak",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+function DropdownMenuSeparator({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      role="separator"
+      data-slot="dropdown-menu-separator"
+      className={cn("-mx-1.5 my-1 h-px bg-hairline", className)}
+      {...props}
+    />
   );
 }
 
@@ -125,9 +155,12 @@ export {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuSubmenu,
   DropdownMenuSubmenuTrigger,
 };

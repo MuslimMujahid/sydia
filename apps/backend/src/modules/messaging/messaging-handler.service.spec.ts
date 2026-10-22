@@ -1,3 +1,8 @@
+import {
+  billingTestAccess,
+  billingAccountTestAccess,
+} from '../../../test/support/billing-fixtures';
+import type { BillingAccessService } from '../billing';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { DocumentProcessingPendingError } from '../../shared/documents';
 import { jest } from '@jest/globals';
@@ -38,7 +43,7 @@ const baseMessage: NormalizedInboundMessage = {
   raw: {},
 };
 
-function setup() {
+function setup(access: BillingAccessService = billingTestAccess()) {
   const conversation = {
     id: 'conversation-1',
     title: 'Halo',
@@ -87,6 +92,7 @@ function setup() {
   } as unknown as INotificationRepository;
 
   const service = new MessagingHandlerService(
+    access,
     assistant,
     conversations,
     users,
@@ -148,6 +154,58 @@ async function processReply(
 
   return send;
 }
+
+describe('MessagingHandlerService expired access', () => {
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-01T00:00:00Z'));
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  test.each(['telegram', 'whatsapp'] as const)(
+    '%s rejects new work before media preparation or AI',
+    async (provider) => {
+      const { service, conversations, assistant } = setup(
+        billingAccountTestAccess({
+          userId: 'user-1',
+          trialStartsAt: new Date('2026-10-22T00:00:00Z'),
+          trialEndsAt: new Date('2026-10-29T00:00:00Z'),
+          paidUntil: null,
+          lastActivatedAt: new Date('2026-10-22T00:00:00Z'),
+        }),
+      );
+
+      const prepare = jest.fn<ChannelTurnAdapter['prepare']>();
+      const send = jest
+        .fn<ChannelTurnAdapter['send']>()
+        .mockResolvedValue(undefined);
+
+      await service.registerAdapter(provider, { prepare, send });
+
+      try {
+        await service.handle({
+          message: { ...baseMessage, provider },
+          user,
+          externalIdentityId: 'identity-1',
+        });
+        expect(send).toHaveBeenCalledWith(
+          user,
+          'identity-1',
+          expect.objectContaining({ provider }),
+          expect.stringContaining('/settings/billing'),
+        );
+        expect(prepare).not.toHaveBeenCalled();
+        expect(assistant.sendAndWait).not.toHaveBeenCalled();
+        expect(conversations.enqueueChannelTurn).not.toHaveBeenCalled();
+      } finally {
+        service.onModuleDestroy();
+      }
+    },
+  );
+});
 
 describe('MessagingHandlerService reply recovery', () => {
   beforeEach(() => {

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ChangeEmailRouteImport } from './routes/change-email'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as GoogleResultRouteImport } from './routes/google-result'
@@ -36,7 +37,9 @@ import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
 import { Route as AdminWhatsappRouteImport } from './routes/admin_.whatsapp'
+import { Route as ReceiptOrderIdRouteImport } from './routes/receipt.$orderId'
 import { Route as AppSettingsAssistantRouteImport } from './routes/_app.settings.assistant'
+import { Route as AppSettingsBillingRouteImport } from './routes/_app.settings.billing'
 import { Route as AppSettingsIntegrationsRouteImport } from './routes/_app.settings.integrations'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/_app.settings.notifications'
 import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
@@ -55,6 +58,11 @@ const AdminRoute = AdminRouteImport.update({
 const ChangeEmailRoute = ChangeEmailRouteImport.update({
   id: '/change-email',
   path: '/change-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesignSystemRoute = DesignSystemRouteImport.update({
@@ -177,9 +185,19 @@ const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
   path: '/admin/whatsapp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReceiptOrderIdRoute = ReceiptOrderIdRouteImport.update({
+  id: '/receipt/$orderId',
+  path: '/receipt/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppSettingsAssistantRoute = AppSettingsAssistantRouteImport.update({
   id: '/assistant',
   path: '/assistant',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsBillingRoute = AppSettingsBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
   getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsIntegrationsRoute = AppSettingsIntegrationsRouteImport.update({
@@ -213,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/admin': typeof AdminRoute
   '/change-email': typeof ChangeEmailRoute
+  '/checkout': typeof CheckoutRoute
   '/design-system': typeof DesignSystemRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/google-result': typeof GoogleResultRoute
@@ -236,7 +255,9 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof AppTasksRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/receipt/$orderId': typeof ReceiptOrderIdRoute
   '/settings/assistant': typeof AppSettingsAssistantRoute
+  '/settings/billing': typeof AppSettingsBillingRoute
   '/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -246,6 +267,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/change-email': typeof ChangeEmailRoute
+  '/checkout': typeof CheckoutRoute
   '/design-system': typeof DesignSystemRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/google-result': typeof GoogleResultRoute
@@ -269,8 +291,10 @@ export interface FileRoutesByTo {
   '/tasks': typeof AppTasksRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/receipt/$orderId': typeof ReceiptOrderIdRoute
   '/': typeof AppIndexRoute
   '/settings/assistant': typeof AppSettingsAssistantRoute
+  '/settings/billing': typeof AppSettingsBillingRoute
   '/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -282,6 +306,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
   '/change-email': typeof ChangeEmailRoute
+  '/checkout': typeof CheckoutRoute
   '/design-system': typeof DesignSystemRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/google-result': typeof GoogleResultRoute
@@ -305,8 +330,10 @@ export interface FileRoutesById {
   '/_app/tasks': typeof AppTasksRoute
   '/admin_/login': typeof AdminLoginRoute
   '/admin_/whatsapp': typeof AdminWhatsappRoute
+  '/receipt/$orderId': typeof ReceiptOrderIdRoute
   '/_app/': typeof AppIndexRoute
   '/_app/settings/assistant': typeof AppSettingsAssistantRoute
+  '/_app/settings/billing': typeof AppSettingsBillingRoute
   '/_app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
@@ -319,6 +346,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/change-email'
+    | '/checkout'
     | '/design-system'
     | '/forgot-password'
     | '/google-result'
@@ -342,7 +370,9 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/login'
     | '/admin/whatsapp'
+    | '/receipt/$orderId'
     | '/settings/assistant'
+    | '/settings/billing'
     | '/settings/integrations'
     | '/settings/notifications'
     | '/settings/profile'
@@ -352,6 +382,7 @@ export interface FileRouteTypes {
   to:
     | '/admin'
     | '/change-email'
+    | '/checkout'
     | '/design-system'
     | '/forgot-password'
     | '/google-result'
@@ -375,8 +406,10 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/login'
     | '/admin/whatsapp'
+    | '/receipt/$orderId'
     | '/'
     | '/settings/assistant'
+    | '/settings/billing'
     | '/settings/integrations'
     | '/settings/notifications'
     | '/settings/profile'
@@ -387,6 +420,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/admin'
     | '/change-email'
+    | '/checkout'
     | '/design-system'
     | '/forgot-password'
     | '/google-result'
@@ -410,8 +444,10 @@ export interface FileRouteTypes {
     | '/_app/tasks'
     | '/admin_/login'
     | '/admin_/whatsapp'
+    | '/receipt/$orderId'
     | '/_app/'
     | '/_app/settings/assistant'
+    | '/_app/settings/billing'
     | '/_app/settings/integrations'
     | '/_app/settings/notifications'
     | '/_app/settings/profile'
@@ -423,6 +459,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   ChangeEmailRoute: typeof ChangeEmailRoute
+  CheckoutRoute: typeof CheckoutRoute
   DesignSystemRoute: typeof DesignSystemRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GoogleResultRoute: typeof GoogleResultRoute
@@ -434,6 +471,7 @@ export interface RootRouteChildren {
   VerifyEmailRoute: typeof VerifyEmailRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminWhatsappRoute: typeof AdminWhatsappRoute
+  ReceiptOrderIdRoute: typeof ReceiptOrderIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -457,6 +495,13 @@ declare module '@tanstack/react-router' {
       path: '/change-email'
       fullPath: '/change-email'
       preLoaderRoute: typeof ChangeEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/design-system': {
@@ -627,11 +672,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/receipt/$orderId': {
+      id: '/receipt/$orderId'
+      path: '/receipt/$orderId'
+      fullPath: '/receipt/$orderId'
+      preLoaderRoute: typeof ReceiptOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/settings/assistant': {
       id: '/_app/settings/assistant'
       path: '/assistant'
       fullPath: '/settings/assistant'
       preLoaderRoute: typeof AppSettingsAssistantRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/billing': {
+      id: '/_app/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof AppSettingsBillingRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/integrations': {
@@ -674,6 +733,7 @@ declare module '@tanstack/react-router' {
 
 interface AppSettingsRouteChildren {
   AppSettingsAssistantRoute: typeof AppSettingsAssistantRoute
+  AppSettingsBillingRoute: typeof AppSettingsBillingRoute
   AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
   AppSettingsProfileRoute: typeof AppSettingsProfileRoute
@@ -683,6 +743,7 @@ interface AppSettingsRouteChildren {
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAssistantRoute: AppSettingsAssistantRoute,
+  AppSettingsBillingRoute: AppSettingsBillingRoute,
   AppSettingsIntegrationsRoute: AppSettingsIntegrationsRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
   AppSettingsProfileRoute: AppSettingsProfileRoute,
@@ -732,6 +793,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   ChangeEmailRoute: ChangeEmailRoute,
+  CheckoutRoute: CheckoutRoute,
   DesignSystemRoute: DesignSystemRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   GoogleResultRoute: GoogleResultRoute,
@@ -743,6 +805,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyEmailRoute: VerifyEmailRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminWhatsappRoute: AdminWhatsappRoute,
+  ReceiptOrderIdRoute: ReceiptOrderIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -12,7 +12,7 @@ export function documentParserFailureMessage(code: string): string {
   if (code === 'VISION_UNREADABLE')
     return 'Isi gambar tidak dapat dibaca. Unggah hasil pindai atau gambar dengan teks dan diagram yang lebih jelas.';
   if (code === 'FILE_TOO_LARGE')
-    return 'Ukuran file maksimal 25 MiB. Perkecil file lalu unggah kembali.';
+    return 'Ukuran file maksimal 100 MB. Perkecil file lalu unggah kembali.';
   if (code.startsWith('OCR_ASSETS_PREPARATION_'))
     return 'Layanan pembacaan dokumen sementara belum siap. Coba kembali sebentar lagi atau hubungi administrator.';
   if (/LIMIT_EXCEEDED|TIMEOUT/.test(code))

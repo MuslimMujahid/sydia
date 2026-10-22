@@ -59,6 +59,7 @@ export type CalendarSyncJob =
   | { kind: 'recover' };
 @Injectable()
 export class QueueService implements OnModuleDestroy {
+  readonly billing: Queue<{ kind: 'recover' }>;
   readonly reminders: Queue<ReminderJob>;
   readonly documents: Queue<DocumentJob>;
   readonly memoryDreams: Queue<MemoryDreamJob>;
@@ -83,6 +84,8 @@ export class QueueService implements OnModuleDestroy {
       removeOnComplete: 1000,
       removeOnFail: 1000,
     };
+
+    this.billing = new Queue('billing', { connection, defaultJobOptions });
 
     this.reminders = new Queue<ReminderJob>('reminders', {
       connection,
@@ -146,6 +149,7 @@ export class QueueService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
+    await this.billing.close();
     await Promise.all([
       this.reminders.close(),
       this.documents.close(),

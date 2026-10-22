@@ -1,3 +1,4 @@
+import { AllowInactiveBilling } from '../billing';
 import {
   Body,
   Controller,
@@ -60,7 +61,9 @@ export class NotesController {
     return this.notes.update(session.user.id, id, input);
   }
 
-  @Post('items/:id/trash') trash(
+  @AllowInactiveBilling()
+  @Post('items/:id/trash')
+  trash(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: WorkspaceRevisionDto,
@@ -84,7 +87,9 @@ export class NotesController {
     });
   }
 
-  @Post('items/:id/delete') remove(
+  @AllowInactiveBilling()
+  @Post('items/:id/delete')
+  remove(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: WorkspaceRevisionDto,

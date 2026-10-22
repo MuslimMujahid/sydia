@@ -24,3 +24,5 @@ export * from './chat-preview.repository.interface';
 export * from './workspace.repository.interface';
 export * from './file-library.repository.interface';
 export * from './file-deletion.repository.interface';
+
+export * from './billing.repository.interface';

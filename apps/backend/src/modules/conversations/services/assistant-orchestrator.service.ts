@@ -1,3 +1,4 @@
+import { BillingAccessService } from '../../billing';
 import {
   HttpStatus,
   Inject,
@@ -165,6 +166,7 @@ export class AssistantOrchestratorService {
     private readonly toolExecutor: ToolExecutorService,
     private readonly queues: QueueService,
     private readonly memoryDreamScheduler: MemoryDreamSchedulerService,
+    private readonly billing: BillingAccessService,
     @Optional()
     @Inject(AUDIT_EVENT_REPOSITORY)
     private readonly auditEvents?: IAuditEventRepository,
@@ -453,6 +455,8 @@ export class AssistantOrchestratorService {
     run: AssistantRun;
     completedResult?: AssistantTurnResult & { userMessage: Message };
   }> {
+    await this.billing.assertActive(user.id, user.locale);
+
     if (input.activeNoteRef) {
       if (!this.activeNotes)
         throw new Error('Active note validation service is unavailable');
@@ -587,6 +591,7 @@ export class AssistantOrchestratorService {
     runId: string,
     context?: AssistantExecutionContext,
   ): Promise<AssistantTurnResult | null> {
+    await this.billing.assertActive(user.id, user.locale);
     const failedRun = await this.conversations.findRun(
       user.id,
       conversationId,

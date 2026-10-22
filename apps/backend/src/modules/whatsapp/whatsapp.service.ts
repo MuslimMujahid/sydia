@@ -186,6 +186,7 @@ export class WhatsAppService implements OnModuleInit {
   }
 
   async deliverNotification(input: {
+    reminderOccurrenceKey?: string;
     userId: string;
     kind: string;
     content: string;
@@ -225,7 +226,16 @@ export class WhatsAppService implements OnModuleInit {
       return { status: 'skipped_obsolete' };
     }
 
-    if (!(await this.notifications.claimDelivery(input.userId, existing.id))) {
+    if (
+      !(await this.notifications.claimDelivery(input.userId, existing.id, {
+        createdAt: existing.createdAt,
+        occurrenceAt:
+          input.eventReminder?.scheduledAt ??
+          input.reminderOccurrenceKey?.slice(
+            input.reminderOccurrenceKey.indexOf(':') + 1,
+          ),
+      }))
+    ) {
       const current = await this.notifications.findByIdempotencyKey(
         input.userId,
         input.idempotencyKey,

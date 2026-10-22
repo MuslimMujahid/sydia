@@ -1,3 +1,4 @@
+import { BillingAccessService } from '../billing';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { DocumentProcessingPendingError } from '../../shared/documents';
 import {
@@ -96,6 +97,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
   private readonly leaseMs = 5 * 60_000;
 
   constructor(
+    private readonly billing: BillingAccessService,
     private readonly assistant: AssistantOrchestratorService,
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversations: IConversationRepository,
@@ -181,6 +183,18 @@ export class MessagingHandlerService implements OnModuleDestroy {
         input.externalIdentityId,
         input.message,
         channelMessages(input.user.locale).newConversation,
+      );
+
+      return true;
+    }
+
+    if (!(await this.billing.isActive(input.user.id))) {
+      this.logger.warn(`billing.channel_denied userId=${input.user.id}`);
+      await this.sendFor(
+        input.user,
+        input.externalIdentityId,
+        input.message,
+        this.billing.message(input.user.locale),
       );
 
       return true;
@@ -321,6 +335,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
         });
       }
 
+      await this.billing.assertActive(user.id, user.locale);
       stopProcessing = await adapter.beginProcessing?.(
         batch.turns.map(({ message }) => message.message),
         controller.signal,
@@ -453,8 +468,10 @@ export class MessagingHandlerService implements OnModuleDestroy {
         // Public API validation messages are safe to show; provider errors stay generic.
         if (
           error instanceof ApiException &&
-          error.code === ErrorCodes.BAD_REQUEST &&
-          error.getStatus() === 400
+          ((error.code === ErrorCodes.BAD_REQUEST &&
+            error.getStatus() === 400) ||
+            error.code === ErrorCodes.BILLING_REQUIRED ||
+            error.code === ErrorCodes.STORAGE_FULL)
         ) {
           const payload: unknown = error.getResponse();
 

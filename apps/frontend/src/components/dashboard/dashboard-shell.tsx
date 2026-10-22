@@ -5,14 +5,12 @@ import {
   ContactRound,
   Ellipsis,
   Files,
-  LogOut,
   Menu,
   MessageSquarePlus,
   PanelLeftClose,
   NotebookPen,
   PanelLeftOpen,
   ShieldCheck,
-  Settings,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -23,7 +21,7 @@ import {
   TopbarSlotsContext,
   type TopbarSlots,
 } from "@/components/dashboard/topbar-slots";
-import { Avatar } from "@/components/ui/avatar";
+import { AccountMenu } from "@/components/dashboard/account-menu";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
+import { billingStatusQueryOptions } from "@/lib/services/api/billing/billing.api";
 import {
   authQueryKeys,
   useSignOut,
@@ -81,17 +80,6 @@ const MORE_NAV_ITEMS = [
     : []),
 ] as const;
 
-function initialsFor(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join("") || "SY"
-  );
-}
-
 export function DashboardShell({
   user,
   children,
@@ -117,6 +105,7 @@ export function DashboardShell({
   const queryClient = useQueryClient();
   const signOutMutation = useSignOut();
   const conversationsQuery = useQuery(conversationsQueryOptions());
+  const billingQuery = useQuery(billingStatusQueryOptions());
   const deleteMutation = useDeleteConversation();
   const activePath = location.pathname;
   const selectedConversationId = new URLSearchParams(location.searchStr).get(
@@ -168,43 +157,13 @@ export function DashboardShell({
   }
 
   const accountMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            className={cn(
-              "h-auto min-w-0 max-w-full justify-start gap-3 px-2 py-2",
-              collapsed && "justify-center px-0"
-            )}
-            aria-label="Buka menu akun"
-          />
-        }
-      >
-        <Avatar initials={initialsFor(user.name)} />
-        {!collapsed ? (
-          <span className="min-w-0 text-left">
-            <span className="block truncate text-sm text-ink">{user.name}</span>
-            <span className="block truncate text-xs font-normal text-ink-muted">
-              {user.email}
-            </span>
-          </span>
-        ) : null}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem render={<Link to="/settings/profile" />}>
-          <Settings /> Pengaturan
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          destructive
-          disabled={signOutMutation.isPending}
-          onClick={() => void handleSignOut()}
-        >
-          <LogOut />
-          {signOutMutation.isPending ? "Sedang keluar…" : "Keluar"}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AccountMenu
+      user={user}
+      billing={billingQuery.data}
+      collapsed={collapsed}
+      signingOut={signOutMutation.isPending}
+      onSignOut={() => void handleSignOut()}
+    />
   );
 
   const sidebar = (

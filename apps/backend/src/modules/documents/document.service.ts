@@ -1,3 +1,4 @@
+import { BillingAccessService, StorageQuotaService } from '../billing';
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -154,6 +155,8 @@ export class DocumentService {
   private readonly publicBaseUrl: string;
 
   constructor(
+    private readonly billing: BillingAccessService,
+    private readonly storageQuota: StorageQuotaService,
     @Inject(DOCUMENT_REPOSITORY)
     private readonly documents: IDocumentRepository,
     private readonly storage: StorageService,
@@ -179,13 +182,14 @@ export class DocumentService {
     file: UploadedFile,
     options?: { hint?: string; folderId?: string },
   ): Promise<Document> {
+    await this.billing.assertActive(userId);
     if (
       file.buffer.length > MAX_DOCUMENT_BYTES ||
       file.size > MAX_DOCUMENT_BYTES
     )
       throw new ApiException({
         code: ErrorCodes.BAD_REQUEST,
-        message: 'Ukuran file maksimal 25 MiB.',
+        message: 'Ukuran file maksimal 100 MB.',
         status: HttpStatus.BAD_REQUEST,
       });
 
@@ -226,14 +230,20 @@ export class DocumentService {
 
     await this.artifactCleanup.trackUpload(userId, storageKey);
     const stopUploadLease = this.artifactCleanup.startUploadLease(storageKey);
+    let releaseReservation = false;
 
     try {
+      await this.storageQuota.reserve(
+        userId,
+        storageKey,
+        file.buffer.byteLength,
+      );
       await this.storage.put(storageKey, file.buffer, file.mimetype);
       let document = await this.documents.createWithFile(userId, {
         file: {
           originalName: file.originalname,
           mimeType: file.mimetype,
-          size: file.size,
+          size: file.buffer.byteLength,
           checksum,
           storageKey,
           kind,
@@ -261,6 +271,7 @@ export class DocumentService {
         { jobId: document.id },
       );
       await this.artifactCleanup.activateUpload(storageKey);
+      releaseReservation = true;
 
       return document;
     } catch (error: unknown) {
@@ -303,11 +314,15 @@ export class DocumentService {
         throw failure;
       }
 
+      releaseReservation = true;
+
       if (error instanceof FileLibraryError && this.library)
         return this.library.execute(() => Promise.reject(error));
       throw error;
     } finally {
       stopUploadLease();
+      // Keep failed, partially cleaned writes reserved until durable cleanup finishes.
+      if (releaseReservation) await this.storageQuota.release(storageKey);
     }
   }
 
