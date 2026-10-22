@@ -73,7 +73,9 @@ export class BillingAccessService {
     }
 
     const paid = account.paidUntil !== null && account.paidUntil > now;
-    const trial = account.trialStartsAt <= now && account.trialEndsAt > now;
+    // A rollout scheduled in the future must not lock anyone out beforehand:
+    // until the trial starts, the account keeps the access it already had.
+    const trial = account.trialEndsAt > now;
 
     return {
       enforced: this.enforced,
