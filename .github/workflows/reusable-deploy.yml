@@ -12,6 +12,10 @@ on:
       vite_api_url:
         required: true
         type: string
+      vite_whatsapp_enabled:
+        required: false
+        type: string
+        default: "false"
       frontend_cache_scope:
         required: true
         type: string
@@ -68,7 +72,9 @@ jobs:
           context: .
           file: apps/frontend/Dockerfile
           push: true
-          build-args: VITE_API_URL=${{ inputs.vite_api_url }}
+          build-args: |
+            VITE_API_URL=${{ inputs.vite_api_url }}
+            VITE_WHATSAPP_ENABLED=${{ inputs.vite_whatsapp_enabled }}
           tags: |
             ghcr.io/${{ steps.image_namespace.outputs.value }}/sydia-frontend:${{ inputs.image_tag }}
             ghcr.io/${{ steps.image_namespace.outputs.value }}/sydia-frontend:${{ github.sha }}

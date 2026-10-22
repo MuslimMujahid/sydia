@@ -20,6 +20,7 @@ jobs:
       environment_name: prod
       image_tag: main
       vite_api_url: ${{ vars.PROD_VITE_API_URL || vars.VITE_API_URL }}
+      vite_whatsapp_enabled: ${{ vars.VITE_WHATSAPP_ENABLED || 'false' }}
       frontend_cache_scope: frontend-prod
       backend_cache_scope: backend-prod
     secrets:
