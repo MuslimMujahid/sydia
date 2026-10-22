@@ -21,8 +21,10 @@ export class AuthMailService implements OnModuleDestroy {
   private readonly logger = new Logger(AuthMailService.name);
   private readonly transport: Transporter;
   private readonly sender: string;
+  private readonly development: boolean;
 
   constructor(config: ConfigService) {
+    this.development = config.get<string>('NODE_ENV') === 'development';
     this.sender = config.getOrThrow<string>('BACKEND_MAIL_FROM');
     this.transport = nodemailer.createTransport({
       url: config.getOrThrow<string>('BACKEND_SMTP_URL'),
@@ -33,6 +35,10 @@ export class AuthMailService implements OnModuleDestroy {
   }
 
   async send({ email, otp, type }: AuthMail): Promise<void> {
+    // Local development only: without a mail server the code is read from this log.
+    if (this.development)
+      this.logger.warn(`auth.dev_otp type=${type} email=${email} otp=${otp}`);
+
     try {
       await this.transport.sendMail({
         from: this.sender,
@@ -41,6 +47,12 @@ export class AuthMailService implements OnModuleDestroy {
         text: `${SUBJECTS[type]}\n\nKode Anda: ${otp}\n\nKode ini berlaku selama 10 menit dan hanya dapat digunakan sekali. Jangan bagikan kode ini kepada siapa pun. Jika Anda tidak meminta kode ini, abaikan email ini.`,
       });
     } catch {
+      if (this.development) {
+        this.logger.warn('Mail server unreachable; use the logged code.');
+
+        return;
+      }
+
       // Never log the transport error: it may contain credentials or message data.
       this.logger.error(
         'Authentication email delivery failed. Check BACKEND_SMTP_URL and the mail server.',

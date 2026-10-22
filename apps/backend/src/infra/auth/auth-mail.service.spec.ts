@@ -8,7 +8,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-function setup() {
+function setup(env: Record<string, string> = {}) {
   const sendMail = jest.fn<(input: unknown) => Promise<unknown>>();
   const close = jest.fn();
   jest.spyOn(nodemailer, 'createTransport').mockReturnValue({
@@ -19,6 +19,7 @@ function setup() {
     new ConfigService({
       BACKEND_SMTP_URL: 'smtp://localhost:1025',
       BACKEND_MAIL_FROM: 'Sydia <noreply@sydia.local>',
+      ...env,
     }),
   );
 
@@ -62,6 +63,40 @@ describe('authentication mail delivery', () => {
 
     expect(log).toHaveBeenCalledWith(
       'Authentication email delivery failed. Check BACKEND_SMTP_URL and the mail server.',
+    );
+  });
+
+  it('never logs the code outside development', async () => {
+    const { service, sendMail } = setup({ NODE_ENV: 'production' });
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
+    sendMail.mockResolvedValue({});
+    await service.send({
+      email: 'owner@example.com',
+      otp: '123456',
+      type: 'sign-in',
+    });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('logs the code in development and tolerates a missing mail server', async () => {
+    const { service, sendMail } = setup({ NODE_ENV: 'development' });
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
+    sendMail.mockRejectedValue(new Error('connect ECONNREFUSED'));
+    await expect(
+      service.send({
+        email: 'owner@example.com',
+        otp: '123456',
+        type: 'email-verification',
+      }),
+    ).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      'auth.dev_otp type=email-verification email=owner@example.com otp=123456',
     );
   });
 
