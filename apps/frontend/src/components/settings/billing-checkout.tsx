@@ -176,6 +176,8 @@ interface BillingCheckoutProps {
    * the checkout page, where the order summary and payment hand-off live.
    */
   inline?: boolean;
+  /** For a paid account, show only the renew action (the page already says it is paid). */
+  quiet?: boolean;
 }
 
 /** The single payment flow: open invoice status, or the way to request one. */
@@ -183,6 +185,7 @@ export function BillingCheckout({
   billing,
   language,
   inline = true,
+  quiet = false,
 }: BillingCheckoutProps) {
   const text = BILLING_COPY[language];
   const { orders, pending, mobile, setMobile, checkout, submit } =
@@ -196,10 +199,16 @@ export function BillingCheckout({
     <>
       {paid && !renewing ? (
         <div className="space-y-3">
-          <p role="status" className="font-semibold">
-            {text.paidNotice}
-          </p>
-          <p className="max-w-prose text-sm text-ink-muted">{text.renewHint}</p>
+          {quiet ? null : (
+            <>
+              <p role="status" className="font-semibold">
+                {text.paidNotice}
+              </p>
+              <p className="max-w-prose text-sm text-ink-muted">
+                {text.renewHint}
+              </p>
+            </>
+          )}
           {billing.checkoutEnabled ? (
             inline ? (
               <Button
