@@ -11,6 +11,7 @@ const entityFixture: Plugin = {
       if (
         fixture !== "/e2e/notes-move.html" &&
         fixture !== "/e2e/billing.html" &&
+        fixture !== "/e2e/onboarding.html" &&
         fixture !== "/e2e/note-drawer.html" &&
         fixture !== "/e2e/entity-renderer.html" &&
         fixture !== "/e2e/chat-previews.html" &&

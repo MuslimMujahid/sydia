@@ -12,8 +12,10 @@ import {
   SelectField,
 } from "@/components/forms/form-fields";
 import { LoadingState, ErrorState } from "@/components/app-states";
+import { OnboardingPlanStep } from "@/components/onboarding/onboarding-plan-step";
 import { useAppForm } from "@/lib/hooks/forms";
 import { requireSession } from "@/lib/auth";
+import { billingStatusQueryOptions } from "@/lib/services/api/billing/billing.api";
 import {
   ASSISTANT_PERSONAS,
   DEFAULT_ASSISTANT_PERSONA,
@@ -84,10 +86,13 @@ const PERSONA_OPTIONS: {
   },
 ];
 
+type Step = 1 | 2 | 3 | 4;
+
 const STEP_HEADINGS = [
   "Atur bahasa dan zona waktu",
   "Kamu mau dipanggil apa?",
   "Interaksi seperti apa yang kamu harapkan?",
+  "Pilih cara memulai",
 ] as const;
 
 export const Route = createFileRoute("/onboarding")({
@@ -100,7 +105,16 @@ export const Route = createFileRoute("/onboarding")({
 
     if (user.onboardingCompleted) throw redirect({ to: "/" });
 
-    return user;
+    // The payment step appears only once billing is configured. A status
+    // failure must not block onboarding; billing stays reachable in settings.
+    const billing = await context.queryClient
+      .ensureQueryData(billingStatusQueryOptions())
+      .catch(() => null);
+
+    return {
+      user,
+      hasPlanStep: billing !== null && billing.state !== "disabled",
+    };
   },
   head: () => ({
     meta: [
@@ -121,7 +135,8 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 function OnboardingPage() {
-  const user = Route.useLoaderData();
+  const { user, hasPlanStep } = Route.useLoaderData();
+  const totalSteps: Step = hasPlanStep ? 4 : 3;
   const navigate = useNavigate();
   const updateMutation = useUpdateCurrentUser();
   const preferencesMutation = useUpdateUserPreferences();
@@ -163,13 +178,13 @@ function OnboardingPage() {
   const submitError =
     preferencesMutation.error?.message ?? updateMutation.error?.message;
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<Step>(1);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   const heading = STEP_HEADINGS[step - 1] ?? STEP_HEADINGS[0];
   const StepShell: "div" | typeof Card = step === 3 ? "div" : Card;
 
-  const goToStep = (next: 1 | 2 | 3) => {
+  const goToStep = (next: Step) => {
     preferencesMutation.reset();
     updateMutation.reset();
     setDirection(next > step ? "forward" : "backward");
@@ -185,28 +200,33 @@ function OnboardingPage() {
             Sydia
           </span>
           <span className="text-sm font-medium text-ink-muted">
-            Pengaturan awal · {step} dari 3
+            Pengaturan awal · {step} dari {totalSteps}
           </span>
         </div>
         <div
-          aria-label={`Langkah ${step} dari 3`}
-          className="mb-5 grid grid-cols-3 gap-2"
+          aria-label={`Langkah ${step} dari ${totalSteps}`}
+          className={cn(
+            "mb-5 grid gap-2",
+            totalSteps === 4 ? "grid-cols-4" : "grid-cols-3"
+          )}
           role="progressbar"
           aria-valuemin={1}
-          aria-valuemax={3}
+          aria-valuemax={totalSteps}
           aria-valuenow={step}
         >
-          {[1, 2, 3].map((item) => (
-            <span
-              key={item}
-              aria-hidden="true"
-              className={cn(
-                "h-1 rounded-pill bg-ink/10 transition-[background-color,transform] duration-300 motion-reduce:transition-none",
-                item <= step && "bg-brand",
-                item === step && "scale-y-125"
-              )}
-            />
-          ))}
+          {Array.from({ length: totalSteps }, (_, index) => index + 1).map(
+            (item) => (
+              <span
+                key={item}
+                aria-hidden="true"
+                className={cn(
+                  "h-1 rounded-pill bg-ink/10 transition-[background-color,transform] duration-300 motion-reduce:transition-none",
+                  item <= step && "bg-brand",
+                  item === step && "scale-y-125"
+                )}
+              />
+            )
+          )}
         </div>
         <div
           key={step}
@@ -227,273 +247,290 @@ function OnboardingPage() {
                 : "p-6 transition-shadow duration-300 sm:p-8"
             }
           >
-            <form
-              className="space-y-7"
-              noValidate
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (step !== 3) return;
-                void form.handleSubmit();
-              }}
-            >
-              {step === 1 && (
-                <form.Field name="timezone">
-                  {(field) => (
-                    <FieldShell
-                      id="onboarding-timezone"
-                      label="Zona waktu"
-                      description="Menentukan waktu pengingat, acara, dan ringkasan."
-                      errors={field.state.meta.errors}
-                    >
-                      {({ describedBy, invalid }) => (
-                        <SelectField
-                          id="onboarding-timezone"
-                          value={field.state.value}
-                          aria-describedby={describedBy}
-                          aria-invalid={invalid}
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(event.target.value)
-                          }
-                        >
-                          {Array.from(
-                            new Set([field.state.value, ...TIMEZONES])
-                          )
-                            .filter(Boolean)
-                            .map((zone) => (
-                              <option key={zone} value={zone}>
-                                {zone.replaceAll("_", " ")}
-                              </option>
-                            ))}
-                        </SelectField>
-                      )}
-                    </FieldShell>
-                  )}
-                </form.Field>
-              )}
-              {step === 1 && (
-                <form.Field name="locale">
-                  {(field) => (
-                    <FieldShell
-                      id="onboarding-locale"
-                      label="Bahasa"
-                      description="Menentukan bahasa dasbor serta format angka dan tanggal."
-                      errors={field.state.meta.errors}
-                    >
-                      {({ describedBy, invalid }) => (
-                        <SelectField
-                          id="onboarding-locale"
-                          value={field.state.value}
-                          aria-describedby={describedBy}
-                          aria-invalid={invalid}
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(
-                              event.target.value as "en" | "id"
-                            )
-                          }
-                        >
-                          <option value="id">Bahasa Indonesia</option>
-                          <option value="en">Bahasa Inggris</option>
-                        </SelectField>
-                      )}
-                    </FieldShell>
-                  )}
-                </form.Field>
-              )}
-              {step === 2 && (
-                <form.Field name="preferredAddress">
-                  {(field) => (
-                    <FieldShell
-                      id="onboarding-preferred-address"
-                      label="Panggilan"
-                      description={`Opsional. Contoh: Kak Dipa atau Bu Ratri. ${field.state.value.length}/50 karakter.`}
-                      errors={field.state.meta.errors}
-                    >
-                      {({ describedBy, invalid }) => (
-                        <Input
-                          id="onboarding-preferred-address"
-                          value={field.state.value}
-                          maxLength={50}
-                          placeholder="Mis. Kak Dipa, Bu Ratri"
-                          autoComplete="off"
-                          aria-describedby={describedBy}
-                          aria-invalid={invalid}
-                          onBlur={field.handleBlur}
-                          onChange={(event) =>
-                            field.handleChange(event.target.value)
-                          }
-                        />
-                      )}
-                    </FieldShell>
-                  )}
-                </form.Field>
-              )}
-              {step === 3 && (
-                <form.Field name="persona">
-                  {(field) => (
-                    <>
-                      {(() => {
-                        const selectedIndex = Math.max(
-                          0,
-                          PERSONA_OPTIONS.findIndex(
-                            (option) => option.value === field.state.value
-                          )
-                        );
-
-                        const activeIndex = selectedIndex;
-                        const previous = PERSONA_OPTIONS[selectedIndex - 1];
-                        const next = PERSONA_OPTIONS[selectedIndex + 1];
-
-                        return (
-                          <>
-                            <RadioGroup
-                              aria-label="Persona asisten"
-                              className="relative h-[305px] [--fan-gap:40px] sm:h-[355px] sm:[--fan-gap:92px] md:h-[400px] md:[--fan-gap:116px] lg:h-[425px] lg:[--fan-gap:136px]"
-                              value={field.state.value}
-                              onValueChange={(value) =>
-                                field.handleChange(value as AssistantPersona)
-                              }
-                            >
-                              {PERSONA_OPTIONS.map((option, index) => {
-                                const selected =
-                                  field.state.value === option.value;
-
-                                const offset = index - activeIndex;
-                                const distance = Math.abs(offset);
-                                const active = distance === 0;
-
-                                return (
-                                  <label
-                                    key={option.value}
-                                    className={cn(
-                                      "group absolute top-3 left-1/2 flex h-[260px] w-[150px] cursor-pointer flex-col overflow-hidden rounded-xl border bg-canvas transition-[transform,opacity,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:h-[305px] sm:w-[170px] md:h-[350px] md:w-[200px] lg:h-[370px] lg:w-[220px] has-[[data-focused]]:outline-2 has-[[data-focused]]:outline-offset-2 has-[[data-focused]]:outline-brand/50",
-                                      selected
-                                        ? "border-brand"
-                                        : "border-ink/10",
-                                      active ? "shadow-lg" : "shadow-sm"
-                                    )}
-                                    style={{
-                                      transform: `translateX(calc(-50% + ${offset} * var(--fan-gap))) translateY(${distance * 10}px) rotate(${offset * 7}deg) scale(${active ? 1.03 : 1 - distance * 0.05})`,
-                                      zIndex: 20 - distance,
-                                      opacity: 1 - distance * 0.08,
-                                    }}
-                                  >
-                                    <span className="relative block h-[56%] shrink-0 overflow-hidden bg-canvas-subtle">
-                                      <img
-                                        src={option.image}
-                                        alt={option.imageAlt}
-                                        draggable={false}
-                                        className="size-full object-cover"
-                                      />
-                                      <span className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
-                                        <Radio
-                                          value={option.value}
-                                          aria-label={option.label}
-                                        />
-                                      </span>
-                                    </span>
-                                    <span className="flex flex-1 flex-col p-3">
-                                      <span className="block font-display text-[13px] leading-5 font-semibold text-ink sm:text-[15px] sm:leading-6">
-                                        {option.label}
-                                      </span>
-                                      <span className="mt-1 text-[11px] leading-4 text-ink-muted line-clamp-2 sm:text-xs sm:leading-5 sm:line-clamp-3">
-                                        {option.description}
-                                      </span>
-                                      {option.value ===
-                                        DEFAULT_ASSISTANT_PERSONA && (
-                                        <span
-                                          className={cn(
-                                            "mt-auto inline-flex items-center gap-1 pt-1 text-[10px] font-medium text-brand transition-opacity duration-200 sm:text-[11px]",
-                                            active ? "opacity-100" : "opacity-0"
-                                          )}
-                                        >
-                                          <span aria-hidden="true">✦</span>
-                                          Direkomendasikan
-                                        </span>
-                                      )}
-                                    </span>
-                                  </label>
-                                );
-                              })}
-                            </RadioGroup>
-                            <div className="mt-4 flex items-center justify-center gap-3">
-                              <Button
-                                type="button"
-                                variant="dark-outline"
-                                size="icon-sm"
-                                className="rounded-pill"
-                                aria-label="Persona sebelumnya"
-                                disabled={previous === undefined}
-                                onClick={() =>
-                                  previous && field.handleChange(previous.value)
-                                }
-                              >
-                                <ChevronLeft />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="dark-outline"
-                                size="icon-sm"
-                                className="rounded-pill"
-                                aria-label="Persona berikutnya"
-                                disabled={next === undefined}
-                                onClick={() =>
-                                  next && field.handleChange(next.value)
-                                }
-                              >
-                                <ChevronRight />
-                              </Button>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </>
-                  )}
-                </form.Field>
-              )}
-              {step === 3 && <FormError message={submitError} />}
-              <div
-                className={cn(
-                  "flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center",
-                  step > 1 ? "sm:justify-between" : "sm:justify-end"
-                )}
+            {step === 4 ? (
+              // Rendered outside the form: the checkout owns its own form.
+              <OnboardingPlanStep
+                timezone={form.state.values.timezone}
+                saving={saving}
+                error={submitError}
+                onBack={() => goToStep(3)}
+                onFinish={() => void form.handleSubmit()}
+              />
+            ) : (
+              <form
+                className="space-y-7"
+                noValidate
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (step !== totalSteps) return;
+                  void form.handleSubmit();
+                }}
               >
-                {step > 1 && (
-                  <Button
-                    type="button"
-                    variant="dark-outline"
-                    disabled={saving}
-                    onClick={() => goToStep((step - 1) as 1 | 2 | 3)}
-                  >
-                    Kembali
-                  </Button>
-                )}
-                {step < 3 ? (
-                  <Button
-                    type="button"
-                    onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
-                  >
-                    Lanjutkan
-                  </Button>
-                ) : (
-                  <form.Subscribe
-                    selector={(state) => [state.canSubmit, state.isSubmitting]}
-                  >
-                    {([canSubmit, isSubmitting]) => (
-                      <Button
-                        type="submit"
-                        disabled={!canSubmit || isSubmitting || saving}
+                {step === 1 && (
+                  <form.Field name="timezone">
+                    {(field) => (
+                      <FieldShell
+                        id="onboarding-timezone"
+                        label="Zona waktu"
+                        description="Menentukan waktu pengingat, acara, dan ringkasan."
+                        errors={field.state.meta.errors}
                       >
-                        {isSubmitting || saving
-                          ? "Menyimpan pengaturan…"
-                          : "Simpan dan lanjutkan"}
-                      </Button>
+                        {({ describedBy, invalid }) => (
+                          <SelectField
+                            id="onboarding-timezone"
+                            value={field.state.value}
+                            aria-describedby={describedBy}
+                            aria-invalid={invalid}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                          >
+                            {Array.from(
+                              new Set([field.state.value, ...TIMEZONES])
+                            )
+                              .filter(Boolean)
+                              .map((zone) => (
+                                <option key={zone} value={zone}>
+                                  {zone.replaceAll("_", " ")}
+                                </option>
+                              ))}
+                          </SelectField>
+                        )}
+                      </FieldShell>
                     )}
-                  </form.Subscribe>
+                  </form.Field>
                 )}
-              </div>
-            </form>
+                {step === 1 && (
+                  <form.Field name="locale">
+                    {(field) => (
+                      <FieldShell
+                        id="onboarding-locale"
+                        label="Bahasa"
+                        description="Menentukan bahasa dasbor serta format angka dan tanggal."
+                        errors={field.state.meta.errors}
+                      >
+                        {({ describedBy, invalid }) => (
+                          <SelectField
+                            id="onboarding-locale"
+                            value={field.state.value}
+                            aria-describedby={describedBy}
+                            aria-invalid={invalid}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(
+                                event.target.value as "en" | "id"
+                              )
+                            }
+                          >
+                            <option value="id">Bahasa Indonesia</option>
+                            <option value="en">Bahasa Inggris</option>
+                          </SelectField>
+                        )}
+                      </FieldShell>
+                    )}
+                  </form.Field>
+                )}
+                {step === 2 && (
+                  <form.Field name="preferredAddress">
+                    {(field) => (
+                      <FieldShell
+                        id="onboarding-preferred-address"
+                        label="Panggilan"
+                        description={`Opsional. Contoh: Kak Dipa atau Bu Ratri. ${field.state.value.length}/50 karakter.`}
+                        errors={field.state.meta.errors}
+                      >
+                        {({ describedBy, invalid }) => (
+                          <Input
+                            id="onboarding-preferred-address"
+                            value={field.state.value}
+                            maxLength={50}
+                            placeholder="Mis. Kak Dipa, Bu Ratri"
+                            autoComplete="off"
+                            aria-describedby={describedBy}
+                            aria-invalid={invalid}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                          />
+                        )}
+                      </FieldShell>
+                    )}
+                  </form.Field>
+                )}
+                {step === 3 && (
+                  <form.Field name="persona">
+                    {(field) => (
+                      <>
+                        {(() => {
+                          const selectedIndex = Math.max(
+                            0,
+                            PERSONA_OPTIONS.findIndex(
+                              (option) => option.value === field.state.value
+                            )
+                          );
+
+                          const activeIndex = selectedIndex;
+                          const previous = PERSONA_OPTIONS[selectedIndex - 1];
+                          const next = PERSONA_OPTIONS[selectedIndex + 1];
+
+                          return (
+                            <>
+                              <RadioGroup
+                                aria-label="Persona asisten"
+                                className="relative h-[305px] [--fan-gap:40px] sm:h-[355px] sm:[--fan-gap:92px] md:h-[400px] md:[--fan-gap:116px] lg:h-[425px] lg:[--fan-gap:136px]"
+                                value={field.state.value}
+                                onValueChange={(value) =>
+                                  field.handleChange(value as AssistantPersona)
+                                }
+                              >
+                                {PERSONA_OPTIONS.map((option, index) => {
+                                  const selected =
+                                    field.state.value === option.value;
+
+                                  const offset = index - activeIndex;
+                                  const distance = Math.abs(offset);
+                                  const active = distance === 0;
+
+                                  return (
+                                    <label
+                                      key={option.value}
+                                      className={cn(
+                                        "group absolute top-3 left-1/2 flex h-[260px] w-[150px] cursor-pointer flex-col overflow-hidden rounded-xl border bg-canvas transition-[transform,opacity,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:h-[305px] sm:w-[170px] md:h-[350px] md:w-[200px] lg:h-[370px] lg:w-[220px] has-[[data-focused]]:outline-2 has-[[data-focused]]:outline-offset-2 has-[[data-focused]]:outline-brand/50",
+                                        selected
+                                          ? "border-brand"
+                                          : "border-ink/10",
+                                        active ? "shadow-lg" : "shadow-sm"
+                                      )}
+                                      style={{
+                                        transform: `translateX(calc(-50% + ${offset} * var(--fan-gap))) translateY(${distance * 10}px) rotate(${offset * 7}deg) scale(${active ? 1.03 : 1 - distance * 0.05})`,
+                                        zIndex: 20 - distance,
+                                        opacity: 1 - distance * 0.08,
+                                      }}
+                                    >
+                                      <span className="relative block h-[56%] shrink-0 overflow-hidden bg-canvas-subtle">
+                                        <img
+                                          src={option.image}
+                                          alt={option.imageAlt}
+                                          draggable={false}
+                                          className="size-full object-cover"
+                                        />
+                                        <span className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
+                                          <Radio
+                                            value={option.value}
+                                            aria-label={option.label}
+                                          />
+                                        </span>
+                                      </span>
+                                      <span className="flex flex-1 flex-col p-3">
+                                        <span className="block font-display text-[13px] leading-5 font-semibold text-ink sm:text-[15px] sm:leading-6">
+                                          {option.label}
+                                        </span>
+                                        <span className="mt-1 text-[11px] leading-4 text-ink-muted line-clamp-2 sm:text-xs sm:leading-5 sm:line-clamp-3">
+                                          {option.description}
+                                        </span>
+                                        {option.value ===
+                                          DEFAULT_ASSISTANT_PERSONA && (
+                                          <span
+                                            className={cn(
+                                              "mt-auto inline-flex items-center gap-1 pt-1 text-[10px] font-medium text-brand transition-opacity duration-200 sm:text-[11px]",
+                                              active
+                                                ? "opacity-100"
+                                                : "opacity-0"
+                                            )}
+                                          >
+                                            <span aria-hidden="true">✦</span>
+                                            Direkomendasikan
+                                          </span>
+                                        )}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </RadioGroup>
+                              <div className="mt-4 flex items-center justify-center gap-3">
+                                <Button
+                                  type="button"
+                                  variant="dark-outline"
+                                  size="icon-sm"
+                                  className="rounded-pill"
+                                  aria-label="Persona sebelumnya"
+                                  disabled={previous === undefined}
+                                  onClick={() =>
+                                    previous &&
+                                    field.handleChange(previous.value)
+                                  }
+                                >
+                                  <ChevronLeft />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="dark-outline"
+                                  size="icon-sm"
+                                  className="rounded-pill"
+                                  aria-label="Persona berikutnya"
+                                  disabled={next === undefined}
+                                  onClick={() =>
+                                    next && field.handleChange(next.value)
+                                  }
+                                >
+                                  <ChevronRight />
+                                </Button>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </form.Field>
+                )}
+                {step === totalSteps && <FormError message={submitError} />}
+                <div
+                  className={cn(
+                    "flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center",
+                    step > 1 ? "sm:justify-between" : "sm:justify-end"
+                  )}
+                >
+                  {step > 1 && (
+                    <Button
+                      type="button"
+                      variant="dark-outline"
+                      disabled={saving}
+                      onClick={() => goToStep((step - 1) as Step)}
+                    >
+                      Kembali
+                    </Button>
+                  )}
+                  {step < totalSteps ? (
+                    <Button
+                      type="button"
+                      onClick={() => goToStep((step + 1) as Step)}
+                    >
+                      Lanjutkan
+                    </Button>
+                  ) : (
+                    <form.Subscribe
+                      selector={(state) => [
+                        state.canSubmit,
+                        state.isSubmitting,
+                      ]}
+                    >
+                      {([canSubmit, isSubmitting]) => (
+                        <Button
+                          type="submit"
+                          disabled={!canSubmit || isSubmitting || saving}
+                        >
+                          {isSubmitting || saving
+                            ? "Menyimpan pengaturan…"
+                            : "Simpan dan lanjutkan"}
+                        </Button>
+                      )}
+                    </form.Subscribe>
+                  )}
+                </div>
+              </form>
+            )}
           </StepShell>
         </div>
       </div>

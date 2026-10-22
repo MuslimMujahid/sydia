@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: "./e2e",
   testMatch: [
     "billing.spec.ts",
+    "onboarding-billing.spec.ts",
     "note-drawer.spec.ts",
     "notes-move.spec.ts",
     "entity-renderer.spec.ts",
