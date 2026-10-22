@@ -49,7 +49,7 @@ export const BILLING_COPY = {
     planDescription:
       "Satu paket mencakup semua fitur Sydia. Pembayaran dilakukan di muka dan diperpanjang secara manual; harga promo berlaku untuk pembelian dan perpanjangan sampai promo diubah.",
     storageDescription:
-      "Ruang simpan untuk semua berkas yang Anda unggah. Batas ukuran tiap berkas maksimal 100 MB.",
+      "Ruang penyimpanan untuk semua berkas yang Anda unggah. Batas ukuran tiap berkas maksimal 100 MB.",
     historyDescription: "Ketuk pembayaran untuk melihat struk dan invoice.",
     plan: "Langganan Sydia",
     review:
