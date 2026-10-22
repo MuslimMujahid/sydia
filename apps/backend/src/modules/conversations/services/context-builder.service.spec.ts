@@ -1116,3 +1116,20 @@ describe('ContextBuilderService prioritization and trust', () => {
     );
   });
 });
+
+describe('ContextBuilderService mixed entity references', () => {
+  it('requires typed references at every web mention while retaining inline metadata', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+    );
+
+    const policy = messages[0]?.content;
+    expect(policy).toContain('[exact title](#event/ID)');
+    expect(policy).toContain('[exact title](#reminder/ID)');
+    expect(policy).toContain('reference every mention');
+    expect(policy).toContain(
+      'keep dates, times, and relevant statuses visible inline',
+    );
+  });
+});

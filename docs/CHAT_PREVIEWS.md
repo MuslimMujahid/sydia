@@ -150,6 +150,11 @@ bunx playwright test --config playwright.entities.config.ts dev-toolbar.spec.ts 
   the current turn's tool results. These render as pills even when titles repeat.
   An unconfirmed reference keeps its label as plain text; completed replies log
   a warning. It never links to a guessed task. Older replies retain unique-title matching.
+  Event and reminder mentions similarly use `[title](#event/ID)` and
+  `[title](#reminder/ID)`, including in mixed lists and repeated mentions.
+  Only omitted successful mutations append badges; metadata remains inline.
+  Older replies use unique titles or explicit type prefixes such as `Pengingat:`;
+  ambiguous mentions remain text with separate mutation badges.
   Current task questions require a fresh lookup even when recent chat context
   contains an answer. `list_tasks` defaults to unfinished (`inbox`) tasks; `all`
   explicitly includes every status. `due=tomorrow` covers only the next calendar
