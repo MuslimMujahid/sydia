@@ -177,6 +177,14 @@ export class AuthSecurityService
     return this.reserve(email, [['guess-hour', this.hourlyGuesses, 3600]]);
   }
 
+  /** Account setup only; never used to gate conversations or notifications. */
+  limitWhatsAppSetup(userId: string): Promise<void> {
+    return this.reserve(userId, [
+      ['whatsapp-setup-minute', 5, 60],
+      ['whatsapp-setup-hour', 60, 3600],
+    ]);
+  }
+
   get(key: string): Promise<string | null> {
     return this.storageOperation(() => this.redis.get(this.key(key)));
   }

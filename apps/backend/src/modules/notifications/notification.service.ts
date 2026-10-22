@@ -98,6 +98,14 @@ export class NotificationService {
         input.userId,
         existing.id,
         content,
+        ...(channel === 'whatsapp' && input.eventReminder
+          ? [
+              {
+                scheduledAt: new Date(input.eventReminder.scheduledAt),
+                payload: { eventReminder: input.eventReminder },
+              },
+            ]
+          : []),
       );
 
       if (rearmed) existing = rearmed;
@@ -120,6 +128,14 @@ export class NotificationService {
       proactive: input.proactive,
       sourceId: input.sourceId,
       reminderOccurrenceId: input.reminderOccurrenceId,
+      ...(input.eventReminder && channel === 'whatsapp'
+        ? {
+            whatsappSchedule: {
+              scheduledAt: new Date(input.eventReminder.scheduledAt),
+              payload: { eventReminder: input.eventReminder },
+            },
+          }
+        : {}),
     });
 
     await this.queueIntent(job);
@@ -186,6 +202,29 @@ export class NotificationService {
     }
 
     return (await this.calendarReminders.resolve(input.eventReminder)) !== null;
+  }
+
+  async missedEventReminderIsCurrent(
+    input: {
+      userId: string;
+      eventReminder: CalendarReminderDispatch | undefined;
+    },
+    now: Date,
+  ): Promise<boolean> {
+    if (!input.eventReminder || input.eventReminder.userId !== input.userId) {
+      Logger.error(
+        'Missed event reminder is missing its scoped occurrence.',
+        NotificationService.name,
+      );
+      throw new Error(
+        'Missed event reminder is missing its scoped occurrence.',
+      );
+    }
+
+    return (
+      (await this.calendarReminders.resolveMissed(input.eventReminder, now)) !==
+      null
+    );
   }
 
   async findByIdempotencyKey(

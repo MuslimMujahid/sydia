@@ -44,8 +44,10 @@ function setup(count: number) {
     .fn<() => Promise<typeof pending>>()
     .mockResolvedValue(pending);
 
+  const transaction = { notificationDelivery: { updateMany, findUnique } };
   const repository = new PrismaNotificationRepository({
-    notificationDelivery: { updateMany, findUnique },
+    $transaction: <T>(operation: (client: typeof transaction) => Promise<T>) =>
+      operation(transaction),
   } as unknown as PrismaService);
 
   return { repository, updateMany, findUnique };

@@ -1,16 +1,15 @@
 import { jest } from '@jest/globals';
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { ConfigService } from '@nestjs/config';
 import type { DocumentService } from '../documents/document.service';
 import type { OpenRouterMediaService } from '../../infra/model-gateway';
-import type { WhatsAppGatewayService } from '../../infra/whatsapp';
+import type { WhatsAppConnectionsGateway } from '../../infra/whatsapp/whatsapp-connections.gateway';
 import type { NormalizedInboundMessage } from '../../shared/messaging';
 import type { ChannelTurnAdapter, MessagingHandlerService } from '../messaging';
 import { WhatsAppService } from './whatsapp.service';
 
 const message: NormalizedInboundMessage = {
   provider: 'whatsapp',
+  whatsappConnection: { id: 'connection-1', generation: 1 },
   providerMessageId: 'wamid-42',
   senderExternalId: '628123',
   chatExternalId: '628123',
@@ -31,14 +30,12 @@ type Setup = {
 
 async function setup(): Promise<Setup> {
   let adapter: ChannelTurnAdapter | undefined;
-  const mediaDirectory = await mkdtemp(join(tmpdir(), 'sydia-whatsapp-'));
-  const mediaPath = join(mediaDirectory, 'downloaded-media');
-  await writeFile(mediaPath, Buffer.from('image'));
-
   const gateway = {
-    on: jest.fn(),
-    download: jest.fn(() => Promise.resolve(mediaPath)),
-  } as unknown as WhatsAppGatewayService;
+    registerInbound: jest.fn(),
+    registerReceipt: jest.fn(),
+    registerRecovered: jest.fn(),
+    download: jest.fn(() => Promise.resolve(Buffer.from('image'))),
+  } as unknown as WhatsAppConnectionsGateway;
 
   const messages = {
     registerAdapter: jest.fn((_provider: string, value: ChannelTurnAdapter) => {
@@ -57,7 +54,15 @@ async function setup(): Promise<Setup> {
 
   const service = new WhatsAppService(
     gateway,
-    {} as never,
+    {
+      findActive: () =>
+        Promise.resolve({
+          id: 'connection-1',
+          generation: 1,
+          ownerVerifiedAt: new Date('2026-09-10T12:00:00Z'),
+          ownerExternalId: '628123',
+        }),
+    } as never,
     {} as never,
     {} as never,
     {} as never,
@@ -65,8 +70,8 @@ async function setup(): Promise<Setup> {
     documents as unknown as DocumentService,
     {} as OpenRouterMediaService,
     () => new Date('2026-09-10T12:00:00.000Z'),
-    () => 0.5,
-    () => Promise.resolve(),
+    {} as never,
+    new ConfigService({ BACKEND_AUTH_SECRET: 'whatsapp-unit-test-secret' }),
   );
 
   await service.onModuleInit();

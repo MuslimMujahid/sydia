@@ -60,8 +60,10 @@ model User {
   calendarEvents           CalendarEvent[]
   calendarOAuthRequests    CalendarOAuthRequest[]
   calendarMutationReceipts CalendarMutationReceipt[]
+  whatsappConnections      WhatsAppConnection[]
   whatsappLinkCodes        WhatsAppLinkCode[]
   telegramLinkTokens       TelegramLinkToken[]
+  whatsappConsents         WhatsAppConsent[]
   notificationDeliveries   NotificationDelivery[]
   userPreference           UserPreference?
   secrets                  Secret[]
@@ -1261,6 +1263,62 @@ model SecretVaultUnlock {
   @@map("secret_vault_unlock")
 }
 
+// One provider device per login generation; historical rows remain fenced after revocation.
+model WhatsAppConnection {
+  id                  String   @id @default(cuid())
+  userId              String
+  deviceId            String   @unique
+  generation          Int      @default(1)
+  active              Boolean  @default(true)
+  assistantExternalId String?
+  ownerExternalId     String?
+  ownerIdentityId     String?
+  ownerVerifiedAt     DateTime?
+  setupPhase          String   @default("pairing")
+  status              String   @default("awaiting_pair")
+  reason              String?
+  qrImage             Bytes?
+  qrAttemptId         String?
+  qrExpiresAt         DateTime?
+  ownerCodeHash       String?  @unique
+  ownerCodeExpiresAt  DateTime?
+  outageId            String?
+  disconnectedAt      DateTime?
+  reconnectAttempts   Int      @default(0)
+  nextReconnectAt     DateTime?
+  cleanupAttempts     Int      @default(0)
+  cleanupNeeded       Boolean  @default(false)
+  lastConnectedAt     DateTime?
+  lastEventAt         DateTime?
+  revokedAt           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inboundMessages     WhatsAppConnectionInbound[]
+
+  // Active ownership uniqueness is enforced by partial indexes in the migration.
+  @@index([userId, active])
+  @@index([active, status, nextReconnectAt])
+  @@map("whatsapp_connection")
+}
+
+model WhatsAppConnectionInbound {
+  id                String   @id @default(cuid())
+  connectionId      String
+  generation        Int
+  providerMessageId String
+  senderExternalId  String
+  status            String   @default("pending")
+  error             String?
+  receivedAt        DateTime
+  processedAt       DateTime?
+  connection        WhatsAppConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, providerMessageId])
+  @@index([connectionId, status])
+  @@map("whatsapp_connection_inbound")
+}
+
 model WhatsAppGatewayState {
   id                String    @id @default("default")
   status            String    @default("disconnected")
@@ -1396,6 +1454,7 @@ model NotificationDelivery {
   user                 User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
   reminderOccurrence   ReminderOccurrence?           @relation(fields: [reminderOccurrenceId], references: [id], onDelete: SetNull)
   attempts             NotificationDeliveryAttempt[]
+  whatsappBinding      WhatsAppDeliveryBinding?
 
   @@unique([userId, idempotencyKey, channel])
   @@index([userId, createdAt])
@@ -1460,4 +1519,27 @@ model UserPreference {
   user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_preference")
+}
+
+model WhatsAppDeliveryBinding {
+  deliveryId     String @id
+  connectionId   String?
+  generation     Int?
+  outageId       String?
+  missedAt       DateTime?
+  scheduledAt    DateTime?
+  payload        Json?
+  summarizedAt   DateTime?
+  delivery       NotificationDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  @@index([connectionId, outageId, summarizedAt])
+  @@map("whatsapp_delivery_binding")
+}
+
+model WhatsAppConsent {
+  userId String
+  kind String
+  grantedAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([userId, kind])
+  @@map("whatsapp_consent")
 }

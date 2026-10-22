@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the go-whatsapp-web-multidevice companion. The backend creates the
-# device slot on first contact and forwards inbound events to the backend's
+# connection-scoped device slot during setup and forwards inbound events to the backend's
 # /whatsapp/webhook endpoint.
 set -euo pipefail
 
@@ -20,7 +20,7 @@ exec "$ROOT/bin/gowa" rest \
   --db-uri "file:$DATA_DIR/whatsapp.db?_foreign_keys=on" \
   --ui-enabled=false \
   --mcp-enabled=false \
-  --auto-download-media=true \
+  --auto-download-media=false \
   --auto-mark-read=false \
   --presence-on-connect=unavailable \
   --webhook="$WEBHOOK_URL" \

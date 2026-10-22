@@ -6,9 +6,9 @@ import { join } from 'node:path';
 import type {
   ICalendarRepository,
   IUserPrivacyRepository,
-  IWhatsAppRepository,
   UserExportData,
 } from '../../../database/interfaces';
+import type { WhatsAppConnectionsGateway } from '../../../infra/whatsapp/whatsapp-connections.gateway';
 import type { GoogleCalendarService } from '../../../infra/calendar';
 import { StorageService } from '../../../infra/storage';
 import { extractionKey } from '../../../shared/documents';
@@ -43,9 +43,9 @@ function setup(storage: StorageService) {
   };
 
   const whatsapp = {
-    revokeIdentity: jest
-      .fn<IWhatsAppRepository['revokeIdentity']>()
-      .mockResolvedValue(true),
+    disconnect: jest
+      .fn<WhatsAppConnectionsGateway['disconnect']>()
+      .mockResolvedValue({ revoked: true, cleanupPending: false }),
   };
 
   const memoryArchive = {
@@ -60,7 +60,7 @@ function setup(storage: StorageService) {
     service: new UserPrivacyService(
       privacy as unknown as IUserPrivacyRepository,
       calendars as unknown as ICalendarRepository,
-      whatsapp as unknown as IWhatsAppRepository,
+      whatsapp as unknown as WhatsAppConnectionsGateway,
       {} as GoogleCalendarService,
       storage,
       memoryArchive as unknown as MemoryArchiveService,

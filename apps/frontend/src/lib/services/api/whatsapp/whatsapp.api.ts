@@ -3,50 +3,36 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
-export type WhatsAppGatewayState =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "awaiting_pair"
-  | "enforced"
-  | "logged_out";
-
-export type WhatsAppGatewayStatus = {
-  status: WhatsAppGatewayState;
-  registrationReady: boolean;
-  profileReady: boolean;
-  sendingPaused: boolean;
-  enforcementCode: string | null;
-  enforcementReason: string | null;
-  recoveryReason: string | null;
-  lastConnectedAt: string | null;
-  lastEventAt: string | null;
-};
-
-export type WhatsAppContact = {
-  firstInboundAt: string | null;
-  firstResponseAt: string | null;
-  optedOutAt: string | null;
-  lastInboundAt: string | null;
-  lastProactiveSentAt: string | null;
-  lastProactiveReplyAt: string | null;
-  unansweredProactiveCount: number;
-};
-
 export type WhatsAppStatus = {
-  gateway: WhatsAppGatewayStatus;
+  connected: boolean;
   linked: boolean;
-  externalId: string | null;
-  contact: WhatsAppContact | null;
+  setupPhase:
+    | "disconnected"
+    | "pairing"
+    | "qr_error"
+    | "qr_expired"
+    | "owner_verification"
+    | "ready"
+    | "conflict"
+    | "revoked";
+  status:
+    | "disconnected"
+    | "connecting"
+    | "connected"
+    | "awaiting_pair"
+    | "enforced"
+    | "logged_out";
+  assistantNumber: string | null;
+  ownerNumber: string | null;
+  reason: string | null;
+  ownerCodeExpiresAt: string | null;
+  qrExpiresAt: string | null;
 };
-
-export type WhatsAppLinkCode = {
-  code: string;
+export type WhatsAppLinkCode = { code: string; expiresAt: string };
+export type WhatsAppQr = {
+  attemptId: string;
   expiresAt: string;
-};
-
-export type WhatsAppCompanionPairCode = {
-  code: string;
+  assetPath: string;
 };
 
 const getWhatsAppStatusServer = createServerFn({ method: "GET" }).handler(
@@ -69,41 +55,66 @@ export async function getWhatsAppStatus(): Promise<WhatsAppStatus> {
   if (typeof window === "undefined") return getWhatsAppStatusServer();
 
   try {
-    const response =
-      await api.get<ApiResponse<WhatsAppStatus>>("/whatsapp/status");
-
-    return response.data.data;
+    return (await api.get<ApiResponse<WhatsAppStatus>>("/whatsapp/status")).data
+      .data;
   } catch (error) {
     throw toApiError(error, "Status WhatsApp tidak dapat dimuat.");
   }
 }
 
-export async function createWhatsAppLinkCode(): Promise<WhatsAppLinkCode> {
+async function connectionPost<T>(
+  path: string,
+  failure: string,
+  data?: { refresh: boolean }
+): Promise<T> {
   try {
-    const response = await api.post<ApiResponse<WhatsAppLinkCode>>(
-      "/whatsapp/link-code"
-    );
-
-    return response.data.data;
+    return (await api.post<ApiResponse<T>>(path, data)).data.data;
   } catch (error) {
-    throw toApiError(error, "Kode tautan WhatsApp tidak dapat dibuat.");
+    throw toApiError(error, failure);
   }
 }
 
-export async function pairWhatsAppCompanion(
-  phone: string
-): Promise<WhatsAppCompanionPairCode> {
-  try {
-    const response = await api.post<ApiResponse<WhatsAppCompanionPairCode>>(
-      "/whatsapp/companion/pair-code",
-      { phone }
-    );
+export function createWhatsAppLinkCode() {
+  return connectionPost<WhatsAppLinkCode>(
+    "/whatsapp/link-code",
+    "Pesan verifikasi tidak dapat dibuat."
+  );
+}
 
-    return response.data.data;
+export function createWhatsAppQr(input?: { refresh: boolean }) {
+  return connectionPost<WhatsAppQr>(
+    "/whatsapp/companion/qr",
+    "Kode QR tidak dapat dimuat. Coba lagi.",
+    input
+  );
+}
+
+export function replaceWhatsAppOwner() {
+  return connectionPost<WhatsAppLinkCode>(
+    "/whatsapp/owner/replace",
+    "Nomor pribadi belum dapat diganti."
+  );
+}
+
+export function reconnectWhatsApp() {
+  return connectionPost<WhatsAppStatus>(
+    "/whatsapp/reconnect",
+    "WhatsApp belum dapat tersambung kembali."
+  );
+}
+
+export async function getWhatsAppQrAsset(attemptId: string): Promise<Blob> {
+  try {
+    return (
+      await api.get<Blob>(
+        `/whatsapp/companion/qr/${encodeURIComponent(attemptId)}`,
+        { responseType: "blob" }
+      )
+    ).data;
   } catch (error) {
     throw toApiError(
       error,
-      "Kode pairing nomor WhatsApp Sydia tidak dapat dibuat."
+      "Gambar QR tidak dapat dimuat. Coba muat kode baru."
     );
   }
 }
@@ -112,6 +123,6 @@ export async function unlinkWhatsApp(): Promise<void> {
   try {
     await api.delete("/whatsapp/link");
   } catch (error) {
-    throw toApiError(error, "Tautan WhatsApp tidak dapat diputuskan.");
+    throw toApiError(error, "Koneksi WhatsApp tidak dapat diputuskan.");
   }
 }

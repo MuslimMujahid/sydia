@@ -10,11 +10,13 @@ export interface INotificationRepository {
     userId: string,
     channel: string,
     providerMessageId: string,
+    connection?: { id: string; generation: number },
   ): Promise<NotificationDelivery | null>;
   rearmEventReminder(
     userId: string,
     id: string,
     content: string,
+    whatsappSchedule?: { scheduledAt: Date; payload: Record<string, unknown> },
   ): Promise<NotificationDelivery | null>;
   findDeliveryByIdempotencyKey(
     userId: string,
@@ -30,6 +32,7 @@ export interface INotificationRepository {
     proactive: boolean;
     sourceId?: string | null;
     reminderOccurrenceId?: string | null;
+    whatsappSchedule?: { scheduledAt: Date; payload: Record<string, unknown> };
   }): Promise<NotificationDelivery>;
   claimDelivery(userId: string, id: string): Promise<boolean>;
   createAttempt(input: {

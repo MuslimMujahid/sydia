@@ -136,6 +136,66 @@ describe('Calendar event reminders', () => {
       await service.resolve(dispatch, new Date('2026-10-14T09:00:00.000Z')),
     ).toBeNull();
   });
+  test('a valid past occurrence remains eligible for a missed-reminder summary', async () => {
+    const { service } = setup([event()]);
+    expect(
+      await service.resolveMissed(
+        dispatch,
+        new Date('2026-10-14T10:30:00.000Z'),
+      ),
+    ).toMatchObject({ title: 'Meeting' });
+  });
+  test('a changed lead time invalidates a past missed-reminder occurrence', async () => {
+    const { service } = setup([event({ reminderMinutes: 30 })]);
+    expect(
+      await service.resolveMissed(
+        dispatch,
+        new Date('2026-10-14T10:30:00.000Z'),
+      ),
+    ).toBeNull();
+  });
+  test('a deleted past event cannot appear in a missed-reminder summary', async () => {
+    const { service } = setup([]);
+    expect(
+      await service.resolveMissed(
+        dispatch,
+        new Date('2026-10-14T10:30:00.000Z'),
+      ),
+    ).toBeNull();
+  });
+  test('a future due time cannot be classified as a missed reminder', async () => {
+    const { service } = setup([event()]);
+    expect(await service.resolveMissed(dispatch, NOW)).toBeNull();
+  });
+  test('past recurring occurrences are resolved by their original occurrence identity', async () => {
+    const { service } = setup([
+      event({
+        startAt: new Date('2026-10-13T09:00:00.000Z'),
+        endAt: new Date('2026-10-13T10:00:00.000Z'),
+        recurrence: ['RRULE:FREQ=DAILY'],
+      }),
+    ]);
+
+    expect(
+      await service.resolveMissed(
+        {
+          ...dispatch,
+          eventId: 'occurrence:event-1:2026-10-14T09%3A00%3A00.000Z',
+        },
+        new Date('2026-10-14T10:30:00.000Z'),
+      ),
+    ).toMatchObject({
+      title: 'Meeting',
+      occurrenceKey: '2026-10-14T09:00:00.000Z',
+    });
+  });
+  test('a malformed historical occurrence cannot query the calendar', async () => {
+    const { service, repository } = setup([event()]);
+    expect(
+      await service.resolveMissed({ ...dispatch, startAt: 'invalid' }, NOW),
+    ).toBeNull();
+    expect(repository.list).not.toHaveBeenCalled();
+  });
   test('suppresses a cancelled event reminder', async () => {
     const { service } = setup([event({ status: 'cancelled' })]);
     expect(

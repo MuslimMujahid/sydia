@@ -4,6 +4,7 @@ export type MessageKind = 'text' | 'image' | 'document' | 'voice' | 'unknown';
 
 export type NormalizedInboundMessage = {
   provider: MessageProvider;
+  whatsappConnection?: { id: string; generation: number };
   providerMessageId: string;
   senderExternalId: string;
   chatExternalId: string;

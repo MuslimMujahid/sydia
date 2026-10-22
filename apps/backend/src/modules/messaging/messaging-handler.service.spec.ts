@@ -6,7 +6,8 @@ import type { BillingAccessService } from '../billing';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { DocumentProcessingPendingError } from '../../shared/documents';
 import { jest } from '@jest/globals';
-import { Logger } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import type { Context } from 'grammy';
 import { TelegramInboundAdapter } from '../../infra/telegram/telegram.adapter';
 import type { NotificationDelivery, User } from '../../database/entities';
@@ -109,6 +110,48 @@ function setup(access: BillingAccessService = billingTestAccess()) {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+
+  return { promise, resolve };
+}
+
+async function shutdownContext(
+  service: MessagingHandlerService,
+  resourcesClosed: () => void,
+) {
+  // Match the application topology: messaging depends on global infrastructure.
+  @Global()
+  @Module({
+    providers: [
+      {
+        provide: 'queue-client',
+        useValue: {
+          onModuleDestroy: resourcesClosed,
+        },
+      },
+    ],
+    exports: ['queue-client'],
+  })
+  class ResourcesModule {}
+
+  @Module({
+    imports: [ResourcesModule],
+    providers: [{ provide: MessagingHandlerService, useValue: service }],
+  })
+  class ActiveMessagingModule {}
+
+  @Module({ imports: [ResourcesModule, ActiveMessagingModule] })
+  class ShutdownApplicationModule {}
+
+  return NestFactory.createApplicationContext(ShutdownApplicationModule, {
+    logger: false,
+  });
+}
+
 async function processReply(
   deps: ReturnType<typeof setup>,
   inbound: NormalizedInboundMessage,
@@ -150,7 +193,7 @@ async function processReply(
     send,
   });
   await jest.runAllTimersAsync();
-  deps.service.onModuleDestroy();
+  await deps.service.onModuleDestroy();
 
   return send;
 }
@@ -218,6 +261,89 @@ describe('MessagingHandlerService reply recovery', () => {
   });
 
   test.each(['telegram', 'whatsapp'] as const)(
+    '%s shutdown waits for the active attachment and leaves following turns for restart',
+    async (provider) => {
+      const deps = setup();
+      const inbound = { ...baseMessage, provider };
+      let resourcesClosed = false;
+      const context = await shutdownContext(deps.service, () => {
+        resourcesClosed = true;
+      });
+
+      const prepared = deferred<{ content: string }>();
+      const prepareStarted = deferred<void>();
+      const sent = deferred<void>();
+      const send = jest
+        .fn<ChannelTurnAdapter['send']>()
+        .mockImplementation(() => {
+          sent.resolve();
+
+          return Promise.resolve();
+        });
+
+      jest.mocked(deps.conversations.claimChannelTurns).mockResolvedValueOnce({
+        channelConversationId: 'channel-1',
+        conversationId: deps.conversation.id,
+        userId: user.id,
+        externalIdentityId: 'identity-1',
+        provider,
+        turns: [
+          {
+            id: 'turn-1',
+            channelConversationId: 'channel-1',
+            providerMessageId: baseMessage.providerMessageId,
+            message: { message: inbound },
+            status: 'processing',
+            availableAt: new Date(),
+            processingStartedAt: new Date(),
+            cancellationRequestedAt: null,
+          },
+        ],
+      });
+      jest.mocked(deps.assistant.sendAndWait).mockResolvedValue({
+        conversation: deps.conversation,
+        userMessage: { id: 'message-1' } as never,
+        assistantMessage: { content: 'Saved' } as never,
+        assistantRun: { status: 'completed' } as never,
+        toolInvocations: [],
+      });
+      jest
+        .mocked(deps.conversations.findRecoverableChannelConversationIds)
+        .mockResolvedValue(['channel-1']);
+      await deps.service.registerAdapter(provider, {
+        prepare: () => {
+          prepareStarted.resolve();
+
+          return prepared.promise;
+        },
+        send,
+      });
+      await jest.advanceTimersByTimeAsync(0);
+      await prepareStarted.promise;
+      let closed = false;
+      const closing = context.close().then(() => {
+        closed = true;
+      });
+
+      await jest.advanceTimersByTimeAsync(0);
+      expect(closed).toBe(false);
+      expect(resourcesClosed).toBe(false);
+      prepared.resolve({ content: 'Attachment saved' });
+      await jest.advanceTimersByTimeAsync(2_000);
+      await closing;
+      await sent.promise;
+      expect(resourcesClosed).toBe(true);
+      expect(send).toHaveBeenCalledWith(user, 'identity-1', inbound, 'Saved');
+      expect(deps.conversations.completeChannelTurns).toHaveBeenCalledWith(
+        ['turn-1'],
+        expect.any(Date),
+      );
+      expect(deps.conversations.claimChannelTurns).toHaveBeenCalledTimes(1);
+      expect(jest.getTimerCount()).toBe(0);
+    },
+  );
+
+  test.each(['telegram', 'whatsapp'] as const)(
     '%s refuses product messages from an unverified linked account',
     async (provider) => {
       const deps = setup();
@@ -246,7 +372,7 @@ describe('MessagingHandlerService reply recovery', () => {
         message,
         'Verifikasi email Anda di aplikasi Sydia sebelum melanjutkan percakapan.',
       );
-      deps.service.onModuleDestroy();
+      await deps.service.onModuleDestroy();
     },
   );
 
@@ -491,7 +617,7 @@ describe('MessagingHandlerService', () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('Referenced message unavailable'),
     );
-    service.onModuleDestroy();
+    await service.onModuleDestroy();
   });
 
   it('persists an ordinary message before scheduling processing', async () => {
@@ -516,7 +642,7 @@ describe('MessagingHandlerService', () => {
     expect(call?.[1]).toBe('chat-1:1');
     expect(call?.[4]).toBe(2_000);
     expect(queued).toHaveBeenCalledWith(baseMessage);
-    service.onModuleDestroy();
+    await service.onModuleDestroy();
   });
 
   it('cancels active and queued work for /stop', async () => {
@@ -682,7 +808,7 @@ describe('MessagingHandlerService', () => {
         ['turn-1', 'turn-2'],
         expect.any(Date),
       );
-      service.onModuleDestroy();
+      await service.onModuleDestroy();
     },
   );
 
@@ -741,7 +867,7 @@ describe('MessagingHandlerService', () => {
       baseMessage,
       'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
     );
-    service.onModuleDestroy();
+    await service.onModuleDestroy();
   });
 });
 
@@ -813,7 +939,7 @@ describe('MessagingHandlerService document preparation feedback', () => {
         );
         expect(deps.assistant.sendAndWait).not.toHaveBeenCalled();
         expect(deps.conversations.failChannelTurns).toHaveBeenCalledTimes(1);
-        deps.service.onModuleDestroy();
+        await deps.service.onModuleDestroy();
         jest.useRealTimers();
       }
     },
@@ -887,7 +1013,7 @@ describe('MessagingHandlerService document preparation feedback', () => {
         expect.any(Date),
       );
       expect(deps.assistant.sendAndWait).not.toHaveBeenCalled();
-      deps.service.onModuleDestroy();
+      await deps.service.onModuleDestroy();
     },
   );
 });

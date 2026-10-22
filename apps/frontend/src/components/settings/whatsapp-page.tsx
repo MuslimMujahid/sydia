@@ -1,505 +1,622 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { CheckCircle2, Link2, ShieldAlert } from "lucide-react";
-import { DomainInlineError } from "@/components/domain/domain-page";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Check, Copy, Pencil, Unplug, UserRound } from "lucide-react";
 import { FormError } from "@/components/forms/form-fields";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  getWhatsAppQrAsset,
+  type WhatsAppLinkCode,
+  type WhatsAppQr,
+} from "@/lib/services/api/whatsapp/whatsapp.api";
 import {
   useCreateWhatsAppLinkCode,
-  usePairWhatsAppCompanion,
+  useCreateWhatsAppQr,
+  useReconnectWhatsApp,
+  useReplaceWhatsAppOwner,
   useUnlinkWhatsApp,
   whatsappStatusQueryOptions,
 } from "@/lib/services/api/whatsapp/whatsapp.queries";
-import type {
-  WhatsAppCompanionPairCode,
-  WhatsAppGatewayState,
-  WhatsAppLinkCode,
-  WhatsAppStatus,
-} from "@/lib/services/api/whatsapp/whatsapp.api";
 import { IntegrationRow } from "./integration-row";
-import { SettingsPageHeader } from "./settings-nav";
 
-const GATEWAY_LABELS: Record<
-  WhatsAppGatewayState,
-  { label: string; dot: "brand" | "warn" | "destructive" | "ink-weak" }
-> = {
-  connected: { label: "Gateway terhubung", dot: "brand" },
-  connecting: { label: "Gateway menyambung…", dot: "ink-weak" },
-  disconnected: { label: "Gateway terputus", dot: "warn" },
-  awaiting_pair: { label: "Menunggu pasangan WhatsApp", dot: "warn" },
-  enforced: { label: "Pengiriman dijeda", dot: "destructive" },
-  logged_out: { label: "Gateway keluar", dot: "destructive" },
-};
+interface RecoveryActionProps {
+  children: ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}
 
-function gatewayLabel(state: string) {
+function RecoveryAction({ children, disabled, onClick }: RecoveryActionProps) {
   return (
-    GATEWAY_LABELS[state as WhatsAppGatewayState] ?? {
-      label: "Status gateway tidak diketahui",
-      dot: "ink-weak" as const,
-    }
-  );
-}
-
-function phoneFromJid(externalId: string): string {
-  const local = externalId.split("@")[0] ?? externalId;
-
-  return local.split(":")[0] ?? local;
-}
-
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function formatClock(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function StatusSkeleton() {
-  return (
-    <div
-      className="space-y-4"
-      aria-busy="true"
-      aria-label="Memuat status WhatsApp"
+    <Button
+      variant="link"
+      size="sm"
+      className="h-9 min-h-9 justify-start px-0 py-2 text-[13px] leading-5 font-medium text-ink-muted underline underline-offset-4"
+      disabled={disabled}
+      onClick={onClick}
     >
-      {[0, 1].map((row) => (
-        <span
-          key={row}
-          className="block h-28 animate-pulse rounded-lg bg-surface-1 motion-reduce:animate-none"
+      {children}
+    </Button>
+  );
+}
+
+interface AccountRowProps {
+  label: string;
+  number: string;
+  assistant?: boolean;
+  onEdit: () => void;
+  disabled: boolean;
+}
+
+function AccountRow({
+  label,
+  number,
+  assistant,
+  onEdit,
+  disabled,
+}: AccountRowProps) {
+  return (
+    <div className="flex max-w-72 items-center gap-3">
+      {assistant ? (
+        <img src="/logo.svg" alt="" className="size-5 shrink-0" />
+      ) : (
+        <UserRound
+          className="size-5 shrink-0 text-ink-muted"
+          aria-hidden="true"
         />
-      ))}
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-ink-muted">{label}</p>
+        <p className="mt-1 text-sm text-ink break-all">+{number}</p>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={assistant ? "Ganti nomor asisten" : "Ganti nomor pribadi"}
+        onClick={onEdit}
+        disabled={disabled}
+      >
+        <Pencil className="size-4" />
+      </Button>
     </div>
   );
 }
 
-function GatewayBadge({ status }: { status: WhatsAppStatus }) {
-  const gateway = gatewayLabel(status.gateway.status);
+interface QrImageProps {
+  attempt: WhatsAppQr;
+}
 
-  return (
-    <Badge dot={gateway.dot} role="status">
-      {gateway.label}
-    </Badge>
+function QrImage({ attempt }: QrImageProps) {
+  const asset = useQuery({
+    queryKey: ["whatsapp", "qr", attempt.attemptId],
+    queryFn: async () => {
+      const blob = await getWhatsAppQrAsset(attempt.attemptId);
+
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          typeof reader.result === "string"
+            ? resolve(reader.result)
+            : reject(new Error("Gambar QR tidak dapat dibaca."));
+        reader.onerror = () =>
+          reject(new Error("Gambar QR tidak dapat dibaca. Muat kode baru."));
+        reader.readAsDataURL(blob);
+      });
+    },
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+
+  const [decodeError, setDecodeError] = useState(false);
+  if (decodeError)
+    return (
+      <FormError message="Gambar QR tidak dapat ditampilkan. Muat kode baru." />
+    );
+  if (asset.isError) return <FormError message={asset.error.message} />;
+
+  return asset.data ? (
+    <img
+      src={asset.data}
+      alt="Kode QR untuk menautkan akun WhatsApp asisten"
+      width={165}
+      height={165}
+      className="size-[165px] shrink-0 bg-white object-contain"
+      onError={() => {
+        console.error("WhatsApp QR image could not be decoded.");
+        setDecodeError(true);
+      }}
+    />
+  ) : (
+    <div
+      className="size-[165px] shrink-0 animate-pulse rounded-sm bg-surface-1"
+      role="status"
+      aria-label="Memuat gambar QR"
+    />
   );
 }
 
-function EnforcementNotice({
-  status,
-  operator = false,
-}: {
-  status: WhatsAppStatus;
-  operator?: boolean;
-}) {
-  const enforcementReason = status.gateway.enforcementReason;
-  const recoveryReason = status.gateway.recoveryReason;
-  if (!enforcementReason && !recoveryReason) return null;
-
-  return (
-    <div className="space-y-4">
-      {enforcementReason ? (
-        <Card className="border-destructive/40 p-6" role="alert">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
-            <div>
-              <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-                Pengiriman WhatsApp dijeda
-              </h2>
-              <p className="mt-2 text-ink-muted">{enforcementReason}</p>
-              <p className="mt-2 text-sm text-ink-muted">
-                {operator
-                  ? "Jangan mencoba pairing atau login ulang sampai pembatasan ditinjau dan dipulihkan."
-                  : "Pesan dari Sydia akan tetap dijeda sampai operator memulihkan nomor layanan."}
-              </p>
-            </div>
-          </div>
-        </Card>
-      ) : null}
-      {recoveryReason ? (
-        <Card className="border-warn/40 p-6" role="alert">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-warn" />
-            <div>
-              <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-                Koneksi perlu dipulihkan
-              </h2>
-              <p className="mt-2 text-ink-muted">{recoveryReason}</p>
-              <p className="mt-2 text-sm text-ink-muted">
-                {operator
-                  ? "Periksa sesi nomor WhatsApp Sydia. Hindari percobaan koneksi berulang."
-                  : "Anda tidak perlu menautkan ulang nomor pribadi. Operator Sydia sedang menangani koneksi layanan."}
-              </p>
-            </div>
-          </div>
-        </Card>
-      ) : null}
-    </div>
-  );
-}
-
-function SydiaNumberSetupCard({ status }: { status: WhatsAppStatus }) {
-  const pairMutation = usePairWhatsAppCompanion();
-  const [phone, setPhone] = useState("");
-  const [pairCode, setPairCode] = useState<WhatsAppCompanionPairCode | null>(
-    null
-  );
-
-  const validPhone = /^\d{8,15}$/.test(phone);
-  const pairingBlocked =
-    status.gateway.sendingPaused || status.gateway.status === "enforced";
-
-  async function handlePair() {
-    if (!validPhone) return;
-    setPairCode(await pairMutation.mutateAsync(phone));
-  }
-
-  return (
-    <Card className="border-brand/25 bg-brand/4 p-6 sm:p-8">
-      <div className="flex items-start gap-3">
-        <Link2 className="mt-0.5 size-5 shrink-0 text-brand-deep" />
-        <div className="min-w-0">
-          <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-            Hubungkan nomor WhatsApp Sydia
-          </h2>
-          <p className="mt-2 text-sm text-ink-muted">
-            Nomor ini adalah satu-satunya nomor WhatsApp resmi Sydia. Semua
-            pengguna mengirim pesan ke nomor yang sama.
-          </p>
-        </div>
-      </div>
-      <p className="mt-4 text-sm text-ink-muted">
-        Pastikan nomor sudah terdaftar minimal 24 jam dan profil WhatsApp Sydia
-        sudah dilengkapi dengan nama, foto, dan bio sebelum dihubungkan.
-      </p>
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label
-          className="flex-1 text-sm font-medium text-ink"
-          htmlFor="sydia-phone"
-        >
-          Nomor WhatsApp Sydia (8–15 digit, tanpa +)
-          <Input
-            id="sydia-phone"
-            className="mt-2"
-            inputMode="numeric"
-            autoComplete="tel"
-            value={phone}
-            onChange={(event) =>
-              setPhone(event.target.value.replace(/\D/g, "").slice(0, 15))
-            }
-            placeholder="628123456789"
-          />
-        </label>
-        <Button
-          size="sm"
-          disabled={!validPhone || pairMutation.isPending || pairingBlocked}
-          onClick={() => void handlePair()}
-        >
-          {pairMutation.isPending ? "Meminta kode…" : "Hubungkan nomor Sydia"}
-        </Button>
-      </div>
-      {!validPhone && phone.length > 0 ? (
-        <p className="mt-2 text-sm text-destructive" role="status">
-          Masukkan 8–15 digit angka tanpa tanda +.
-        </p>
-      ) : null}
-      {pairMutation.error ? (
-        <div className="mt-4">
-          <FormError message={pairMutation.error.message} />
-        </div>
-      ) : null}
-      {pairingBlocked ? (
-        <p className="mt-4 text-sm text-destructive" role="alert">
-          Pairing dijeda karena status penegakan WhatsApp. Jangan mencoba
-          menghubungkan ulang sampai status dipulihkan oleh operator.
-        </p>
-      ) : null}
-      {pairCode ? (
-        <div
-          className="mt-6 rounded-md border border-brand/30 bg-canvas p-4"
-          aria-live="polite"
-        >
-          <p className="text-sm font-semibold text-ink">
-            Kode pairing nomor Sydia
-          </p>
-          <p className="mt-2 w-fit rounded-md bg-brand/10 px-5 py-3 font-mono text-3xl font-bold tracking-[0.28em] text-brand-deep">
-            {pairCode.code}
-          </p>
-          <p className="mt-3 text-sm font-semibold text-destructive">
-            Kode kedaluwarsa dalam sekitar 60 detik — segera masukkan sekarang.
-          </p>
-          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-ink-muted">
-            <li>Buka WhatsApp pada ponsel yang memakai nomor Sydia.</li>
-            <li>Pilih Perangkat tertaut lalu Tautkan dengan nomor telepon.</li>
-            <li>Masukkan kode pairing di atas.</li>
-          </ol>
-        </div>
-      ) : null}
-    </Card>
-  );
-}
+type Confirmation = "disconnect" | "assistant" | "owner" | null;
 
 export function WhatsAppIntegrationCard() {
-  const [linkCode, setLinkCode] = useState<WhatsAppLinkCode | null>(null);
+  const [attempt, setAttempt] = useState<WhatsAppQr | null>(null);
+  const [code, setCode] = useState<WhatsAppLinkCode | null>(null);
+  const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [copied, setCopied] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const unlinkMutation = useUnlinkWhatsApp();
-  const linkCodeMutation = useCreateWhatsAppLinkCode();
-  const codeAwaitingLink = Boolean(
-    linkCode && Date.parse(linkCode.expiresAt) > now
-  );
+  const ownerChallengeRequested = useRef(false);
+  const statusQuery = useQuery(whatsappStatusQueryOptions());
 
-  const statusQuery = useQuery(whatsappStatusQueryOptions(codeAwaitingLink));
   const status = statusQuery.data;
-  const linked = status?.linked === true;
-  const codeBlocked = status
-    ? status.gateway.sendingPaused ||
-      status.gateway.status === "enforced" ||
-      Boolean(status.gateway.enforcementReason)
-    : false;
+  const qrMutation = useCreateWhatsAppQr();
+  const linkMutation = useCreateWhatsAppLinkCode();
+  const revoke = useUnlinkWhatsApp();
+  const reconnect = useReconnectWhatsApp();
+  const replaceOwner = useReplaceWhatsAppOwner();
+  const busy =
+    qrMutation.isPending ||
+    linkMutation.isPending ||
+    revoke.isPending ||
+    reconnect.isPending ||
+    replaceOwner.isPending;
 
   useEffect(() => {
-    if (!codeAwaitingLink) return;
+    if (!attempt && !code && !status?.ownerCodeExpiresAt) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
 
     return () => window.clearInterval(timer);
-  }, [codeAwaitingLink]);
+  }, [attempt, code, status?.ownerCodeExpiresAt]);
+  useEffect(() => {
+    if (
+      status?.setupPhase === "owner_verification" &&
+      !ownerChallengeRequested.current &&
+      status.status === "connected" &&
+      (!status.ownerCodeExpiresAt ||
+        Date.parse(status.ownerCodeExpiresAt) > Date.now())
+    ) {
+      ownerChallengeRequested.current = true;
+      linkMutation.mutate(undefined, {
+        onSuccess: (value) => {
+          setNow(Date.now());
+          setCode(value);
+        },
+      });
+    }
+  }, [
+    status?.setupPhase,
+    status?.status,
+    status?.ownerCodeExpiresAt,
+    linkMutation,
+  ]);
 
-  function handleCreateCode() {
-    linkCodeMutation.mutate(undefined, {
-      onSuccess: (code) => {
+  function beginQr(refresh = false) {
+    setAttempt(null);
+    setCode(null);
+    setLocalError(null);
+    setCopied(false);
+    ownerChallengeRequested.current = false;
+    qrMutation.mutate(
+      { refresh },
+      {
+        onSuccess: (value) => {
+          setNow(Date.now());
+          setAttempt(value);
+        },
+      }
+    );
+  }
+
+  function makeCode() {
+    ownerChallengeRequested.current = true;
+    setLocalError(null);
+    setCode(null);
+    setCopied(false);
+    linkMutation.mutate(undefined, {
+      onSuccess: (value) => {
         setNow(Date.now());
-        setLinkCode(code);
+        setCode(value);
       },
     });
   }
+
+  async function copyCode() {
+    if (!code) return;
+
+    try {
+      await navigator.clipboard.writeText(code.code);
+      setCopied(true);
+    } catch (error) {
+      console.error("WhatsApp verification copy failed", error);
+      setLocalError(
+        "Pesan tidak dapat disalin. Pilih dan salin pesan secara manual."
+      );
+    }
+  }
+
+  async function confirmAction() {
+    const selected = confirmation;
+    setLocalError(null);
+
+    try {
+      if (selected === "owner") {
+        const value = await replaceOwner.mutateAsync();
+        ownerChallengeRequested.current = true;
+        setCode(value);
+        setNow(Date.now());
+      } else {
+        await revoke.mutateAsync();
+        setAttempt(null);
+        setCode(null);
+        if (selected === "assistant") beginQr();
+      }
+
+      setConfirmation(null);
+    } catch (error) {
+      console.error("WhatsApp connection change failed", error);
+      setLocalError(
+        error instanceof Error ? error.message : "Koneksi belum dapat diubah."
+      );
+    }
+  }
+
+  const error =
+    localError ??
+    qrMutation.error?.message ??
+    linkMutation.error?.message ??
+    revoke.error?.message ??
+    reconnect.error?.message ??
+    replaceOwner.error?.message;
+
+  const expiredQr =
+    Boolean(attempt && Date.parse(attempt.expiresAt) <= now) ||
+    status?.setupPhase === "qr_expired";
+
+  const challengeExpiresAt = code?.expiresAt ?? status?.ownerCodeExpiresAt;
+  const expiredCode = Boolean(
+    challengeExpiresAt && Date.parse(challengeExpiresAt) <= now
+  );
+
+  const isPairing =
+    !status?.assistantNumber &&
+    (attempt ||
+      qrMutation.isPending ||
+      expiredQr ||
+      status?.setupPhase === "qr_error" ||
+      status?.setupPhase === "pairing");
+
+  const ownerVerification = status?.setupPhase === "owner_verification";
+  const stateLabel = status?.connected
+    ? "Terhubung"
+    : status?.status === "enforced"
+      ? "Pengiriman dibatasi"
+      : status?.status === "logged_out"
+        ? "Sesi berakhir"
+        : status?.linked
+          ? "Koneksi terputus"
+          : ownerVerification
+            ? expiredCode
+              ? `Verifikasi kedaluwarsa · +${status.assistantNumber}`
+              : "Akun asisten tertaut · Verifikasi nomor pribadi"
+            : isPairing
+              ? "Menunggu pemindaian QR"
+              : "Mengobrol dan menerima pengingat melalui WhatsApp.";
 
   return (
     <IntegrationRow
       id="integration-whatsapp"
       title="WhatsApp"
-      checked={linked}
-      disabled={
-        !status ||
-        statusQuery.isError ||
-        unlinkMutation.isPending ||
-        linkCodeMutation.isPending ||
-        (!linked && (codeBlocked || codeAwaitingLink))
-      }
+      logoSrc="/images/brands/whatsapp-circle.svg"
+      checked={Boolean(status?.linked)}
+      disabled={statusQuery.isPending || statusQuery.isError || busy}
       onCheckedChange={(checked) => {
-        if (checked) handleCreateCode();
-        else
-          unlinkMutation.mutate(undefined, {
-            onSuccess: () => setLinkCode(null),
-          });
+        if (checked) beginQr();
+        else setConfirmation("disconnect");
       }}
       description={
         statusQuery.isPending ? (
-          <p role="status">Memeriksa koneksi…</p>
-        ) : linkCodeMutation.isPending ? (
-          <p role="status">Membuat kode tautan…</p>
-        ) : linked && status?.externalId ? (
-          phoneFromJid(status.externalId)
+          <span role="status">Memeriksa koneksi…</span>
         ) : (
-          "Mengobrol dan menerima pengingat melalui WhatsApp."
+          stateLabel
         )
       }
     >
-      {statusQuery.isError ? (
-        <div className="mt-4">
-          <p className="text-sm text-destructive" role="alert">
-            Status WhatsApp tidak dapat dimuat: {statusQuery.error.message}
-          </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-3"
-            onClick={() => void statusQuery.refetch()}
-          >
-            Coba lagi
-          </Button>
-        </div>
-      ) : null}
-      {status &&
-      (status.gateway.enforcementReason ||
-        status.gateway.recoveryReason ||
-        status.contact?.optedOutAt ||
-        (!linked && linkCode)) ? (
-        <>
-          {status.gateway.enforcementReason || status.gateway.recoveryReason ? (
-            <div className="mt-6 space-y-3">
-              {status.gateway.enforcementReason ? (
-                <div
-                  className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3"
-                  role="alert"
-                >
-                  <p className="text-sm font-semibold text-ink">
-                    Pengiriman WhatsApp dijeda
+      <div className="space-y-3 sm:ml-11">
+        {statusQuery.isError ? (
+          <>
+            <FormError message={statusQuery.error.message} />
+            <RecoveryAction onClick={() => void statusQuery.refetch()}>
+              Coba lagi
+            </RecoveryAction>
+          </>
+        ) : null}
+        {isPairing ? (
+          <div className="space-y-3">
+            {attempt && !expiredQr ? (
+              <div className="flex flex-col gap-7 pt-1 sm:flex-row sm:items-start">
+                <QrImage key={attempt.attemptId} attempt={attempt} />
+                <div className="space-y-3 text-[13px] leading-5 text-ink-muted sm:pt-3">
+                  <h4 className="text-sm font-semibold text-ink">
+                    Pindai dari akun WhatsApp asisten
+                  </h4>
+                  <p>
+                    Di WhatsApp nomor asisten: Perangkat tertaut
+                    <br className="hidden sm:block" /> → Tautkan perangkat.
+                    Arahkan kamera ke QR ini.
                   </p>
-                  <p className="mt-1 text-sm text-ink-muted">
-                    {status.gateway.enforcementReason} Pesan dari Sydia tetap
-                    dijeda sampai operator memulihkan nomor layanan.
+                  <p className="sm:hidden">
+                    Tampilkan Sydia di layar lain agar QR dapat dipindai dari
+                    ponsel akun asisten.
                   </p>
-                </div>
-              ) : null}
-              {status.gateway.recoveryReason ? (
-                <div
-                  className="rounded-md border border-warn/30 bg-warn/5 px-4 py-3"
-                  role="alert"
-                >
-                  <p className="text-sm font-semibold text-ink">
-                    Koneksi perlu dipulihkan
-                  </p>
-                  <p className="mt-1 text-sm text-ink-muted">
-                    {status.gateway.recoveryReason} Anda tidak perlu menautkan
-                    ulang nomor pribadi — operator Sydia sedang menangani
-                    koneksi layanan.
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {status.contact?.optedOutAt ? (
-            <div
-              className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3"
-              role="alert"
-            >
-              <p className="text-sm text-ink">
-                Anda mengirim STOP pada{" "}
-                {formatDateTime(status.contact.optedOutAt)}. Sydia tidak akan
-                mengirim pesan keluar ke nomor Anda sampai Anda mengirim pesan
-                baru ke Sydia terlebih dahulu.
-              </p>
-            </div>
-          ) : null}
-          {!linked && linkCode ? (
-            <div className="mt-4">
-              <ol className="list-decimal space-y-2 pl-5 text-sm text-ink-muted">
-                <li>Buat kode tautan sekali pakai.</li>
-                <li>
-                  Kirim kode sebagai pesan WhatsApp dari nomor Anda ke nomor
-                  Sydia.
-                </li>
-                <li>Status diperbarui otomatis begitu kode diterima.</li>
-              </ol>
-              <p className="mt-3 text-sm text-ink-muted">
-                Demi keamanan, kode hanya berlaku beberapa menit dan hanya dapat
-                dipakai dari pesan masuk WhatsApp — bukan dari web.
-              </p>
-              {codeAwaitingLink && linkCode ? (
-                <div className="mt-5 space-y-3" aria-live="polite">
-                  <p className="text-sm font-semibold text-ink">
-                    Kode tautan Anda
-                  </p>
-                  <p className="w-fit rounded-md border border-ink/16 bg-surface-1 px-5 py-3 font-mono text-2xl font-bold tracking-[0.3em]">
-                    {linkCode.code}
-                  </p>
-                  <p className="text-sm text-ink-muted">
-                    Berlaku sampai pukul{" "}
-                    <time dateTime={linkCode.expiresAt}>
-                      {formatClock(linkCode.expiresAt)}
-                    </time>
-                    . Menunggu kode dikirim dari WhatsApp Anda…
-                  </p>
-                </div>
-              ) : null}
-              {linkCode && !codeAwaitingLink ? (
-                <p className="mt-5 text-sm text-ink-muted" role="status">
-                  Kode kedaluwarsa. Aktifkan kembali untuk membuat kode baru.
-                </p>
-              ) : null}
-              {linkCodeMutation.error ? (
-                <div className="mt-4">
-                  <FormError message={linkCodeMutation.error.message} />
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </>
-      ) : null}
-      {codeBlocked && !linked ? (
-        <p className="text-sm text-ink-muted" role="status">
-          Pembuatan kode dijeda selama penegakan aktif.
-        </p>
-      ) : null}
-      {linkCodeMutation.error && !linkCode ? (
-        <FormError message={linkCodeMutation.error.message} />
-      ) : null}
-      {unlinkMutation.error ? (
-        <FormError message={unlinkMutation.error.message} />
-      ) : null}
-    </IntegrationRow>
-  );
-}
-
-export function AdminWhatsAppPage() {
-  const statusQuery = useQuery(whatsappStatusQueryOptions(true));
-  const status = statusQuery.data;
-
-  return (
-    <div className="max-w-3xl space-y-10">
-      <SettingsPageHeader
-        title="Nomor WhatsApp Sydia"
-        description="Hubungkan dan pantau satu nomor WhatsApp layanan yang digunakan bersama oleh seluruh pengguna Sydia."
-      />
-      {statusQuery.isPending ? <StatusSkeleton /> : null}
-      {statusQuery.isError ? (
-        <DomainInlineError
-          title="Status nomor Sydia tidak dapat dimuat"
-          message={statusQuery.error.message}
-          onRetry={() => void statusQuery.refetch()}
-        />
-      ) : null}
-      {status ? (
-        <>
-          <GatewayBadge status={status} />
-          <EnforcementNotice status={status} operator />
-          {status.gateway.status === "connected" ? (
-            <Card
-              className="border-brand/25 bg-brand/4 p-6 sm:p-8"
-              role="status"
-            >
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-brand-deep" />
-                <div>
-                  <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-                    Nomor Sydia terhubung
-                  </h2>
-                  <p className="mt-2 text-ink-muted">
-                    Sesi layanan aktif. Semua pesan pengguna masuk melalui nomor
-                    WhatsApp Sydia yang sama.
+                  <div className="flex flex-wrap gap-4">
+                    <RecoveryAction
+                      disabled={busy}
+                      onClick={() => beginQr(true)}
+                    >
+                      Perbarui QR
+                    </RecoveryAction>
+                    <RecoveryAction
+                      disabled={busy}
+                      onClick={() =>
+                        revoke.mutate(undefined, {
+                          onSuccess: () => {
+                            setAttempt(null);
+                            setCode(null);
+                          },
+                        })
+                      }
+                    >
+                      Batal
+                    </RecoveryAction>
+                  </div>
+                  <p className="text-xs" role="status">
+                    Menunggu konfirmasi WhatsApp…
                   </p>
                 </div>
               </div>
-            </Card>
-          ) : (
-            <SydiaNumberSetupCard status={status} />
-          )}
-          <Card className="p-6 sm:p-8">
-            <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
-              Model satu nomor bersama
-            </h2>
-            <p className="mt-2 text-ink-muted">
-              Semua pengguna menghubungi nomor Sydia ini. Identitas nomor
-              pengirim dipetakan ke akun masing-masing melalui kode tautan
-              pengguna.
+            ) : (
+              <>
+                <h4 className="text-sm font-semibold text-ink">
+                  {qrMutation.isPending
+                    ? "Menyiapkan kode QR…"
+                    : expiredQr
+                      ? "Kode QR kedaluwarsa"
+                      : "Kode QR belum tersedia"}
+                </h4>
+                {qrMutation.isPending ? (
+                  <div className="flex items-center gap-5" role="status">
+                    <div className="size-[165px] shrink-0 animate-pulse rounded-sm bg-surface-1" />
+                    <p className="text-sm text-ink-muted">
+                      Kode QR sedang dimuat.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink-muted">
+                    Muat kode QR baru untuk menautkan akun asisten.
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-4">
+                  <RecoveryAction disabled={busy} onClick={() => beginQr(true)}>
+                    Muat kode QR baru
+                  </RecoveryAction>
+                  <RecoveryAction
+                    disabled={busy}
+                    onClick={() =>
+                      revoke.mutate(undefined, {
+                        onSuccess: () => {
+                          setAttempt(null);
+                          setCode(null);
+                        },
+                      })
+                    }
+                  >
+                    Batal
+                  </RecoveryAction>
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+        {ownerVerification && expiredCode ? (
+          <div className="space-y-1 pt-1">
+            <p className="text-[13px] leading-5 text-ink-muted">
+              Nomor pribadi belum terverifikasi. Buat pesan baru, lalu kirim
+              <br className="hidden sm:block" /> dari WhatsApp pribadi Anda.
+              Pesan sebelumnya tidak berlaku.
             </p>
-          </Card>
-        </>
-      ) : null}
-    </div>
+            <RecoveryAction disabled={busy} onClick={makeCode}>
+              Buat pesan baru
+            </RecoveryAction>
+          </div>
+        ) : ownerVerification ? (
+          <div className="space-y-3 pt-4">
+            <h4 className="text-sm font-semibold text-ink">
+              Verifikasi nomor pribadi Anda
+            </h4>
+            <p className="text-[13px] leading-5 text-ink-muted">
+              Dari WhatsApp pribadi Anda, kirim pesan ini ke asisten{" "}
+              <span className="font-medium text-ink">
+                +{status.assistantNumber}
+              </span>
+              .
+            </p>
+            {code && !expiredCode ? (
+              <>
+                <div className="flex min-h-12 items-center rounded-sm border border-ink/12 bg-background pl-4">
+                  <span className="min-w-0 flex-1 select-all font-mono text-base tracking-wide text-ink">
+                    {code.code}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Salin pesan"
+                    onClick={() => void copyCode()}
+                  >
+                    {copied ? <Check /> : <Copy />}
+                  </Button>
+                </div>
+                <p className="text-xs text-ink-muted" role="status">
+                  {copied ? "Tersalin. " : ""}Berlaku hingga{" "}
+                  {new Intl.DateTimeFormat("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }).format(new Date(code.expiresAt))}
+                  . Jangan bagikan pesan ini.
+                </p>
+                <p className="text-xs text-ink-muted" role="status">
+                  Menunggu pesan dari nomor pribadi. Asisten aktif setelah
+                  verifikasi selesai.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ink-muted" role="status">
+                  {linkMutation.isPending
+                    ? "Menyiapkan pesan verifikasi…"
+                    : "Pesan verifikasi belum tersedia. Coba buat pesan baru."}
+                </p>
+                <RecoveryAction disabled={busy} onClick={makeCode}>
+                  Buat pesan baru
+                </RecoveryAction>
+              </>
+            )}
+          </div>
+        ) : null}
+        {status?.connected && status.assistantNumber && status.ownerNumber ? (
+          <div className="space-y-3 pb-2">
+            <AccountRow
+              assistant
+              label="Nomor asisten"
+              number={status.assistantNumber}
+              disabled={busy}
+              onEdit={() => setConfirmation("assistant")}
+            />
+            <AccountRow
+              label="Nomor pribadi · Terverifikasi"
+              number={status.ownerNumber}
+              disabled={busy}
+              onEdit={() => setConfirmation("owner")}
+            />
+          </div>
+        ) : null}
+        {status?.linked && !status.connected ? (
+          <div className="space-y-1">
+            <p className="text-sm leading-6 text-ink-muted">
+              {status.status === "enforced"
+                ? "WhatsApp membatasi akun asisten. Periksa aplikasi WhatsApp pada nomor asisten. Jangan mencoba pairing berulang."
+                : status.status === "logged_out"
+                  ? "Tautkan kembali akun asisten dan verifikasi nomor pribadi Anda untuk melanjutkan chat dan pengingat."
+                  : "Chat dan pengingat tertunda. Setelah terhubung kembali, pengingat terlewat dikirim dalam satu ringkasan."}
+            </p>
+            {status.reason ? (
+              <p className="text-xs leading-5 text-ink-muted" role="status">
+                {status.reason}
+              </p>
+            ) : null}
+            {status.status === "enforced" ? (
+              <RecoveryAction
+                disabled={statusQuery.isFetching}
+                onClick={() => void statusQuery.refetch()}
+              >
+                Periksa status
+              </RecoveryAction>
+            ) : (
+              <RecoveryAction
+                disabled={busy}
+                onClick={() => {
+                  if (status.status === "logged_out")
+                    setConfirmation("assistant");
+                  else reconnect.mutate();
+                }}
+              >
+                {status.status === "logged_out"
+                  ? "Tautkan ulang"
+                  : "Hubungkan kembali"}
+              </RecoveryAction>
+            )}
+          </div>
+        ) : null}
+        {status?.setupPhase === "conflict" ? (
+          <div className="space-y-1">
+            <p className="text-sm text-ink-muted">
+              Nomor asisten ini sudah digunakan akun Sydia lain. Gunakan akun
+              WhatsApp yang berbeda.
+            </p>
+            <RecoveryAction
+              disabled={busy}
+              onClick={() =>
+                revoke.mutate(undefined, { onSuccess: () => beginQr() })
+              }
+            >
+              Gunakan akun lain
+            </RecoveryAction>
+          </div>
+        ) : null}
+        {error ? <FormError message={error} /> : null}
+      </div>
+      <Dialog
+        open={confirmation !== null}
+        onOpenChange={(open) => {
+          if (!open && !busy) {
+            setConfirmation(null);
+            setLocalError(null);
+          }
+        }}
+      >
+        {/* The 24px content inset includes the shared 1px border. */}
+        <DialogContent className="w-[calc(100%-2.5rem)] max-w-md bg-white p-[23px] text-center">
+          <div className="mx-auto mb-4 flex size-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <Unplug className="size-4" />
+          </div>
+          <DialogTitle className="leading-[25px]">
+            {confirmation === "disconnect"
+              ? "Putuskan WhatsApp?"
+              : confirmation === "owner"
+                ? "Ganti nomor pribadi?"
+                : "Ganti nomor WhatsApp?"}
+          </DialogTitle>
+          <DialogDescription className="mt-1">
+            {confirmation === "disconnect"
+              ? "Percakapan dan pengingat WhatsApp akan berhenti. Data Anda di Sydia tetap tersimpan. Untuk memakai WhatsApp lagi, hubungkan dan verifikasi ulang."
+              : confirmation === "owner"
+                ? "Nomor pribadi saat ini akan dilepas. Verifikasi nomor pengganti untuk melanjutkan percakapan dan pengingat."
+                : "Koneksi saat ini akan diputus. Hubungkan nomor asisten dan verifikasi nomor pribadi kembali. Data Sydia dan pengaturan Anda tetap tersimpan."}
+          </DialogDescription>
+          <div className="mt-4 flex justify-center gap-2">
+            <Button
+              variant="dark-outline"
+              size="sm"
+              className="h-10 py-2"
+              disabled={busy}
+              onClick={() => setConfirmation(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-10 py-2"
+              disabled={busy}
+              onClick={() => void confirmAction()}
+            >
+              {busy
+                ? "Memproses…"
+                : confirmation === "disconnect"
+                  ? "Putuskan WhatsApp"
+                  : "Lanjutkan ganti nomor"}
+            </Button>
+          </div>
+          {localError ? (
+            <div className="mt-3">
+              <FormError message={localError} />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </IntegrationRow>
   );
 }
