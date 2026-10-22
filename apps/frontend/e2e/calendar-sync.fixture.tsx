@@ -32,7 +32,20 @@ function CalendarSyncFixture() {
       />
     );
 
-  return <IntegrationSettingsPage />;
+  const calendarAuthorization = params.get("googleCalendar");
+
+  return (
+    <IntegrationSettingsPage
+      calendarAuthorization={
+        calendarAuthorization === "connected" ||
+        calendarAuthorization === "denied" ||
+        calendarAuthorization === "failed" ||
+        calendarAuthorization === "needs_offline_consent"
+          ? calendarAuthorization
+          : undefined
+      }
+    />
+  );
 }
 
 const rootElement = document.getElementById("root");

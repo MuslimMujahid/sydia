@@ -8,6 +8,16 @@ const noopProvisioner = (): Promise<void> => Promise.resolve();
 
 function authFor(trustedOrigins: string[], baseURL: string) {
   return createAuth({} as PrismaService, {
+    sendAuthMail: () => Promise.resolve(),
+    security: {
+      limitSend: () => Promise.resolve(),
+      limitGuess: () => Promise.resolve(),
+      get: () => Promise.resolve(null),
+      consume: () => Promise.resolve(null),
+      consumeOTP: () => Promise.resolve(),
+      set: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
     secret: 'test-secret-that-is-long-enough-for-auth',
     baseURL,
     trustedOrigins,

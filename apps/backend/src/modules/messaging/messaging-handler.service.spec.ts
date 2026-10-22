@@ -23,7 +23,13 @@ import {
   type ChannelTurnAdapter,
 } from './messaging-handler.service';
 
-const user = { id: 'user-1', name: 'User', locale: 'id' } as User;
+const user = {
+  id: 'user-1',
+  name: 'User',
+  locale: 'id',
+  emailVerified: true,
+} as User;
+
 const baseMessage: NormalizedInboundMessage = {
   provider: 'telegram',
   providerMessageId: 'chat-1:1',
@@ -209,6 +215,61 @@ describe('MessagingHandlerService reply recovery', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.useRealTimers();
+  });
+
+  test.each(['telegram', 'whatsapp'] as const)(
+    '%s refuses product messages from an unverified linked account',
+    async (provider) => {
+      const deps = setup();
+      const send = jest
+        .fn<ChannelTurnAdapter['send']>()
+        .mockResolvedValue(undefined);
+
+      await deps.service.registerAdapter(provider, {
+        prepare: () => Promise.resolve({ content: 'Halo' }),
+        send,
+      });
+      const pending = { ...user, emailVerified: false };
+      const message = { ...baseMessage, provider };
+
+      await deps.service.handle({
+        user: pending,
+        message,
+        externalIdentityId: 'identity-1',
+      });
+
+      expect(deps.conversations.enqueueChannelTurn).not.toHaveBeenCalled();
+      expect(deps.assistant.sendAndWait).not.toHaveBeenCalled();
+      expect(send).toHaveBeenCalledWith(
+        pending,
+        'identity-1',
+        message,
+        'Verifikasi email Anda di aplikasi Sydia sebelum melanjutkan percakapan.',
+      );
+      deps.service.onModuleDestroy();
+    },
+  );
+
+  it('rejects recovered queued turns when the account still needs verification', async () => {
+    const deps = setup();
+    jest
+      .mocked(deps.users.findById)
+      .mockResolvedValue({ ...user, emailVerified: false });
+
+    const send = await processReply(deps, baseMessage);
+
+    expect(deps.assistant.sendAndWait).not.toHaveBeenCalled();
+    expect(deps.conversations.failChannelTurns).toHaveBeenCalledWith(
+      ['turn-1'],
+      expect.stringContaining('Verifikasi email'),
+      expect.any(Date),
+    );
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ emailVerified: false }),
+      'identity-1',
+      baseMessage,
+      'Verifikasi email Anda di aplikasi Sydia sebelum melanjutkan percakapan.',
+    );
   });
 
   it('recovers the exact notification by user, channel and provider message ID', async () => {

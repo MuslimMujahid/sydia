@@ -1,0 +1,25 @@
+{
+  "observedAt": "2026-10-19T22:41:55.417Z",
+  "scope": "Owner cancelled real Calendar consent and returned to Sydia; persisted identity and Calendar state.",
+  "sameSydiaUser": true,
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "email": "muslimmujahid1712@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "status": "disconnected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "hasAccessToken": false,
+      "hasRefreshToken": false
+    }
+  ],
+  "activeSessionCreationTimes": ["2026-10-19T22:39:05.785Z"]
+}

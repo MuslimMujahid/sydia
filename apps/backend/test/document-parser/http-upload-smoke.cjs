@@ -10,6 +10,13 @@ const { ConfigService } = require('@nestjs/config');
 const { Test } = require('@nestjs/testing');
 const { ValidationPipe } = require('@nestjs/common');
 const { AuthModule } = require('@thallesp/nestjs-better-auth');
+const { APP_GUARD } = require('@nestjs/core');
+const {
+  AuthSecurityService,
+} = require('../../dist/src/infra/auth/auth-security.service');
+const {
+  VerifiedEmailGuard,
+} = require('../../dist/src/infra/auth/verified-email.guard');
 const request = require('supertest');
 const { Queue, Worker } = require('bullmq');
 const { PrismaService } = require('../../dist/src/infra/prisma');
@@ -87,6 +94,9 @@ async function main() {
     BACKEND_STORAGE_BUCKET: '',
 
     BACKEND_AUTH_URL: origin,
+    BACKEND_AUTH_SECRET:
+      'document-http-fixture-secret-at-least-thirty-two-characters',
+    BACKEND_REDIS_URL: redisUrl,
   });
   const prisma = new PrismaService(config);
   const repository = new PrismaDocumentRepository(prisma);
@@ -140,7 +150,14 @@ async function main() {
     { documents: queue },
   );
   const categories = new PrismaCategoryRepository(prisma);
+  const security = new AuthSecurityService(config);
+  const verificationMail = new Map();
   const auth = createAuth(prisma, {
+    security,
+    sendAuthMail: (mail) => {
+      verificationMail.set(mail.email, mail.otp);
+      return Promise.resolve();
+    },
     secret: 'document-http-fixture-secret-at-least-thirty-two-characters',
     baseURL: origin,
     trustedOrigins: [origin],
@@ -151,6 +168,7 @@ async function main() {
   const owners = [];
   const results = [];
   try {
+    await security.onModuleInit();
     const module = await Test.createTestingModule({
       imports: [AuthModule.forRoot({ auth, bodyParser: { rawBody: true } })],
       controllers: [
@@ -159,6 +177,7 @@ async function main() {
         FileDeletionController,
       ],
       providers: [
+        { provide: APP_GUARD, useClass: VerifiedEmailGuard },
         DocumentUploadInterceptor,
         { provide: DOCUMENT_REPOSITORY, useValue: repository },
         { provide: DocumentService, useValue: documents },
@@ -193,6 +212,18 @@ async function main() {
         .expect(200);
       owners.push(signup.body.user.id);
       assert(signup.headers['set-cookie']);
+      await client
+        .post('/api/auth/email-otp/send-verification-otp')
+        .set('Origin', origin)
+        .send({ email, type: 'email-verification' })
+        .expect(200);
+      const otp = verificationMail.get(email);
+      assert.equal(typeof otp, 'string');
+      await client
+        .post('/api/auth/email-otp/verify-email')
+        .set('Origin', origin)
+        .send({ email, otp })
+        .expect(200);
     }
     const bytes = await readFile(join(fixtureDirectory, 'mixed.pdf'));
     const unsigned = await request(app.getHttpServer())
@@ -476,6 +507,7 @@ async function main() {
     await queue.close();
     await prisma.user.deleteMany({ where: { id: { in: owners } } });
     await prisma.onModuleDestroy();
+    await security.onModuleDestroy();
     await rm(root, { recursive: true, force: true });
   }
 }

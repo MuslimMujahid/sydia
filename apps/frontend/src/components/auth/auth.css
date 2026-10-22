@@ -1,0 +1,45 @@
+/* Matches the Inter Tight face on the live Penpot registration boards. */
+@font-face {
+  font-family: "Sydia Auth";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/inter-tight/latin.woff2") format("woff2");
+}
+.auth-surface {
+  --font-sans: "Sydia Auth", "Inter", sans-serif;
+  --font-display: "Sydia Auth", "Inter", sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+.auth-surface [data-slot="button"] {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+.auth-surface .aurora-gradient {
+  position: relative;
+  isolation: isolate;
+  box-shadow: none;
+}
+.auth-surface .aurora-gradient:not(:disabled)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 30%);
+}
+.auth-surface input::placeholder {
+  color: var(--color-ink);
+}
+.auth-content {
+  padding-top: calc(var(--auth-mobile-top) - 58px);
+}
+@media (min-width: 1024px) {
+  .auth-content {
+    padding-top: calc(
+      max(112px, var(--auth-desktop-top) + (100svh - 960px) / 2) - 80px
+    );
+  }
+}

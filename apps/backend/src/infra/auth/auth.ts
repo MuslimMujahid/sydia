@@ -4,8 +4,20 @@ import { admin } from 'better-auth/plugins';
 import type { CreateAuditEvent } from '../../database/entities';
 import type { IAuditEventRepository } from '../../database/interfaces';
 import type { PrismaService } from '../prisma';
+import { emailOTP } from 'better-auth/plugins';
+import type { AuthMail } from './auth-mail.service';
+import type { AuthSecurity } from './auth-security.service';
+import { hashAuthOTP, registrationPolicy } from './registration-policy';
+import { passwordRecoveryPlugin } from './password-recovery.plugin';
+import { registrationPlugin } from './registration.plugin';
+import { googleIdentityProvider } from './google-identity.provider';
 
 export type AuthOptions = {
+  /** Dependency override for deterministic auth contract tests; production uses the plugin's secure generator. */
+  generateOTP?: () => string;
+  googleIdentity?: { clientId: string; clientSecret: string };
+  sendAuthMail: (mail: AuthMail) => Promise<void>;
+  security: AuthSecurity;
   /** Session-signing secret (BACKEND_AUTH_SECRET). */
   secret: string;
   /** Public base URL of this server (BACKEND_AUTH_URL). */
@@ -144,6 +156,22 @@ export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
   );
 
   return betterAuth({
+    account: {
+      encryptOAuthTokens: true,
+      accountLinking: {
+        enabled: true,
+        disableImplicitLinking: true,
+        trustedProviders: [],
+        allowDifferentEmails: false,
+        allowUnlinkingAll: false,
+      },
+    },
+    socialProviders: options.googleIdentity
+      ? {
+          google: googleIdentityProvider(options.googleIdentity),
+        }
+      : {},
+    hooks: registrationPolicy(options.security, options.secret),
     database: prismaAdapter(prisma, {
       provider: 'postgresql',
       // Sign-up wraps user, account, and session creation in a transaction.
@@ -175,13 +203,40 @@ export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
       },
     },
     plugins: [
+      registrationPlugin(
+        options.security,
+        options.baseURL,
+        options.trustedOrigins[0]!,
+        options.googleIdentity,
+      ),
+      passwordRecoveryPlugin(options.secret, options.security),
+      emailOTP({
+        ...(options.generateOTP ? { generateOTP: options.generateOTP } : {}),
+        otpLength: 6,
+        expiresIn: 600,
+        allowedAttempts: 5,
+        storeOTP: { hash: (otp) => hashAuthOTP(options.secret, otp) },
+        resendStrategy: 'rotate',
+        disableSignUp: true,
+        changeEmail: { enabled: true, verifyCurrentEmail: false },
+        sendVerificationOTP: async (mail) => {
+          await options.security.set(
+            `otp:${mail.type}:${mail.email.toLowerCase()}`,
+            `${await hashAuthOTP(options.secret, mail.otp)}:0`,
+            600,
+          );
+          await options.sendAuthMail(mail);
+        },
+      }),
       admin({
         bannedUserMessage: 'Akun Anda telah dinonaktifkan oleh administrator.',
       }),
     ],
     emailAndPassword: {
       enabled: true,
+      revokeSessionsOnPasswordReset: true,
     },
+    emailVerification: { autoSignInAfterVerification: false },
     secret: options.secret,
     baseURL: options.baseURL,
     trustedOrigins: options.trustedOrigins,

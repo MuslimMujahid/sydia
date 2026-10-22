@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-10-19T22:23:36.950Z",
+  "scope": "Real same-Google-account login and Calendar connection before revocation test.",
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "email": "muslimmujahid1712@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "id": "cmvftm2v7000w8j7kyz302h7y",
+      "status": "connected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "calendarId": "muslimmujahid1712@gmail.com"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "observedAt": "2026-10-19T22:13:52.913Z",
+  "scope": "Calendar disconnect completed; Google identity remains linked. Fresh Google re-login is still required to prove revocation isolation.",
+  "user": {
+    "id": "EY2p6RZ8L5OzF0fimFLIQjguUHrV7qFm",
+    "emailVerified": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": [
+    {
+      "id": "cmvft67xd000f8j7k5m2g5dzr",
+      "status": "disconnected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "calendarId": "muslimmujahid1712@gmail.com",
+      "updatedAt": "2026-10-19T22:13:39.377Z"
+    }
+  ]
+}

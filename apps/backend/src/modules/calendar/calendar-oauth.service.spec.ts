@@ -218,6 +218,30 @@ function oauthHarness(input?: {
 }
 
 describe('CalendarOAuthService', () => {
+  test('returns an invalid callback to the existing integrations page', async () => {
+    const { service } = oauthHarness();
+
+    const result = await service.callback({});
+
+    expect(result.redirectUrl).toBe(
+      'https://app.sydia.test/settings/integrations?googleCalendar=failed',
+    );
+  });
+
+  test('returns cancelled consent to integrations even for an older saved settings URL', async () => {
+    const { service } = oauthHarness();
+
+    const result = await service.callback({
+      state: OAUTH_STATE,
+      browserNonce: BROWSER_NONCE,
+      providerError: 'access_denied',
+    });
+
+    expect(result.redirectUrl).toBe(
+      'https://app.sydia.test/settings/integrations?googleCalendar=denied',
+    );
+  });
+
   test('stores OAuth expiry as a TTL for the database clock', async () => {
     const { service, createOAuthRequest } = oauthHarness();
 

@@ -407,12 +407,15 @@ export class CalendarOAuthService {
   ): URL {
     const url = savedUrl
       ? new URL(savedUrl)
-      : new URL('/settings', this.frontendUrl);
+      : new URL('/settings/integrations', this.frontendUrl);
 
     if (url.origin !== this.frontendUrl.origin)
       throw new Error('Stored Google Calendar return URL is not allowlisted.');
 
-    url.searchParams.set('tab', 'integrations');
+    // OAuth requests created before the settings routes were split can still
+    // contain /settings?tab=integrations. Always return to the live route.
+    url.pathname = '/settings/integrations';
+    url.searchParams.delete('tab');
     if (state === 'pending') url.searchParams.delete('googleCalendar');
     else url.searchParams.set('googleCalendar', state);
 

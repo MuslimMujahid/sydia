@@ -1,0 +1,64 @@
+{
+  "route": "/link-google",
+  "account": "development seed user",
+  "viewport": {
+    "height": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  "method": "Native Tab/Enter keys in agent-browser; no form submission or provider request",
+  "skipLink": {
+    "focusVisible": true,
+    "height": 48,
+    "label": "Lewati ke konten",
+    "tag": "A",
+    "type": null,
+    "width": 164.671875,
+    "x": 8,
+    "y": 8
+  },
+  "skipDestination": "main-content",
+  "steps": [
+    {
+      "focusVisible": true,
+      "height": 48,
+      "label": "Kata sandi saat ini",
+      "tag": "INPUT",
+      "type": "password",
+      "width": 342,
+      "x": 24,
+      "y": 439
+    },
+    {
+      "focusVisible": true,
+      "height": 48,
+      "label": "Tampilkan kata sandi",
+      "tag": "BUTTON",
+      "type": "button",
+      "width": 44,
+      "x": 318,
+      "y": 439
+    },
+    {
+      "focusVisible": true,
+      "height": 48,
+      "label": "Konfirmasi dan lanjutkan",
+      "tag": "BUTTON",
+      "type": "submit",
+      "width": 342,
+      "x": 24,
+      "y": 511
+    },
+    {
+      "focusVisible": true,
+      "height": 44,
+      "label": "Nanti saja",
+      "tag": "A",
+      "type": null,
+      "width": 61.734375,
+      "x": 24,
+      "y": 575
+    }
+  ],
+  "limits": "Keyboard and DOM review, not a human screen-reader sign-off. Aurora contrast remains unresolved following the owner-requested restoration."
+}

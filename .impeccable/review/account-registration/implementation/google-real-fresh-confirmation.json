@@ -1,0 +1,28 @@
+{
+  "observedAt": "2026-10-19T22:46:37.476Z",
+  "scope": "Dedicated real linked-Google confirmation after explicitly expiring only the short-lived test proof; no replacement email submitted.",
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "email": "muslimmujahid1712@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "confirmation": {
+    "method": "google",
+    "ttlSeconds": 563,
+    "sessionCreatedAt": "2026-10-19T22:39:05.785Z"
+  },
+  "calendars": [
+    {
+      "id": "cmvftm2v7000w8j7kyz302h7y",
+      "status": "connected",
+      "googleEmail": "muslimmujahid1712@gmail.com",
+      "calendarId": "muslimmujahid1712@gmail.com"
+    }
+  ]
+}

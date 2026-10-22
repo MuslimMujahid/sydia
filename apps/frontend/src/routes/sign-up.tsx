@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/lib/hooks/forms";
 import { redirectAuthenticatedUser } from "@/lib/auth";
 import { useSignUp } from "@/lib/services/api/auth/auth.queries";
+import { GoogleButton, AuthDivider } from "@/components/auth/google-button";
+import { PasswordField } from "@/components/auth/password-field";
 
 const searchSchema = z.object({ redirect: z.string().optional() });
 const signUpSchema = z
@@ -49,14 +51,19 @@ function SignUpPage() {
         email: value.email,
         password: value.password,
       });
-      await navigate({ to: "/onboarding", replace: true });
+      await navigate({
+        to: "/verify-email",
+        search: { reason: "signup" },
+        replace: true,
+      });
     },
   });
 
   return (
     <AuthShell
+      mode="sign-up"
       title="Buat akun Sydia"
-      description="Catat tugas dan buat pengingat lewat chat dengan Sydia."
+      description="Catat tugas dan buat pengingat lewat chat."
       footer={
         <>
           Sudah punya akun?{" "}
@@ -70,8 +77,11 @@ function SignUpPage() {
         </>
       }
     >
+      <GoogleButton />
+      <AuthDivider />
       <form
-        className="space-y-5"
+        method="post"
+        className="space-y-5 [&_input]:h-12"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -90,6 +100,7 @@ function SignUpPage() {
                   id="sign-up-name"
                   name={field.name}
                   autoComplete="name"
+                  placeholder="Nama lengkap Anda"
                   value={field.state.value}
                   aria-describedby={describedBy}
                   aria-invalid={invalid}
@@ -112,6 +123,7 @@ function SignUpPage() {
                   id="sign-up-email"
                   name={field.name}
                   type="email"
+                  placeholder="nama@contoh.com"
                   autoComplete="email"
                   value={field.state.value}
                   aria-describedby={describedBy}
@@ -128,15 +140,15 @@ function SignUpPage() {
             <FieldShell
               id="sign-up-password"
               label="Kata sandi"
-              description="Gunakan minimal 8 karakter."
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (
-                <TextField
+                <PasswordField
                   id="sign-up-password"
                   name={field.name}
                   type="password"
                   autoComplete="new-password"
+                  placeholder="Minimal 8 karakter"
                   value={field.state.value}
                   aria-describedby={describedBy}
                   aria-invalid={invalid}
@@ -155,8 +167,9 @@ function SignUpPage() {
               errors={field.state.meta.errors}
             >
               {({ describedBy, invalid }) => (
-                <TextField
+                <PasswordField
                   id="sign-up-confirm-password"
+                  placeholder="Ulangi kata sandi Anda"
                   name={field.name}
                   type="password"
                   autoComplete="new-password"
@@ -176,7 +189,7 @@ function SignUpPage() {
         >
           {([canSubmit, isSubmitting]) => (
             <Button
-              className="w-full"
+              className="h-12 w-full"
               type="submit"
               disabled={!canSubmit || isSubmitting}
             >

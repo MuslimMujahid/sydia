@@ -1,7 +1,13 @@
 import { BillingAccessService } from '../billing';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { DocumentProcessingPendingError } from '../../shared/documents';
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import type { User, SupportedLocale } from '../../database/entities';
 import {
   CONVERSATION_REPOSITORY,
@@ -24,6 +30,8 @@ const CHANNEL_MESSAGES = {
     cancelled: 'Proses aktif dan pesan yang menunggu telah dibatalkan.',
     newConversation: 'Percakapan baru dimulai.',
     unavailable: 'Provider atau pengguna tidak tersedia.',
+    verificationRequired:
+      'Verifikasi email Anda di aplikasi Sydia sebelum melanjutkan percakapan.',
     processingFailed: 'Maaf, pesan Anda gagal diproses. Silakan coba lagi.',
     missingReference:
       'Isi pesan yang Anda balas tidak dapat dibaca. Kirim ulang isinya atau sebutkan tugas atau item yang Anda maksud.',
@@ -34,6 +42,8 @@ const CHANNEL_MESSAGES = {
     cancelled: 'Active processing and queued messages have been cancelled.',
     newConversation: 'A new conversation has started.',
     unavailable: 'The provider or user is unavailable.',
+    verificationRequired:
+      'Verify your email in the Sydia app before continuing this conversation.',
     processingFailed:
       'Sorry, your message could not be processed. Please try again.',
     missingReference:
@@ -113,6 +123,20 @@ export class MessagingHandlerService implements OnModuleDestroy {
   }
 
   async handle(input: InboundMessageInput): Promise<boolean> {
+    if (!input.user.emailVerified) {
+      this.logger.warn(
+        'Channel product access rejected: email verification required.',
+      );
+      await this.sendFor(
+        input.user,
+        input.externalIdentityId,
+        input.message,
+        channelMessages(input.user.locale).verificationRequired,
+      );
+
+      return true;
+    }
+
     const command = input.message.text.trim().toLocaleLowerCase('id-ID');
     const now = new Date();
     const channel = await this.conversations.resolveChannelConversation({
@@ -299,6 +323,18 @@ export class MessagingHandlerService implements OnModuleDestroy {
     let stopProcessing: (() => void) | undefined;
 
     try {
+      if (!user.emailVerified) {
+        this.logger.warn(
+          'Queued channel turn rejected: email verification required.',
+        );
+        throw new ApiException({
+          code: ErrorCodes.FORBIDDEN,
+          status: HttpStatus.FORBIDDEN,
+          message: channelMessages(user.locale).verificationRequired,
+          details: { reason: 'EMAIL_VERIFICATION_REQUIRED' },
+        });
+      }
+
       await this.billing.assertActive(user.id, user.locale);
       stopProcessing = await adapter.beginProcessing?.(
         batch.turns.map(({ message }) => message.message),
@@ -397,7 +433,12 @@ export class MessagingHandlerService implements OnModuleDestroy {
       if (controller.signal.aborted)
         await this.conversations.completeChannelTurns(turnIds, new Date());
       else {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = !user.emailVerified
+          ? channelMessages(user.locale).verificationRequired
+          : error instanceof Error
+            ? error.message
+            : String(error);
+
         const pending = error instanceof DocumentProcessingPendingError;
         if (pending)
           this.logger.warn(
@@ -416,6 +457,13 @@ export class MessagingHandlerService implements OnModuleDestroy {
         let response = pending
           ? channelMessages(user.locale).documentPending
           : channelMessages(user.locale).processingFailed;
+
+        if (
+          error instanceof ApiException &&
+          error.code === ErrorCodes.FORBIDDEN &&
+          !user.emailVerified
+        )
+          response = channelMessages(user.locale).verificationRequired;
 
         // Public API validation messages are safe to show; provider errors stay generic.
         if (

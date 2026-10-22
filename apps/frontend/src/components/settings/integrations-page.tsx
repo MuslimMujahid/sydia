@@ -14,7 +14,16 @@ import { IntegrationRow } from "./integration-row";
 import { WhatsAppIntegrationCard } from "./whatsapp-page";
 import { TelegramIntegrationCard } from "./telegram-page";
 
-function GoogleCalendarIntegrationCard() {
+export type CalendarAuthorizationResult =
+  "connected" | "denied" | "failed" | "needs_offline_consent";
+
+type IntegrationSettingsPageProps = {
+  calendarAuthorization?: CalendarAuthorizationResult;
+};
+
+function GoogleCalendarIntegrationCard({
+  calendarAuthorization,
+}: IntegrationSettingsPageProps) {
   const statusQuery = useQuery(calendarStatusQueryOptions());
   const status = statusQuery.data;
   const disconnectMutation = useDisconnectCalendar();
@@ -62,6 +71,18 @@ function GoogleCalendarIntegrationCard() {
       }}
       description="Sinkronkan agenda dengan akun Google Anda."
     >
+      {calendarAuthorization === "denied" ? (
+        <p className="text-sm text-ink-muted" role="status">
+          Izin Google Calendar dibatalkan. Akun Sydia tetap dapat digunakan.
+          Aktifkan integrasi untuk mencoba lagi.
+        </p>
+      ) : null}
+      {calendarAuthorization === "failed" ? (
+        <FormError message="Google Calendar belum berhasil terhubung. Aktifkan integrasi untuk mencoba lagi, atau lanjutkan tanpa Calendar." />
+      ) : null}
+      {calendarAuthorization === "needs_offline_consent" ? (
+        <FormError message="Google belum memberikan izin untuk sinkronisasi otomatis. Aktifkan integrasi dan setujui izin Google Calendar untuk mencoba lagi." />
+      ) : null}
       {statusQuery.isPending ? (
         <p className="text-sm text-ink-muted" role="status">
           Memeriksa koneksi…
@@ -120,7 +141,9 @@ function GoogleCalendarIntegrationCard() {
   );
 }
 
-export function IntegrationSettingsPage() {
+export function IntegrationSettingsPage({
+  calendarAuthorization,
+}: IntegrationSettingsPageProps) {
   return (
     <div className="max-w-3xl space-y-6 lg:space-y-10">
       <DomainPageHeader title="Integrasi" divided={false} />
@@ -131,7 +154,9 @@ export function IntegrationSettingsPage() {
         <div className="mt-4 divide-y divide-surface-1">
           {WHATSAPP_INTEGRATION_ENABLED ? <WhatsAppIntegrationCard /> : null}
           <TelegramIntegrationCard />
-          <GoogleCalendarIntegrationCard />
+          <GoogleCalendarIntegrationCard
+            calendarAuthorization={calendarAuthorization}
+          />
         </div>
       </Card>
     </div>

@@ -1,0 +1,16 @@
+{
+  "observedAt": "2026-10-19T22:20:37.367Z",
+  "scope": "Separate real Google identity baseline for same-Google-account Calendar revocation testing.",
+  "user": {
+    "id": "vPQzeht0LiFStQgeA6GI34Gu7FkSRxGS",
+    "email": "muslimmujahid1712@gmail.com",
+    "emailVerified": true,
+    "onboardingCompleted": true,
+    "accounts": [
+      {
+        "providerId": "google"
+      }
+    ]
+  },
+  "calendars": []
+}

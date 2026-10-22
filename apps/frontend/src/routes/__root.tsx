@@ -30,19 +30,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       ],
       links: [
         {
-          rel: "preconnect",
-          href: "https://fonts.googleapis.com",
-        },
-        {
-          rel: "preconnect",
-          href: "https://fonts.gstatic.com",
-          crossOrigin: "anonymous",
-        },
-        {
-          rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
-        },
-        {
           rel: "icon",
           href: "/favicon.svg",
           type: "image/svg+xml",
@@ -102,7 +89,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         <a
           href="#main-content"
-          className="sr-only fixed top-2 left-2 z-50 rounded-md bg-ink px-[22px] py-3 text-[15px] font-semibold text-canvas focus:not-sr-only"
+          className="fixed top-2 left-2 z-50 -translate-y-[calc(100%+1rem)] rounded-md bg-ink px-[22px] py-3 text-[15px] font-semibold text-canvas focus:translate-y-0"
         >
           Lewati ke konten
         </a>

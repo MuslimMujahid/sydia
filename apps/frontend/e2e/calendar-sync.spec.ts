@@ -336,6 +336,45 @@ test("a failed refresh shows the error and logs the failed sync request", async 
     .toBe(true);
 });
 
+test("cancelled Calendar consent keeps the integrations switch available for retry", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page);
+
+  await page.goto(
+    "/e2e/calendar-sync.html?mode=integrations&googleCalendar=denied"
+  );
+
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Izin Google Calendar dibatalkan" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).toBeEnabled();
+  expect(mocks.connectCount).toBe(0);
+});
+
+test("failed Calendar consent gives an actionable error without claiming a connection", async ({
+  page,
+}) => {
+  await mockCalendarApi(page);
+
+  await page.goto(
+    "/e2e/calendar-sync.html?mode=integrations&googleCalendar=failed"
+  );
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Google Calendar belum berhasil terhubung" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar", exact: true })
+  ).not.toBeChecked();
+});
+
 test("connects through a mocked Google authorization return", async ({
   page,
 }) => {

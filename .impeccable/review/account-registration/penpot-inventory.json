@@ -1,0 +1,1135 @@
+{
+  "fileId": "4a7e6716-c5b5-8080-8008-c936c7a3dabc",
+  "pages": [
+    {
+      "id": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "name": "Sydia · Account registration · Desktop"
+    },
+    {
+      "id": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "name": "Sydia · Account registration · Mobile"
+    }
+  ],
+  "boards": [
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc3fa543415",
+      "key": "signup",
+      "name": "Daftar · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan dengan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc73dc0edc6"]
+        },
+        {
+          "name": "Button / Buat akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4005f5f92"]
+        },
+        {
+          "name": "Link / Sudah punya akun? Masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 0,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4005f5f92",
+      "key": "verify",
+      "name": "Verifikasi email · Menunggu · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "OTP digit 1",
+          "destinations": ["02662460-ec2d-8007-8008-cfc48bf54251"]
+        },
+        {
+          "name": "OTP digit 2",
+          "destinations": ["02662460-ec2d-8007-8008-cfc48bf54251"]
+        },
+        {
+          "name": "OTP digit 3",
+          "destinations": ["02662460-ec2d-8007-8008-cfc48bf54251"]
+        },
+        {
+          "name": "OTP digit 4",
+          "destinations": ["02662460-ec2d-8007-8008-cfc48bf54251"]
+        },
+        {
+          "name": "OTP digit 5",
+          "destinations": ["02662460-ec2d-8007-8008-cfc48bf54251"]
+        },
+        {
+          "name": "OTP digit 6",
+          "destinations": ["02662460-ec2d-8007-8008-cfc48bf54251"]
+        },
+        {
+          "name": "Link / Email salah? Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4cbd5ea3d"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 1540,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc48bf54251",
+      "key": "verify-ready",
+      "name": "Verifikasi email · Kode lengkap · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Verifikasi email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc73dc0edc6"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4005f5f92"]
+        },
+        {
+          "name": "Link / Email salah? Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4cbd5ea3d"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 3080,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4940a6d96",
+      "key": "signin",
+      "name": "Masuk · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan dengan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc5131506df"]
+        },
+        {
+          "name": "Link / Lupa kata sandi?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4ecb5ab4f"]
+        },
+        {
+          "name": "Button / Masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc49d763291"]
+        },
+        {
+          "name": "Link / Belum punya akun? Buat akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3fa543415"]
+        }
+      ],
+      "x": 4620,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc49d763291",
+      "key": "legacy",
+      "name": "Akun lama · Wajib verifikasi · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Verifikasi dan lanjutkan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc5260e8516"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc49d763291"]
+        },
+        {
+          "name": "Link / Tidak bisa mengakses email ini?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4cbd5ea3d"]
+        },
+        {
+          "name": "Link / Keluar dari akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 0,
+      "y": 1320
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4cbd5ea3d",
+      "key": "change-email",
+      "name": "Ubah email · Konfirmasi identitas · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Link / Lupa kata sandi?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4ecb5ab4f"]
+        },
+        {
+          "name": "Button / Kirim kode ke email baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4d2b8e135"]
+        },
+        {
+          "name": "Link / Kembali ke verifikasi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4005f5f92"]
+        },
+        {
+          "name": "Link / Konfirmasi dengan Google yang terhubung",
+          "destinations": ["02662460-ec2d-8007-8008-cfc6497d0923"]
+        }
+      ],
+      "x": 1540,
+      "y": 1320
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4d2b8e135",
+      "key": "verify-email",
+      "name": "Verifikasi email pengganti · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Verifikasi email baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4ddf5837d"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4d2b8e135"]
+        },
+        {
+          "name": "Link / Ubah alamat email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4cbd5ea3d"]
+        }
+      ],
+      "x": 3080,
+      "y": 1320
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4ddf5837d",
+      "key": "email-updated",
+      "name": "Email berhasil diubah · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan ke akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc5260e8516"]
+        }
+      ],
+      "x": 4620,
+      "y": 1320
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4ecb5ab4f",
+      "key": "forgot",
+      "name": "Lupa kata sandi · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Kirim kode pemulihan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4f311789c"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 0,
+      "y": 2420
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4f311789c",
+      "key": "reset-verify",
+      "name": "Kode pemulihan · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4fea9a80f"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4f311789c"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 1540,
+      "y": 2420
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc4fea9a80f",
+      "key": "reset-password",
+      "name": "Kata sandi baru · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Simpan kata sandi baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc51114583d"]
+        }
+      ],
+      "x": 3080,
+      "y": 2420
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc51114583d",
+      "key": "reset-done",
+      "name": "Pemulihan selesai · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 4620,
+      "y": 2420
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5131506df",
+      "key": "google-collision",
+      "name": "Google · Akun sudah ada · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Link / Lupa kata sandi?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4ecb5ab4f"]
+        },
+        {
+          "name": "Button / Masuk dan lanjutkan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc51636ae1e"]
+        },
+        {
+          "name": "Link / Gunakan akun Google lain",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4940a6d96"]
+        }
+      ],
+      "x": 0,
+      "y": 3520
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc51636ae1e",
+      "key": "link-google",
+      "name": "Google · Tautkan secara eksplisit · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Hubungkan akun Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc5260e8516"]
+        },
+        {
+          "name": "Link / Nanti saja",
+          "destinations": ["02662460-ec2d-8007-8008-cfc73dc0edc6"]
+        }
+      ],
+      "x": 1540,
+      "y": 3520
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5260e8516",
+      "key": "settings",
+      "name": "settings / profile · Google terhubung · Desktop",
+      "width": 1440,
+      "height": 1100,
+      "controls": [
+        {
+          "name": "Link / Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4cbd5ea3d"]
+        },
+        {
+          "name": "Link / Ubah kata sandi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4ecb5ab4f"]
+        }
+      ],
+      "x": 0,
+      "y": 4620,
+      "route": "/settings/profile"
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc59322e8bb",
+      "key": "wrong-code",
+      "name": "Kode belum cocok · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Coba lagi",
+          "destinations": []
+        }
+      ],
+      "x": 0,
+      "y": 6020
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc59584e41f",
+      "key": "expired-code",
+      "name": "Kode sudah kedaluwarsa · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Kirim kode baru",
+          "destinations": []
+        }
+      ],
+      "x": 490,
+      "y": 6020
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5969021c8",
+      "key": "attempt-limit",
+      "name": "Batas percobaan tercapai · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Minta kode baru",
+          "destinations": []
+        }
+      ],
+      "x": 980,
+      "y": 6020
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc597cf459f",
+      "key": "delivery-failed",
+      "name": "Kode belum terkirim · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Coba kirim lagi",
+          "destinations": []
+        }
+      ],
+      "x": 1470,
+      "y": 6020
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc599099ecd",
+      "key": "send-limit",
+      "name": "Tunggu sebelum mencoba lagi · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Kembali ke verifikasi",
+          "destinations": []
+        }
+      ],
+      "x": 1960,
+      "y": 6020
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc59a41ef75",
+      "key": "email-conflict",
+      "name": "Email sudah digunakan · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Ubah alamat email",
+          "destinations": []
+        }
+      ],
+      "x": 2450,
+      "y": 6020
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5a14e6fd3",
+      "key": "google-cancelled",
+      "name": "Belum masuk dengan Google · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Kembali ke masuk",
+          "destinations": []
+        }
+      ],
+      "x": 0,
+      "y": 7004
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5a2463432",
+      "key": "google-unverified",
+      "name": "Verifikasi email diperlukan · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Verifikasi email",
+          "destinations": []
+        }
+      ],
+      "x": 490,
+      "y": 7004
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5a34b1dbc",
+      "key": "calendar-denied",
+      "name": "Kalender belum terhubung · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Coba hubungkan lagi",
+          "destinations": []
+        },
+        {
+          "name": "Link / Lewati untuk sekarang",
+          "destinations": []
+        }
+      ],
+      "x": 980,
+      "y": 7004
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5a4963ac4",
+      "key": "calendar-failed",
+      "name": "Koneksi kalender belum selesai · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Coba lagi",
+          "destinations": []
+        },
+        {
+          "name": "Link / Lanjutkan tanpa kalender",
+          "destinations": []
+        }
+      ],
+      "x": 1470,
+      "y": 7004
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5a5f5b929",
+      "key": "identity-rejected",
+      "name": "Konfirmasi akun belum berhasil · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Coba lagi",
+          "destinations": []
+        },
+        {
+          "name": "Link / Lupa kata sandi?",
+          "destinations": []
+        }
+      ],
+      "x": 1960,
+      "y": 7004
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc5a76762c6",
+      "key": "recovery-unavailable",
+      "name": "Belum bisa memulihkan akun · Shared recovery",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Kembali ke masuk",
+          "destinations": []
+        }
+      ],
+      "x": 2450,
+      "y": 7004
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc6497d0923",
+      "key": "change-email-google",
+      "name": "Ubah email · Konfirmasi Google · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Konfirmasi dengan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc64ea98ee8"]
+        },
+        {
+          "name": "Link / Kembali ke verifikasi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc49d763291"]
+        }
+      ],
+      "x": 1540,
+      "y": 4620
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc64ea98ee8",
+      "key": "change-email-after-google",
+      "name": "Ubah email · Identitas dikonfirmasi · Desktop",
+      "width": 1440,
+      "height": 960,
+      "controls": [
+        {
+          "name": "Button / Kirim kode ke email baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4d2b8e135"]
+        },
+        {
+          "name": "Link / Kembali ke verifikasi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc49d763291"]
+        }
+      ],
+      "x": 3080,
+      "y": 4620
+    },
+    {
+      "page": "Sydia · Account registration · Desktop",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb5851c1782",
+      "id": "02662460-ec2d-8007-8008-cfc73dc0edc6",
+      "key": "settings-unconnected",
+      "name": "settings / profile · Google belum terhubung · Desktop",
+      "width": 1440,
+      "height": 1100,
+      "controls": [
+        {
+          "name": "Link / Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4cbd5ea3d"]
+        },
+        {
+          "name": "Link / Ubah kata sandi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc4ecb5ab4f"]
+        },
+        {
+          "name": "Button / Hubungkan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc51636ae1e"]
+        }
+      ],
+      "x": 4620,
+      "y": 4620,
+      "route": "/settings/profile"
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc372623ec7",
+      "key": "signup",
+      "name": "Daftar · Mobile",
+      "width": 390,
+      "height": 1060,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan dengan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc75aac792c"]
+        },
+        {
+          "name": "Button / Buat akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc376723ada"]
+        },
+        {
+          "name": "Link / Sudah punya akun? Masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 0,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc376723ada",
+      "key": "verify",
+      "name": "Verifikasi email · Menunggu · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "OTP digit 1",
+          "destinations": ["02662460-ec2d-8007-8008-cfc37c8b3f5c"]
+        },
+        {
+          "name": "OTP digit 2",
+          "destinations": ["02662460-ec2d-8007-8008-cfc37c8b3f5c"]
+        },
+        {
+          "name": "OTP digit 3",
+          "destinations": ["02662460-ec2d-8007-8008-cfc37c8b3f5c"]
+        },
+        {
+          "name": "OTP digit 4",
+          "destinations": ["02662460-ec2d-8007-8008-cfc37c8b3f5c"]
+        },
+        {
+          "name": "OTP digit 5",
+          "destinations": ["02662460-ec2d-8007-8008-cfc37c8b3f5c"]
+        },
+        {
+          "name": "OTP digit 6",
+          "destinations": ["02662460-ec2d-8007-8008-cfc37c8b3f5c"]
+        },
+        {
+          "name": "Link / Email salah? Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc398d82d48"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 490,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc37c8b3f5c",
+      "key": "verify-ready",
+      "name": "Verifikasi email · Kode lengkap · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Verifikasi email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc75aac792c"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc376723ada"]
+        },
+        {
+          "name": "Link / Email salah? Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc398d82d48"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 980,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc38ded44c3",
+      "key": "signin",
+      "name": "Masuk · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan dengan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3cba3a95e"]
+        },
+        {
+          "name": "Link / Lupa kata sandi?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3b903280a"]
+        },
+        {
+          "name": "Button / Masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc391db6b2d"]
+        },
+        {
+          "name": "Link / Belum punya akun? Buat akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc372623ec7"]
+        }
+      ],
+      "x": 1470,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc391db6b2d",
+      "key": "legacy",
+      "name": "Akun lama · Wajib verifikasi · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Verifikasi dan lanjutkan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3ebfb02f6"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc391db6b2d"]
+        },
+        {
+          "name": "Link / Tidak bisa mengakses email ini?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc398d82d48"]
+        },
+        {
+          "name": "Link / Keluar dari akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 1960,
+      "y": 220
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc398d82d48",
+      "key": "change-email",
+      "name": "Ubah email · Konfirmasi identitas · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Link / Lupa kata sandi?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3b903280a"]
+        },
+        {
+          "name": "Button / Kirim kode ke email baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc39edd72db"]
+        },
+        {
+          "name": "Link / Kembali ke verifikasi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc376723ada"]
+        },
+        {
+          "name": "Link / Konfirmasi dengan Google yang terhubung",
+          "destinations": ["02662460-ec2d-8007-8008-cfc60936bb1e"]
+        }
+      ],
+      "x": 0,
+      "y": 1860
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc39edd72db",
+      "key": "verify-email",
+      "name": "Verifikasi email pengganti · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Verifikasi email baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3a9bc8414"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc39edd72db"]
+        },
+        {
+          "name": "Link / Ubah alamat email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc398d82d48"]
+        }
+      ],
+      "x": 490,
+      "y": 1860
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3a9bc8414",
+      "key": "email-updated",
+      "name": "Email berhasil diubah · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan ke akun",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3ebfb02f6"]
+        }
+      ],
+      "x": 980,
+      "y": 1860
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3b903280a",
+      "key": "forgot",
+      "name": "Lupa kata sandi · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Kirim kode pemulihan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3bc046194"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 1470,
+      "y": 1860
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3bc046194",
+      "key": "reset-verify",
+      "name": "Kode pemulihan · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Lanjutkan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3c3119440"]
+        },
+        {
+          "name": "Link / Kirim ulang kode",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3bc046194"]
+        },
+        {
+          "name": "Link / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 1960,
+      "y": 1860
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3c3119440",
+      "key": "reset-password",
+      "name": "Kata sandi baru · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Simpan kata sandi baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3c80b131d"]
+        }
+      ],
+      "x": 0,
+      "y": 3500
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3c80b131d",
+      "key": "reset-done",
+      "name": "Pemulihan selesai · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Kembali ke masuk",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 490,
+      "y": 3500
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3cba3a95e",
+      "key": "google-collision",
+      "name": "Google · Akun sudah ada · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Link / Lupa kata sandi?",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3b903280a"]
+        },
+        {
+          "name": "Button / Masuk dan lanjutkan",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3db90a7d0"]
+        },
+        {
+          "name": "Link / Gunakan akun Google lain",
+          "destinations": ["02662460-ec2d-8007-8008-cfc38ded44c3"]
+        }
+      ],
+      "x": 980,
+      "y": 3500
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3db90a7d0",
+      "key": "link-google",
+      "name": "Google · Tautkan secara eksplisit · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Hubungkan akun Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3ebfb02f6"]
+        },
+        {
+          "name": "Link / Nanti saja",
+          "destinations": ["02662460-ec2d-8007-8008-cfc75aac792c"]
+        }
+      ],
+      "x": 1470,
+      "y": 3500
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc3ebfb02f6",
+      "key": "settings",
+      "name": "settings / profile · Google terhubung · Mobile",
+      "width": 390,
+      "height": 1500,
+      "controls": [
+        {
+          "name": "Link / Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc398d82d48"]
+        },
+        {
+          "name": "Link / Ubah kata sandi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3b903280a"]
+        }
+      ],
+      "x": 1960,
+      "y": 3500,
+      "route": "/settings/profile"
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc60936bb1e",
+      "key": "change-email-google",
+      "name": "Ubah email · Konfirmasi Google · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Konfirmasi dengan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc60a5e849d"]
+        },
+        {
+          "name": "Link / Kembali ke verifikasi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc391db6b2d"]
+        }
+      ],
+      "x": 0,
+      "y": 5140
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc60a5e849d",
+      "key": "change-email-after-google",
+      "name": "Ubah email · Identitas dikonfirmasi · Mobile",
+      "width": 390,
+      "height": 844,
+      "controls": [
+        {
+          "name": "Button / Kirim kode ke email baru",
+          "destinations": ["02662460-ec2d-8007-8008-cfc39edd72db"]
+        },
+        {
+          "name": "Link / Kembali ke verifikasi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc391db6b2d"]
+        }
+      ],
+      "x": 490,
+      "y": 5140
+    },
+    {
+      "page": "Sydia · Account registration · Mobile",
+      "pageId": "ad1dce6f-66f5-805e-8008-cfb586dbd717",
+      "id": "02662460-ec2d-8007-8008-cfc75aac792c",
+      "key": "settings-unconnected",
+      "name": "settings / profile · Google belum terhubung · Mobile",
+      "width": 390,
+      "height": 1500,
+      "controls": [
+        {
+          "name": "Link / Ubah email",
+          "destinations": ["02662460-ec2d-8007-8008-cfc398d82d48"]
+        },
+        {
+          "name": "Link / Ubah kata sandi",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3b903280a"]
+        },
+        {
+          "name": "Button / Hubungkan Google",
+          "destinations": ["02662460-ec2d-8007-8008-cfc3db90a7d0"]
+        }
+      ],
+      "x": 980,
+      "y": 5140,
+      "route": "/settings/profile"
+    }
+  ],
+  "audit": {
+    "boardCount": 48,
+    "perPage": [
+      {
+        "name": "Sydia · Account registration · Desktop",
+        "count": 30
+      },
+      {
+        "name": "Sydia · Account registration · Mobile",
+        "count": 18
+      }
+    ],
+    "remainingCalendarOnboardingBoards": [],
+    "missingDestinations": [],
+    "unlinkedBoards": []
+  }
+}
