@@ -98,7 +98,7 @@ Account states are `pending verification` and `verified`. Screen states addition
 
 ### Invalid or inaccessible email
 
-- A malformed address is rejected in the form. An undeliverable but syntactically valid address remains unverified; delivery rejection shows retry feedback. SMTP acceptance alone does not prove delivery or ownership.
+- A malformed address is rejected in the form. An undeliverable but syntactically valid address remains unverified; delivery rejection shows retry feedback. Provider acceptance alone does not prove delivery or ownership.
 - **Email salah? Ubah email** requires the current password, or a fresh sign-in with an already linked Google identity. A browser session alone is insufficient.
 - Send a distinct-purpose code to the replacement address. Keep the original email until that code succeeds. An occupied replacement address is rejected, including a collision discovered at completion.
 - Preserve the user ID, all product data, onboarding state, and independent Calendar integration. An unavailable inbox plus no usable existing login has no automated recovery path.
@@ -151,7 +151,7 @@ Registration does not connect Google Calendar automatically, including Google re
 Continue the interview one question at a time, with a recommendation for each decision.
 
 1. Optional password setup and Google unlinking for users who initially register through Google.
-2. Production email delivery provider and operational ownership. Implementation uses configurable SMTP; local testing uses Mailpit.
+2. Production email delivery uses the Resend HTTPS API with a send-only key and verified sender domain (`no-reply@sydia.id`). Monitor delivery and bounce events in Resend. Automated browser tests capture Resend requests locally with a fake key.
 3. Retaining the restricted session after verification is the implemented engineering default; pending sessions cannot access product APIs.
 4. Abandoned signup cleanup policy. Initial implementation retains pending accounts and never deletes historical unverified accounts automatically.
 5. Tuning cumulative quotas and defining any support recovery policy. Initial limits above are configurable; no manual recovery promise is exposed.
