@@ -218,7 +218,7 @@ test("each paid payment opens its receipt from the history", async ({
     },
   ]);
   await page.goto("/e2e/billing.html");
-  const row = page.getByRole("link", { name: /Langganan Sydia.*Lunas/ });
+  const row = page.getByRole("link", { name: /Sydia Plus.*Lunas/ });
   await expect(row).toHaveAttribute("href", "/receipt/order-9");
   await expect(row).toContainText("Rp 29.000");
 });

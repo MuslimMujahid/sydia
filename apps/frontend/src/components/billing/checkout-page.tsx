@@ -54,7 +54,7 @@ const COPY: Record<
     payWith: "Bayar dengan",
     payWithDescription:
       "Setelah Anda menekan Berlangganan, Sydia menyiapkan tagihan lalu mengarahkan Anda ke Mayar untuk memilih metode pembayaran yang tersedia dengan aman.",
-    plan: "Sydia",
+    plan: "Sydia Plus",
     features: [
       "Semua fitur Sydia",
       "Penyimpanan 10 GB",
@@ -86,7 +86,7 @@ const COPY: Record<
     payWith: "Pay with",
     payWithDescription:
       "After you press Subscribe, Sydia prepares your invoice and sends you to Mayar to choose from the available payment methods securely.",
-    plan: "Sydia",
+    plan: "Sydia Plus",
     features: ["Every Sydia feature", "10 GB storage", "Up to 100 MB per file"],
     term: "30-day subscription",
     due: "Due today",

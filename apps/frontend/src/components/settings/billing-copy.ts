@@ -51,7 +51,7 @@ export const BILLING_COPY = {
     storageDescription:
       "Ruang penyimpanan untuk semua berkas yang Anda unggah. Batas ukuran tiap berkas maksimal 100 MB.",
     historyDescription: "Ketuk pembayaran untuk melihat struk dan invoice.",
-    plan: "Langganan Sydia",
+    plan: "Sydia Plus",
     review:
       "Tagihan ini sedang diperiksa. Hubungi dukungan Sydia dan jangan membuat pembayaran ulang.",
     unavailable: "Pembayaran belum tersedia. Hubungi dukungan Sydia.",
@@ -113,7 +113,7 @@ export const BILLING_COPY = {
     storageDescription:
       "Space for every file you upload. Each file can be up to 100 MB.",
     historyDescription: "Open a payment to see its receipt and invoice.",
-    plan: "Sydia subscription",
+    plan: "Sydia Plus",
     review:
       "This invoice needs review. Contact Sydia support and do not make another payment.",
     unavailable: "Payments are not available yet. Contact Sydia support.",
