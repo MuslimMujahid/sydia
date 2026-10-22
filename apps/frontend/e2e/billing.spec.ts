@@ -85,7 +85,7 @@ test("billing shows one promotional price, trial, and global storage", async ({
   ).toBeVisible();
   await expect(page.getByText("Rp 29.000", { exact: true })).toBeVisible();
   await expect(page.getByText("Rp 59.000", { exact: true })).toBeVisible();
-  await expect(page.getByText("1,5 GB terpakai dari 10 GB")).toBeVisible();
+  await expect(page.getByText("1,5 GB dari 10 GB terpakai")).toBeVisible();
   await expect(
     page.getByRole("progressbar", { name: "Penyimpanan" })
   ).toHaveAttribute("max", "10000000000");

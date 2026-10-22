@@ -34,7 +34,7 @@ export const BILLING_COPY = {
     history: "Riwayat pembayaran",
     empty: "Belum ada pembayaran.",
     storage: "Penyimpanan",
-    used: "terpakai dari 10 GB",
+    used: "dari 10 GB terpakai",
     statusTitle: "Status langganan",
     statusDescription: {
       disabled:
@@ -49,7 +49,7 @@ export const BILLING_COPY = {
     planDescription:
       "Satu paket mencakup semua fitur Sydia. Pembayaran dilakukan di muka dan diperpanjang secara manual; harga promo berlaku untuk pembelian dan perpanjangan sampai promo diubah.",
     storageDescription:
-      "Ruang untuk file asli yang Anda unggah dari semua kanal. Setiap file berukuran maksimal 100 MB.",
+      "Ruang simpan untuk semua berkas yang Anda unggah. Batas ukuran tiap berkas maksimal 100 MB.",
     historyDescription: "Ketuk pembayaran untuk melihat struk dan invoice.",
     plan: "Langganan Sydia",
     review:
@@ -96,7 +96,7 @@ export const BILLING_COPY = {
     history: "Payment history",
     empty: "No payments yet.",
     storage: "Storage",
-    used: "used of 10 GB",
+    used: "of 10 GB used",
     statusTitle: "Subscription status",
     statusDescription: {
       disabled:
@@ -111,7 +111,7 @@ export const BILLING_COPY = {
     planDescription:
       "One plan includes every Sydia feature. Payment is prepaid and renewed manually; the promotional price applies to purchases and renewals until the promotion changes.",
     storageDescription:
-      "Space for the original files you upload from every channel. Each file can be up to 100 MB.",
+      "Space for every file you upload. Each file can be up to 100 MB.",
     historyDescription: "Open a payment to see its receipt and invoice.",
     plan: "Sydia subscription",
     review:
