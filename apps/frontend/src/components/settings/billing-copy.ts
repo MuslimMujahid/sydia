@@ -30,8 +30,22 @@ export const BILLING_COPY = {
     empty: "Belum ada pembayaran.",
     storage: "Penyimpanan",
     used: "terpakai dari 10 GB",
-    readOnly:
-      "Akses baca saja. Data tetap bisa dibaca, diunduh, dan dihapus. Perpanjang untuk kembali menggunakan asisten dan mengubah data.",
+    statusTitle: "Status langganan",
+    statusDescription: {
+      disabled:
+        "Pembayaran belum dibuka. Seluruh fitur Sydia dapat Anda gunakan tanpa batas waktu.",
+      trial:
+        "Anda sedang menjalani trial gratis dengan semua fitur. Berlangganan kapan saja agar akses tetap aktif setelah trial berakhir.",
+      paid: "Langganan Anda aktif. Perpanjang secara manual sebelum masa aktif berakhir agar asisten tetap dapat digunakan.",
+      expired:
+        "Masa aktif Anda telah habis. Data tetap bisa dibaca, diunduh, dan dihapus; perpanjang untuk kembali memakai asisten dan mengubah data.",
+    },
+    planTitle: "Paket dan pembayaran",
+    planDescription:
+      "Satu paket mencakup semua fitur Sydia. Pembayaran dilakukan di muka dan diperpanjang secara manual; harga promo berlaku untuk pembelian dan perpanjangan sampai promo diubah.",
+    storageDescription:
+      "Ruang untuk file asli yang Anda unggah dari semua kanal. Setiap file berukuran maksimal 100 MB.",
+    historyDescription: "Tagihan dan pembayaran terbaru Anda.",
     review:
       "Tagihan ini sedang diperiksa. Hubungi dukungan Sydia dan jangan membuat pembayaran ulang.",
     unavailable: "Pembayaran belum tersedia. Hubungi dukungan Sydia.",
@@ -72,8 +86,22 @@ export const BILLING_COPY = {
     empty: "No payments yet.",
     storage: "Storage",
     used: "used of 10 GB",
-    readOnly:
-      "Read-only access. You can still read, download, and delete your data. Renew to use the assistant and make changes again.",
+    statusTitle: "Subscription status",
+    statusDescription: {
+      disabled:
+        "Payments are not open yet. You can use every Sydia feature without a time limit.",
+      trial:
+        "You are on a free trial with every feature. Subscribe any time to keep access after the trial ends.",
+      paid: "Your subscription is active. Renew manually before it ends to keep using the assistant.",
+      expired:
+        "Your access has expired. You can still read, download, and delete your data; renew to use the assistant and change data again.",
+    },
+    planTitle: "Plan and payment",
+    planDescription:
+      "One plan includes every Sydia feature. Payment is prepaid and renewed manually; the promotional price applies to purchases and renewals until the promotion changes.",
+    storageDescription:
+      "Space for the original files you upload from every channel. Each file can be up to 100 MB.",
+    historyDescription: "Your recent invoices and payments.",
     review:
       "This invoice needs review. Contact Sydia support and do not make another payment.",
     unavailable: "Payments are not available yet. Contact Sydia support.",
@@ -112,4 +140,22 @@ export function formatBillingDate(
     timeStyle: "short",
     timeZone: timezone,
   }).format(new Date(value));
+}
+
+const DAY_MS = 86_400_000;
+
+export function formatBillingRemaining(
+  until: string,
+  now: number,
+  language: BillingLanguage
+): string {
+  const left = Date.parse(until) - now;
+
+  if (left < DAY_MS)
+    return language === "id"
+      ? "kurang dari 1 hari lagi"
+      : "less than 1 day left";
+  const days = Math.ceil(left / DAY_MS);
+
+  return language === "id" ? `${days} hari lagi` : `${days} days left`;
 }

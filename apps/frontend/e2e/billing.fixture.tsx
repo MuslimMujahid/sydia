@@ -23,7 +23,11 @@ function Fixture() {
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
         <SettingsNav />
         <div className="min-w-0 flex-1">
-          <BillingPage locale={locale} timezone="Asia/Makassar" />
+          <BillingPage
+            locale={locale}
+            timezone="Asia/Makassar"
+            now={() => Date.parse("2026-10-24T00:00:00Z")}
+          />
         </div>
       </div>
     </main>

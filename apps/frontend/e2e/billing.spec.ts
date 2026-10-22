@@ -77,8 +77,11 @@ test("billing shows one promotional price, trial, and global storage", async ({
   await setup(page);
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Trial aktif" })
+    page.getByRole("heading", { name: "Status langganan" })
   ).toBeVisible();
+  await expect(page.getByText("Trial aktif", { exact: true })).toBeVisible();
+  await expect(page.getByText("5 hari lagi", { exact: true })).toBeVisible();
+  await expect(page.getByText("Aktif hingga 29 Okt 2026, 08.00")).toBeVisible();
   await expect(page.getByText("Rp 29.000", { exact: true })).toBeVisible();
   await expect(page.getByText("Rp 59.000", { exact: true })).toBeVisible();
   await expect(page.getByText("1,5 GB terpakai dari 10 GB")).toBeVisible();
@@ -110,13 +113,12 @@ test("checkout keeps pricing on the server and verifies payment before showing p
     mobile: "+6281234567890",
     idempotencyKey: expect.any(String),
   });
-  await expect(
-    page.getByRole("heading", { name: "Trial aktif" })
-  ).toBeVisible();
+  await expect(page.getByText("Trial aktif", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Periksa pembayaran" }).click();
   await expect(
-    page.getByRole("heading", { name: "Langganan aktif" })
+    page.getByText("Langganan aktif", { exact: true })
   ).toBeVisible();
+  await expect(page.getByText("29 hari lagi", { exact: true })).toBeVisible();
   await expect(page.getByText("Rp 29.000 · Lunas")).toBeVisible();
 });
 test("expired billing explains read-only access while keeping renewal available", async ({
@@ -125,7 +127,7 @@ test("expired billing explains read-only access while keeping renewal available"
   await setup(page, { ...trial(), active: false, state: "expired" });
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Masa aktif habis" })
+    page.getByText("Masa aktif habis", { exact: true })
   ).toBeVisible();
   await expect(
     page.getByText(/Data tetap bisa dibaca, diunduh, dan dihapus/)
@@ -164,9 +166,8 @@ test("billing retains English labels and an accessible phone field", async ({
 }) => {
   await setup(page);
   await page.goto("/e2e/billing.html?lang=en");
-  await expect(
-    page.getByRole("heading", { name: "Trial active" })
-  ).toBeVisible();
+  await expect(page.getByText("Trial active", { exact: true })).toBeVisible();
+  await expect(page.getByText("5 days left", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Billing phone number")).toBeVisible();
   await expect(
     page.getByText("All features · 10 GB storage · up to 100 MB per file")

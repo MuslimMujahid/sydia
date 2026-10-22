@@ -58,7 +58,7 @@ export function BillingPaymentActions({
             href={order.paymentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={buttonVariants({ variant: "dark" })}
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
           >
             {text.pay}
             <ExternalLink className="size-4" />
@@ -69,6 +69,7 @@ export function BillingPaymentActions({
           <Button
             type="button"
             variant="dark-outline"
+            size="sm"
             disabled={refresh.isPending}
             onClick={() => refresh.mutate(order.id)}
           >
@@ -147,12 +148,13 @@ export function BillingCheckout({ billing, language }: BillingCheckoutProps) {
             aria-describedby="billing-phone-help"
             disabled={checkout.isPending || orders.isPending}
           />
-          <p id="billing-phone-help" className="text-sm text-ink-muted">
+          <p id="billing-phone-help" className="text-xs text-ink-muted">
             {text.phoneHelp}
           </p>
           <Button
             type="submit"
-            className="relative isolate overflow-hidden before:absolute before:inset-0 before:-z-10 before:bg-ink/50"
+            variant="secondary"
+            size="sm"
             disabled={checkout.isPending || orders.isPending}
           >
             {checkout.isPending

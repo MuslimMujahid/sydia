@@ -11,13 +11,15 @@ account and a 100 MB per-file maximum, measured in decimal bytes.
    and regenerate the client with `bun run --cwd apps/backend db:generate`.
 2. Choose one fixed UTC `BACKEND_BILLING_ROLLOUT_AT`, and retain it on every future
    deployment. Existing users' trials start at this instant; later signups start
-   at signup. Trials are never extended by restarting, logging in, or rerunning rollout.
+   at signup. Trials are never extended by restarting, logging in, or rerunning rollout. A rollout instant
+   in the future is safe: until it passes, accounts keep their existing access.
 3. Build the backend, then run `bun run --cwd apps/backend billing:ops rollout`.
    This initializes real existing users and excludes development chat previews.
    Lazy initialization covers subsequent signups using their original signup time.
 4. Validate sandbox first. Set `MAYAR_ENVIRONMENT=sandbox`, the environment's API
    key and webhook token, and `MAYAR_MERCHANT_ID`. The merchant identifier must match
-   **invoice.userId / transaction.user.id**, not the Mayar account ID.
+   **invoice.userId / transaction.user.id**, not the Mayar account ID. The sandbox smoke check below logs
+   it as `merchantId`.
 5. Set `BACKEND_BILLING_ENFORCEMENT_ENABLED=true`. Enable checkout only after invoice
    and callback validation with `BACKEND_BILLING_CHECKOUT_ENABLED=true`. Both flags
    default to false so deployment does not unexpectedly cut off existing accounts.

@@ -1,4 +1,5 @@
 import type { BillingStatus } from "@/lib/services/api/billing/billing.api";
+import { formatBillingRemaining } from "./billing-copy";
 
 const DAY_MS = 86_400_000;
 const RENEWAL_NUDGE_DAYS = 3;
@@ -22,12 +23,7 @@ function formatGigabytes(bytes: number): string {
 }
 
 function remaining(until: string | null, now: number): string {
-  if (!until) return "aktif";
-  const left = Date.parse(until) - now;
-
-  return left < DAY_MS
-    ? "kurang dari 1 hari lagi"
-    : `${Math.ceil(left / DAY_MS)} hari lagi`;
+  return until ? formatBillingRemaining(until, now, "id") : "aktif";
 }
 
 /** Compact, Indonesian plan status for the account menu; null when no plan applies. */
