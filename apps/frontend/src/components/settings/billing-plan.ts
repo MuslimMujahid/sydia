@@ -6,8 +6,6 @@ const RENEWAL_NUDGE_DAYS = 3;
 
 export type BillingPlanSummary = {
   state: "trial" | "paid" | "expired";
-  badge: string;
-  tone: "brand" | "warn" | "destructive";
   detail: string;
   /** One line for the account button under the user's name. */
   footer: string;
@@ -40,8 +38,6 @@ export function summarizeBillingPlan(
 
     return {
       state: "trial",
-      badge: "Trial",
-      tone: "brand",
       detail: `Trial gratis · ${left}`,
       footer: `Trial · ${left}`,
       cta: billing.checkoutEnabled ? "Berlangganan sekarang" : null,
@@ -63,8 +59,6 @@ export function summarizeBillingPlan(
 
     return {
       state: "paid",
-      badge: "Aktif",
-      tone: ending ? "warn" : "brand",
       detail: date ? `Aktif hingga ${date}` : "Langganan aktif",
       footer: ending
         ? `Langganan · ${remaining(until, now)}`
@@ -76,9 +70,7 @@ export function summarizeBillingPlan(
 
   return {
     state: "expired",
-    badge: "Habis",
-    tone: "destructive",
-    detail: "Akses baca saja",
+    detail: "Habis · akses baca saja",
     footer: "Masa aktif habis",
     cta: billing.checkoutEnabled ? "Perpanjang langganan" : null,
     storage,

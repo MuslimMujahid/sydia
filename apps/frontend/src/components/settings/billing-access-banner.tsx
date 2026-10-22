@@ -37,7 +37,7 @@ export function BillingAccessBanner({ locale }: BillingAccessBannerProps) {
           : "Masa aktif habis. Data Anda tersedia dalam mode baca saja."}
       </p>
       <Link
-        to="/settings/billing"
+        to="/checkout"
         className="font-semibold text-ink underline underline-offset-4"
       >
         {english ? "Renew subscription" : "Perpanjang langganan"}

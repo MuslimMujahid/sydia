@@ -22,6 +22,11 @@ export const BILLING_COPY = {
       "Perpanjangan manual. Harga promo berlaku untuk pembelian dan perpanjangan sampai promo diubah.",
     phone: "Nomor telepon untuk tagihan",
     phoneHelp: "Gunakan nomor dengan kode negara, misalnya +6281234567890.",
+    subscribe: "Berlangganan",
+    renew: "Perpanjang langganan",
+    paidNotice: "Pembayaran diterima. Langganan Anda aktif.",
+    renewHint:
+      "Perpanjangan ditambahkan setelah masa aktif saat ini berakhir, jadi tidak ada hari yang hilang.",
     create: "Buat tagihan",
     creating: "Menyiapkan tagihan…",
     pay: "Bayar melalui Mayar",
@@ -78,6 +83,11 @@ export const BILLING_COPY = {
       "Manual renewal. Promotional pricing applies to purchases and renewals until the promotion changes.",
     phone: "Billing phone number",
     phoneHelp: "Include your country code, for example +6281234567890.",
+    subscribe: "Subscribe",
+    renew: "Renew subscription",
+    paidNotice: "Payment received. Your subscription is active.",
+    renewHint:
+      "A renewal is added after the current period ends, so no days are lost.",
     create: "Create invoice",
     creating: "Preparing invoice…",
     pay: "Pay with Mayar",

@@ -52,6 +52,11 @@ token rather than a body signature, so durable transaction idempotency is essent
   Onboarding cannot finish for an account whose access already expired until it pays.
   The step is skipped until enforcement is enabled (and when the
   status request fails), so check the browser console if it does not appear.
+- Subscribe from `/checkout` (reached from Settings → Langganan, the account menu, or the expiry
+  banner): the order summary, then a full-screen "Menyiapkan pembayaran Anda" scene while the
+  invoice is created, then the Mayar link in a new tab. The checkout tab verifies the invoice
+  every 10 seconds while visible and whenever it regains focus, so access appears as soon as
+  Mayar reports the payment, without waiting for the webhook or the five-minute worker retry.
 - Verify an expired account can read, download, delete, export, and pay, but cannot
   send AI messages, upload, or change product data. Notification workers record
   `skipped_inactive` and do not send missed notifications in a batch on renewal.

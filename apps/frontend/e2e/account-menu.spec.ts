@@ -17,14 +17,13 @@ test("a trial account sees its remaining days, storage, and a way to subscribe",
   const menu = await open(page, "plan=trial");
   await expect(menu.getByText("mrdevip15@gmail.com")).toBeVisible();
   await expect(menu.getByText("Trial gratis · 5 hari lagi")).toBeVisible();
-  await expect(menu.getByText("Trial", { exact: true })).toBeVisible();
   await expect(menu.getByText("1,5 GB / 10 GB")).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: /Penyimpanan/ })
   ).toHaveAttribute("href", "/settings/billing");
   await expect(
     menu.getByRole("menuitem", { name: /Berlangganan sekarang/ })
-  ).toHaveAttribute("href", "/settings/billing");
+  ).toHaveAttribute("href", "/checkout");
   await expect(
     menu.getByRole("menuitem", { name: /Pengaturan/ })
   ).toHaveAttribute("href", "/settings/profile");
@@ -38,7 +37,6 @@ test("an active subscription shows its end date without a purchase prompt", asyn
 }) => {
   const menu = await open(page, "plan=paid");
   await expect(menu.getByText("Aktif hingga 21 Nov 2026")).toBeVisible();
-  await expect(menu.getByText("Aktif", { exact: true })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /Perpanjang/ })).toHaveCount(
     0
   );
@@ -60,8 +58,7 @@ test("an expired account is told it is read-only and can renew", async ({
   page,
 }) => {
   const menu = await open(page, "plan=expired");
-  await expect(menu.getByText("Akses baca saja")).toBeVisible();
-  await expect(menu.getByText("Habis", { exact: true })).toBeVisible();
+  await expect(menu.getByText("Habis · akses baca saja")).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: /Perpanjang langganan/ })
   ).toBeVisible();

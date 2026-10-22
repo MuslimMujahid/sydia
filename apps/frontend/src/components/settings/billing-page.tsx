@@ -139,7 +139,11 @@ export function BillingPage({
             <span className="text-ink-muted">{text.term}</span>
           </div>
           <p>{text.features}</p>
-          <BillingCheckout billing={billing} language={language} />
+          <BillingCheckout
+            billing={billing}
+            language={language}
+            inline={false}
+          />
         </div>
       </Card>
       <Card className="p-6 sm:p-8">

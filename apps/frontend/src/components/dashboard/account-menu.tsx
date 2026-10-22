@@ -6,12 +6,8 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
-import {
-  summarizeBillingPlan,
-  type BillingPlanSummary,
-} from "@/components/settings/billing-plan";
+import { summarizeBillingPlan } from "@/components/settings/billing-plan";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -35,12 +31,6 @@ interface AccountMenuProps {
   onSignOut: () => void;
   now?: () => number;
 }
-
-const BADGE_DOT = {
-  brand: "brand",
-  warn: "warn",
-  destructive: "destructive",
-} as const satisfies Record<BillingPlanSummary["tone"], string>;
 
 export function initialsFor(name: string): string {
   return (
@@ -113,12 +103,6 @@ export function AccountMenu({
                     {plan.detail}
                   </span>
                 </span>
-                <Badge
-                  dot={BADGE_DOT[plan.tone]}
-                  className="ml-auto px-2 py-0.5 text-xs"
-                >
-                  {plan.badge}
-                </Badge>
               </DropdownMenuItem>
               <DropdownMenuItem render={<Link to="/settings/billing" />}>
                 <HardDrive /> Penyimpanan
@@ -134,7 +118,7 @@ export function AccountMenu({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-ink"
-              render={<Link to="/settings/billing" />}
+              render={<Link to="/checkout" />}
             >
               <Sparkles /> {plan.cta}
             </DropdownMenuItem>

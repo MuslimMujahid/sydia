@@ -96,30 +96,34 @@ test("billing shows one promotional price, trial, and global storage", async ({
     animations: "disabled",
   });
 });
-test("checkout keeps pricing on the server and verifies payment before showing paid access", async ({
+test("a trial account is sent to the checkout page to subscribe", async ({
   page,
 }) => {
-  const state = await setup(page);
+  await setup(page);
   await page.goto("/e2e/billing.html");
-  await page.getByLabel("Nomor telepon untuk tagihan").fill("+6281234567890");
-  await page.getByRole("button", { name: /Buat tagihan/ }).click();
-  const payment = page.getByRole("link", { name: "Bayar melalui Mayar" });
-  await expect(payment).toHaveAttribute("target", "_blank");
-  await expect(payment).toHaveAttribute(
-    "href",
-    "https://merchant.myr.id/invoices/test"
-  );
-  expect(state.submitted()).toEqual({
-    mobile: "+6281234567890",
-    idempotencyKey: expect.any(String),
-  });
-  await expect(page.getByText("Trial aktif", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Periksa pembayaran" }).click();
   await expect(
-    page.getByText("Langganan aktif", { exact: true })
+    page.getByRole("link", { name: "Berlangganan · Rp 29.000" })
+  ).toHaveAttribute("href", "/checkout");
+  await expect(page.getByLabel("Nomor telepon untuk tagihan")).toHaveCount(0);
+});
+test("a paid account sees its payment confirmed and can renew instead of paying again", async ({
+  page,
+}) => {
+  await setup(page, {
+    ...trial(),
+    state: "paid",
+    paidUntil: "2026-11-21T00:00:00Z",
+  });
+  await page.goto("/e2e/billing.html");
+  await expect(
+    page.getByText("Pembayaran diterima. Langganan Anda aktif.")
   ).toBeVisible();
-  await expect(page.getByText("29 hari lagi", { exact: true })).toBeVisible();
-  await expect(page.getByText("Rp 29.000 · Lunas")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Perpanjang langganan" })
+  ).toHaveAttribute("href", "/checkout");
+  await expect(page.getByRole("link", { name: /^Berlangganan/ })).toHaveCount(
+    0
+  );
 });
 test("expired billing explains read-only access while keeping renewal available", async ({
   page,
@@ -136,8 +140,8 @@ test("expired billing explains read-only access while keeping renewal available"
     page.getByRole("link", { name: "Perpanjang langganan" })
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Buat tagihan/ })
-  ).toBeEnabled();
+    page.getByRole("link", { name: "Berlangganan · Rp 29.000" })
+  ).toBeVisible();
 });
 test("an ambiguous invoice prevents a second checkout and explains review", async ({
   page,
@@ -157,18 +161,21 @@ test("an ambiguous invoice prevents a second checkout and explains review", asyn
   ]);
   await page.goto("/e2e/billing.html");
   await expect(page.getByText(/Tagihan ini sedang diperiksa/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Buat tagihan/ })).toHaveCount(
+  await expect(page.getByRole("link", { name: /^Berlangganan/ })).toHaveCount(
     0
   );
 });
-test("billing retains English labels and an accessible phone field", async ({
+test("billing retains English labels and the subscribe link", async ({
   page,
 }) => {
   await setup(page);
   await page.goto("/e2e/billing.html?lang=en");
   await expect(page.getByText("Trial active", { exact: true })).toBeVisible();
   await expect(page.getByText("5 days left", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Billing phone number")).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Subscribe/ })).toHaveAttribute(
+    "href",
+    "/checkout"
+  );
   await expect(
     page.getByText("All features · 10 GB storage · up to 100 MB per file")
   ).toBeVisible();

@@ -47,8 +47,14 @@ const billing = createRoute({
   component: Fixture,
 });
 
+const checkout = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/checkout",
+  component: () => <h1>Checkout</h1>,
+});
+
 const router = createRouter({
-  routeTree: rootRoute.addChildren([fixture, billing]),
+  routeTree: rootRoute.addChildren([fixture, billing, checkout]),
 });
 
 const root = document.getElementById("root");
