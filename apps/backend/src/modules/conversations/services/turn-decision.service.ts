@@ -135,7 +135,13 @@ export class TurnDecisionService implements OnModuleDestroy {
         (group) => {
           const p = probability(`group_${group}`);
 
-          return p !== null && p >= this.settings.thresholds.toolInclude;
+          // Pruning is a token optimization, not an authorization boundary.
+          // A score below the inclusion threshold is not necessarily a confident
+          // "no". Keep the uncertainty band so the main model can still perform
+          // the requested action; only omit confidently irrelevant groups.
+          const include = this.settings.thresholds.toolInclude;
+
+          return p !== null && (p >= include || 1 - p < include);
         },
       );
 

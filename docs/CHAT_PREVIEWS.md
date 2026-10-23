@@ -211,3 +211,18 @@ TASK_LISTS_LIVE_ENABLED=true node --env-file=../../.env --experimental-vm-module
 
 Browser tests use synthetic responses at the HTTP boundary while exercising the
 real composer, stream client, session controls, and renderers on desktop and mobile.
+
+The file-delivery regression runs the real tool selector and configured assistant
+against synthetic saved-file metadata. It asserts that the attachment sender runs
+once in the first turn on WhatsApp and Telegram, without database or channel
+writes. It requires the model API credentials in the local environment:
+
+```sh
+cd apps/backend
+FILE_DELIVERY_LIVE_ENABLED=true node --env-file=../../.env --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --runInBand test/messaging/file-delivery.live.spec.ts
+```
+
+Tool selection prunes confidently irrelevant groups, retaining uncertain groups
+for the assistant to resolve. At the default `toolInclude=0.6`, scores above 0.4
+remain available, including the observed 0.59 first-request file score. This may
+increase tool-schema tokens; it does not execute tools or bypass tool permissions.
