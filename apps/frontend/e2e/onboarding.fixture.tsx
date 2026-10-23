@@ -8,6 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { Route as OnboardingRoute } from "../src/routes/onboarding";
+import { Route as WelcomeRoute } from "../src/routes/welcome";
 import "../src/styles/globals.css";
 
 // Mounts the real /onboarding route (loader, guards, wizard) in isolation;
@@ -23,6 +24,12 @@ const onboarding = OnboardingRoute.update({
   getParentRoute: () => rootRoute,
 } as never);
 
+const welcome = WelcomeRoute.update({
+  id: "/welcome",
+  path: "/welcome",
+  getParentRoute: () => rootRoute,
+} as never);
+
 const home = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -30,7 +37,7 @@ const home = createRoute({
 });
 
 const router = createRouter({
-  routeTree: rootRoute.addChildren([onboarding, home]) as never,
+  routeTree: rootRoute.addChildren([onboarding, welcome, home]) as never,
   history: createMemoryHistory({ initialEntries: ["/onboarding"] }),
   context: { queryClient } as never,
 });

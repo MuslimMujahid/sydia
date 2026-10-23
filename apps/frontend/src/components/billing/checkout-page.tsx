@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronLeft } from "lucide-react";
 import { PaymentLoadingScreen } from "@/components/billing/payment-loading-screen";
@@ -37,8 +37,6 @@ const COPY: Record<
     terms: string;
     waitingTitle: string;
     waitingDescription: string;
-    successTitle: string;
-    successDescription: string;
     start: string;
     unavailable: string;
     activeTitle: string;
@@ -68,9 +66,6 @@ const COPY: Record<
     waitingTitle: "Selesaikan pembayaran di Mayar",
     waitingDescription:
       "Buka halaman pembayaran di tab baru, lalu kembali ke sini. Sydia memeriksa pembayaran Anda secara otomatis.",
-    successTitle: "Pembayaran diterima",
-    successDescription:
-      "Terima kasih. Langganan Anda sudah aktif dan semua fitur Sydia dapat Anda gunakan.",
     start: "Mulai gunakan Sydia",
     unavailable: "Pembayaran belum tersedia. Hubungi dukungan Sydia.",
     activeTitle: "Langganan Anda sudah aktif",
@@ -96,9 +91,6 @@ const COPY: Record<
     waitingTitle: "Finish paying on Mayar",
     waitingDescription:
       "Open the payment page in a new tab, then come back here. Sydia checks your payment automatically.",
-    successTitle: "Payment received",
-    successDescription:
-      "Thank you. Your subscription is active and every Sydia feature is available.",
     start: "Start using Sydia",
     unavailable: "Payments are not available yet. Contact Sydia support.",
     activeTitle: "Your subscription is active",
@@ -132,6 +124,8 @@ export function CheckoutPage({ locale }: CheckoutPageProps) {
     )
   );
 
+  if (succeeded)
+    return <Navigate to="/welcome" search={{ reason: "paid" }} replace />;
   if (checkout.isPending) return <PaymentLoadingScreen language={language} />;
   if (status.isPending) return <LoadingState />;
   if (status.isError)
@@ -163,24 +157,7 @@ export function CheckoutPage({ locale }: CheckoutPageProps) {
             {text.title}
           </h1>
         </div>
-        {succeeded ? (
-          <Card className="mx-auto max-w-xl space-y-4 p-6 sm:p-8" role="status">
-            <span className="flex size-10 items-center justify-center rounded-pill bg-brand/12 text-brand-deep">
-              <Check className="size-5" />
-            </span>
-            <h2 className="font-display text-xl font-semibold">
-              {text.successTitle}
-            </h2>
-            <p className="text-ink-muted">{text.successDescription}</p>
-            <Link
-              to="/"
-              search={{ conversation: undefined, attachment: undefined }}
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              {text.start}
-            </Link>
-          </Card>
-        ) : !available ? (
+        {!available ? (
           <p className="text-ink-muted">{text.unavailable}</p>
         ) : pending ? (
           <Card className="mx-auto max-w-xl space-y-4 p-6 sm:p-8">

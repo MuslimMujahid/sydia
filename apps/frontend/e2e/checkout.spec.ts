@@ -158,9 +158,14 @@ test("coming back from paying confirms the payment without a manual check", asyn
   // in this mock, the second is paid.
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(page.getByText("Pembayaran diterima")).toBeVisible();
+  await expect(page.getByText("Memproses pembayaran Anda")).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Mulai gunakan Sydia" })
+    page.getByRole("heading", {
+      name: "Pembayaran berhasil. Langganan sudah aktif",
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Mulai chat dengan Sydia" })
   ).toBeVisible();
 });
 

@@ -40,6 +40,7 @@ const profile = {
 async function setup(page: Page, billing: BillingStatus | "unavailable") {
   let current = billing === "unavailable" ? status() : billing;
   let orders: BillingOrder[] = [];
+  let completed = false;
   const saved: { profile?: unknown; preferences?: unknown } = {};
   await page.route("**/api/auth/get-session", (route) =>
     route.fulfill({
@@ -64,13 +65,16 @@ async function setup(page: Page, billing: BillingStatus | "unavailable") {
   await page.route("**/users/me", (route) => {
     if (route.request().method() === "PATCH") {
       saved.profile = route.request().postDataJSON();
+      completed = true;
 
       return route.fulfill({
         json: { data: { ...profile, onboardingCompleted: true } },
       });
     }
 
-    return route.fulfill({ json: { data: profile } });
+    return route.fulfill({
+      json: { data: { ...profile, onboardingCompleted: completed } },
+    });
   });
   await page.route("**/users/me/preferences", (route) => {
     saved.preferences = route.request().postDataJSON();
@@ -128,6 +132,12 @@ test("without billing the wizard keeps its three steps", async ({ page }) => {
   await expect(page.getByText("Pengaturan awal · 1 dari 3")).toBeVisible();
   await advance(page, 2);
   await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
+  await expect(page.getByText("Menyiapkan Sydia untuk Anda")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Semuanya sudah siap" })
+  ).toBeVisible();
+  await expect(page.getByText("Selamat menikmati Sydia.")).toBeVisible();
+  await page.getByRole("link", { name: "Mulai chat dengan Sydia" }).click();
   await expect(page.getByRole("heading", { name: "Chat Sydia" })).toBeVisible();
   expect(saved.profile).toMatchObject({ onboardingCompleted: true });
 });
@@ -185,6 +195,14 @@ test("a paid user finishes onboarding from the payment step", async ({
   await page.getByRole("button", { name: "Periksa pembayaran" }).click();
   await expect(page.getByText(/Pembayaran diterima/)).toBeVisible();
   await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
+  await expect(page.getByText("Memproses pembayaran Anda")).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Pembayaran berhasil. Langganan sudah aktif",
+    })
+  ).toBeVisible();
+  await expect(page.getByText("Selamat menikmati Sydia.")).toBeVisible();
+  await page.getByRole("link", { name: "Mulai chat dengan Sydia" }).click();
   await expect(page.getByRole("heading", { name: "Chat Sydia" })).toBeVisible();
   expect(saved.profile).toMatchObject({ onboardingCompleted: true });
 });
@@ -196,6 +214,13 @@ test("the free trial remains an explicit way to finish onboarding", async ({
   await page.goto("/e2e/onboarding.html");
   await advance(page, 3);
   await page.getByRole("button", { name: "Mulai 7 hari gratis" }).click();
+  // The processing scene always shows first, even when saving is instant.
+  await expect(page.getByText("Menyiapkan Sydia untuk Anda")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Trial sudah aktif" })
+  ).toBeVisible();
+  await expect(page.getByText("Selamat menikmati Sydia.")).toBeVisible();
+  await page.getByRole("link", { name: "Mulai chat dengan Sydia" }).click();
   await expect(page.getByRole("heading", { name: "Chat Sydia" })).toBeVisible();
   expect(saved.profile).toMatchObject({ onboardingCompleted: true });
   expect(saved.preferences).toMatchObject({ persona: "professional" });

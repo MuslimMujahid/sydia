@@ -8,737 +8,757 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as AppRouteImport } from './routes/_app'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as ChangeEmailRouteImport } from './routes/change-email'
-import { Route as CheckoutRouteImport } from './routes/checkout'
-import { Route as DesignSystemRouteImport } from './routes/design-system'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as GoogleResultRouteImport } from './routes/google-result'
-import { Route as LinkGoogleRouteImport } from './routes/link-google'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as SecretRevealRouteImport } from './routes/secret-reveal'
-import { Route as SignInRouteImport } from './routes/sign-in'
-import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as VerifyEmailRouteImport } from './routes/verify-email'
-import { Route as AppIndexRouteImport } from './routes/_app.index'
-import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
-import { Route as AppChatRouteImport } from './routes/_app.chat'
-import { Route as AppChatsRouteImport } from './routes/_app.chats'
-import { Route as AppContactsRouteImport } from './routes/_app.contacts'
-import { Route as AppDailyNotesRouteImport } from './routes/_app.daily-notes'
-import { Route as AppFilesRouteImport } from './routes/_app.files'
-import { Route as AppMemoryRouteImport } from './routes/_app.memory'
-import { Route as AppNotesRouteImport } from './routes/_app.notes'
-import { Route as AppRemindersRouteImport } from './routes/_app.reminders'
-import { Route as AppSecretsRouteImport } from './routes/_app.secrets'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppTasksRouteImport } from './routes/_app.tasks'
-import { Route as AdminLoginRouteImport } from './routes/admin_.login'
-import { Route as AdminWhatsappRouteImport } from './routes/admin_.whatsapp'
-import { Route as ReceiptOrderIdRouteImport } from './routes/receipt.$orderId'
-import { Route as AppSettingsAssistantRouteImport } from './routes/_app.settings.assistant'
-import { Route as AppSettingsBillingRouteImport } from './routes/_app.settings.billing'
-import { Route as AppSettingsIntegrationsRouteImport } from './routes/_app.settings.integrations'
-import { Route as AppSettingsNotificationsRouteImport } from './routes/_app.settings.notifications'
-import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
-import { Route as AppSettingsTelegramRouteImport } from './routes/_app.settings.telegram'
-import { Route as AppSettingsWhatsappRouteImport } from './routes/_app.settings.whatsapp'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as AppRouteImport } from "./routes/_app";
+import { Route as AdminRouteImport } from "./routes/admin";
+import { Route as ChangeEmailRouteImport } from "./routes/change-email";
+import { Route as CheckoutRouteImport } from "./routes/checkout";
+import { Route as DesignSystemRouteImport } from "./routes/design-system";
+import { Route as ForgotPasswordRouteImport } from "./routes/forgot-password";
+import { Route as GoogleResultRouteImport } from "./routes/google-result";
+import { Route as LinkGoogleRouteImport } from "./routes/link-google";
+import { Route as OnboardingRouteImport } from "./routes/onboarding";
+import { Route as SecretRevealRouteImport } from "./routes/secret-reveal";
+import { Route as SignInRouteImport } from "./routes/sign-in";
+import { Route as SignUpRouteImport } from "./routes/sign-up";
+import { Route as VerifyEmailRouteImport } from "./routes/verify-email";
+import { Route as WelcomeRouteImport } from "./routes/welcome";
+import { Route as AppIndexRouteImport } from "./routes/_app.index";
+import { Route as AppCalendarRouteImport } from "./routes/_app.calendar";
+import { Route as AppChatRouteImport } from "./routes/_app.chat";
+import { Route as AppChatsRouteImport } from "./routes/_app.chats";
+import { Route as AppContactsRouteImport } from "./routes/_app.contacts";
+import { Route as AppDailyNotesRouteImport } from "./routes/_app.daily-notes";
+import { Route as AppFilesRouteImport } from "./routes/_app.files";
+import { Route as AppMemoryRouteImport } from "./routes/_app.memory";
+import { Route as AppNotesRouteImport } from "./routes/_app.notes";
+import { Route as AppRemindersRouteImport } from "./routes/_app.reminders";
+import { Route as AppSecretsRouteImport } from "./routes/_app.secrets";
+import { Route as AppSettingsRouteImport } from "./routes/_app.settings";
+import { Route as AppTasksRouteImport } from "./routes/_app.tasks";
+import { Route as AdminLoginRouteImport } from "./routes/admin_.login";
+import { Route as AdminWhatsappRouteImport } from "./routes/admin_.whatsapp";
+import { Route as ReceiptOrderIdRouteImport } from "./routes/receipt.$orderId";
+import { Route as AppSettingsAssistantRouteImport } from "./routes/_app.settings.assistant";
+import { Route as AppSettingsBillingRouteImport } from "./routes/_app.settings.billing";
+import { Route as AppSettingsIntegrationsRouteImport } from "./routes/_app.settings.integrations";
+import { Route as AppSettingsNotificationsRouteImport } from "./routes/_app.settings.notifications";
+import { Route as AppSettingsProfileRouteImport } from "./routes/_app.settings.profile";
+import { Route as AppSettingsTelegramRouteImport } from "./routes/_app.settings.telegram";
+import { Route as AppSettingsWhatsappRouteImport } from "./routes/_app.settings.whatsapp";
 
 const AppRoute = AppRouteImport.update({
-  id: '/_app',
+  id: "/_app",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+  id: "/admin",
+  path: "/admin",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ChangeEmailRoute = ChangeEmailRouteImport.update({
-  id: '/change-email',
-  path: '/change-email',
+  id: "/change-email",
+  path: "/change-email",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CheckoutRoute = CheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
+  id: "/checkout",
+  path: "/checkout",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const DesignSystemRoute = DesignSystemRouteImport.update({
-  id: '/design-system',
-  path: '/design-system',
+  id: "/design-system",
+  path: "/design-system",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
+  id: "/forgot-password",
+  path: "/forgot-password",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const GoogleResultRoute = GoogleResultRouteImport.update({
-  id: '/google-result',
-  path: '/google-result',
+  id: "/google-result",
+  path: "/google-result",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LinkGoogleRoute = LinkGoogleRouteImport.update({
-  id: '/link-google',
-  path: '/link-google',
+  id: "/link-google",
+  path: "/link-google",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+  id: "/onboarding",
+  path: "/onboarding",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SecretRevealRoute = SecretRevealRouteImport.update({
-  id: '/secret-reveal',
-  path: '/secret-reveal',
+  id: "/secret-reveal",
+  path: "/secret-reveal",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SignInRoute = SignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
+  id: "/sign-in",
+  path: "/sign-in",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SignUpRoute = SignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
+  id: "/sign-up",
+  path: "/sign-up",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
+  id: "/verify-email",
+  path: "/verify-email",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: "/welcome",
+  path: "/welcome",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const AppIndexRoute = AppIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppCalendarRoute = AppCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
+  id: "/calendar",
+  path: "/calendar",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppChatRoute = AppChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
+  id: "/chat",
+  path: "/chat",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppChatsRoute = AppChatsRouteImport.update({
-  id: '/chats',
-  path: '/chats',
+  id: "/chats",
+  path: "/chats",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppContactsRoute = AppContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
+  id: "/contacts",
+  path: "/contacts",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppDailyNotesRoute = AppDailyNotesRouteImport.update({
-  id: '/daily-notes',
-  path: '/daily-notes',
+  id: "/daily-notes",
+  path: "/daily-notes",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppFilesRoute = AppFilesRouteImport.update({
-  id: '/files',
-  path: '/files',
+  id: "/files",
+  path: "/files",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppMemoryRoute = AppMemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
+  id: "/memory",
+  path: "/memory",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppNotesRoute = AppNotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
+  id: "/notes",
+  path: "/notes",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppRemindersRoute = AppRemindersRouteImport.update({
-  id: '/reminders',
-  path: '/reminders',
+  id: "/reminders",
+  path: "/reminders",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppSecretsRoute = AppSecretsRouteImport.update({
-  id: '/secrets',
-  path: '/secrets',
+  id: "/secrets",
+  path: "/secrets",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+  id: "/settings",
+  path: "/settings",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppTasksRoute = AppTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
+  id: "/tasks",
+  path: "/tasks",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/admin_/login',
-  path: '/admin/login',
+  id: "/admin_/login",
+  path: "/admin/login",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
-  id: '/admin_/whatsapp',
-  path: '/admin/whatsapp',
+  id: "/admin_/whatsapp",
+  path: "/admin/whatsapp",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ReceiptOrderIdRoute = ReceiptOrderIdRouteImport.update({
-  id: '/receipt/$orderId',
-  path: '/receipt/$orderId',
+  id: "/receipt/$orderId",
+  path: "/receipt/$orderId",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AppSettingsAssistantRoute = AppSettingsAssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
+  id: "/assistant",
+  path: "/assistant",
   getParentRoute: () => AppSettingsRoute,
-} as any)
+} as any);
 const AppSettingsBillingRoute = AppSettingsBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
+  id: "/billing",
+  path: "/billing",
   getParentRoute: () => AppSettingsRoute,
-} as any)
+} as any);
 const AppSettingsIntegrationsRoute = AppSettingsIntegrationsRouteImport.update({
-  id: '/integrations',
-  path: '/integrations',
+  id: "/integrations",
+  path: "/integrations",
   getParentRoute: () => AppSettingsRoute,
-} as any)
+} as any);
 const AppSettingsNotificationsRoute =
   AppSettingsNotificationsRouteImport.update({
-    id: '/notifications',
-    path: '/notifications',
+    id: "/notifications",
+    path: "/notifications",
     getParentRoute: () => AppSettingsRoute,
-  } as any)
+  } as any);
 const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
+  id: "/profile",
+  path: "/profile",
   getParentRoute: () => AppSettingsRoute,
-} as any)
+} as any);
 const AppSettingsTelegramRoute = AppSettingsTelegramRouteImport.update({
-  id: '/telegram',
-  path: '/telegram',
+  id: "/telegram",
+  path: "/telegram",
   getParentRoute: () => AppSettingsRoute,
-} as any)
+} as any);
 const AppSettingsWhatsappRoute = AppSettingsWhatsappRouteImport.update({
-  id: '/whatsapp',
-  path: '/whatsapp',
+  id: "/whatsapp",
+  path: "/whatsapp",
   getParentRoute: () => AppSettingsRoute,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
-  '/admin': typeof AdminRoute
-  '/change-email': typeof ChangeEmailRoute
-  '/checkout': typeof CheckoutRoute
-  '/design-system': typeof DesignSystemRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/google-result': typeof GoogleResultRoute
-  '/link-google': typeof LinkGoogleRoute
-  '/onboarding': typeof OnboardingRoute
-  '/secret-reveal': typeof SecretRevealRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
-  '/verify-email': typeof VerifyEmailRoute
-  '/calendar': typeof AppCalendarRoute
-  '/chat': typeof AppChatRoute
-  '/chats': typeof AppChatsRoute
-  '/contacts': typeof AppContactsRoute
-  '/daily-notes': typeof AppDailyNotesRoute
-  '/files': typeof AppFilesRoute
-  '/memory': typeof AppMemoryRoute
-  '/notes': typeof AppNotesRoute
-  '/reminders': typeof AppRemindersRoute
-  '/secrets': typeof AppSecretsRoute
-  '/settings': typeof AppSettingsRouteWithChildren
-  '/tasks': typeof AppTasksRoute
-  '/admin/login': typeof AdminLoginRoute
-  '/admin/whatsapp': typeof AdminWhatsappRoute
-  '/receipt/$orderId': typeof ReceiptOrderIdRoute
-  '/settings/assistant': typeof AppSettingsAssistantRoute
-  '/settings/billing': typeof AppSettingsBillingRoute
-  '/settings/integrations': typeof AppSettingsIntegrationsRoute
-  '/settings/notifications': typeof AppSettingsNotificationsRoute
-  '/settings/profile': typeof AppSettingsProfileRoute
-  '/settings/telegram': typeof AppSettingsTelegramRoute
-  '/settings/whatsapp': typeof AppSettingsWhatsappRoute
+  "/": typeof AppIndexRoute;
+  "/admin": typeof AdminRoute;
+  "/change-email": typeof ChangeEmailRoute;
+  "/checkout": typeof CheckoutRoute;
+  "/design-system": typeof DesignSystemRoute;
+  "/forgot-password": typeof ForgotPasswordRoute;
+  "/google-result": typeof GoogleResultRoute;
+  "/link-google": typeof LinkGoogleRoute;
+  "/onboarding": typeof OnboardingRoute;
+  "/secret-reveal": typeof SecretRevealRoute;
+  "/sign-in": typeof SignInRoute;
+  "/sign-up": typeof SignUpRoute;
+  "/verify-email": typeof VerifyEmailRoute;
+  "/welcome": typeof WelcomeRoute;
+  "/calendar": typeof AppCalendarRoute;
+  "/chat": typeof AppChatRoute;
+  "/chats": typeof AppChatsRoute;
+  "/contacts": typeof AppContactsRoute;
+  "/daily-notes": typeof AppDailyNotesRoute;
+  "/files": typeof AppFilesRoute;
+  "/memory": typeof AppMemoryRoute;
+  "/notes": typeof AppNotesRoute;
+  "/reminders": typeof AppRemindersRoute;
+  "/secrets": typeof AppSecretsRoute;
+  "/settings": typeof AppSettingsRouteWithChildren;
+  "/tasks": typeof AppTasksRoute;
+  "/admin/login": typeof AdminLoginRoute;
+  "/admin/whatsapp": typeof AdminWhatsappRoute;
+  "/receipt/$orderId": typeof ReceiptOrderIdRoute;
+  "/settings/assistant": typeof AppSettingsAssistantRoute;
+  "/settings/billing": typeof AppSettingsBillingRoute;
+  "/settings/integrations": typeof AppSettingsIntegrationsRoute;
+  "/settings/notifications": typeof AppSettingsNotificationsRoute;
+  "/settings/profile": typeof AppSettingsProfileRoute;
+  "/settings/telegram": typeof AppSettingsTelegramRoute;
+  "/settings/whatsapp": typeof AppSettingsWhatsappRoute;
 }
 export interface FileRoutesByTo {
-  '/admin': typeof AdminRoute
-  '/change-email': typeof ChangeEmailRoute
-  '/checkout': typeof CheckoutRoute
-  '/design-system': typeof DesignSystemRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/google-result': typeof GoogleResultRoute
-  '/link-google': typeof LinkGoogleRoute
-  '/onboarding': typeof OnboardingRoute
-  '/secret-reveal': typeof SecretRevealRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
-  '/verify-email': typeof VerifyEmailRoute
-  '/calendar': typeof AppCalendarRoute
-  '/chat': typeof AppChatRoute
-  '/chats': typeof AppChatsRoute
-  '/contacts': typeof AppContactsRoute
-  '/daily-notes': typeof AppDailyNotesRoute
-  '/files': typeof AppFilesRoute
-  '/memory': typeof AppMemoryRoute
-  '/notes': typeof AppNotesRoute
-  '/reminders': typeof AppRemindersRoute
-  '/secrets': typeof AppSecretsRoute
-  '/settings': typeof AppSettingsRouteWithChildren
-  '/tasks': typeof AppTasksRoute
-  '/admin/login': typeof AdminLoginRoute
-  '/admin/whatsapp': typeof AdminWhatsappRoute
-  '/receipt/$orderId': typeof ReceiptOrderIdRoute
-  '/': typeof AppIndexRoute
-  '/settings/assistant': typeof AppSettingsAssistantRoute
-  '/settings/billing': typeof AppSettingsBillingRoute
-  '/settings/integrations': typeof AppSettingsIntegrationsRoute
-  '/settings/notifications': typeof AppSettingsNotificationsRoute
-  '/settings/profile': typeof AppSettingsProfileRoute
-  '/settings/telegram': typeof AppSettingsTelegramRoute
-  '/settings/whatsapp': typeof AppSettingsWhatsappRoute
+  "/admin": typeof AdminRoute;
+  "/change-email": typeof ChangeEmailRoute;
+  "/checkout": typeof CheckoutRoute;
+  "/design-system": typeof DesignSystemRoute;
+  "/forgot-password": typeof ForgotPasswordRoute;
+  "/google-result": typeof GoogleResultRoute;
+  "/link-google": typeof LinkGoogleRoute;
+  "/onboarding": typeof OnboardingRoute;
+  "/secret-reveal": typeof SecretRevealRoute;
+  "/sign-in": typeof SignInRoute;
+  "/sign-up": typeof SignUpRoute;
+  "/verify-email": typeof VerifyEmailRoute;
+  "/welcome": typeof WelcomeRoute;
+  "/calendar": typeof AppCalendarRoute;
+  "/chat": typeof AppChatRoute;
+  "/chats": typeof AppChatsRoute;
+  "/contacts": typeof AppContactsRoute;
+  "/daily-notes": typeof AppDailyNotesRoute;
+  "/files": typeof AppFilesRoute;
+  "/memory": typeof AppMemoryRoute;
+  "/notes": typeof AppNotesRoute;
+  "/reminders": typeof AppRemindersRoute;
+  "/secrets": typeof AppSecretsRoute;
+  "/settings": typeof AppSettingsRouteWithChildren;
+  "/tasks": typeof AppTasksRoute;
+  "/admin/login": typeof AdminLoginRoute;
+  "/admin/whatsapp": typeof AdminWhatsappRoute;
+  "/receipt/$orderId": typeof ReceiptOrderIdRoute;
+  "/": typeof AppIndexRoute;
+  "/settings/assistant": typeof AppSettingsAssistantRoute;
+  "/settings/billing": typeof AppSettingsBillingRoute;
+  "/settings/integrations": typeof AppSettingsIntegrationsRoute;
+  "/settings/notifications": typeof AppSettingsNotificationsRoute;
+  "/settings/profile": typeof AppSettingsProfileRoute;
+  "/settings/telegram": typeof AppSettingsTelegramRoute;
+  "/settings/whatsapp": typeof AppSettingsWhatsappRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/_app': typeof AppRouteWithChildren
-  '/admin': typeof AdminRoute
-  '/change-email': typeof ChangeEmailRoute
-  '/checkout': typeof CheckoutRoute
-  '/design-system': typeof DesignSystemRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/google-result': typeof GoogleResultRoute
-  '/link-google': typeof LinkGoogleRoute
-  '/onboarding': typeof OnboardingRoute
-  '/secret-reveal': typeof SecretRevealRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
-  '/verify-email': typeof VerifyEmailRoute
-  '/_app/calendar': typeof AppCalendarRoute
-  '/_app/chat': typeof AppChatRoute
-  '/_app/chats': typeof AppChatsRoute
-  '/_app/contacts': typeof AppContactsRoute
-  '/_app/daily-notes': typeof AppDailyNotesRoute
-  '/_app/files': typeof AppFilesRoute
-  '/_app/memory': typeof AppMemoryRoute
-  '/_app/notes': typeof AppNotesRoute
-  '/_app/reminders': typeof AppRemindersRoute
-  '/_app/secrets': typeof AppSecretsRoute
-  '/_app/settings': typeof AppSettingsRouteWithChildren
-  '/_app/tasks': typeof AppTasksRoute
-  '/admin_/login': typeof AdminLoginRoute
-  '/admin_/whatsapp': typeof AdminWhatsappRoute
-  '/receipt/$orderId': typeof ReceiptOrderIdRoute
-  '/_app/': typeof AppIndexRoute
-  '/_app/settings/assistant': typeof AppSettingsAssistantRoute
-  '/_app/settings/billing': typeof AppSettingsBillingRoute
-  '/_app/settings/integrations': typeof AppSettingsIntegrationsRoute
-  '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
-  '/_app/settings/profile': typeof AppSettingsProfileRoute
-  '/_app/settings/telegram': typeof AppSettingsTelegramRoute
-  '/_app/settings/whatsapp': typeof AppSettingsWhatsappRoute
+  __root__: typeof rootRouteImport;
+  "/_app": typeof AppRouteWithChildren;
+  "/admin": typeof AdminRoute;
+  "/change-email": typeof ChangeEmailRoute;
+  "/checkout": typeof CheckoutRoute;
+  "/design-system": typeof DesignSystemRoute;
+  "/forgot-password": typeof ForgotPasswordRoute;
+  "/google-result": typeof GoogleResultRoute;
+  "/link-google": typeof LinkGoogleRoute;
+  "/onboarding": typeof OnboardingRoute;
+  "/secret-reveal": typeof SecretRevealRoute;
+  "/sign-in": typeof SignInRoute;
+  "/sign-up": typeof SignUpRoute;
+  "/verify-email": typeof VerifyEmailRoute;
+  "/welcome": typeof WelcomeRoute;
+  "/_app/calendar": typeof AppCalendarRoute;
+  "/_app/chat": typeof AppChatRoute;
+  "/_app/chats": typeof AppChatsRoute;
+  "/_app/contacts": typeof AppContactsRoute;
+  "/_app/daily-notes": typeof AppDailyNotesRoute;
+  "/_app/files": typeof AppFilesRoute;
+  "/_app/memory": typeof AppMemoryRoute;
+  "/_app/notes": typeof AppNotesRoute;
+  "/_app/reminders": typeof AppRemindersRoute;
+  "/_app/secrets": typeof AppSecretsRoute;
+  "/_app/settings": typeof AppSettingsRouteWithChildren;
+  "/_app/tasks": typeof AppTasksRoute;
+  "/admin_/login": typeof AdminLoginRoute;
+  "/admin_/whatsapp": typeof AdminWhatsappRoute;
+  "/receipt/$orderId": typeof ReceiptOrderIdRoute;
+  "/_app/": typeof AppIndexRoute;
+  "/_app/settings/assistant": typeof AppSettingsAssistantRoute;
+  "/_app/settings/billing": typeof AppSettingsBillingRoute;
+  "/_app/settings/integrations": typeof AppSettingsIntegrationsRoute;
+  "/_app/settings/notifications": typeof AppSettingsNotificationsRoute;
+  "/_app/settings/profile": typeof AppSettingsProfileRoute;
+  "/_app/settings/telegram": typeof AppSettingsTelegramRoute;
+  "/_app/settings/whatsapp": typeof AppSettingsWhatsappRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    | '/'
-    | '/admin'
-    | '/change-email'
-    | '/checkout'
-    | '/design-system'
-    | '/forgot-password'
-    | '/google-result'
-    | '/link-google'
-    | '/onboarding'
-    | '/secret-reveal'
-    | '/sign-in'
-    | '/sign-up'
-    | '/verify-email'
-    | '/calendar'
-    | '/chat'
-    | '/chats'
-    | '/contacts'
-    | '/daily-notes'
-    | '/files'
-    | '/memory'
-    | '/notes'
-    | '/reminders'
-    | '/secrets'
-    | '/settings'
-    | '/tasks'
-    | '/admin/login'
-    | '/admin/whatsapp'
-    | '/receipt/$orderId'
-    | '/settings/assistant'
-    | '/settings/billing'
-    | '/settings/integrations'
-    | '/settings/notifications'
-    | '/settings/profile'
-    | '/settings/telegram'
-    | '/settings/whatsapp'
-  fileRoutesByTo: FileRoutesByTo
+    | "/"
+    | "/admin"
+    | "/change-email"
+    | "/checkout"
+    | "/design-system"
+    | "/forgot-password"
+    | "/google-result"
+    | "/link-google"
+    | "/onboarding"
+    | "/secret-reveal"
+    | "/sign-in"
+    | "/sign-up"
+    | "/verify-email"
+    | "/welcome"
+    | "/calendar"
+    | "/chat"
+    | "/chats"
+    | "/contacts"
+    | "/daily-notes"
+    | "/files"
+    | "/memory"
+    | "/notes"
+    | "/reminders"
+    | "/secrets"
+    | "/settings"
+    | "/tasks"
+    | "/admin/login"
+    | "/admin/whatsapp"
+    | "/receipt/$orderId"
+    | "/settings/assistant"
+    | "/settings/billing"
+    | "/settings/integrations"
+    | "/settings/notifications"
+    | "/settings/profile"
+    | "/settings/telegram"
+    | "/settings/whatsapp";
+  fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/admin'
-    | '/change-email'
-    | '/checkout'
-    | '/design-system'
-    | '/forgot-password'
-    | '/google-result'
-    | '/link-google'
-    | '/onboarding'
-    | '/secret-reveal'
-    | '/sign-in'
-    | '/sign-up'
-    | '/verify-email'
-    | '/calendar'
-    | '/chat'
-    | '/chats'
-    | '/contacts'
-    | '/daily-notes'
-    | '/files'
-    | '/memory'
-    | '/notes'
-    | '/reminders'
-    | '/secrets'
-    | '/settings'
-    | '/tasks'
-    | '/admin/login'
-    | '/admin/whatsapp'
-    | '/receipt/$orderId'
-    | '/'
-    | '/settings/assistant'
-    | '/settings/billing'
-    | '/settings/integrations'
-    | '/settings/notifications'
-    | '/settings/profile'
-    | '/settings/telegram'
-    | '/settings/whatsapp'
+    | "/admin"
+    | "/change-email"
+    | "/checkout"
+    | "/design-system"
+    | "/forgot-password"
+    | "/google-result"
+    | "/link-google"
+    | "/onboarding"
+    | "/secret-reveal"
+    | "/sign-in"
+    | "/sign-up"
+    | "/verify-email"
+    | "/welcome"
+    | "/calendar"
+    | "/chat"
+    | "/chats"
+    | "/contacts"
+    | "/daily-notes"
+    | "/files"
+    | "/memory"
+    | "/notes"
+    | "/reminders"
+    | "/secrets"
+    | "/settings"
+    | "/tasks"
+    | "/admin/login"
+    | "/admin/whatsapp"
+    | "/receipt/$orderId"
+    | "/"
+    | "/settings/assistant"
+    | "/settings/billing"
+    | "/settings/integrations"
+    | "/settings/notifications"
+    | "/settings/profile"
+    | "/settings/telegram"
+    | "/settings/whatsapp";
   id:
-    | '__root__'
-    | '/_app'
-    | '/admin'
-    | '/change-email'
-    | '/checkout'
-    | '/design-system'
-    | '/forgot-password'
-    | '/google-result'
-    | '/link-google'
-    | '/onboarding'
-    | '/secret-reveal'
-    | '/sign-in'
-    | '/sign-up'
-    | '/verify-email'
-    | '/_app/calendar'
-    | '/_app/chat'
-    | '/_app/chats'
-    | '/_app/contacts'
-    | '/_app/daily-notes'
-    | '/_app/files'
-    | '/_app/memory'
-    | '/_app/notes'
-    | '/_app/reminders'
-    | '/_app/secrets'
-    | '/_app/settings'
-    | '/_app/tasks'
-    | '/admin_/login'
-    | '/admin_/whatsapp'
-    | '/receipt/$orderId'
-    | '/_app/'
-    | '/_app/settings/assistant'
-    | '/_app/settings/billing'
-    | '/_app/settings/integrations'
-    | '/_app/settings/notifications'
-    | '/_app/settings/profile'
-    | '/_app/settings/telegram'
-    | '/_app/settings/whatsapp'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/_app"
+    | "/admin"
+    | "/change-email"
+    | "/checkout"
+    | "/design-system"
+    | "/forgot-password"
+    | "/google-result"
+    | "/link-google"
+    | "/onboarding"
+    | "/secret-reveal"
+    | "/sign-in"
+    | "/sign-up"
+    | "/verify-email"
+    | "/welcome"
+    | "/_app/calendar"
+    | "/_app/chat"
+    | "/_app/chats"
+    | "/_app/contacts"
+    | "/_app/daily-notes"
+    | "/_app/files"
+    | "/_app/memory"
+    | "/_app/notes"
+    | "/_app/reminders"
+    | "/_app/secrets"
+    | "/_app/settings"
+    | "/_app/tasks"
+    | "/admin_/login"
+    | "/admin_/whatsapp"
+    | "/receipt/$orderId"
+    | "/_app/"
+    | "/_app/settings/assistant"
+    | "/_app/settings/billing"
+    | "/_app/settings/integrations"
+    | "/_app/settings/notifications"
+    | "/_app/settings/profile"
+    | "/_app/settings/telegram"
+    | "/_app/settings/whatsapp";
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  AppRoute: typeof AppRouteWithChildren
-  AdminRoute: typeof AdminRoute
-  ChangeEmailRoute: typeof ChangeEmailRoute
-  CheckoutRoute: typeof CheckoutRoute
-  DesignSystemRoute: typeof DesignSystemRoute
-  ForgotPasswordRoute: typeof ForgotPasswordRoute
-  GoogleResultRoute: typeof GoogleResultRoute
-  LinkGoogleRoute: typeof LinkGoogleRoute
-  OnboardingRoute: typeof OnboardingRoute
-  SecretRevealRoute: typeof SecretRevealRoute
-  SignInRoute: typeof SignInRoute
-  SignUpRoute: typeof SignUpRoute
-  VerifyEmailRoute: typeof VerifyEmailRoute
-  AdminLoginRoute: typeof AdminLoginRoute
-  AdminWhatsappRoute: typeof AdminWhatsappRoute
-  ReceiptOrderIdRoute: typeof ReceiptOrderIdRoute
+  AppRoute: typeof AppRouteWithChildren;
+  AdminRoute: typeof AdminRoute;
+  ChangeEmailRoute: typeof ChangeEmailRoute;
+  CheckoutRoute: typeof CheckoutRoute;
+  DesignSystemRoute: typeof DesignSystemRoute;
+  ForgotPasswordRoute: typeof ForgotPasswordRoute;
+  GoogleResultRoute: typeof GoogleResultRoute;
+  LinkGoogleRoute: typeof LinkGoogleRoute;
+  OnboardingRoute: typeof OnboardingRoute;
+  SecretRevealRoute: typeof SecretRevealRoute;
+  SignInRoute: typeof SignInRoute;
+  SignUpRoute: typeof SignUpRoute;
+  VerifyEmailRoute: typeof VerifyEmailRoute;
+  WelcomeRoute: typeof WelcomeRoute;
+  AdminLoginRoute: typeof AdminLoginRoute;
+  AdminWhatsappRoute: typeof AdminWhatsappRoute;
+  ReceiptOrderIdRoute: typeof ReceiptOrderIdRoute;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/change-email': {
-      id: '/change-email'
-      path: '/change-email'
-      fullPath: '/change-email'
-      preLoaderRoute: typeof ChangeEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkout': {
-      id: '/checkout'
-      path: '/checkout'
-      fullPath: '/checkout'
-      preLoaderRoute: typeof CheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/design-system': {
-      id: '/design-system'
-      path: '/design-system'
-      fullPath: '/design-system'
-      preLoaderRoute: typeof DesignSystemRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/google-result': {
-      id: '/google-result'
-      path: '/google-result'
-      fullPath: '/google-result'
-      preLoaderRoute: typeof GoogleResultRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/link-google': {
-      id: '/link-google'
-      path: '/link-google'
-      fullPath: '/link-google'
-      preLoaderRoute: typeof LinkGoogleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/secret-reveal': {
-      id: '/secret-reveal'
-      path: '/secret-reveal'
-      fullPath: '/secret-reveal'
-      preLoaderRoute: typeof SecretRevealRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sign-in': {
-      id: '/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof SignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sign-up': {
-      id: '/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof SignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/verify-email': {
-      id: '/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof VerifyEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/': {
-      id: '/_app/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/calendar': {
-      id: '/_app/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof AppCalendarRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chat': {
-      id: '/_app/chat'
-      path: '/chat'
-      fullPath: '/chat'
-      preLoaderRoute: typeof AppChatRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chats': {
-      id: '/_app/chats'
-      path: '/chats'
-      fullPath: '/chats'
-      preLoaderRoute: typeof AppChatsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/contacts': {
-      id: '/_app/contacts'
-      path: '/contacts'
-      fullPath: '/contacts'
-      preLoaderRoute: typeof AppContactsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/daily-notes': {
-      id: '/_app/daily-notes'
-      path: '/daily-notes'
-      fullPath: '/daily-notes'
-      preLoaderRoute: typeof AppDailyNotesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/files': {
-      id: '/_app/files'
-      path: '/files'
-      fullPath: '/files'
-      preLoaderRoute: typeof AppFilesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/memory': {
-      id: '/_app/memory'
-      path: '/memory'
-      fullPath: '/memory'
-      preLoaderRoute: typeof AppMemoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/notes': {
-      id: '/_app/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof AppNotesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/reminders': {
-      id: '/_app/reminders'
-      path: '/reminders'
-      fullPath: '/reminders'
-      preLoaderRoute: typeof AppRemindersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/secrets': {
-      id: '/_app/secrets'
-      path: '/secrets'
-      fullPath: '/secrets'
-      preLoaderRoute: typeof AppSecretsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/tasks': {
-      id: '/_app/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof AppTasksRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/admin_/login': {
-      id: '/admin_/login'
-      path: '/admin/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin_/whatsapp': {
-      id: '/admin_/whatsapp'
-      path: '/admin/whatsapp'
-      fullPath: '/admin/whatsapp'
-      preLoaderRoute: typeof AdminWhatsappRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/receipt/$orderId': {
-      id: '/receipt/$orderId'
-      path: '/receipt/$orderId'
-      fullPath: '/receipt/$orderId'
-      preLoaderRoute: typeof ReceiptOrderIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/settings/assistant': {
-      id: '/_app/settings/assistant'
-      path: '/assistant'
-      fullPath: '/settings/assistant'
-      preLoaderRoute: typeof AppSettingsAssistantRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/billing': {
-      id: '/_app/settings/billing'
-      path: '/billing'
-      fullPath: '/settings/billing'
-      preLoaderRoute: typeof AppSettingsBillingRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/integrations': {
-      id: '/_app/settings/integrations'
-      path: '/integrations'
-      fullPath: '/settings/integrations'
-      preLoaderRoute: typeof AppSettingsIntegrationsRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/notifications': {
-      id: '/_app/settings/notifications'
-      path: '/notifications'
-      fullPath: '/settings/notifications'
-      preLoaderRoute: typeof AppSettingsNotificationsRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/profile': {
-      id: '/_app/settings/profile'
-      path: '/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof AppSettingsProfileRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/telegram': {
-      id: '/_app/settings/telegram'
-      path: '/telegram'
-      fullPath: '/settings/telegram'
-      preLoaderRoute: typeof AppSettingsTelegramRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/whatsapp': {
-      id: '/_app/settings/whatsapp'
-      path: '/whatsapp'
-      fullPath: '/settings/whatsapp'
-      preLoaderRoute: typeof AppSettingsWhatsappRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
+    "/_app": {
+      id: "/_app";
+      path: "";
+      fullPath: "/";
+      preLoaderRoute: typeof AppRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/admin": {
+      id: "/admin";
+      path: "/admin";
+      fullPath: "/admin";
+      preLoaderRoute: typeof AdminRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/change-email": {
+      id: "/change-email";
+      path: "/change-email";
+      fullPath: "/change-email";
+      preLoaderRoute: typeof ChangeEmailRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/checkout": {
+      id: "/checkout";
+      path: "/checkout";
+      fullPath: "/checkout";
+      preLoaderRoute: typeof CheckoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/design-system": {
+      id: "/design-system";
+      path: "/design-system";
+      fullPath: "/design-system";
+      preLoaderRoute: typeof DesignSystemRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/forgot-password": {
+      id: "/forgot-password";
+      path: "/forgot-password";
+      fullPath: "/forgot-password";
+      preLoaderRoute: typeof ForgotPasswordRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/google-result": {
+      id: "/google-result";
+      path: "/google-result";
+      fullPath: "/google-result";
+      preLoaderRoute: typeof GoogleResultRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/link-google": {
+      id: "/link-google";
+      path: "/link-google";
+      fullPath: "/link-google";
+      preLoaderRoute: typeof LinkGoogleRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/onboarding": {
+      id: "/onboarding";
+      path: "/onboarding";
+      fullPath: "/onboarding";
+      preLoaderRoute: typeof OnboardingRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/secret-reveal": {
+      id: "/secret-reveal";
+      path: "/secret-reveal";
+      fullPath: "/secret-reveal";
+      preLoaderRoute: typeof SecretRevealRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/sign-in": {
+      id: "/sign-in";
+      path: "/sign-in";
+      fullPath: "/sign-in";
+      preLoaderRoute: typeof SignInRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/sign-up": {
+      id: "/sign-up";
+      path: "/sign-up";
+      fullPath: "/sign-up";
+      preLoaderRoute: typeof SignUpRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/verify-email": {
+      id: "/verify-email";
+      path: "/verify-email";
+      fullPath: "/verify-email";
+      preLoaderRoute: typeof VerifyEmailRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/welcome": {
+      id: "/welcome";
+      path: "/welcome";
+      fullPath: "/welcome";
+      preLoaderRoute: typeof WelcomeRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_app/": {
+      id: "/_app/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof AppIndexRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/calendar": {
+      id: "/_app/calendar";
+      path: "/calendar";
+      fullPath: "/calendar";
+      preLoaderRoute: typeof AppCalendarRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/chat": {
+      id: "/_app/chat";
+      path: "/chat";
+      fullPath: "/chat";
+      preLoaderRoute: typeof AppChatRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/chats": {
+      id: "/_app/chats";
+      path: "/chats";
+      fullPath: "/chats";
+      preLoaderRoute: typeof AppChatsRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/contacts": {
+      id: "/_app/contacts";
+      path: "/contacts";
+      fullPath: "/contacts";
+      preLoaderRoute: typeof AppContactsRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/daily-notes": {
+      id: "/_app/daily-notes";
+      path: "/daily-notes";
+      fullPath: "/daily-notes";
+      preLoaderRoute: typeof AppDailyNotesRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/files": {
+      id: "/_app/files";
+      path: "/files";
+      fullPath: "/files";
+      preLoaderRoute: typeof AppFilesRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/memory": {
+      id: "/_app/memory";
+      path: "/memory";
+      fullPath: "/memory";
+      preLoaderRoute: typeof AppMemoryRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/notes": {
+      id: "/_app/notes";
+      path: "/notes";
+      fullPath: "/notes";
+      preLoaderRoute: typeof AppNotesRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/reminders": {
+      id: "/_app/reminders";
+      path: "/reminders";
+      fullPath: "/reminders";
+      preLoaderRoute: typeof AppRemindersRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/secrets": {
+      id: "/_app/secrets";
+      path: "/secrets";
+      fullPath: "/secrets";
+      preLoaderRoute: typeof AppSecretsRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/settings": {
+      id: "/_app/settings";
+      path: "/settings";
+      fullPath: "/settings";
+      preLoaderRoute: typeof AppSettingsRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/tasks": {
+      id: "/_app/tasks";
+      path: "/tasks";
+      fullPath: "/tasks";
+      preLoaderRoute: typeof AppTasksRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/admin_/login": {
+      id: "/admin_/login";
+      path: "/admin/login";
+      fullPath: "/admin/login";
+      preLoaderRoute: typeof AdminLoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/admin_/whatsapp": {
+      id: "/admin_/whatsapp";
+      path: "/admin/whatsapp";
+      fullPath: "/admin/whatsapp";
+      preLoaderRoute: typeof AdminWhatsappRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/receipt/$orderId": {
+      id: "/receipt/$orderId";
+      path: "/receipt/$orderId";
+      fullPath: "/receipt/$orderId";
+      preLoaderRoute: typeof ReceiptOrderIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_app/settings/assistant": {
+      id: "/_app/settings/assistant";
+      path: "/assistant";
+      fullPath: "/settings/assistant";
+      preLoaderRoute: typeof AppSettingsAssistantRouteImport;
+      parentRoute: typeof AppSettingsRoute;
+    };
+    "/_app/settings/billing": {
+      id: "/_app/settings/billing";
+      path: "/billing";
+      fullPath: "/settings/billing";
+      preLoaderRoute: typeof AppSettingsBillingRouteImport;
+      parentRoute: typeof AppSettingsRoute;
+    };
+    "/_app/settings/integrations": {
+      id: "/_app/settings/integrations";
+      path: "/integrations";
+      fullPath: "/settings/integrations";
+      preLoaderRoute: typeof AppSettingsIntegrationsRouteImport;
+      parentRoute: typeof AppSettingsRoute;
+    };
+    "/_app/settings/notifications": {
+      id: "/_app/settings/notifications";
+      path: "/notifications";
+      fullPath: "/settings/notifications";
+      preLoaderRoute: typeof AppSettingsNotificationsRouteImport;
+      parentRoute: typeof AppSettingsRoute;
+    };
+    "/_app/settings/profile": {
+      id: "/_app/settings/profile";
+      path: "/profile";
+      fullPath: "/settings/profile";
+      preLoaderRoute: typeof AppSettingsProfileRouteImport;
+      parentRoute: typeof AppSettingsRoute;
+    };
+    "/_app/settings/telegram": {
+      id: "/_app/settings/telegram";
+      path: "/telegram";
+      fullPath: "/settings/telegram";
+      preLoaderRoute: typeof AppSettingsTelegramRouteImport;
+      parentRoute: typeof AppSettingsRoute;
+    };
+    "/_app/settings/whatsapp": {
+      id: "/_app/settings/whatsapp";
+      path: "/whatsapp";
+      fullPath: "/settings/whatsapp";
+      preLoaderRoute: typeof AppSettingsWhatsappRouteImport;
+      parentRoute: typeof AppSettingsRoute;
+    };
   }
 }
 
 interface AppSettingsRouteChildren {
-  AppSettingsAssistantRoute: typeof AppSettingsAssistantRoute
-  AppSettingsBillingRoute: typeof AppSettingsBillingRoute
-  AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
-  AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
-  AppSettingsProfileRoute: typeof AppSettingsProfileRoute
-  AppSettingsTelegramRoute: typeof AppSettingsTelegramRoute
-  AppSettingsWhatsappRoute: typeof AppSettingsWhatsappRoute
+  AppSettingsAssistantRoute: typeof AppSettingsAssistantRoute;
+  AppSettingsBillingRoute: typeof AppSettingsBillingRoute;
+  AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute;
+  AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute;
+  AppSettingsProfileRoute: typeof AppSettingsProfileRoute;
+  AppSettingsTelegramRoute: typeof AppSettingsTelegramRoute;
+  AppSettingsWhatsappRoute: typeof AppSettingsWhatsappRoute;
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
@@ -749,26 +769,26 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsProfileRoute: AppSettingsProfileRoute,
   AppSettingsTelegramRoute: AppSettingsTelegramRoute,
   AppSettingsWhatsappRoute: AppSettingsWhatsappRoute,
-}
+};
 
 const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
-  AppSettingsRouteChildren,
-)
+  AppSettingsRouteChildren
+);
 
 interface AppRouteChildren {
-  AppCalendarRoute: typeof AppCalendarRoute
-  AppChatRoute: typeof AppChatRoute
-  AppChatsRoute: typeof AppChatsRoute
-  AppContactsRoute: typeof AppContactsRoute
-  AppDailyNotesRoute: typeof AppDailyNotesRoute
-  AppFilesRoute: typeof AppFilesRoute
-  AppMemoryRoute: typeof AppMemoryRoute
-  AppNotesRoute: typeof AppNotesRoute
-  AppRemindersRoute: typeof AppRemindersRoute
-  AppSecretsRoute: typeof AppSecretsRoute
-  AppSettingsRoute: typeof AppSettingsRouteWithChildren
-  AppTasksRoute: typeof AppTasksRoute
-  AppIndexRoute: typeof AppIndexRoute
+  AppCalendarRoute: typeof AppCalendarRoute;
+  AppChatRoute: typeof AppChatRoute;
+  AppChatsRoute: typeof AppChatsRoute;
+  AppContactsRoute: typeof AppContactsRoute;
+  AppDailyNotesRoute: typeof AppDailyNotesRoute;
+  AppFilesRoute: typeof AppFilesRoute;
+  AppMemoryRoute: typeof AppMemoryRoute;
+  AppNotesRoute: typeof AppNotesRoute;
+  AppRemindersRoute: typeof AppRemindersRoute;
+  AppSecretsRoute: typeof AppSecretsRoute;
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren;
+  AppTasksRoute: typeof AppTasksRoute;
+  AppIndexRoute: typeof AppIndexRoute;
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -785,9 +805,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
-}
+};
 
-const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
@@ -803,19 +823,20 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   VerifyEmailRoute: VerifyEmailRoute,
+  WelcomeRoute: WelcomeRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminWhatsappRoute: AdminWhatsappRoute,
   ReceiptOrderIdRoute: ReceiptOrderIdRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx";
+import type { createStart } from "@tanstack/react-start";
+declare module "@tanstack/react-start" {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
   }
 }

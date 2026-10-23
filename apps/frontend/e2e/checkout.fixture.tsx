@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { Route as CheckoutRoute } from "../src/routes/checkout";
 import { Route as ReceiptRoute } from "../src/routes/receipt.$orderId";
+import { Route as WelcomeRoute } from "../src/routes/welcome";
 import "../src/styles/globals.css";
 
 // Mounts the real /checkout route (guards, summary, hand-off) in isolation;
@@ -30,6 +31,12 @@ const receipt = ReceiptRoute.update({
   getParentRoute: () => rootRoute,
 } as never);
 
+const welcome = WelcomeRoute.update({
+  id: "/welcome",
+  path: "/welcome",
+  getParentRoute: () => rootRoute,
+} as never);
+
 const stub = (path: string, title: string) =>
   createRoute({
     getParentRoute: () => rootRoute,
@@ -41,6 +48,7 @@ const router = createRouter({
   routeTree: rootRoute.addChildren([
     checkout,
     receipt,
+    welcome,
     stub("/", "Chat Sydia"),
     stub("/settings/billing", "Langganan"),
   ]) as never,
