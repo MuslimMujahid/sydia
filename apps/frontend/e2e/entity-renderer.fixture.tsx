@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { remindersQueryOptions } from "../src/lib/services/api/reminders/reminders.queries";
 import { createQueryClient } from "../src/lib/query-client";
 import { MessageHistory } from "../src/components/chat/message-history";
+import { AssistantMarkdown } from "../src/components/chat/assistant-markdown";
 import { EntityPill } from "../src/components/chat/entity-pill";
 import { collectChatEntities } from "../src/components/chat/chat-entities";
 import type {
@@ -306,6 +307,32 @@ function Harness() {
       window.removeEventListener("entity-fixture-refresh", onRefresh);
   }, []);
   const mode = new URLSearchParams(window.location.search).get("mode");
+
+  if (mode === "mixed-items") {
+    const entities = collectChatEntities([
+      invocations[0]!,
+      invocation("mixed-event", "create_calendar_event", {
+        object: { ...records[3].output.object, title: "Review Aurora" },
+      }),
+      invocation("mixed-reminder", "create_reminder", {
+        reminders: [{ ...compactReminder, title: "Review Aurora" }],
+      }),
+    ]).entities;
+
+    return (
+      <main className="mx-auto max-w-xl p-4">
+        <AssistantMarkdown
+          locale="id"
+          timezone="Asia/Makassar"
+          snapshotOnly
+          entities={entities}
+          content={
+            "Ketiganya sudah dibuat.\n\n- [Baca buku](#task/task-1) — Tenggat 25 Okt 2026, 23.59\n- [Review Aurora](#event/event-1) — 29 Okt 2026, 10.00–11.00 · sinkronisasi tertunda\n- [Review Aurora](#reminder/reminder-1) — 29 Okt 2026, 08.00\n\nDetail [Review Aurora](#event/event-1)."
+          }
+        />
+      </main>
+    );
+  }
 
   if (mode === "all-day-preview") {
     const entity = collectChatEntities([allDayInvocation]).entities[0];

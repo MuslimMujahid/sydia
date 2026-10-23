@@ -21,6 +21,7 @@ jobs:
       environment_name: dev
       image_tag: dev
       vite_api_url: ${{ vars.DEV_VITE_API_URL || vars.VITE_API_URL }}
+      vite_whatsapp_enabled: ${{ vars.VITE_WHATSAPP_ENABLED || 'false' }}
       frontend_cache_scope: frontend-dev
       backend_cache_scope: backend-dev
     secrets:

@@ -20,5 +20,6 @@ export * from './workspace-item.entity';
 export * from './note-conflict.error';
 export * from './file-library.entity';
 export * from './file-deletion.entity';
+export * from './whatsapp-connection.entity';
 
 export * from './billing.entity';

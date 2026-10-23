@@ -44,6 +44,17 @@ export type CalendarRequestFence =
     };
 
 export interface ICalendarRepository {
+  listRecovery(
+    userId: string,
+    beforeId?: string,
+  ): Promise<CalendarRecoveryEntry[]>;
+  findRecovery(
+    userId: string,
+    id: string,
+  ): Promise<CalendarRecoveryEntry | null>;
+  recordAutomaticResolution(
+    input: CalendarAutomaticRecoveryInput,
+  ): Promise<boolean>;
   listReminderUsers(
     afterId: string | null,
     limit: number,
@@ -409,6 +420,17 @@ export type CalendarConflictSnapshot = {
   status: 'confirmed' | 'tentative' | 'cancelled';
 };
 
+export type CalendarRecoveryEntry = {
+  id: string;
+  eventId: string | null;
+  calendarName: string;
+  resolution: string;
+  fields: string[];
+  local: CalendarConflictSnapshot | null;
+  remote: CalendarConflictSnapshot | null;
+  createdAt: Date;
+};
+
 export type CalendarSyncConflictView = {
   id: string;
   eventId: string;
@@ -481,6 +503,19 @@ export type CompleteCalendarSyncOperation = {
   remoteEtag?: string | null;
   remoteSnapshot?: unknown;
   reconciledEvent?: CalendarInboundEventInput;
+};
+
+export type CalendarAutomaticRecoveryInput = {
+  operationId: string;
+  claimToken: string;
+  claimEpoch: number;
+  eventLinkId?: string;
+  remoteEtag: string | null;
+  fields: string[];
+  winner: 'local' | 'remote';
+  reason: 'later_edit' | 'equal_timestamp' | 'unknown_timestamp' | 'deletion';
+  localSnapshot: unknown;
+  remoteSnapshot: unknown;
 };
 
 export type FailCalendarSyncOperation = {

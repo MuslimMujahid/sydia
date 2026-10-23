@@ -15,7 +15,9 @@ import type {
   CalendarIntegration,
 } from '../entities';
 import type {
+  CalendarRecoveryEntry,
   CalendarConflictResolution,
+  CalendarAutomaticRecoveryInput,
   CalendarConflictResolutionResult,
   CalendarConflictSnapshot,
   CalendarBindingSyncClaim,
@@ -66,6 +68,7 @@ const eventSelect = {
   status: true,
   syncState: true,
   revision: true,
+  localEditedAt: true,
   lastSyncedAt: true,
   syncErrorCode: true,
   createdAt: true,
@@ -363,7 +366,9 @@ function operationKey(userId: string, requestKey: string): string {
   return `calendar:${fingerprint}`;
 }
 
-function eventPayload(row: EventRow): Prisma.InputJsonObject {
+function eventPayload(
+  row: Omit<EventRow, 'localEditedAt'> & { localEditedAt?: Date | null },
+): Prisma.InputJsonObject {
   return {
     id: row.id,
     provider: row.provider,
@@ -377,12 +382,15 @@ function eventPayload(row: EventRow): Prisma.InputJsonObject {
     allDayStartDate: row.allDayStartDate?.toISOString() ?? null,
     allDayEndDate: row.allDayEndDate?.toISOString() ?? null,
     recurrence: row.recurrence,
+    recurringParentEventId: row.recurringParentEventId,
+    recurrenceExceptionKey: row.recurrenceExceptionKey,
     recurringParentProviderEventId: row.recurringParentProviderEventId,
     originalStartAt: row.originalStartAt?.toISOString() ?? null,
     originalStartDate: row.originalStartDate?.toISOString() ?? null,
     attendees: row.attendees,
     status: row.status,
     revision: row.revision,
+    localEditedAt: row.localEditedAt?.toISOString() ?? null,
   };
 }
 
@@ -393,6 +401,21 @@ function inputJsonObject(value: unknown): Prisma.InputJsonObject {
   const parsed: unknown = JSON.parse(serialized);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
     throw new Error('Calendar sync data must be a JSON object.');
+
+  return parsed;
+}
+
+// Deleted Google resources may contain only identity/status. Missing clocks
+// remain unknown; malformed clocks must not silently become valid evidence.
+function googleEditedAt(snapshot: unknown): Date | null {
+  if (snapshot === undefined || snapshot === null) return null;
+  const value = snapshotRecord(snapshot).updated;
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string')
+    throw new Error('Google event updated timestamp must be a string.');
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime()))
+    throw new Error('Google event updated timestamp is invalid.');
 
   return parsed;
 }
@@ -575,6 +598,9 @@ function eventDataFromSnapshot(
         )
       : [],
     status,
+    recurringParentEventId: null,
+    recurrenceExceptionKey: null,
+    recurrenceOverrideFields: [],
     recurringParentProviderEventId: inbound.recurringParentProviderEventId,
     originalStartAt: inbound.originalStartAt,
     originalStartDate: inbound.originalStartDate,
@@ -909,6 +935,91 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         createdAt: conflict.createdAt,
         resolvedAt: conflict.resolvedAt,
       })),
+    };
+  }
+
+  async listRecovery(
+    userId: string,
+    beforeId?: string,
+  ): Promise<CalendarRecoveryEntry[]> {
+    const rows = await this.prisma.calendarSyncConflict.findMany({
+      where: {
+        state: 'resolved',
+        resolution: { startsWith: 'automatic:' },
+        binding: { integration: { userId } },
+      },
+      include: {
+        binding: { select: { calendarName: true } },
+        eventLink: { select: { calendarEventId: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 100,
+      ...(beforeId ? { cursor: { id: beforeId }, skip: 1 } : {}),
+    });
+
+    return rows.map((row) => this.recoveryEntry(row));
+  }
+
+  async findRecovery(
+    userId: string,
+    id: string,
+  ): Promise<CalendarRecoveryEntry | null> {
+    const row = await this.prisma.calendarSyncConflict.findFirst({
+      where: {
+        id,
+        state: 'resolved',
+        resolution: { startsWith: 'automatic:' },
+        binding: { integration: { userId } },
+      },
+      include: {
+        binding: { select: { calendarName: true } },
+        eventLink: { select: { calendarEventId: true } },
+      },
+    });
+
+    return row ? this.recoveryEntry(row) : null;
+  }
+
+  private recoveryEntry(row: {
+    id: string;
+    resolution: string | null;
+    conflictingFields: string[];
+    localSnapshot: unknown;
+    remoteSnapshot: unknown;
+    createdAt: Date;
+    binding: { calendarName: string };
+    eventLink: { calendarEventId: string | null };
+  }): CalendarRecoveryEntry {
+    if (!row.resolution)
+      throw new Error('Automatic calendar recovery has no resolution reason.');
+
+    const snapshot = (value: unknown): CalendarConflictSnapshot | null => {
+      if (value === null) return null;
+      const fields = snapshotRecord(commonSnapshot(value));
+      // A deletion notification can have no recoverable event content.
+      if (fields.status === 'cancelled' && fields.title === null) return null;
+
+      return conflictSnapshot(fields);
+    };
+
+    const remote =
+      row.remoteSnapshot === null
+        ? null
+        : snapshotRecord(row.remoteSnapshot).common;
+
+    return {
+      id: row.id,
+      eventId:
+        row.localSnapshot &&
+        typeof snapshotRecord(row.localSnapshot).id === 'string'
+          ? (snapshotRecord(row.localSnapshot).id as string)
+          : row.eventLink.calendarEventId,
+      calendarName: row.binding.calendarName,
+      resolution: row.resolution,
+      fields: row.conflictingFields,
+      local: snapshot(row.localSnapshot),
+      remote: remote === undefined ? null : snapshot(remote),
+      createdAt: row.createdAt,
     };
   }
 
@@ -1352,10 +1463,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       },
       data: { state: 'paused' },
     });
-    await tx.calendarEvent.updateMany({
-      where: { providerLink: { is: { bindingId: { in: bindingIds } } } },
-      data: { syncState: 'reconnect_required' },
-    });
+    await this.detachCalendarEvents(tx, bindingIds);
     await tx.calendarWatchChannel.updateMany({
       where: {
         bindingId: { in: bindingIds },
@@ -1364,6 +1472,211 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       },
       data: { state: 'cleanup_pending', cleanupRequestedAt: now },
     });
+  }
+
+  private async detachCalendarEvents(
+    tx: Transaction,
+    bindingIds: string[],
+  ): Promise<void> {
+    const rows = await tx.calendarEvent.findMany({
+      where: {
+        OR: [
+          { providerLink: { is: { bindingId: { in: bindingIds } } } },
+          {
+            providerLink: { is: null },
+            syncOperations: {
+              some: {
+                bindingId: { in: bindingIds },
+                state: 'paused',
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        ...eventSelect,
+        userId: true,
+        providerLink: { select: { bindingId: true } },
+      },
+    });
+
+    const parents = new Map(
+      rows
+        .filter((row) => row.providerEventId)
+        .map((row) => [
+          JSON.stringify([row.providerLink?.bindingId, row.providerEventId]),
+          row.id,
+        ]),
+    );
+
+    for (const row of rows) {
+      const parentId = row.recurringParentProviderEventId
+        ? parents.get(
+            JSON.stringify([
+              row.providerLink?.bindingId,
+              row.recurringParentProviderEventId,
+            ]),
+          )
+        : undefined;
+
+      const occurrenceKey =
+        row.originalStartDate?.toISOString().slice(0, 10) ??
+        row.originalStartAt?.toISOString();
+
+      await tx.calendarEvent.update({
+        where: { id: row.id },
+        data: {
+          provider: 'local',
+          syncState: 'local',
+          syncErrorCode: null,
+          ...(parentId && occurrenceKey
+            ? {
+                recurringParentEventId: parentId,
+                recurrenceExceptionKey: occurrenceKey,
+                recurrenceOverrideFields: [...LOCAL_RECURRENCE_OVERRIDE_FIELDS],
+              }
+            : {}),
+        },
+      });
+    }
+
+    // Google may represent cancelled occurrences only as tombstone links.
+    // Materialize local exceptions so detaching a series cannot resurrect them.
+    const tombstones = await tx.calendarEventLink.findMany({
+      where: {
+        bindingId: { in: bindingIds },
+        calendarEventId: null,
+        tombstoneAt: { not: null },
+        recurringParentProviderEventId: { not: null },
+      },
+    });
+
+    for (const tombstone of tombstones) {
+      const parentId = parents.get(
+        JSON.stringify([
+          tombstone.bindingId,
+          tombstone.recurringParentProviderEventId,
+        ]),
+      );
+
+      const parent = rows.find((row) => row.id === parentId);
+      if (!parent) continue;
+      const original = tombstone.originalStartDate ?? tombstone.originalStartAt;
+      if (!original)
+        throw new Error(
+          'Cancelled Google occurrence is missing its original start.',
+        );
+      const start = tombstone.originalStartDate
+        ? parent.allDayStartDate
+        : parent.startAt;
+
+      const end = tombstone.originalStartDate
+        ? parent.allDayEndDate
+        : parent.endAt;
+
+      if (!start || !end)
+        throw new Error(
+          'Cancelled Google occurrence has an incompatible parent time range.',
+        );
+      const occurrenceEnd = new Date(
+        original.getTime() + end.getTime() - start.getTime(),
+      );
+
+      const created = await tx.calendarEvent.create({
+        data: {
+          userId: parent.userId,
+          title: parent.title,
+          description: parent.description,
+          location: parent.location,
+          timezone: parent.timezone,
+          attendees: parent.attendees,
+          reminderMinutes: parent.reminderMinutes,
+          provider: 'local',
+          providerEventId: tombstone.googleEventId,
+          status: 'cancelled',
+          syncState: 'local',
+          recurringParentEventId: parent.id,
+          recurringParentProviderEventId:
+            tombstone.recurringParentProviderEventId,
+          recurrenceExceptionKey: tombstone.originalStartDate
+            ? original.toISOString().slice(0, 10)
+            : original.toISOString(),
+          recurrenceOverrideFields: [...LOCAL_RECURRENCE_OVERRIDE_FIELDS],
+          originalStartAt: tombstone.originalStartAt,
+          originalStartDate: tombstone.originalStartDate,
+          ...(tombstone.originalStartDate
+            ? { allDayStartDate: original, allDayEndDate: occurrenceEnd }
+            : { startAt: original, endAt: occurrenceEnd }),
+        },
+        select: { id: true },
+      });
+
+      await tx.calendarEventLink.update({
+        where: { id: tombstone.id },
+        data: { calendarEventId: created.id },
+      });
+    }
+  }
+
+  private async reactivateCalendarBinding(
+    tx: Transaction,
+    bindingId: string,
+    generation: number,
+    now: Date,
+  ): Promise<void> {
+    // Linked writes must be rebuilt from the latest retained local values after
+    // a fresh provider pull. Resuming old payloads could discard detached edits.
+    await tx.calendarSyncOperation.updateMany({
+      where: {
+        bindingId,
+        calendarEvent: { providerLink: { isNot: null } },
+        state: { notIn: ['completed', 'cancelled'] },
+      },
+      data: { state: 'cancelled', claimToken: null, claimedUntil: null },
+    });
+    await tx.calendarSyncOperation.updateMany({
+      where: {
+        bindingId,
+        kind: { not: 'create' },
+        calendarEvent: { providerLink: { is: null } },
+        state: { notIn: ['completed', 'cancelled'] },
+      },
+      data: { state: 'cancelled', claimToken: null, claimedUntil: null },
+    });
+    const creates = await tx.calendarSyncOperation.findMany({
+      where: {
+        bindingId,
+        kind: 'create',
+        state: 'paused',
+        calendarEvent: { providerLink: { is: null } },
+      },
+      include: { calendarEvent: true },
+    });
+
+    for (const operation of creates) {
+      const row = operation.calendarEvent;
+      if (!row) continue;
+      await tx.calendarSyncOperation.update({
+        where: { id: operation.id },
+        data: {
+          state: row.status === 'cancelled' ? 'cancelled' : 'pending',
+          payload: {
+            ...eventPayload(row),
+            localEditedAt: row.localEditedAt?.toISOString() ?? null,
+          },
+          eventRevision: row.revision,
+          connectionGeneration: generation,
+          nextAttemptAt: now,
+          claimToken: null,
+          claimedUntil: null,
+        },
+      });
+      if (row.status !== 'cancelled')
+        await tx.calendarEvent.update({
+          where: { id: row.id },
+          data: { provider: 'google', syncState: 'pending' },
+        });
+    }
   }
 
   async disconnect(userId: string): Promise<void> {
@@ -1628,8 +1941,6 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         !master?.providerEventId ||
         inbound.recurringParentProviderEventId !== master.providerEventId ||
         inbound.googleEventId === master.providerEventId ||
-        inbound.status === 'cancelled' ||
-        !inbound.event ||
         !hasOriginalStart
       )
         return null;
@@ -1688,22 +1999,39 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           : null;
       }
 
-      const created = await tx.calendarEvent.create({
-        data: {
-          userId: input.userId,
-          ...inbound.event,
-          provider: 'google',
-          providerEventId: inbound.googleEventId,
-          status: inbound.status,
-          syncState: 'synced',
-          revision: 1,
-          lastSyncedAt: now,
-          recurringParentProviderEventId: master.providerEventId,
-          originalStartAt: inbound.originalStartAt,
-          originalStartDate: inbound.originalStartDate,
+      const overlay = await tx.calendarEvent.findUnique({
+        where: {
+          recurringParentEventId_recurrenceExceptionKey: {
+            recurringParentEventId: master.id,
+            recurrenceExceptionKey:
+              inbound.originalStartDate?.toISOString().slice(0, 10) ??
+              inbound.originalStartAt!.toISOString(),
+          },
         },
-        select: eventSelect,
       });
+
+      let created: EventRow;
+
+      if (overlay) created = overlay;
+      else {
+        if (!inbound.event || inbound.status === 'cancelled') return null;
+        created = await tx.calendarEvent.create({
+          data: {
+            userId: input.userId,
+            ...inbound.event,
+            provider: 'google',
+            providerEventId: inbound.googleEventId,
+            status: inbound.status,
+            syncState: 'synced',
+            revision: 1,
+            lastSyncedAt: now,
+            recurringParentProviderEventId: master.providerEventId,
+            originalStartAt: inbound.originalStartAt,
+            originalStartDate: inbound.originalStartDate,
+          },
+          select: eventSelect,
+        });
+      }
 
       await tx.calendarEventLink.create({
         data: {
@@ -1714,9 +2042,12 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           originalStartAt: inbound.originalStartAt,
           originalStartDate: inbound.originalStartDate,
           etag: inbound.etag,
+          remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
           remoteSnapshot: inputJsonObject(inbound.rawSnapshot),
-          commonSnapshot: commonSnapshot(inbound.commonSnapshot),
-          syncedRevision: created.revision,
+          commonSnapshot: overlay?.occurrenceBaseline
+            ? commonSnapshot(overlay.occurrenceBaseline)
+            : commonSnapshot(inbound.commonSnapshot),
+          syncedRevision: overlay ? 0 : created.revision,
         },
       });
 
@@ -1778,17 +2109,36 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         where: {
           id: input.seriesEventId,
           userId: input.userId,
-          provider: 'local',
+          provider: { in: ['local', 'google'] },
           status: { in: ['confirmed', 'tentative'] },
           recurrence: { isEmpty: false },
           recurringParentEventId: null,
           recurringParentProviderEventId: null,
           revision: input.expectedSeriesRevision,
         },
-        select: eventSelect,
+        select: {
+          ...eventSelect,
+          providerLink: { select: { bindingId: true, commonSnapshot: true } },
+        },
       });
 
       if (!series || Boolean(series.allDayStartDate) !== isAllDay) return null;
+
+      if (series.provider === 'google' && series.providerLink) {
+        const imported = await tx.calendarEvent.findFirst({
+          where: {
+            userId: input.userId,
+            recurringParentProviderEventId: series.providerEventId,
+            originalStartAt,
+            originalStartDate,
+            providerLink: { is: { bindingId: series.providerLink.bindingId } },
+          },
+          select: eventSelect,
+        });
+
+        if (imported)
+          return imported.status === 'cancelled' ? null : event(imported);
+      }
 
       const existing = await tx.calendarEvent.findUnique({
         where: {
@@ -1814,7 +2164,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       const created = await tx.calendarEvent.create({
         data: {
           userId: input.userId,
-          provider: 'local',
+          provider: series.provider,
           title: series.title,
           reminderMinutes: series.reminderMinutes,
           description: series.description,
@@ -1827,7 +2177,19 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           allDayStartDate: input.allDayStartDate,
           allDayEndDate: input.allDayEndDate,
           recurrence: [],
+          occurrenceBaseline: {
+            ...commonSnapshot(
+              series.providerLink?.commonSnapshot ?? eventPayload(series),
+            ),
+            recurrence: [],
+            startAt: input.startAt?.toISOString() ?? null,
+            endAt: input.endAt?.toISOString() ?? null,
+            allDayStartDate: input.allDayStartDate?.toISOString() ?? null,
+            allDayEndDate: input.allDayEndDate?.toISOString() ?? null,
+          },
           recurrenceOverrideFields: [],
+          recurringParentProviderEventId:
+            series.provider === 'google' ? series.providerEventId : null,
           recurringParentEventId: series.id,
           recurrenceExceptionKey: input.occurrenceKey,
           originalStartAt,
@@ -1907,6 +2269,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           userId,
           ...eventInput,
           reminderMinutes: eventInput.reminderMinutes ?? 10,
+          localEditedAt: await this.databaseNow(tx),
           provider: target.binding ? 'google' : 'local',
           syncState: target.binding ? 'pending' : 'local',
           revision: 1,
@@ -2050,6 +2413,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         where: { id, userId },
         select: {
           ...eventSelect,
+          occurrenceBaseline: true,
           providerLink: {
             select: {
               bindingId: true,
@@ -2064,17 +2428,16 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       const target = await this.updateTarget(tx, userId, current);
       if (target.status !== 'ready') return { status: target.status };
 
-      const localSeries =
-        current.provider === 'local' && current.recurringParentEventId
-          ? await tx.calendarEvent.findFirst({
-              where: {
-                id: current.recurringParentEventId,
-                userId,
-                provider: 'local',
-              },
-              select: eventSelect,
-            })
-          : null;
+      const localSeries = current.recurringParentEventId
+        ? await tx.calendarEvent.findFirst({
+            where: {
+              id: current.recurringParentEventId,
+              userId,
+              provider: { in: ['local', 'google'] },
+            },
+            select: eventSelect,
+          })
+        : null;
 
       if (current.recurringParentEventId && !localSeries)
         return { status: 'missing' };
@@ -2096,13 +2459,25 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           ...eventInput,
           ...temporalMutationData(input),
           ...(recurrenceOverrideFields ? { recurrenceOverrideFields } : {}),
+          localEditedAt: await this.databaseNow(tx),
           ...(status ? { status } : {}),
+          provider: target.binding ? 'google' : 'local',
           syncState: target.binding ? 'pending' : 'local',
           syncErrorCode: null,
           revision: { increment: 1 },
         },
         select: eventSelect,
       });
+
+      if (status === 'cancelled' && current.recurrence.length > 0)
+        await this.cancelSeriesOccurrences(
+          tx,
+          current,
+          target.binding?.bindingId ?? current.providerLink?.bindingId ?? null,
+          'local',
+          target.binding ? 'pending' : 'local',
+          await this.databaseNow(tx),
+        );
 
       const calendarEvent = event(updated);
       const operationId = target.binding
@@ -2113,7 +2488,9 @@ export class PrismaCalendarRepository implements ICalendarRepository {
             status === 'cancelled' ? 'delete' : 'update',
             target.binding,
             request,
-            eventPayload(current),
+            current.occurrenceBaseline
+              ? inputJsonObject(current.occurrenceBaseline)
+              : eventPayload(current),
             createGoogleMeet,
           )
         : null;
@@ -2213,7 +2590,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       return destination === 'auto'
         ? { status: 'ready', binding: null }
         : { status: 'reconnect_required' };
-    if (integrationRow.status !== 'connected')
+    if (!['connected', 'reconnect_required'].includes(integrationRow.status))
       return { status: 'reconnect_required' };
     if (!integrationRow.activeBindingId)
       return { status: 'reconnect_required' };
@@ -2221,8 +2598,11 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     const binding = await tx.calendarBinding.findFirst({
       where: {
         id: integrationRow.activeBindingId,
-        integration: { userId, status: 'connected' },
-        state: { notIn: ['disconnected', 'paused'] },
+        integration: {
+          userId,
+          status: { in: ['connected', 'reconnect_required'] },
+        },
+        state: { not: 'disconnected' },
       },
       select: { id: true },
     });
@@ -2244,6 +2624,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     current: {
       id: string;
       provider: string;
+      recurringParentEventId?: string | null;
       providerLink: {
         bindingId: string;
         binding: { integrationId: string; state: string };
@@ -2256,13 +2637,37 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       }
     | { status: 'reconnect_required' | 'read_only' }
   > {
+    if (current.recurringParentEventId) {
+      const parent = await tx.calendarEvent.findFirst({
+        where: {
+          id: current.recurringParentEventId,
+          userId,
+          provider: 'google',
+        },
+        select: {
+          id: true,
+          provider: true,
+          providerLink: {
+            select: {
+              bindingId: true,
+              binding: { select: { integrationId: true, state: true } },
+            },
+          },
+        },
+      });
+
+      if (parent) return this.updateTarget(tx, userId, parent);
+    }
+
+    if (current.provider === 'local') return { status: 'ready', binding: null };
+
     if (!current.providerLink) {
       if (current.provider === 'google') {
         const createOperation = await tx.calendarSyncOperation.findFirst({
           where: {
             calendarEventId: current.id,
             kind: 'create',
-            state: { in: ['pending', 'processing'] },
+            state: { in: ['pending', 'processing', 'paused'] },
           },
           orderBy: { eventRevision: 'desc' },
           select: {
@@ -2272,7 +2677,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           },
         });
 
-        if (!createOperation) return { status: 'reconnect_required' };
+        if (!createOperation) return { status: 'ready', binding: null };
 
         const integrationRow = await tx.calendarIntegration.findFirst({
           where: {
@@ -2287,16 +2692,17 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           },
         });
 
-        if (!integrationRow || integrationRow.status === 'reconnect_required')
-          return { status: 'reconnect_required' };
+        if (!integrationRow) return { status: 'ready', binding: null };
         if (
-          integrationRow.status !== 'connected' ||
+          !['connected', 'reconnect_required'].includes(
+            integrationRow.status,
+          ) ||
           integrationRow.connectionGeneration !==
             createOperation.connectionGeneration ||
           integrationRow.activeBindingId !== createOperation.bindingId ||
-          ['disconnected', 'paused'].includes(createOperation.binding.state)
+          createOperation.binding.state === 'disconnected'
         )
-          return { status: 'read_only' };
+          return { status: 'ready', binding: null };
 
         return {
           status: 'ready',
@@ -2323,14 +2729,13 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       },
     });
 
-    if (!integrationRow || integrationRow.status === 'reconnect_required')
-      return { status: 'reconnect_required' };
+    if (!integrationRow) return { status: 'ready', binding: null };
     if (
-      integrationRow.status !== 'connected' ||
+      !['connected', 'reconnect_required'].includes(integrationRow.status) ||
       integrationRow.activeBindingId !== current.providerLink.bindingId ||
-      ['disconnected', 'paused'].includes(current.providerLink.binding.state)
+      current.providerLink.binding.state === 'disconnected'
     )
-      return { status: 'read_only' };
+      return { status: 'ready', binding: null };
 
     return {
       status: 'ready',
@@ -2361,6 +2766,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         eventRevision: row.revision,
         payload: {
           ...eventPayload(row),
+          localEditedAt: row.localEditedAt?.toISOString() ?? null,
           ...(createGoogleMeet !== undefined ? { createGoogleMeet } : {}),
         },
         ...(baseSnapshot ? { baseSnapshot } : {}),
@@ -2497,38 +2903,12 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         ? [existing.activeBindingId]
         : [];
 
-      if (previousBindingIds.length) {
-        await tx.calendarWatchChannel.updateMany({
-          where: {
-            bindingId: { in: previousBindingIds },
-            state: { in: ['active', 'registering'] },
-            stoppedAt: null,
-          },
-          data: { state: 'cleanup_pending', cleanupRequestedAt: now },
-        });
-        await tx.calendarBinding.updateMany({
-          where: { id: { in: previousBindingIds } },
-          data: {
-            state: 'disconnected',
-            leaseOwner: null,
-            leaseExpiresAt: null,
-            leaseEpoch: { increment: 1 },
-          },
-        });
-        await tx.calendarSyncOperation.updateMany({
-          where: {
-            bindingId: { in: previousBindingIds },
-            state: { notIn: ['completed', 'cancelled'] },
-          },
-          data: { state: 'paused' },
-        });
-        await tx.calendarEvent.updateMany({
-          where: {
-            providerLink: { is: { bindingId: { in: previousBindingIds } } },
-          },
-          data: { syncState: 'reconnect_required' },
-        });
-      }
+      if (previousBindingIds.length)
+        await this.fenceCalendarBindingForDisconnect(
+          tx,
+          previousBindingIds,
+          now,
+        );
 
       const integrationRow = await tx.calendarIntegration.upsert({
         where: {
@@ -2562,18 +2942,52 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         select: { id: true, connectionGeneration: true },
       });
 
-      const binding = await tx.calendarBinding.create({
-        data: {
+      const previous = await tx.calendarBinding.findFirst({
+        where: {
           integrationId: integrationRow.id,
           googleSubject: input.googleSubject,
           calendarId: input.calendar.id,
-          calendarName: input.calendar.name,
-          timezone: input.calendar.timezone,
-          state: 'initializing',
-          nextSyncAt: new Date(),
         },
+        orderBy: { updatedAt: 'desc' },
         select: { id: true },
       });
+
+      const bindingData = {
+        calendarName: input.calendar.name,
+        timezone: input.calendar.timezone,
+        state: 'initializing',
+        syncToken: null,
+        nextPageToken: null,
+        pendingFullImportSyncToken: null,
+        fullImportFinalizationCursor: null,
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        nextSyncAt: now,
+      };
+
+      const binding = previous
+        ? await tx.calendarBinding.update({
+            where: { id: previous.id },
+            data: { ...bindingData, leaseEpoch: { increment: 1 } },
+            select: { id: true },
+          })
+        : await tx.calendarBinding.create({
+            data: {
+              integrationId: integrationRow.id,
+              googleSubject: input.googleSubject,
+              calendarId: input.calendar.id,
+              ...bindingData,
+            },
+            select: { id: true },
+          });
+
+      if (previous)
+        await this.reactivateCalendarBinding(
+          tx,
+          binding.id,
+          integrationRow.connectionGeneration,
+          now,
+        );
 
       await tx.calendarIntegration.update({
         where: { id: integrationRow.id },
@@ -2654,41 +3068,12 @@ export class PrismaCalendarRepository implements ICalendarRepository {
 
       const previousBindingId = integration.activeBindingId;
 
-      if (previousBindingId) {
-        await tx.calendarWatchChannel.updateMany({
-          where: {
-            bindingId: previousBindingId,
-            state: { in: ['active', 'registering'] },
-            stoppedAt: null,
-          },
-          data: { state: 'cleanup_pending', cleanupRequestedAt: now },
-        });
-        await tx.calendarBinding.updateMany({
-          where: { id: previousBindingId },
-          data: {
-            state: 'disconnected',
-            leaseOwner: null,
-            leaseExpiresAt: null,
-            leaseEpoch: { increment: 1 },
-          },
-        });
-        await tx.calendarSyncOperation.updateMany({
-          where: {
-            bindingId: previousBindingId,
-            state: { in: ['pending', 'processing', 'paused'] },
-          },
-          data: { state: 'paused', claimToken: null, claimedUntil: null },
-        });
-        await tx.calendarEvent.updateMany({
-          where: {
-            providerLink: { is: { bindingId: previousBindingId } },
-          },
-          data: {
-            syncState: 'reconnect_required',
-            syncErrorCode: 'calendar_changed',
-          },
-        });
-      }
+      if (previousBindingId)
+        await this.fenceCalendarBindingForDisconnect(
+          tx,
+          [previousBindingId],
+          now,
+        );
 
       let bindingId: string;
 
@@ -2706,32 +3091,21 @@ export class PrismaCalendarRepository implements ICalendarRepository {
             nextSyncAt: now,
           },
         });
-        await tx.calendarSyncOperation.updateMany({
-          where: { bindingId, state: 'paused' },
+        await tx.calendarBinding.update({
+          where: { id: bindingId },
           data: {
-            state: 'pending',
-            connectionGeneration: nextGeneration,
-            nextAttemptAt: now,
-            claimToken: null,
-            claimedUntil: null,
+            syncToken: null,
+            nextPageToken: null,
+            pendingFullImportSyncToken: null,
+            fullImportFinalizationCursor: null,
           },
         });
-        await tx.calendarEvent.updateMany({
-          where: {
-            providerLink: { is: { bindingId } },
-            syncState: 'reconnect_required',
-          },
-          data: { syncState: 'synced', syncErrorCode: null },
-        });
-        await tx.calendarEvent.updateMany({
-          where: {
-            providerLink: { is: { bindingId } },
-            syncOperations: {
-              some: { bindingId, state: 'pending' },
-            },
-          },
-          data: { syncState: 'pending', syncErrorCode: null },
-        });
+        await this.reactivateCalendarBinding(
+          tx,
+          bindingId,
+          nextGeneration,
+          now,
+        );
       } else {
         const binding = await tx.calendarBinding.create({
           data: {
@@ -3076,6 +3450,81 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     });
   }
 
+  async recordAutomaticResolution(
+    input: CalendarAutomaticRecoveryInput,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const owner = await tx.calendarSyncOperation.findUnique({
+        where: { id: input.operationId },
+        select: {
+          binding: { select: { integration: { select: { userId: true } } } },
+        },
+      });
+
+      if (
+        !owner ||
+        !(await this.lockUser(tx, owner.binding.integration.userId))
+      )
+        return false;
+
+      const now = await this.databaseNow(tx);
+      const operation = await tx.calendarSyncOperation.findUnique({
+        where: { id: input.operationId },
+        include: { binding: { include: { integration: true } } },
+      });
+
+      if (!operation) return false;
+      const integration = operation.binding.integration;
+      if (
+        operation.state !== 'processing' ||
+        operation.claimToken !== input.claimToken ||
+        operation.claimEpoch !== input.claimEpoch ||
+        !operation.claimedUntil ||
+        operation.claimedUntil <= now ||
+        integration.status !== 'connected' ||
+        integration.activeBindingId !== operation.bindingId ||
+        integration.connectionGeneration !== operation.connectionGeneration
+      )
+        return false;
+
+      const link = await tx.calendarEventLink.findFirst({
+        where: {
+          id: input.eventLinkId,
+          bindingId: operation.bindingId,
+          calendarEventId: operation.calendarEventId,
+        },
+        select: { id: true },
+      });
+
+      if (!link) return false;
+
+      const resolution = `automatic:${input.winner}:${input.reason}:${input.operationId}:${input.remoteEtag ?? 'unknown'}`;
+      const existing = await tx.calendarSyncConflict.findFirst({
+        where: { eventLinkId: link.id, resolution },
+        select: { id: true },
+      });
+
+      if (existing) return true;
+
+      await tx.calendarSyncConflict.create({
+        data: {
+          bindingId: operation.bindingId,
+          eventLinkId: link.id,
+          localRevision: operation.eventRevision,
+          baseSnapshot: operation.baseSnapshot ?? Prisma.JsonNull,
+          localSnapshot: inputJsonObject(input.localSnapshot),
+          remoteSnapshot: inputJsonObject(input.remoteSnapshot),
+          conflictingFields: input.fields,
+          state: 'resolved',
+          resolution,
+          resolvedAt: now,
+        },
+      });
+
+      return true;
+    });
+  }
+
   async completeOperation(
     input: CompleteCalendarSyncOperation,
   ): Promise<boolean> {
@@ -3172,14 +3621,60 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         }
 
         if (operation.calendarEventId) {
+          const parent = await tx.calendarEvent.findUnique({
+            where: { id: operation.calendarEventId },
+            select: eventSelect,
+          });
+
+          if (
+            parent &&
+            link &&
+            (parent.revision > operation.eventRevision ||
+              parent.status !== 'cancelled')
+          ) {
+            await tx.calendarSyncConflict.create({
+              data: {
+                bindingId: operation.bindingId,
+                eventLinkId: link.id,
+                localRevision: parent.revision,
+                baseSnapshot: operation.baseSnapshot ?? Prisma.JsonNull,
+                localSnapshot: eventPayload(parent),
+                remoteSnapshot: {
+                  resource: { id: link.googleEventId, status: 'cancelled' },
+                  common: { status: 'cancelled' },
+                },
+                conflictingFields: ['status'],
+                state: 'resolved',
+                resolution: 'automatic:local:deletion',
+                resolvedAt: now,
+              },
+            });
+          }
+
+          await tx.calendarSyncOperation.updateMany({
+            where: {
+              calendarEventId: operation.calendarEventId,
+              state: { notIn: ['completed', 'cancelled'] },
+            },
+            data: { state: 'cancelled', claimToken: null, claimedUntil: null },
+          });
+
+          if (parent && parent.recurrence.length > 0)
+            await this.cancelSeriesOccurrences(
+              tx,
+              parent,
+              operation.bindingId,
+              'local',
+              'synced',
+              now,
+            );
+
           await tx.calendarEvent.updateMany({
             where: {
               id: operation.calendarEventId,
-              revision: operation.eventRevision,
-              status: 'cancelled',
-              syncState: 'pending',
             },
             data: {
+              status: 'cancelled',
               syncState: 'synced',
               lastSyncedAt: now,
               syncErrorCode: null,
@@ -3236,6 +3731,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           calendarEventId: operation.calendarEventId,
           googleEventId,
           etag: input.remoteEtag ?? null,
+          remoteEditedAt: googleEditedAt(input.remoteSnapshot),
           remoteSnapshot,
           commonSnapshot,
           syncedRevision: operation.eventRevision,
@@ -3443,6 +3939,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
             const remote = conflictRemoteParts(input.conflict.remoteSnapshot);
             const rawSnapshot = inputJsonObject(remote.resource);
             const remoteCommon = commonSnapshot(remote.common);
+            const remoteDeleted = remote.resource.status === 'cancelled';
             await tx.calendarSyncConflict.create({
               data: {
                 bindingId: operation.bindingId,
@@ -3464,6 +3961,13 @@ export class PrismaCalendarRepository implements ICalendarRepository {
                   remoteCommon,
                 ),
                 conflictingFields: input.conflict.conflictingFields,
+                ...(remoteDeleted
+                  ? {
+                      state: 'resolved',
+                      resolution: 'automatic:remote:deletion',
+                      resolvedAt: commitNow,
+                    }
+                  : {}),
               },
             });
             await tx.calendarEventLink.update({
@@ -3474,8 +3978,48 @@ export class PrismaCalendarRepository implements ICalendarRepository {
                     ? remote.resource.etag
                     : null,
                 remoteSnapshot: rawSnapshot,
+                ...(remoteDeleted
+                  ? { tombstoneAt: commitNow, commonSnapshot: remoteCommon }
+                  : {}),
               },
             });
+
+            if (remoteDeleted) {
+              if (localEvent && localEvent.recurrence.length > 0)
+                await this.cancelSeriesOccurrences(
+                  tx,
+                  localEvent,
+                  operation.bindingId,
+                  'remote',
+                  'synced',
+                  commitNow,
+                );
+
+              await tx.calendarSyncOperation.updateMany({
+                where: {
+                  bindingId: operation.bindingId,
+                  calendarEventId: operation.calendarEventId,
+                  state: { notIn: ['completed', 'cancelled'] },
+                },
+                data: {
+                  state: 'cancelled',
+                  claimToken: null,
+                  claimedUntil: null,
+                },
+              });
+              await tx.calendarEvent.update({
+                where: { id: operation.calendarEventId },
+                data: {
+                  status: 'cancelled',
+                  syncState: 'synced',
+                  syncErrorCode: null,
+                  revision: { increment: 1 },
+                },
+              });
+
+              return true;
+            }
+
             await tx.calendarSyncOperation.updateMany({
               where: {
                 bindingId: operation.bindingId,
@@ -3964,6 +4508,13 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     try {
       return await this.prisma.$transaction(
         async (tx) => {
+          const owner = await tx.calendarBinding.findUnique({
+            where: { id: input.bindingId },
+            select: { integration: { select: { userId: true } } },
+          });
+
+          if (!owner || !(await this.lockUser(tx, owner.integration.userId)))
+            return false;
           const now = await this.databaseNow(tx);
           const binding = await tx.calendarBinding.findUnique({
             where: { id: input.bindingId },
@@ -4043,6 +4594,13 @@ export class PrismaCalendarRepository implements ICalendarRepository {
               legacyCandidatesByProviderId,
             );
 
+          await this.queueRetainedOccurrences(
+            tx,
+            binding.id,
+            input.connectionGeneration,
+            now,
+          );
+
           const isFinalPage = input.nextPageToken === null;
           const finalizationCursor =
             isFinalPage && input.fullImport
@@ -4054,6 +4612,54 @@ export class PrismaCalendarRepository implements ICalendarRepository {
               : null;
 
           const needsFinalization = finalizationCursor !== null;
+
+          // A completed pull proves the provider is reachable again. Start a
+          // fresh bounded retry episode without requiring an event-level action.
+          if (isFinalPage && !needsFinalization) {
+            const exhausted = await tx.calendarSyncOperation.findMany({
+              where: {
+                bindingId: binding.id,
+                connectionGeneration: input.connectionGeneration,
+                state: 'failed',
+                lastErrorCode: 'calendar_retry_budget_exhausted',
+                calendarEvent: {
+                  is: { provider: 'google', syncState: 'error' },
+                },
+              },
+              select: { id: true, calendarEventId: true },
+            });
+
+            if (exhausted.length) {
+              await tx.calendarSyncOperation.updateMany({
+                where: {
+                  id: { in: exhausted.map((operation) => operation.id) },
+                },
+                data: {
+                  state: 'pending',
+                  nextAttemptAt: now,
+                  claimToken: null,
+                  claimedUntil: null,
+                  retryBudgetAttempts: 0,
+                  firstAttemptAt: null,
+                  lastErrorCode: null,
+                  lastErrorMessage: null,
+                },
+              });
+              await tx.calendarEvent.updateMany({
+                where: {
+                  id: {
+                    in: exhausted.flatMap((operation) =>
+                      operation.calendarEventId
+                        ? [operation.calendarEventId]
+                        : [],
+                    ),
+                  },
+                },
+                data: { syncState: 'pending', syncErrorCode: null },
+              });
+            }
+          }
+
           const nextSyncToken =
             binding.pendingFullImportSyncToken ?? input.nextSyncToken;
 
@@ -4706,6 +5312,139 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     );
   }
 
+  private async cancelSeriesOccurrences(
+    tx: Transaction,
+    parent: { id: string; providerEventId: string | null },
+    bindingId: string | null,
+    source: 'local' | 'remote',
+    syncState: 'local' | 'pending' | 'synced',
+    now: Date,
+  ): Promise<void> {
+    const children = await tx.calendarEvent.findMany({
+      where: {
+        OR: [
+          { recurringParentEventId: parent.id },
+          ...(bindingId && parent.providerEventId
+            ? [
+                {
+                  recurringParentProviderEventId: parent.providerEventId,
+                  providerLink: { is: { bindingId } },
+                },
+              ]
+            : []),
+        ],
+      },
+      select: { ...eventSelect, providerLink: { select: { id: true } } },
+    });
+
+    if (children.length === 0) return;
+    const parentLink = await tx.calendarEventLink.findFirst({
+      where: { calendarEventId: parent.id },
+      select: { id: true, bindingId: true },
+    });
+
+    for (const child of children) {
+      const linkId = child.providerLink?.id ?? parentLink?.id;
+
+      if (
+        linkId &&
+        parentLink &&
+        child.status !== 'cancelled' &&
+        (child.localEditedAt !== null ||
+          ['pending', 'conflict'].includes(child.syncState))
+      ) {
+        await tx.calendarSyncConflict.create({
+          data: {
+            bindingId: parentLink.bindingId,
+            eventLinkId: linkId,
+            localRevision: child.revision,
+            localSnapshot: eventPayload(child),
+            conflictingFields: ['status'],
+            state: 'resolved',
+            resolution: `automatic:${source}:series_deletion`,
+            resolvedAt: now,
+          },
+        });
+      }
+    }
+
+    const ids = children.map((child) => child.id);
+    await tx.calendarSyncOperation.updateMany({
+      where: {
+        calendarEventId: { in: ids },
+        state: { notIn: ['completed', 'cancelled'] },
+      },
+      data: { state: 'cancelled', claimToken: null, claimedUntil: null },
+    });
+    await tx.calendarEvent.updateMany({
+      where: { id: { in: ids }, status: { not: 'cancelled' } },
+      data: { status: 'cancelled', revision: { increment: 1 } },
+    });
+    await tx.calendarEvent.updateMany({
+      where: { id: { in: ids } },
+      data: { syncState, syncErrorCode: null },
+    });
+    if (syncState === 'synced')
+      await tx.calendarEventLink.updateMany({
+        where: { calendarEventId: { in: ids } },
+        data: { tombstoneAt: now },
+      });
+  }
+
+  private async queueRetainedOccurrences(
+    tx: Transaction,
+    bindingId: string,
+    generation: number,
+    now: Date,
+  ): Promise<void> {
+    const rows = await tx.calendarEvent.findMany({
+      where: {
+        providerLink: { is: null },
+        localEditedAt: { not: null },
+        recurringParentEvent: {
+          provider: 'google',
+          status: { not: 'cancelled' },
+          providerLink: { is: { bindingId } },
+        },
+        NOT: {
+          syncOperations: {
+            some: { state: { in: ['pending', 'processing', 'paused'] } },
+          },
+        },
+      },
+      include: { recurringParentEvent: { select: { providerEventId: true } } },
+    });
+
+    for (const row of rows) {
+      if (!row.occurrenceBaseline)
+        throw new Error('Retained occurrence is missing its shared baseline.');
+      const updated = await tx.calendarEvent.update({
+        where: { id: row.id },
+        data: {
+          provider: 'google',
+          syncState: 'pending',
+          recurringParentProviderEventId:
+            row.recurringParentEvent?.providerEventId,
+        },
+        select: eventSelect,
+      });
+
+      await this.createOperation(
+        tx,
+        row.userId,
+        event(updated),
+        row.status === 'cancelled' ? 'delete' : 'update',
+        { bindingId, connectionGeneration: generation },
+        {
+          key: `retained-occurrence:${row.id}:${row.revision}:${generation}`,
+          fingerprint: '',
+          expiresAt: new Date(now.getTime() + 48 * 60 * 60 * 1000),
+        },
+        inputJsonObject(row.occurrenceBaseline),
+      );
+    }
+  }
+
   private async applyInboundEvent(
     tx: Transaction,
     binding: {
@@ -4728,6 +5467,53 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       },
     });
 
+    if (!link && inbound.recurringParentProviderEventId) {
+      const parent = await tx.calendarEvent.findFirst({
+        where: {
+          userId: binding.integration.userId,
+          providerEventId: inbound.recurringParentProviderEventId,
+          providerLink: { is: { bindingId: binding.id } },
+        },
+        select: { id: true },
+      });
+
+      const identity =
+        inbound.originalStartDate?.toISOString().slice(0, 10) ??
+        inbound.originalStartAt?.toISOString();
+
+      const overlay =
+        parent && identity
+          ? await tx.calendarEvent.findUnique({
+              where: {
+                recurringParentEventId_recurrenceExceptionKey: {
+                  recurringParentEventId: parent.id,
+                  recurrenceExceptionKey: identity,
+                },
+              },
+            })
+          : null;
+
+      if (overlay)
+        link = await tx.calendarEventLink.create({
+          data: {
+            bindingId: binding.id,
+            calendarEventId: overlay.id,
+            googleEventId: inbound.googleEventId,
+            recurringParentProviderEventId:
+              inbound.recurringParentProviderEventId,
+            originalStartAt: inbound.originalStartAt,
+            originalStartDate: inbound.originalStartDate,
+            etag: inbound.etag,
+            remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
+            remoteSnapshot: rawSnapshot,
+            commonSnapshot: overlay.occurrenceBaseline
+              ? commonSnapshot(overlay.occurrenceBaseline)
+              : remoteCommon,
+            syncedRevision: 0,
+          },
+        });
+    }
+
     if (!link && inbound.status === 'cancelled') {
       if (
         inbound.recurringParentProviderEventId &&
@@ -4742,6 +5528,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
             originalStartAt: inbound.originalStartAt,
             originalStartDate: inbound.originalStartDate,
             etag: inbound.etag,
+            remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
             remoteSnapshot: rawSnapshot,
             commonSnapshot: remoteCommon,
             tombstoneAt: input.now,
@@ -4808,6 +5595,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
               originalStartAt: inbound.originalStartAt,
               originalStartDate: inbound.originalStartDate,
               etag: inbound.etag,
+              remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
               remoteSnapshot: rawSnapshot,
               commonSnapshot: remoteCommon,
               syncedRevision: legacyEvent.revision,
@@ -4846,6 +5634,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           originalStartAt: inbound.originalStartAt,
           originalStartDate: inbound.originalStartDate,
           etag: inbound.etag,
+          remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
           remoteSnapshot: rawSnapshot,
           commonSnapshot: remoteCommon,
           syncedRevision: created.revision,
@@ -4862,6 +5651,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           where: { id: link.id },
           data: {
             etag: inbound.etag,
+            remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
             remoteSnapshot: rawSnapshot,
             commonSnapshot: remoteCommon,
             tombstoneAt: input.now,
@@ -4898,6 +5688,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         data: {
           calendarEventId: restored.id,
           etag: inbound.etag,
+          remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
           remoteSnapshot: rawSnapshot,
           commonSnapshot: remoteCommon,
           syncedRevision: restored.revision,
@@ -4920,6 +5711,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         data: {
           calendarEventId: null,
           etag: inbound.etag,
+          remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
           remoteSnapshot: rawSnapshot,
           commonSnapshot: remoteCommon,
           tombstoneAt: inbound.status === 'cancelled' ? input.now : null,
@@ -4938,73 +5730,23 @@ export class PrismaCalendarRepository implements ICalendarRepository {
 
     const remote = snapshotRecord(remoteCommon);
     const localDirty =
-      current.syncState === 'pending' ||
+      current.provider === 'local' ||
+      ['pending', 'conflict', 'reconnect_required'].includes(
+        current.syncState,
+      ) ||
       current.revision > (link.syncedRevision ?? current.revision);
 
-    if (current.syncState === 'conflict') {
-      const latestConflict = await tx.calendarSyncConflict.findFirst({
-        where: { eventLinkId: link.id, state: 'open' },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: { id: true },
-      });
-
-      const conflictingFields =
-        inbound.status === 'cancelled'
-          ? ['status']
-          : snapshotConflictingGroups(baseCommon, localCommon, remote);
-
-      if (latestConflict) {
-        await tx.calendarSyncConflict.update({
-          where: { id: latestConflict.id },
-          data: {
-            localRevision: current.revision,
-            localSnapshot: inputJsonObject(localPayload),
-            remoteSnapshot: conflictRemoteSnapshot(
-              inbound.rawSnapshot,
-              remoteCommon,
-            ),
-            conflictingFields,
-          },
-        });
-      } else {
-        await tx.calendarSyncConflict.create({
-          data: {
-            bindingId: binding.id,
-            eventLinkId: link.id,
-            localRevision: current.revision,
-            baseSnapshot: link.commonSnapshot ?? Prisma.JsonNull,
-            localSnapshot: inputJsonObject(localPayload),
-            remoteSnapshot: conflictRemoteSnapshot(
-              inbound.rawSnapshot,
-              remoteCommon,
-            ),
-            conflictingFields,
-          },
-        });
-      }
-
-      await tx.calendarEventLink.update({
-        where: { id: link.id },
-        data: {
-          etag: inbound.etag,
-          remoteSnapshot: rawSnapshot,
-          tombstoneAt: inbound.status === 'cancelled' ? input.now : null,
-          lastSeenFullImportGeneration: input.fullImportGeneration,
-        },
-      });
-      await tx.calendarSyncOperation.updateMany({
-        where: {
-          bindingId: binding.id,
-          calendarEventId: current.id,
-          state: 'pending',
-        },
-        data: { state: 'conflict', claimToken: null, claimedUntil: null },
-      });
-
-      return;
-    }
-
     if (inbound.status === 'cancelled') {
+      if (current.recurrence.length > 0)
+        await this.cancelSeriesOccurrences(
+          tx,
+          current,
+          binding.id,
+          'remote',
+          'synced',
+          input.now,
+        );
+
       if (localDirty && current.status !== 'cancelled') {
         await tx.calendarSyncConflict.create({
           data: {
@@ -5018,45 +5760,53 @@ export class PrismaCalendarRepository implements ICalendarRepository {
               remoteCommon,
             ),
             conflictingFields: ['status'],
-          },
-        });
-        await tx.calendarEvent.update({
-          where: { id: current.id },
-          data: { syncState: 'conflict', syncErrorCode: 'remote_deleted' },
-        });
-        await tx.calendarSyncOperation.updateMany({
-          where: {
-            bindingId: binding.id,
-            calendarEventId: current.id,
-            state: 'pending',
-          },
-          data: { state: 'conflict', claimToken: null, claimedUntil: null },
-        });
-      } else {
-        const revision =
-          current.revision + (current.status === 'cancelled' ? 0 : 1);
-
-        await tx.calendarEvent.update({
-          where: { id: current.id },
-          data: {
-            status: 'cancelled',
-            syncState: 'synced',
-            syncErrorCode: null,
-            revision,
-          },
-        });
-        await tx.calendarEventLink.update({
-          where: { id: link.id },
-          data: {
-            etag: inbound.etag,
-            remoteSnapshot: rawSnapshot,
-            commonSnapshot: remoteCommon,
-            syncedRevision: revision,
-            tombstoneAt: input.now,
-            lastSeenFullImportGeneration: input.fullImportGeneration,
+            state: 'resolved',
+            resolution: 'automatic:remote:deletion',
+            resolvedAt: input.now,
           },
         });
       }
+
+      const revision =
+        current.revision + (current.status === 'cancelled' ? 0 : 1);
+
+      await tx.calendarSyncOperation.updateMany({
+        where: {
+          bindingId: binding.id,
+          calendarEventId: current.id,
+          state: { notIn: ['completed', 'cancelled'] },
+        },
+        data: { state: 'cancelled', claimToken: null, claimedUntil: null },
+      });
+      await tx.calendarEvent.update({
+        where: { id: current.id },
+        data: {
+          status: 'cancelled',
+          syncState: 'synced',
+          syncErrorCode: null,
+          revision,
+        },
+      });
+      await tx.calendarEventLink.update({
+        where: { id: link.id },
+        data: {
+          etag: inbound.etag,
+          remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
+          remoteSnapshot: rawSnapshot,
+          commonSnapshot: remoteCommon,
+          syncedRevision: revision,
+          tombstoneAt: input.now,
+          lastSeenFullImportGeneration: input.fullImportGeneration,
+        },
+      });
+      await tx.calendarSyncConflict.updateMany({
+        where: { eventLinkId: link.id, state: 'open' },
+        data: {
+          state: 'resolved',
+          resolution: 'automatic:remote:deletion',
+          resolvedAt: input.now,
+        },
+      });
 
       return;
     }
@@ -5083,6 +5833,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
         where: { id: link.id },
         data: {
           etag: inbound.etag,
+          remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
           remoteSnapshot: rawSnapshot,
           commonSnapshot: remoteCommon,
           syncedRevision: nextRevision,
@@ -5094,7 +5845,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       return;
     }
 
-    const localChanged = snapshotChangedFields(baseCommon, localCommon);
+    let localChanged = snapshotChangedFields(baseCommon, localCommon);
     const conflictingFields = snapshotConflictingGroups(
       baseCommon,
       localCommon,
@@ -5102,6 +5853,22 @@ export class PrismaCalendarRepository implements ICalendarRepository {
     );
 
     if (conflictingFields.length > 0) {
+      const remoteTime = googleEditedAt(inbound.rawSnapshot);
+      const localTime = current.localEditedAt?.getTime();
+      const providerTime = remoteTime?.getTime();
+      const known = localTime !== undefined && providerTime !== undefined;
+      const localWins =
+        current.status === 'cancelled' || (known && localTime > providerTime);
+
+      const reason =
+        current.status === 'cancelled'
+          ? 'deletion'
+          : !known
+            ? 'unknown_timestamp'
+            : localTime === providerTime
+              ? 'equal_timestamp'
+              : 'later_edit';
+
       await tx.calendarSyncConflict.create({
         data: {
           bindingId: binding.id,
@@ -5114,30 +5881,40 @@ export class PrismaCalendarRepository implements ICalendarRepository {
             remoteCommon,
           ),
           conflictingFields,
+          state: 'resolved',
+          resolution: `automatic:${localWins ? 'local' : 'remote'}:${reason}`,
+          resolvedAt: input.now,
         },
       });
-      await tx.calendarEvent.update({
-        where: { id: current.id },
-        data: { syncState: 'conflict', syncErrorCode: 'simultaneous_edit' },
-      });
+      if (!localWins)
+        localChanged = localChanged.filter(
+          (field) =>
+            !conflictingFields.includes(field) &&
+            !(
+              conflictingFields.includes('time') &&
+              CALENDAR_TIME_FIELDS.some((timeField) => timeField === field)
+            ),
+        );
+    }
+
+    if (remoteChanged.length > 0 || current.syncState === 'conflict') {
+      // Supersede the old payloads; a stale queued revision must not undo this merge.
       await tx.calendarSyncOperation.updateMany({
         where: {
           bindingId: binding.id,
           calendarEventId: current.id,
-          state: 'pending',
+          state: { notIn: ['completed', 'cancelled'] },
         },
-        data: { state: 'conflict', claimToken: null, claimedUntil: null },
+        data: { state: 'cancelled', claimToken: null, claimedUntil: null },
       });
-      await tx.calendarEventLink.update({
-        where: { id: link.id },
+      await tx.calendarSyncConflict.updateMany({
+        where: { eventLinkId: link.id, state: 'open' },
         data: {
-          etag: inbound.etag,
-          remoteSnapshot: rawSnapshot,
-          lastSeenFullImportGeneration: input.fullImportGeneration,
+          state: 'resolved',
+          resolution: 'automatic:reconciled',
+          resolvedAt: input.now,
         },
       });
-
-      return;
     }
 
     const localTimeChanged = CALENDAR_TIME_FIELDS.some((field) =>
@@ -5179,6 +5956,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       where: { id: link.id },
       data: {
         etag: inbound.etag,
+        remoteEditedAt: googleEditedAt(inbound.rawSnapshot),
         remoteSnapshot: rawSnapshot,
         commonSnapshot: remoteCommon,
         ...(mergedDiffersFromRemote ? {} : { syncedRevision: revision }),
@@ -5203,7 +5981,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           tx,
           binding.integration.userId,
           event(updated),
-          'update',
+          current.status === 'cancelled' ? 'delete' : 'update',
           {
             bindingId: binding.id,
             connectionGeneration: input.connectionGeneration,

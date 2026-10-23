@@ -27,6 +27,7 @@ import {
   type MemoryIngestionJob,
 } from './infra/queue';
 import { DocumentService, processDocumentJob } from './modules/documents';
+import { MessagingHandlerService } from './modules/messaging';
 import { DocumentArtifactCleanupService } from './modules/document-artifacts/document-artifact-cleanup.service';
 import { MemoryDreamService } from './modules/memories/memory-dream.service';
 import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-scheduler.service';
@@ -297,6 +298,9 @@ async function bootstrap(): Promise<void> {
   await scheduler.register();
 
   const close = async () => {
+    // A channel turn can still enqueue and await a document. Keep its worker
+    // alive until preparation and the response finish.
+    await context.get(MessagingHandlerService).stopAndDrain();
     await Promise.all([
       billingWorker.close(),
       reminderWorker.close(),

@@ -2,20 +2,30 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { HttpStatus } from '@nestjs/common';
 import type { WhatsAppService } from './whatsapp.service';
 import { WhatsAppController } from './whatsapp.controller';
+import type { AuthSecurityService } from '../../infra/auth';
 
-describe('WhatsAppController companion pairing', () => {
-  it('returns the provider pairing code', async () => {
-    const pairCompanion = jest
-      .fn<WhatsAppService['pairCompanion']>()
-      .mockResolvedValue({ code: 'ABCD-EFGH' });
+describe('WhatsAppController QR setup', () => {
+  it('returns the authenticated QR asset reference', async () => {
+    const beginQr = jest.fn<WhatsAppService['beginQr']>().mockResolvedValue({
+      attemptId: 'attempt-a',
+      expiresAt: new Date('2026-10-22T06:10:00Z'),
+      assetPath: '/whatsapp/companion/qr/attempt-a',
+    });
 
-    const controller = new WhatsAppController({
-      pairCompanion,
-    } as unknown as WhatsAppService);
+    const controller = new WhatsAppController(
+      { beginQr } as unknown as WhatsAppService,
+      {
+        limitWhatsAppSetup: () => Promise.resolve(),
+      } as unknown as AuthSecurityService,
+    );
 
     await expect(
-      controller.pairCompanion({ phone: '6285169319118' }),
-    ).resolves.toEqual({ code: 'ABCD-EFGH' });
+      controller.qr({ user: { id: 'user-a' } } as never),
+    ).resolves.toEqual({
+      attemptId: 'attempt-a',
+      expiresAt: new Date('2026-10-22T06:10:00Z'),
+      assetPath: '/whatsapp/companion/qr/attempt-a',
+    });
   });
 
   it('maps provider failures to an actionable service-unavailable response', async () => {
@@ -23,22 +33,25 @@ describe('WhatsAppController companion pairing', () => {
       code: 'ERR_STORE_LOCKED',
     });
 
-    const pairCompanion = jest
-      .fn<WhatsAppService['pairCompanion']>()
+    const beginQr = jest
+      .fn<WhatsAppService['beginQr']>()
       .mockRejectedValue(providerError);
 
-    const controller = new WhatsAppController({
-      pairCompanion,
-    } as unknown as WhatsAppService);
+    const controller = new WhatsAppController(
+      { beginQr } as unknown as WhatsAppService,
+      {
+        limitWhatsAppSetup: () => Promise.resolve(),
+      } as unknown as AuthSecurityService,
+    );
 
     await expect(
-      controller.pairCompanion({ phone: '6285169319118' }),
+      controller.qr({ user: { id: 'user-a' } } as never),
     ).rejects.toMatchObject({
       status: HttpStatus.SERVICE_UNAVAILABLE,
       response: {
         error: {
           code: 'SERVICE_UNAVAILABLE',
-          details: { providerCode: 'ERR_STORE_LOCKED' },
+          details: {},
         },
       },
     });

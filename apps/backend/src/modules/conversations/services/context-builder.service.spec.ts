@@ -760,6 +760,27 @@ describe('ContextBuilderService prompt prefix stability', () => {
 });
 
 describe('ContextBuilderService channel formatting', () => {
+  it('supplies native emphasis markers to the WhatsApp model context', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+      'message-1',
+      'whatsapp',
+    );
+
+    const channelPrompt = messages.find(
+      (entry) =>
+        entry.role === 'system' &&
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('# WhatsApp Message Formatting'),
+    );
+
+    expect(channelPrompt?.content).toContain('`*bold*` and `_italic_`');
+    expect(channelPrompt?.content).toContain(
+      'not Markdown `**bold**` or `*italic*`',
+    );
+  });
+
   it('injects Telegram formatting guidance and accounts for its tokens', async () => {
     const { messages, tokenUsage } = await createBuilder(10_000).build(
       user,
@@ -1092,6 +1113,23 @@ describe('ContextBuilderService prioritization and trust', () => {
     expect(messages.at(-1)?.role).toBe('user');
     expect(messages.at(-1)?.content).toEqual(
       expect.stringContaining('current instant'),
+    );
+  });
+});
+
+describe('ContextBuilderService mixed entity references', () => {
+  it('requires typed references at every web mention while retaining inline metadata', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+    );
+
+    const policy = messages[0]?.content;
+    expect(policy).toContain('[exact title](#event/ID)');
+    expect(policy).toContain('[exact title](#reminder/ID)');
+    expect(policy).toContain('reference every mention');
+    expect(policy).toContain(
+      'keep dates, times, and relevant statuses visible inline',
     );
   });
 });

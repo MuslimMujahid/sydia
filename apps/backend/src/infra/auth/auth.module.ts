@@ -21,7 +21,7 @@ import { VerifiedEmailGuard } from './verified-email.guard';
   providers: [AuthMailService, AuthSecurityService],
   exports: [AuthMailService, AuthSecurityService],
 })
-class AuthSupportModule {}
+export class AuthSupportModule {}
 
 /**
  * Wires Better Auth into NestJS. The integration module mounts the auth

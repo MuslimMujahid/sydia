@@ -8,11 +8,11 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
 const backend = process.env.PLAYWRIGHT_BACKEND_URL ?? "http://localhost:5000";
-const mailbox = process.env.PLAYWRIGHT_MAIL_URL ?? "http://localhost:8025";
+const mailbox = "http://127.0.0.1:8026";
 const password = "Registration123!";
 test.setTimeout(60_000);
 type MailList = {
-  messages: { ID: string; Subject: string; To: { Address: string }[] }[];
+  messages: { id: string; subject: string; to: string[]; text: string }[];
 };
 
 async function deliveredCode(
@@ -24,27 +24,21 @@ async function deliveredCode(
   await expect
     .poll(
       async () => {
-        const response = await request.get(`${mailbox}/api/v1/messages`);
+        const response = await request.get(`${mailbox}/messages`);
         expect(response.ok()).toBe(true);
         const inbox = (await response.json()) as MailList;
         const message = inbox.messages.find(
-          (item) =>
-            item.Subject === subject &&
-            item.To.some((to) => to.Address === email)
+          (item) => item.subject === subject && item.to.includes(email)
         );
 
         if (!message) return false;
-        const detail = (await (
-          await request.get(`${mailbox}/api/v1/message/${message.ID}`)
-        ).json()) as { Text: string };
-
-        code = detail.Text.match(/Kode Anda: (\d{6})/)?.[1];
+        code = message.text.match(/Kode Anda: (\d{6})/)?.[1];
 
         return Boolean(code);
       },
       {
         message:
-          "The local SMTP server must receive the requested authentication email",
+          "The local Resend fixture must receive the requested authentication email",
         timeout: 15_000,
       }
     )
@@ -64,8 +58,7 @@ async function register(page: Page) {
   await page
     .getByLabel("Konfirmasi kata sandi", { exact: true })
     .fill(password);
-  // SMTP connection, greeting, and socket timeouts can exceed the normal UI
-  // assertion deadline. Wait for the actual bounded delivery response first.
+  // Wait for the bounded Resend delivery response before checking cooldown.
   const delivery = page.waitForResponse(
     (response) =>
       response.url() ===

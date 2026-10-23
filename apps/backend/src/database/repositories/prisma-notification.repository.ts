@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma';
+import type { Prisma } from '../../generated/prisma/client';
 import type {
   INotificationRepository,
   NotificationSchedulingTarget,
@@ -59,9 +60,23 @@ export class PrismaNotificationRepository implements INotificationRepository {
     userId: string,
     channel: string,
     providerMessageId: string,
+    connection?: { id: string; generation: number },
   ) {
     return this.prisma.notificationDelivery.findFirst({
-      where: { userId, channel, providerMessageId, status: 'delivered' },
+      where: {
+        userId,
+        channel,
+        providerMessageId,
+        status: 'delivered',
+        ...(connection
+          ? {
+              whatsappBinding: {
+                connectionId: connection.id,
+                generation: connection.generation,
+              },
+            }
+          : {}),
+      },
       select: deliverySelect,
     });
   }
@@ -77,7 +92,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
     });
   }
 
-  createDelivery(input: {
+  async createDelivery(input: {
     userId: string;
     kind: string;
     content: string;
@@ -86,25 +101,139 @@ export class PrismaNotificationRepository implements INotificationRepository {
     channel: string;
     sourceId?: string | null;
     reminderOccurrenceId?: string | null;
+    whatsappSchedule?: { scheduledAt: Date; payload: Record<string, unknown> };
   }) {
-    return this.prisma.notificationDelivery.create({
-      data: input,
-      select: deliverySelect,
+    const { whatsappSchedule, ...deliveryInput } = input;
+
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.notificationDelivery.create({
+        data: deliveryInput,
+        select: deliverySelect,
+      });
+
+      if (input.channel === 'whatsapp') {
+        let scheduledAt = whatsappSchedule?.scheduledAt;
+
+        if (input.kind === 'reminder' && input.reminderOccurrenceId) {
+          const occurrence = await tx.reminderOccurrence.findUnique({
+            where: { id: input.reminderOccurrenceId },
+            select: {
+              occurrenceAt: true,
+              reminder: { select: { userId: true } },
+            },
+          });
+
+          if (!occurrence || occurrence.reminder.userId !== input.userId)
+            throw new Error(
+              'WhatsApp reminder occurrence is missing or belongs to another user.',
+            );
+          scheduledAt = occurrence.occurrenceAt;
+        }
+
+        const connection = await tx.whatsAppConnection.findFirst({
+          where: {
+            userId: input.userId,
+            active: true,
+            // A delayed scheduler must not give an old occurrence to a new
+            // owner or newly paired assistant. Future occurrences stay eligible.
+            ownerVerifiedAt: scheduledAt ? { lte: scheduledAt } : { not: null },
+          },
+          select: { id: true, generation: true },
+        });
+
+        await tx.whatsAppDeliveryBinding.create({
+          data: {
+            deliveryId: delivery.id,
+            connectionId: connection?.id,
+            generation: connection?.generation,
+            scheduledAt,
+            payload: whatsappSchedule
+              ? (JSON.parse(
+                  JSON.stringify(whatsappSchedule.payload),
+                ) as Prisma.InputJsonObject)
+              : undefined,
+          },
+        });
+      }
+
+      return delivery;
     });
   }
 
-  async rearmEventReminder(userId: string, id: string, content: string) {
-    const result = await this.prisma.notificationDelivery.updateMany({
-      where: { id, userId, kind: 'event_reminder', status: 'skipped_obsolete' },
-      data: { status: 'pending', content, policyOutcome: null },
-    });
+  async rearmEventReminder(
+    userId: string,
+    id: string,
+    content: string,
+    whatsappSchedule?: { scheduledAt: Date; payload: Record<string, unknown> },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.notificationDelivery.updateMany({
+        where: {
+          id,
+          userId,
+          kind: 'event_reminder',
+          status: 'skipped_obsolete',
+        },
+        data: { status: 'pending', content, policyOutcome: null },
+      });
 
-    return result.count === 1
-      ? this.prisma.notificationDelivery.findUnique({
-          where: { id },
-          select: deliverySelect,
-        })
-      : null;
+      if (result.count !== 1) return null;
+      const delivery = await tx.notificationDelivery.findUnique({
+        where: { id },
+        select: deliverySelect,
+      });
+
+      if (delivery?.channel === 'whatsapp' && whatsappSchedule) {
+        const binding = await tx.whatsAppDeliveryBinding.findUnique({
+          where: { deliveryId: id },
+          select: { connectionId: true, generation: true },
+        });
+
+        const authorized =
+          binding?.connectionId && binding.generation !== null
+            ? await tx.whatsAppConnection.count({
+                where: {
+                  id: binding.connectionId,
+                  generation: binding.generation,
+                  userId,
+                  active: true,
+                  ownerVerifiedAt: { lte: whatsappSchedule.scheduledAt },
+                },
+              })
+            : 0;
+
+        if (!authorized) {
+          await tx.notificationDelivery.update({
+            where: { id },
+            data: {
+              status: 'skipped_unlinked',
+              policyOutcome: 'outside_authorized_generation',
+            },
+          });
+
+          return {
+            ...delivery,
+            status: 'skipped_unlinked',
+            policyOutcome: 'outside_authorized_generation',
+          };
+        }
+
+        await tx.whatsAppDeliveryBinding.update({
+          where: { deliveryId: id },
+          data: {
+            scheduledAt: whatsappSchedule.scheduledAt,
+            payload: JSON.parse(
+              JSON.stringify(whatsappSchedule.payload),
+            ) as Prisma.InputJsonObject,
+            outageId: null,
+            missedAt: null,
+            summarizedAt: null,
+          },
+        });
+      }
+
+      return delivery;
+    });
   }
 
   async claimDelivery(userId: string, id: string): Promise<boolean> {
@@ -201,11 +330,36 @@ export class PrismaNotificationRepository implements INotificationRepository {
     userId: string,
     input: Parameters<INotificationRepository['savePreferences']>[1],
   ) {
-    return this.prisma.userPreference.upsert({
-      where: { userId },
-      create: { userId, ...input },
-      update: input,
-      select: preferenceSelect,
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.userPreference.upsert({
+        where: { userId },
+        create: { userId, ...input },
+        update: input,
+        select: preferenceSelect,
+      });
+
+      const grants = [
+        ...(input.briefingEnabled === true ? ['daily_briefing'] : []),
+        ...(input.weeklyBriefingEnabled === true ? ['weekly_briefing'] : []),
+        ...(input.followUpIntervalMinutes !== undefined ? ['follow_up'] : []),
+      ];
+
+      for (const kind of grants)
+        await tx.whatsAppConsent.upsert({
+          where: { userId_kind: { userId, kind } },
+          create: { userId, kind, grantedAt: new Date() },
+          update: { grantedAt: new Date() },
+        });
+      if (input.briefingEnabled === false)
+        await tx.whatsAppConsent.deleteMany({
+          where: { userId, kind: 'daily_briefing' },
+        });
+      if (input.weeklyBriefingEnabled === false)
+        await tx.whatsAppConsent.deleteMany({
+          where: { userId, kind: 'weekly_briefing' },
+        });
+
+      return result;
     });
   }
 }

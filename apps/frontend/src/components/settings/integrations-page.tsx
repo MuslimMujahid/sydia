@@ -55,14 +55,14 @@ function GoogleCalendarIntegrationCard({
       title="Google Calendar"
       account={status?.connected || needsReconnect ? status?.googleEmail : null}
       logoSrc="/images/brands/google-calendar.svg"
-      checked={status?.connected === true}
+      checked={status?.connected === true || needsReconnect}
       disabled={
         !status ||
         statusQuery.isError ||
         isConnecting ||
         disconnectMutation.isPending ||
         disconnectPending ||
-        (!status.connected && status.available === false)
+        (!status.connected && !needsReconnect && status.available === false)
       }
       onCheckedChange={(checked) => {
         setConnectError(null);
@@ -107,7 +107,8 @@ function GoogleCalendarIntegrationCard({
       ) : null}
       {needsReconnect ? (
         <p className="text-sm text-ink-muted" role="status">
-          Aktifkan kembali untuk menghubungkan ulang akun Google.
+          Sinkronisasi Google dijeda. Perubahan tetap tersimpan di Sydia.
+          Matikan lalu aktifkan kembali untuk menghubungkan ulang.
         </p>
       ) : null}
       {disconnectPending ? (
@@ -145,9 +146,12 @@ export function IntegrationSettingsPage({
   calendarAuthorization,
 }: IntegrationSettingsPageProps) {
   return (
-    <div className="max-w-3xl space-y-6 lg:space-y-10">
+    <div className="max-w-3xl space-y-6 max-sm:pt-2 lg:space-y-10">
       <DomainPageHeader title="Integrasi" divided={false} />
-      <Card className="p-6 sm:p-8" aria-label="Layanan integrasi">
+      <Card
+        className="border-0 p-5 shadow-none sm:px-8 sm:pt-6 sm:pb-8"
+        aria-label="Layanan integrasi"
+      >
         <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
           Layanan
         </h2>

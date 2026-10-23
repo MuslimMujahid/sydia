@@ -1,29 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { AdminShell } from "@/components/admin/admin-shell";
-import { AdminWhatsAppPage } from "@/components/settings/whatsapp-page";
-import { requireAdminSession } from "@/lib/auth";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin_/whatsapp")({
-  beforeLoad: ({ context, location }) =>
-    requireAdminSession(context.queryClient, location.href),
-  head: () => ({
-    meta: [
-      { title: "WhatsApp · Sydia Admin" },
-      {
-        name: "description",
-        content: "Hubungkan dan pantau satu nomor WhatsApp layanan Sydia.",
-      },
-    ],
-  }),
-  component: AdminWhatsAppRoute,
+  beforeLoad: () => {
+    throw redirect({ to: "/settings/integrations" });
+  },
 });
-
-function AdminWhatsAppRoute() {
-  const admin = Route.useRouteContext();
-
-  return (
-    <AdminShell user={admin}>
-      <AdminWhatsAppPage />
-    </AdminShell>
-  );
-}

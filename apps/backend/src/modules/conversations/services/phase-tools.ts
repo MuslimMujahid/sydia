@@ -163,17 +163,11 @@ export function createPhaseTools(deps: {
       if (!series) throw new Error('Event not found.');
 
       const occurrence =
-        series.provider === 'local'
-          ? await deps.calendarRead.resolveLocalOccurrenceForMutation(
-              userId,
-              seriesEventId,
-              occurrenceKey,
-            )
-          : await deps.calendarSync.resolveGoogleOccurrenceForMutation(userId, {
-              seriesEventId,
-              occurrenceKey,
-              ...(instanceEventId ? { instanceEventId } : {}),
-            });
+        await deps.calendarRead.resolveLocalOccurrenceForMutation(
+          userId,
+          seriesEventId,
+          occurrenceKey,
+        );
 
       if (!occurrence)
         throw new Error(

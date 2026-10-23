@@ -21,7 +21,10 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { StorageModule } from './infra/storage';
 import { CryptoModule } from './infra/crypto';
-import { WhatsAppInfraModule } from './infra/whatsapp';
+import {
+  resolveWhatsAppWebhookSecret,
+  WhatsAppInfraModule,
+} from './infra/whatsapp';
 import { WhatsAppModule } from './modules/whatsapp';
 import { TelegramInfraModule } from './infra/telegram';
 import { TelegramModule } from './modules/telegram';
@@ -389,21 +392,7 @@ export function validateEnvironment(
       config.BACKEND_WHATSAPP_GOWA_URL.trim() !== ''
         ? config.BACKEND_WHATSAPP_GOWA_URL.trim()
         : 'http://127.0.0.1:3001',
-    BACKEND_WHATSAPP_GOWA_DEVICE_ID:
-      typeof config.BACKEND_WHATSAPP_GOWA_DEVICE_ID === 'string' &&
-      config.BACKEND_WHATSAPP_GOWA_DEVICE_ID.trim() !== ''
-        ? config.BACKEND_WHATSAPP_GOWA_DEVICE_ID.trim()
-        : 'sydia',
-    BACKEND_WHATSAPP_WEBHOOK_SECRET:
-      typeof config.BACKEND_WHATSAPP_WEBHOOK_SECRET === 'string' &&
-      config.BACKEND_WHATSAPP_WEBHOOK_SECRET.trim() !== ''
-        ? config.BACKEND_WHATSAPP_WEBHOOK_SECRET.trim()
-        : 'dev-secret',
-    BACKEND_WHATSAPP_LOCK_PATH:
-      typeof config.BACKEND_WHATSAPP_LOCK_PATH === 'string' &&
-      config.BACKEND_WHATSAPP_LOCK_PATH.trim() !== ''
-        ? config.BACKEND_WHATSAPP_LOCK_PATH.trim()
-        : '.data/whatsapp',
+    BACKEND_WHATSAPP_WEBHOOK_SECRET: resolveWhatsAppWebhookSecret(config),
     BACKEND_WHATSAPP_COMMAND_TIMEOUT: parsePositiveInteger(
       config,
       'BACKEND_WHATSAPP_COMMAND_TIMEOUT',

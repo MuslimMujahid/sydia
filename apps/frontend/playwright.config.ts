@@ -8,6 +8,9 @@ const frontendPort = new URL(baseURL).port || "3000";
 const backendPort = new URL(backendURL).port || "5000";
 
 const backendEnvironment = {
+  NODE_ENV: "test",
+  BACKEND_RESEND_API_KEY: "re_playwright_fixture",
+  BACKEND_MAIL_FROM: "Sydia <no-reply@sydia.id>",
   BACKEND_PORT: backendPort,
   FRONTEND_PORT: frontendPort,
   FRONTEND_URL: baseURL,
@@ -43,11 +46,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "bun run start",
+      command:
+        "bun run build && node --import ../frontend/e2e/resend-fixture.mjs dist/src/main.js",
       cwd: "../backend",
       url: `${backendURL}/`,
       timeout: 120_000,
-      reuseExistingServer: !process.env.CI,
+      // Always launch the backend with the local Resend fixture.
+      reuseExistingServer: false,
       env: backendEnvironment,
     },
     {

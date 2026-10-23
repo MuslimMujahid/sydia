@@ -57,6 +57,14 @@ function channelMessages(locale: string) {
   return CHANNEL_MESSAGES[locale === 'id' ? 'id' : 'en'];
 }
 
+function channelAddress(message: NormalizedInboundMessage) {
+  const connection = message.whatsappConnection;
+
+  return connection
+    ? `${connection.id}:${connection.generation}:${message.chatExternalId}`
+    : message.chatExternalId;
+}
+
 export type InboundMessageInput = {
   message: NormalizedInboundMessage;
   user: User;
@@ -82,7 +90,7 @@ export type ChannelTurnAdapter = {
   beginProcessing?: (
     messages: NormalizedInboundMessage[],
     signal: AbortSignal,
-  ) => Promise<() => void>;
+  ) => Promise<() => void | Promise<void>>;
   queued?: (message: NormalizedInboundMessage) => Promise<void>;
 };
 
@@ -95,6 +103,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly burstWindowMs = 2_000;
   private readonly leaseMs = 5 * 60_000;
+  private stopping = false;
 
   constructor(
     private readonly billing: BillingAccessService,
@@ -106,9 +115,17 @@ export class MessagingHandlerService implements OnModuleDestroy {
     private readonly notifications: INotificationRepository,
   ) {}
 
-  onModuleDestroy(): void {
+  onModuleDestroy(): Promise<void> {
+    return this.stopAndDrain();
+  }
+
+  async stopAndDrain(): Promise<void> {
+    this.stopping = true;
     for (const timer of this.timers.values()) clearTimeout(timer);
-    for (const controller of this.abortControllers.values()) controller.abort();
+    this.timers.clear();
+    // Dependencies stay alive until Nest finishes this hook. Let the current
+    // attachment/turn finish; queued turns belong to the next process.
+    await Promise.all(this.drains.values());
   }
 
   async registerAdapter(
@@ -142,7 +159,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
     const channel = await this.conversations.resolveChannelConversation({
       provider: input.message.provider,
       externalIdentityId: input.externalIdentityId,
-      chatExternalId: input.message.chatExternalId,
+      chatExternalId: channelAddress(input.message),
       userId: input.user.id,
       title: input.message.text,
       activeAfter: new Date(now.getTime() - 24 * 60 * 60_000),
@@ -176,7 +193,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
       await this.conversations.resetChannelConversation(
         input.message.provider,
         input.externalIdentityId,
-        input.message.chatExternalId,
+        channelAddress(input.message),
       );
       await this.sendFor(
         input.user,
@@ -223,6 +240,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
   }
 
   private scheduleDrain(channelId: string, delayMs: number): void {
+    if (this.stopping) return;
     const current = this.timers.get(channelId);
     if (current) clearTimeout(current);
     const timer = setTimeout(() => {
@@ -244,7 +262,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
   }
 
   private async drainLoop(channelId: string): Promise<void> {
-    while (true) {
+    while (!this.stopping) {
       const now = new Date();
       const batch = await this.conversations.claimChannelTurns(
         channelId,
@@ -320,7 +338,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
         });
     }, 1_000);
 
-    let stopProcessing: (() => void) | undefined;
+    let stopProcessing: (() => void | Promise<void>) | undefined;
 
     try {
       if (!user.emailVerified) {
@@ -366,7 +384,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
       if (unresolved) {
         await toolsReady;
         if (controller.signal.aborted) throw controller.signal.reason;
-        stopProcessing?.();
+        await stopProcessing?.();
         stopProcessing = undefined;
         await adapter.send(
           user,
@@ -396,7 +414,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
       const result = await this.assistant.sendAndWait(user, {
         conversationId: batch.conversationId,
         content,
-        idempotencyKey: `${batch.provider}:${batch.turns.map(({ providerMessageId }) => providerMessageId).join('+')}`,
+        idempotencyKey: `${batch.provider}:${last.message.whatsappConnection ? `${last.message.whatsappConnection.id}:${last.message.whatsappConnection.generation}:` : ''}${batch.turns.map(({ providerMessageId }) => providerMessageId).join('+')}`,
         attachmentIds,
         channel: batch.provider,
         abortSignal: controller.signal,
@@ -417,7 +435,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
       if (result.assistantMessage) {
         const response = result.assistantMessage.content;
 
-        stopProcessing?.();
+        await stopProcessing?.();
         stopProcessing = undefined;
 
         await adapter.send(
@@ -487,7 +505,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
           }
         }
 
-        stopProcessing?.();
+        await stopProcessing?.();
         stopProcessing = undefined;
 
         try {
@@ -506,7 +524,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
         }
       }
     } finally {
-      stopProcessing?.();
+      await stopProcessing?.();
       clearInterval(monitor);
       turnIds.forEach((id) => this.abortControllers.delete(id));
     }
@@ -524,11 +542,18 @@ export class MessagingHandlerService implements OnModuleDestroy {
     );
 
     if (reply.isFromMe) {
-      const delivery = await this.notifications.findDeliveryByProviderMessageId(
-        userId,
-        message.provider,
-        reply.providerMessageId,
-      );
+      const delivery = message.whatsappConnection
+        ? await this.notifications.findDeliveryByProviderMessageId(
+            userId,
+            message.provider,
+            reply.providerMessageId,
+            message.whatsappConnection,
+          )
+        : await this.notifications.findDeliveryByProviderMessageId(
+            userId,
+            message.provider,
+            reply.providerMessageId,
+          );
 
       if (delivery?.content.trim()) {
         this.logger.log(

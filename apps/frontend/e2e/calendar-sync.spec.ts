@@ -38,6 +38,7 @@ const googleEvent: CalendarEvent = {
 };
 
 type CalendarMocks = {
+  needsReconnect?: boolean;
   connected: boolean;
   disconnectPending: boolean;
   disconnectFailuresRemaining: number;
@@ -54,12 +55,14 @@ type CalendarMocks = {
 
 function connectedStatus(mocks: CalendarMocks) {
   return {
-    connected: mocks.connected,
+    connected: mocks.connected && !mocks.needsReconnect,
     connectionStatus: mocks.disconnectPending
       ? "disconnecting"
-      : mocks.connected
-        ? "connected"
-        : "disconnected",
+      : mocks.needsReconnect && mocks.connected
+        ? "reconnect_required"
+        : mocks.connected
+          ? "connected"
+          : "disconnected",
     cleanupPending: mocks.disconnectPending,
     provider: "google",
     calendarId: mocks.connected ? "primary" : null,
@@ -334,6 +337,61 @@ test("a failed refresh shows the error and logs the failed sync request", async 
       )
     )
     .toBe(true);
+});
+
+test("calendar omits the sync history icon and dialog", async ({ page }) => {
+  await mockCalendarApi(page, { connected: true });
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await expect(page.getByText("Rapat sinkron", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Riwayat sinkronisasi" })
+  ).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("connected Google Settings keeps account switching on the existing toggle", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+  const toggle = page.getByRole("switch", { name: "Google Calendar" });
+  await expect(toggle).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Ganti akun Google" })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "Kalender Google" })
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(/Jika Anda mengganti akun atau kalender/)
+  ).toHaveCount(0);
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByText(/Jika Anda menghubungkan akun lain/)).toHaveCount(
+    0
+  );
+  await toggle.click();
+  await expect.poll(() => mocks.connectCount).toBe(1);
+});
+
+test("Settings keeps Google enabled while authorization is paused and offers reconnection", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.needsReconnect = true;
+  await page.goto("/e2e/calendar-sync.html?mode=integrations");
+  await expect(
+    page.getByRole("switch", { name: "Google Calendar" })
+  ).toBeChecked();
+  await expect(page.getByText(/Sinkronisasi Google dijeda/)).toBeVisible();
+  const toggle = page.getByRole("switch", { name: "Google Calendar" });
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByText(/Jika Anda menghubungkan akun lain/)).toHaveCount(
+    0
+  );
+  await toggle.click();
+  await expect.poll(() => mocks.connectCount).toBe(1);
 });
 
 test("cancelled Calendar consent keeps the integrations switch available for retry", async ({
@@ -708,142 +766,6 @@ test("unavailable Telegram connection has a disabled switch", async ({
   ).toBeVisible();
 });
 
-async function mockWhatsAppApi(page: Page) {
-  const mocks = {
-    linked: false,
-    blocked: false,
-    failConnect: false,
-    failUnlink: false,
-  };
-
-  await page.clock.install({ time: new Date("2026-10-12T08:00:00Z") });
-  await page.route("http://localhost:5000/whatsapp/status", (route) =>
-    route.fulfill({
-      json: {
-        data: {
-          linked: mocks.linked,
-          externalId: mocks.linked ? "628123456789@s.whatsapp.net" : null,
-          contact: null,
-          gateway: {
-            status: mocks.blocked ? "enforced" : "connected",
-            registrationReady: true,
-            profileReady: true,
-            sendingPaused: mocks.blocked,
-            enforcementCode: null,
-            enforcementReason: mocks.blocked
-              ? "Pengiriman dijeda oleh WhatsApp."
-              : null,
-            recoveryReason: null,
-            lastConnectedAt: null,
-            lastEventAt: null,
-          },
-        },
-      },
-    })
-  );
-  await page.route("http://localhost:5000/whatsapp/link-code", (route) =>
-    mocks.failConnect
-      ? route.fulfill({
-          status: 503,
-          json: {
-            error: {
-              code: "SERVICE_UNAVAILABLE",
-              message: "Kode WhatsApp belum dapat dibuat.",
-            },
-          },
-        })
-      : route.fulfill({
-          json: {
-            data: { code: "SYDIA-1234", expiresAt: "2026-10-12T08:05:00Z" },
-          },
-        })
-  );
-  await page.route("http://localhost:5000/whatsapp/link", (route) => {
-    if (mocks.failUnlink)
-      return route.fulfill({
-        status: 503,
-        json: {
-          error: {
-            code: "SERVICE_UNAVAILABLE",
-            message: "Tautan WhatsApp belum dapat diputuskan.",
-          },
-        },
-      });
-    mocks.linked = false;
-
-    return route.fulfill({ status: 204 });
-  });
-
-  return mocks;
-}
-
-test("WhatsApp switch creates a code and turns on only after linking is confirmed", async ({
-  page,
-}) => {
-  const mocks = await mockWhatsAppApi(page);
-  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
-  const whatsapp = page.getByRole("switch", { name: "WhatsApp", exact: true });
-  await whatsapp.click();
-
-  await expect(page.getByText("SYDIA-1234", { exact: true })).toBeVisible();
-  await expect(whatsapp).not.toBeChecked();
-  await expect(whatsapp).toBeDisabled();
-  mocks.linked = true;
-  await expect(whatsapp).toBeChecked();
-  await expect(page.getByText("628123456789", { exact: true })).toBeVisible();
-});
-
-test("WhatsApp link-code failure leaves the switch off and ready to retry", async ({
-  page,
-}) => {
-  const mocks = await mockWhatsAppApi(page);
-  mocks.failConnect = true;
-  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
-  const whatsapp = page.getByRole("switch", { name: "WhatsApp", exact: true });
-  await whatsapp.click();
-
-  await expect(page.getByRole("alert")).toContainText(
-    "Kode WhatsApp belum dapat dibuat."
-  );
-  await expect(whatsapp).not.toBeChecked();
-  await expect(whatsapp).toBeEnabled();
-});
-
-test("WhatsApp disconnect failure keeps the switch on and allows another attempt", async ({
-  page,
-}) => {
-  const mocks = await mockWhatsAppApi(page);
-  mocks.linked = true;
-  mocks.failUnlink = true;
-  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
-  const whatsapp = page.getByRole("switch", { name: "WhatsApp", exact: true });
-  await expect(whatsapp).toBeChecked();
-  await whatsapp.click();
-
-  await expect(page.getByRole("alert")).toContainText(
-    "Tautan WhatsApp belum dapat diputuskan."
-  );
-  await expect(whatsapp).toBeChecked();
-  await expect(whatsapp).toBeEnabled();
-  mocks.failUnlink = false;
-  await whatsapp.click();
-  await expect(whatsapp).not.toBeChecked();
-});
-
-test("WhatsApp enforcement disables new links and exposes the reason", async ({
-  page,
-}) => {
-  const mocks = await mockWhatsAppApi(page);
-  mocks.blocked = true;
-  await page.goto("/e2e/calendar-sync.html?mode=whatsapp");
-  await expect(
-    page.getByRole("switch", { name: "WhatsApp", exact: true })
-  ).toBeDisabled();
-  await expect(page.getByRole("alert")).toContainText(
-    "Pengiriman dijeda oleh WhatsApp."
-  );
-});
-
 test("event fields stay collapsed until their icon row is clicked", async ({
   page,
 }, testInfo) => {
@@ -867,6 +789,66 @@ test("event fields stay collapsed until their icon row is clicked", async ({
   await expect(page.getByRole("button", { name: "Ubah lokasi" })).toContainText(
     "Kantor"
   );
+});
+
+test("new events retain their Google destination while authorization is paused", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.needsReconnect = true;
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page.getByRole("button", { name: "Buat", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Buat Acara" }).click();
+  await page
+    .getByLabel("Judul", { exact: true })
+    .fill("Acara saat Google dijeda");
+  await expect(
+    page.getByRole("checkbox", { name: "Buat kalender Google" })
+  ).toBeChecked();
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.createRequest)
+    .toMatchObject({
+      destination: "google",
+      title: "Acara saat Google dijeda",
+    });
+});
+
+test("a recurring Google occurrence remains editable while authorization is paused", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.needsReconnect = true;
+  mocks.event = {
+    ...googleEvent,
+    syncState: "reconnect_required",
+    isOccurrence: true,
+    seriesEventId: "series-1",
+    occurrenceKey: timestamp,
+  };
+  await page.route(
+    "http://localhost:5000/calendar/events/occurrences/resolve",
+    (route) =>
+      route.fulfill({
+        json: { data: { ...googleEvent, syncState: "pending" } },
+      })
+  );
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page
+    .getByRole("button", { name: /Acara: Rapat sinkron/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await page
+    .getByRole("button", { name: "Ubah kejadian ini", exact: true })
+    .click();
+  await page
+    .getByLabel("Judul", { exact: true })
+    .fill("Perubahan kejadian dijeda");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.updateRequest)
+    .toMatchObject({ title: "Perubahan kejadian dijeda" });
 });
 
 test("Google destination controls whether Meet is offered and saved", async ({
@@ -1172,6 +1154,34 @@ test("unchecking all-day collapses the date range to its selected start day", as
     .toBe("2026-10-20");
   expect(mocks.createRequest?.endAt?.slice(0, 10)).toBe("2026-10-20");
   expect(mocks.createRequest).not.toHaveProperty("allDayStartDate");
+});
+
+test("a Google event with paused sync opens the normal editor and saves without copying", async ({
+  page,
+}) => {
+  const mocks = await mockCalendarApi(page, { connected: true });
+  mocks.event = { ...googleEvent, syncState: "reconnect_required" };
+  await page.goto("/e2e/calendar-sync.html?mode=calendar");
+  await page
+    .getByRole("button", { name: /Acara: Rapat sinkron/ })
+    .first()
+    .click();
+  await expect(
+    page.getByText("Tersimpan di Sydia · Sinkronisasi dijeda")
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Edit acara" }).click();
+  await expect(
+    page.getByRole("button", { name: "Salin ke Sydia" })
+  ).toHaveCount(0);
+  await page
+    .getByLabel("Judul", { exact: true })
+    .fill("Rapat saat sinkronisasi dijeda");
+  await page.getByRole("button", { name: "Simpan acara" }).click();
+  await expect
+    .poll(() => mocks.updateRequest)
+    .toMatchObject({
+      title: "Rapat saat sinkronisasi dijeda",
+    });
 });
 
 test("an unrelated edit preserves an existing timed event spanning multiple days", async ({

@@ -585,7 +585,10 @@ export function CalendarPage({
           <EventEditor
             key={editor.event.id}
             event={editor.event}
-            googleConnected={statusQuery.data?.connected === true}
+            googleConnected={
+              statusQuery.data?.connected === true ||
+              statusQuery.data?.connectionStatus === "reconnect_required"
+            }
             timezone={timezone}
             onClose={() => setEditor(null)}
           />
@@ -593,7 +596,10 @@ export function CalendarPage({
           editor.kind === "event" ? (
             <EventEditor
               key={`new-event-${editor.startAt ?? "blank"}`}
-              googleConnected={statusQuery.data?.connected === true}
+              googleConnected={
+                statusQuery.data?.connected === true ||
+                statusQuery.data?.connectionStatus === "reconnect_required"
+              }
               initialStartAt={editor.startAt}
               initialEndAt={editor.endAt}
               timezone={timezone}
@@ -631,11 +637,7 @@ export function CalendarPage({
                 variant="secondary"
                 disabled={
                   isResolvingRecurrence ||
-                  !["google", "local"].includes(
-                    recurrenceAction.event.provider
-                  ) ||
-                  (recurrenceAction.event.provider === "google" &&
-                    statusQuery.data?.connected !== true)
+                  !["google", "local"].includes(recurrenceAction.event.provider)
                 }
                 onClick={() => void chooseRecurrenceScope("occurrence")}
               >
@@ -653,8 +655,8 @@ export function CalendarPage({
                 </p>
               ) : statusQuery.data?.connected !== true ? (
                 <p className="text-sm text-ink-muted">
-                  Hubungkan kembali Google Calendar untuk mengubah satu
-                  kejadian.
+                  Perubahan tetap tersimpan di Sydia dan akan disinkronkan
+                  setelah Google terhubung kembali.
                 </p>
               ) : null}
               <Button

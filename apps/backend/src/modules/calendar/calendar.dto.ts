@@ -17,6 +17,13 @@ export class CalendarRangeDto {
   @Type(() => Date) @IsDate() from!: Date;
   @Type(() => Date) @IsDate() to!: Date;
 }
+export class CalendarRecoveryQueryDto {
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(100) beforeId?: string;
+}
+
+export class RestoreCalendarRecoveryDto {
+  @IsIn(['local', 'remote']) version!: 'local' | 'remote';
+}
 export class CreateCalendarEventDto {
   @IsString() @MinLength(1) @MaxLength(300) title!: string;
   @IsOptional() @IsString() @MaxLength(4000) description?: string | null;

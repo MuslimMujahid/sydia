@@ -4,8 +4,10 @@ import { cn } from "@/lib/utils/cn";
 const Popover = PopoverPrimitive.Root;
 const PopoverTrigger = PopoverPrimitive.Trigger;
 const PopoverClose = PopoverPrimitive.Close;
+const PopoverArrow = PopoverPrimitive.Arrow;
 
 type PopoverContentProps = PopoverPrimitive.Popup.Props & {
+  anchor?: PopoverPrimitive.Positioner.Props["anchor"];
   side?: PopoverPrimitive.Positioner.Props["side"];
   align?: PopoverPrimitive.Positioner.Props["align"];
   sideOffset?: PopoverPrimitive.Positioner.Props["sideOffset"];
@@ -18,11 +20,13 @@ function PopoverContent({
   align = "start",
   sideOffset = 6,
   collisionPadding = 12,
+  anchor,
   ...props
 }: PopoverContentProps) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
+        anchor={anchor}
         side={side}
         align={align}
         sideOffset={sideOffset}
@@ -57,5 +61,12 @@ function PopoverTitle({ className, ...props }: PopoverTitleProps) {
   );
 }
 
-export { Popover, PopoverTrigger, PopoverContent, PopoverTitle, PopoverClose };
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverTitle,
+  PopoverClose,
+  PopoverArrow,
+};
 export type { PopoverContentProps, PopoverTitleProps };

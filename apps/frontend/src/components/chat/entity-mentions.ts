@@ -76,7 +76,30 @@ export function enrichEntityMentions(
         const value = run.map(inlineText).join("");
         let offset = 0;
 
-        for (const part of matchEntityText(value, entities)) {
+        // Older replies lack IDs. Only an explicit type label can narrow a
+        // same-title collision; never infer identity from list position.
+        const label =
+          /^\s*(tugas|task|pengingat|reminder|acara|agenda|event)\s*:/i.exec(
+            value
+          );
+
+        const kindLabel = label?.[1]?.toLowerCase();
+        const kind =
+          kindLabel === "tugas" || kindLabel === "task"
+            ? "task"
+            : kindLabel === "pengingat" || kindLabel === "reminder"
+              ? "reminder"
+              : kindLabel === "acara" ||
+                  kindLabel === "agenda" ||
+                  kindLabel === "event"
+                ? "event"
+                : undefined;
+
+        const candidates = kind
+          ? entities.filter((entity) => entity.kind === kind)
+          : entities;
+
+        for (const part of matchEntityText(value, candidates)) {
           const fragment = sliceInline(run, offset, offset + part.text.length);
           if (part.entity) {
             mentioned.add(entityKey(part.entity));
@@ -105,23 +128,25 @@ export function enrichEntityMentions(
         if (node.tagName === "a") {
           const href = node.properties.href;
 
-          if (
-            typeof href === "string" &&
-            (href.startsWith("#task/") || href.startsWith("#note/"))
-          ) {
-            const kind = href.startsWith("#note/") ? "note" : "task";
-            const task = entities.find(
+          const reference =
+            typeof href === "string"
+              ? /^#(task|note|event|reminder)\//.exec(href)
+              : null;
+
+          if (reference) {
+            const kind = reference[1];
+            const entityReference = entities.find(
               (entity) =>
                 entity.kind === kind &&
                 href === `#${kind}/${encodeURIComponent(entity.id)}`
             );
 
-            if (task) {
-              mentioned.add(entityKey(task));
-              result.push(mention(task, task.title));
+            if (entityReference) {
+              mentioned.add(entityKey(entityReference));
+              result.push(mention(entityReference, entityReference.title));
             } else {
               // Degraded display: retain the label, never expose an unverified
-              // task link or guess an ID from another answer.
+              // entity link or guess an ID from another answer.
               if (reportUnconfirmed)
                 console.warn(
                   `Unconfirmed ${kind} reference in assistant response`
