@@ -181,6 +181,8 @@ interface BillingCheckoutProps {
   quiet?: boolean;
   /** Stretch the action across its container (plan card). */
   fullWidth?: boolean;
+  /** Replace the default action wording; the price is then left out. */
+  label?: string;
 }
 
 /** The single payment flow: open invoice status, or the way to request one. */
@@ -190,6 +192,7 @@ export function BillingCheckout({
   inline = true,
   quiet = false,
   fullWidth = false,
+  label,
 }: BillingCheckoutProps) {
   const text = BILLING_COPY[language];
   const { orders, pending, mobile, setMobile, checkout, submit } =
@@ -266,7 +269,8 @@ export function BillingCheckout({
               fullWidth && "w-full"
             )}
           >
-            {`${action} · ${formatBillingCurrency(billing.price, language)}`}
+            {label ??
+              `${action} · ${formatBillingCurrency(billing.price, language)}`}
           </Link>
         )
       ) : !billing.checkoutEnabled ? (

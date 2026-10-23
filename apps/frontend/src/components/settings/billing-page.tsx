@@ -6,10 +6,8 @@ import {
   CalendarDays,
   ChevronRight,
   FileText,
-  HardDrive,
   Infinity as InfinityIcon,
   MessageCircle,
-  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { DomainPageHeader } from "@/components/domain/domain-page";
@@ -29,7 +27,9 @@ import {
   BILLING_PITCH,
   billingLanguage,
   formatBillingCurrency,
+  billingTermLeft,
   formatBillingDay,
+  formatBillingDaysLeft,
   type BillingBenefit,
 } from "./billing-copy";
 import { showTestEnvironment } from "./billing-plan";
@@ -45,10 +45,11 @@ const BENEFIT_ICON: Record<BillingBenefit["icon"], LucideIcon> = {
   memory: Brain,
   document: FileText,
   calendar: CalendarDays,
-  storage: HardDrive,
   unlimited: InfinityIcon,
-  manual: WalletCards,
 };
+
+const PROGRESS =
+  "h-2 w-full overflow-hidden rounded-pill bg-hairline [&::-moz-progress-bar]:bg-brand [&::-webkit-progress-bar]:bg-hairline [&::-webkit-progress-value]:bg-brand";
 
 const SECTION_HEADING = "font-display text-[17px] leading-[1.6] font-semibold";
 
@@ -96,64 +97,107 @@ export function BillingPage({ locale, timezone }: BillingPageProps) {
     );
 
   const billing = status.data;
-  const hero = pitch.hero[billing.state];
-  const trialing = billing.state === "trial";
+  const copy = text.settings;
+  const now = status.dataUpdatedAt;
+  const discount = Math.floor((1 - billing.price / billing.normalPrice) * 100);
+  const showPrice = billing.state === "trial" || billing.state === "expired";
+  const until =
+    billing.state === "trial"
+      ? billing.trialEndsAt
+      : billing.state === "paid"
+        ? billing.paidUntil
+        : null;
+
+  const daysLeft = until ? formatBillingDaysLeft(until, now, language) : null;
+  const heading =
+    billing.state === "trial"
+      ? { title: copy.trialTitle(daysLeft ?? ""), body: copy.trialBody }
+      : billing.state === "paid"
+        ? { title: copy.paidTitle, body: copy.paidBody }
+        : billing.state === "expired"
+          ? { title: copy.expiredTitle, body: copy.expiredBody }
+          : {
+              title: pitch.hero.disabled.title(billing.trialDays),
+              body: pitch.hero.disabled.body,
+            };
 
   return (
     <div className="max-w-3xl space-y-6 lg:space-y-10">
       <DomainPageHeader title={text.title} divided={false} />
-      <Card className="border-brand/40 p-6 sm:p-8">
-        <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:gap-10">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <p className="font-display text-[17px] font-semibold">
-                {pitch.planName}
-              </p>
-              <h2 className="font-display text-[28px] leading-[1.15] font-bold tracking-[-0.03em] text-ink">
-                {hero.title(billing.trialDays)}
-              </h2>
-              <p className="text-ink-muted">{hero.body}</p>
+      <Card className="p-6 sm:p-8">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-md space-y-3">
+            <h2 className="font-display text-[34px] leading-[1.1] font-bold tracking-[-0.03em] text-ink">
+              {heading.title}
+            </h2>
+            <p className="text-ink-muted">{heading.body}</p>
+            <div className="pt-2">
+              <BillingCheckout
+                billing={billing}
+                language={language}
+                inline={false}
+                quiet
+                label={
+                  billing.state === "expired"
+                    ? copy.resubscribe
+                    : text.subscribe
+                }
+              />
             </div>
-            <BillingCheckout
-              billing={billing}
-              language={language}
-              inline={false}
-              quiet
-              fullWidth
-            />
-            <div>
-              <p className="flex items-baseline gap-2">
-                <span className="font-display text-4xl font-bold tracking-[-0.03em] tabular-nums">
-                  {currency(billing.price)}
-                </span>
-                {billing.price < billing.normalPrice ? (
-                  <del
-                    className="text-ink-muted tabular-nums"
-                    aria-label={text.normal}
-                  >
-                    {currency(billing.normalPrice)}
-                  </del>
-                ) : null}
+          </div>
+          {showPrice ? (
+            <div className="sm:text-right">
+              {discount > 0 ? (
+                <p className="text-sm font-semibold text-brand">
+                  {copy.discount(discount)}
+                </p>
+              ) : null}
+              <p className="font-display text-4xl font-bold tracking-[-0.03em] tabular-nums">
+                {currency(billing.price)}
               </p>
-              <p className="mt-1 text-ink-muted">
-                {trialing ? `${pitch.afterTrial}, ` : null}
-                {text.term}
+              <p className="mt-1 text-sm text-ink-muted">
+                {billing.price < billing.normalPrice ? (
+                  <>
+                    <del aria-label={text.normal} className="tabular-nums">
+                      {currency(billing.normalPrice)}
+                    </del>{" "}
+                    ·{" "}
+                  </>
+                ) : null}
+                {copy.perTerm}
               </p>
               {showTestEnvironment(billing) ? (
                 <p className="mt-3 text-xs text-ink-weak">{text.sandbox}</p>
               ) : null}
             </div>
+          ) : null}
+        </div>
+        {billing.state === "paid" && billing.paidUntil ? (
+          <div className="mt-8 space-y-3">
+            <p className="tabular-nums">{copy.remaining(daysLeft ?? "")}</p>
+            <progress
+              aria-label={copy.remaining(daysLeft ?? "")}
+              value={billingTermLeft(
+                billing.paidUntil,
+                now,
+                billing.durationDays
+              )}
+              max={1}
+              className={PROGRESS}
+            />
           </div>
-          <div className="space-y-4">
-            <p className="font-semibold text-ink">{pitch.tagline}</p>
-            <ul className="space-y-4">
+        ) : null}
+        {billing.state === "trial" ? (
+          <div className="mt-10 space-y-4">
+            <h3 className="font-semibold text-ink">{copy.benefits}</h3>
+            <ul className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
               {pitch.benefits.map((benefit) => {
                 const Icon = BENEFIT_ICON[benefit.icon];
 
                 return (
                   <li key={benefit.text} className="flex items-start gap-3">
                     <Icon
-                      className="mt-0.5 size-5 shrink-0 text-ink-muted"
+                      className="mt-0.5 size-5 shrink-0 text-brand"
                       aria-hidden="true"
                     />
                     {benefit.text}
@@ -162,12 +206,20 @@ export function BillingPage({ locale, timezone }: BillingPageProps) {
               })}
             </ul>
           </div>
-        </div>
+        ) : null}
       </Card>
       <Card className="p-6 sm:p-8">
-        <div className="max-w-xl">
-          <h2 className={SECTION_HEADING}>{text.storage}</h2>
-          <p className="mt-2 text-ink-muted">{text.storageDescription}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className={SECTION_HEADING}>{text.storage}</h2>
+            <p className="mt-2 text-ink-muted">{copy.fileLimit}</p>
+          </div>
+          <Link
+            to="/files"
+            className="shrink-0 text-sm font-semibold text-brand hover:underline"
+          >
+            {copy.manageStorage}
+          </Link>
         </div>
         <div className="mt-6 space-y-3">
           <p className="tabular-nums">
@@ -180,14 +232,13 @@ export function BillingPage({ locale, timezone }: BillingPageProps) {
             aria-label={text.storage}
             value={billing.storage.usedBytes}
             max={billing.storage.limitBytes}
-            className="h-2 w-full overflow-hidden rounded-pill bg-hairline [&::-moz-progress-bar]:bg-brand [&::-webkit-progress-bar]:bg-hairline [&::-webkit-progress-value]:bg-brand"
+            className={PROGRESS}
           />
         </div>
       </Card>
       <Card className="p-6 sm:p-8">
         <div className="max-w-xl">
           <h2 className={SECTION_HEADING}>{text.history}</h2>
-          <p className="mt-2 text-ink-muted">{text.historyDescription}</p>
         </div>
         <div className="mt-6">
           {orders.isPending ? (
@@ -204,7 +255,7 @@ export function BillingPage({ locale, timezone }: BillingPageProps) {
               </Button>
             </div>
           ) : orders.data.length === 0 ? (
-            <p className="text-ink-muted">{text.empty}</p>
+            <p className="text-ink-muted">{copy.emptyHistory}</p>
           ) : (
             <ul className="divide-y divide-hairline rounded-md border border-hairline">
               {orders.data.map((order) => {
