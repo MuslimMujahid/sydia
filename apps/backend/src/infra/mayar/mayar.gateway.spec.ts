@@ -15,6 +15,8 @@ function runtime() {
     new ConfigService({
       MAYAR_API_KEY: 'fixture-key',
       MAYAR_ENVIRONMENT: 'sandbox',
+      MAYAR_MEMBERSHIP_PRODUCT_ID: 'product',
+      MAYAR_MEMBERSHIP_TIER_ID: 'tier',
       BACKEND_REDIS_URL: 'redis://localhost:6379',
     }),
   );
@@ -22,59 +24,67 @@ function runtime() {
   return gateway;
 }
 
-test('invoice creation sends item pricing and a local order reference to V2 sandbox', async () => {
-  const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        data: {
-          id: 'invoice',
-          transactionId: 'transaction',
-          link: 'https://merchant.myr.id/invoices/test',
-          expiredAt: 1793492100000,
-        },
-      }),
-    ),
-  );
+test('invoice creation bills the member of the membership product on V2 sandbox', async () => {
+  const fetch = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: {
+            id: 'invoice',
+            status: 'unpaid',
+            amount: 29_000,
+            membershipBillUrl: 'https://merchant.mayar.shop/pl/test',
+          },
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ data: { id: 'invoice', expiredAt: 1793492100000 } }),
+      ),
+    );
 
-  await runtime().createInvoice({
-    orderId: 'order',
-    name: 'Customer',
-    email: 'customer@example.test',
-    mobile: '+6281234567890',
+  expect(await runtime().createInvoice({ memberId: 'MBR8X2QK' })).toEqual({
+    id: 'invoice',
+    transactionId: null,
+    link: 'https://merchant.mayar.shop/pl/test',
     amount: 29_000,
-    expiresAt: new Date('2026-11-01T00:15:00Z'),
+    expiresAt: new Date(1793492100000),
   });
   expect(fetch).toHaveBeenCalledWith(
-    'https://api.mayar.io/hl/v2/invoices/create',
+    'https://api.mayar.io/hl/v2/memberships/members/MBR8X2QK/invoice/create',
     expect.objectContaining({
       method: 'POST',
-      body: expect.stringContaining('"extraData":{"orderId":"order"}'),
+      body: JSON.stringify({ productId: 'product' }),
     }),
   );
-  const requestBody = fetch.mock.calls[0]?.[1]?.body;
-  if (typeof requestBody !== 'string')
-    throw new Error('Invoice body must be JSON text');
-  const body = JSON.parse(requestBody) as {
-    items: unknown;
-  };
-
-  expect(body.items).toEqual([
-    { quantity: 1, rate: 29_000, description: 'Sydia — 30 hari' },
-  ]);
+});
+test('an unreadable expiry falls back to a short hold instead of failing checkout', async () => {
+  jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: {
+            id: 'invoice',
+            amount: 29_000,
+            membershipBillUrl: 'https://merchant.mayar.shop/pl/test',
+          },
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(new Response('{}', { status: 503 }));
+  await expect(
+    runtime().createInvoice({ memberId: 'MBR8X2QK' }),
+  ).resolves.toMatchObject({ id: 'invoice' });
 });
 test('network failure during creation is explicitly ambiguous', async () => {
   jest
     .spyOn(globalThis, 'fetch')
     .mockRejectedValue(new Error('Connection lost'));
   await expect(
-    runtime().createInvoice({
-      orderId: 'order',
-      name: 'Customer',
-      email: 'customer@example.test',
-      mobile: '+6281234567890',
-      amount: 29_000,
-      expiresAt: new Date('2026-11-01T00:15:00Z'),
-    }),
+    runtime().createInvoice({ memberId: 'MBR8X2QK' }),
   ).rejects.toMatchObject({ ambiguous: true, code: 'mayar_transport_error' });
 });
 test('unavailable limiter prevents provider writes', async () => {
@@ -84,55 +94,84 @@ test('unavailable limiter prevents provider writes', async () => {
     .mockRejectedValue(new Error('Redis unavailable'));
   const fetch = jest.spyOn(globalThis, 'fetch');
   await expect(
-    service.createInvoice({
-      orderId: 'order',
-      name: 'Customer',
-      email: 'customer@example.test',
-      mobile: '+6281234567890',
-      amount: 29_000,
-      expiresAt: new Date('2026-11-01T00:15:00Z'),
-    }),
+    service.createInvoice({ memberId: 'MBR8X2QK' }),
   ).rejects.toMatchObject({
     ambiguous: false,
     code: 'mayar_limiter_unavailable',
   });
   expect(fetch).not.toHaveBeenCalled();
 });
-test('transaction verification requires the transaction to belong to the invoice', async () => {
+test('member registration sends the tier and the customer to V2 sandbox', async () => {
+  const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        data: { memberId: 'MBR8X2QK', status: 'active' },
+      }),
+    ),
+  );
+
+  await expect(
+    runtime().ensureMember({
+      name: 'Customer',
+      email: 'customer@example.test',
+      mobile: '+6281234567890',
+    }),
+  ).resolves.toBe('MBR8X2QK');
+  expect(fetch).toHaveBeenCalledWith(
+    'https://api.mayar.io/hl/v2/memberships/members/create',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        productId: 'product',
+        membershipTierId: 'tier',
+        membershipMonthlyPeriod: 1,
+        customerInfo: {
+          name: 'Customer',
+          email: 'customer@example.test',
+          mobile: '+6281234567890',
+        },
+      }),
+    }),
+  );
+});
+test('an already registered customer is found by email instead of failing checkout', async () => {
   jest
     .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response('{}', { status: 400 }))
     .mockResolvedValueOnce(
       new Response(
         JSON.stringify({
-          data: {
-            id: 'invoice',
-            userId: 'merchant',
-            amount: 29_000,
-            status: 'paid',
-            transactions: [{ id: 'another-transaction' }],
-          },
-        }),
-      ),
-    )
-    .mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          data: {
-            id: 'transaction',
-            amount: 29_000,
-            status: 'paid',
-            user: { id: 'merchant' },
-            paymentLink: { id: 'invoice' },
-          },
+          data: [
+            { memberId: 'OTHER', customer: { email: 'other@example.test' } },
+            {
+              memberId: 'MBR8X2QK',
+              customer: { email: 'Customer@Example.test' },
+            },
+          ],
         }),
       ),
     );
   await expect(
-    runtime().inspectInvoice('invoice', 'transaction'),
-  ).rejects.toMatchObject({ code: 'mayar_verification_schema' });
+    runtime().ensureMember({
+      name: 'Customer',
+      email: 'customer@example.test',
+      mobile: '+6281234567890',
+    }),
+  ).resolves.toBe('MBR8X2QK');
 });
-
-test('V2 verification decodes the JSON-text local reference returned by Mayar', async () => {
+test('a registration failure is never ambiguous because it can be repeated', async () => {
+  jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue(new Response('{}', { status: 503 }));
+  await expect(
+    runtime().ensureMember({
+      name: 'Customer',
+      email: 'customer@example.test',
+      mobile: '+6281234567890',
+    }),
+  ).rejects.toMatchObject({ ambiguous: false, code: 'mayar_http_503' });
+});
+test('payment inspection reads the invoice and the transaction that paid it', async () => {
   jest
     .spyOn(globalThis, 'fetch')
     .mockResolvedValueOnce(
@@ -143,7 +182,19 @@ test('V2 verification decodes the JSON-text local reference returned by Mayar', 
             userId: 'merchant',
             amount: 29_000,
             status: 'paid',
-            transactions: [{ id: 'transaction' }],
+            transactions: [{ id: 'failed' }, { id: 'transaction' }],
+          },
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: {
+            id: 'failed',
+            amount: 29_000,
+            status: 'failed',
+            user: { id: 'merchant' },
           },
         }),
       ),
@@ -156,24 +207,53 @@ test('V2 verification decodes the JSON-text local reference returned by Mayar', 
             amount: 29_000,
             status: 'paid',
             user: { id: 'merchant' },
-            paymentLink: { id: 'invoice' },
-            extraData: '{"orderId":"order"}',
             paymentMethod: 'qris',
           },
         }),
       ),
     );
-  expect(await runtime().inspectInvoice('invoice', 'transaction')).toEqual({
-    orderReference: 'order',
+  expect(await runtime().inspectPayment('invoice')).toEqual({
     invoiceId: 'invoice',
-    transactionId: 'transaction',
     merchantId: 'merchant',
-    transactionMerchantId: 'merchant',
-    invoiceAmount: 29_000,
     amount: 29_000,
     invoiceStatus: 'paid',
-    status: 'paid',
-    paymentLinkId: 'invoice',
-    paymentMethod: 'qris',
+    transaction: {
+      id: 'transaction',
+      merchantId: 'merchant',
+      amount: 29_000,
+      status: 'paid',
+      paymentMethod: 'qris',
+    },
+  });
+});
+test('an unpaid invoice has no transaction yet', async () => {
+  jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        data: {
+          id: 'invoice',
+          userId: 'merchant',
+          amount: 29_000,
+          status: 'unpaid',
+          transactions: [],
+        },
+      }),
+    ),
+  );
+  expect(await runtime().inspectPayment('invoice')).toMatchObject({
+    invoiceStatus: 'unpaid',
+    transaction: null,
+  });
+});
+test('an invoice without its merchant is rejected as unverifiable', async () => {
+  jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        data: { id: 'invoice', amount: 29_000, status: 'paid' },
+      }),
+    ),
+  );
+  await expect(runtime().inspectPayment('invoice')).rejects.toMatchObject({
+    code: 'mayar_verification_schema',
   });
 });

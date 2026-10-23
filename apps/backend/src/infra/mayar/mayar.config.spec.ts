@@ -31,7 +31,21 @@ test('production checkout rejects an insecure callback origin', () => {
       MAYAR_API_KEY: 'test-key',
       MAYAR_WEBHOOK_TOKEN: 'test-token',
       MAYAR_MERCHANT_ID: 'merchant',
+      MAYAR_MEMBERSHIP_PRODUCT_ID: 'product',
+      MAYAR_MEMBERSHIP_TIER_ID: 'tier',
       BACKEND_AUTH_URL: 'http://localhost:5000',
     }),
   ).toThrow('HTTPS');
+});
+test('checkout requires the Mayar membership product and tier', () => {
+  expect(() =>
+    validateBillingEnvironment({
+      BACKEND_BILLING_CHECKOUT_ENABLED: 'true',
+      BACKEND_BILLING_ENFORCEMENT_ENABLED: 'true',
+      BACKEND_BILLING_ROLLOUT_AT: '2026-10-22T00:00:00Z',
+      MAYAR_API_KEY: 'test-key',
+      MAYAR_WEBHOOK_TOKEN: 'test-token',
+      MAYAR_MERCHANT_ID: 'merchant',
+    }),
+  ).toThrow('MAYAR_MEMBERSHIP_PRODUCT_ID');
 });

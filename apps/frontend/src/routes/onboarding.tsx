@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,7 @@ function OnboardingPage() {
   const { user, hasPlanStep } = Route.useLoaderData();
   const totalSteps: Step = hasPlanStep ? 4 : 3;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const updateMutation = useUpdateCurrentUser();
   const preferencesMutation = useUpdateUserPreferences();
   const form = useAppForm({
@@ -160,7 +162,22 @@ function OnboardingPage() {
         locale: value.locale,
         onboardingCompleted: true,
       });
-      await navigate({ to: "/", replace: true });
+      const billing = queryClient.getQueryData(
+        billingStatusQueryOptions().queryKey
+      );
+
+      await navigate({
+        to: "/welcome",
+        search: {
+          reason:
+            billing?.state === "paid"
+              ? "paid"
+              : billing?.state === "trial"
+                ? "trial"
+                : "ready",
+        },
+        replace: true,
+      });
     },
   });
 

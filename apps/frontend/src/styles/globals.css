@@ -166,6 +166,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([data-disabled]),
+  summary {
+    cursor: pointer;
+  }
   body {
     @apply bg-background text-foreground font-sans text-[15px] leading-[1.6];
     letter-spacing: -0.005em;

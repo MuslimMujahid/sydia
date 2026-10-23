@@ -76,7 +76,15 @@ export class BillingWebhookController {
         : null;
 
     const transactionId = identifier(data?.transactionId);
-    const invoiceId = identifier(data?.productId);
+    // The product id of a membership payment is shared by every customer, so it
+    // can never identify one order; only the transaction id does.
+    const productId = identifier(data?.productId);
+
+    const invoiceId =
+      productId === this.config.get<string>('MAYAR_MEMBERSHIP_PRODUCT_ID')
+        ? null
+        : productId;
+
     if (!transactionId)
       throw new ApiException({
         code: ErrorCodes.BAD_REQUEST,

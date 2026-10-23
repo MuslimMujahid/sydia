@@ -27,9 +27,10 @@ interface AccountMenuProps {
   /** Undefined while loading or when the status could not be fetched. */
   billing: BillingStatus | undefined;
   collapsed: boolean;
+  /** Avatar only, centered in its button (the mobile app bar). */
+  compact?: boolean;
   signingOut: boolean;
   onSignOut: () => void;
-  now?: () => number;
 }
 
 export function initialsFor(name: string): string {
@@ -47,11 +48,11 @@ export function AccountMenu({
   user,
   billing,
   collapsed,
+  compact = false,
   signingOut,
   onSignOut,
-  now = Date.now,
 }: AccountMenuProps) {
-  const plan = billing ? summarizeBillingPlan(billing, { now: now() }) : null;
+  const plan = billing ? summarizeBillingPlan(billing) : null;
 
   return (
     <DropdownMenu>
@@ -61,14 +62,16 @@ export function AccountMenu({
             variant="ghost"
             className={cn(
               "h-auto min-w-0 max-w-full justify-start gap-3 px-2 py-2",
-              collapsed && "justify-center px-0"
+              (collapsed || compact) && "justify-center px-0",
+              collapsed && "w-full",
+              compact && "size-10 p-0"
             )}
             aria-label="Buka menu akun"
           />
         }
       >
         <Avatar initials={initialsFor(user.name)} />
-        {!collapsed ? (
+        {!collapsed && !compact ? (
           <span className="min-w-0 text-left">
             <span className="block truncate text-sm text-ink">{user.name}</span>
             <span

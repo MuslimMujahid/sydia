@@ -36,11 +36,17 @@ export interface IBillingRepository {
     now: Date;
     expiresAt: Date;
   }): Promise<{ order: BillingOrder; created: boolean }>;
+  findMember(userId: string, environment: string): Promise<string | null>;
+  saveMember(
+    userId: string,
+    environment: string,
+    memberId: string,
+  ): Promise<void>;
   attachInvoice(
     id: string,
     invoice: {
       id: string;
-      transactionId: string;
+      transactionId: string | null;
       link: string;
       expiresAt: Date;
     },

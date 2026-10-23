@@ -12,6 +12,7 @@ function runtime() {
     new ConfigService({
       MAYAR_WEBHOOK_TOKEN: 'test-token',
       MAYAR_ENVIRONMENT: 'sandbox',
+      MAYAR_MEMBERSHIP_PRODUCT_ID: 'membership-product',
     }),
     repository,
   );
@@ -64,4 +65,14 @@ test('Mayar test events cannot activate access or enter the payment inbox', asyn
     controller.receive('test-token', { event: 'testing', createdAt: 1 }),
   ).resolves.toEqual({ received: true, ignored: true });
   expect(repository.receiveWebhook).not.toHaveBeenCalled();
+});
+test('a membership payment is routed by transaction, never by the shared product id', async () => {
+  const { controller, repository } = runtime();
+  await controller.receive('test-token', {
+    event: 'payment.received',
+    data: { transactionId: 'tx-1', productId: 'membership-product' },
+  });
+  expect(repository.receiveWebhook).toHaveBeenCalledWith(
+    expect.objectContaining({ transactionId: 'tx-1', invoiceId: null }),
+  );
 });

@@ -46,11 +46,13 @@ test("an active subscription shows its end date without a purchase prompt", asyn
   ).toHaveCount(0);
 });
 
-test("a subscription about to end offers renewal", async ({ page }) => {
+test("a subscription about to end does not offer a second payment", async ({
+  page,
+}) => {
   const menu = await open(page, "plan=ending");
   await expect(
     menu.getByRole("menuitem", { name: /Perpanjang langganan/ })
-  ).toBeVisible();
+  ).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(accountButton(page)).toContainText("Langganan aktif");
 });

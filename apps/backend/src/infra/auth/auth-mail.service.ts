@@ -20,8 +20,10 @@ export class AuthMailService {
   private readonly logger = new Logger(AuthMailService.name);
   private readonly apiKey: string;
   private readonly sender: string;
+  private readonly development: boolean;
 
   constructor(config: ConfigService) {
+    this.development = config.get<string>('NODE_ENV') === 'development';
     this.sender = config.getOrThrow<string>('BACKEND_MAIL_FROM');
     this.apiKey = config.getOrThrow<string>('BACKEND_RESEND_API_KEY');
 
@@ -33,6 +35,10 @@ export class AuthMailService {
   }
 
   async send({ email, otp, type }: AuthMail): Promise<void> {
+    // Local development only: without a mail server the code is read from this log.
+    if (this.development)
+      this.logger.warn(`auth.dev_otp type=${type} email=${email} otp=${otp}`);
+
     try {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',

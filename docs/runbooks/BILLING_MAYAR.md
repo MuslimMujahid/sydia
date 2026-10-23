@@ -16,7 +16,9 @@ account and a 100 MB per-file maximum, measured in decimal bytes.
 3. Build the backend, then run `bun run --cwd apps/backend billing:ops rollout`.
    This initializes real existing users and excludes development chat previews.
    Lazy initialization covers subsequent signups using their original signup time.
-4. Validate sandbox first. Set `MAYAR_ENVIRONMENT=sandbox`, the environment's API
+4. Validate sandbox first. Create the Membership & SaaS product and its monthly tier in
+   the matching Mayar dashboard, then set `MAYAR_MEMBERSHIP_PRODUCT_ID` and
+   `MAYAR_MEMBERSHIP_TIER_ID`. Set `MAYAR_ENVIRONMENT=sandbox`, the environment's API
    key and webhook token, and `MAYAR_MERCHANT_ID`. The merchant identifier must match
    **invoice.userId / transaction.user.id**, not the Mayar account ID. The sandbox smoke check below logs
    it as `merchantId`.

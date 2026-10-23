@@ -177,10 +177,12 @@ interface BillingCheckoutProps {
    * the checkout page, where the order summary and payment hand-off live.
    */
   inline?: boolean;
-  /** For a paid account, show only the renew action (the page already says it is paid). */
+  /** For a paid account, show nothing (the page already says it is paid). */
   quiet?: boolean;
   /** Stretch the action across its container (plan card). */
   fullWidth?: boolean;
+  /** Replace the default action wording; the price is then left out. */
+  label?: string;
 }
 
 /** The single payment flow: open invoice status, or the way to request one. */
@@ -190,55 +192,28 @@ export function BillingCheckout({
   inline = true,
   quiet = false,
   fullWidth = false,
+  label,
 }: BillingCheckoutProps) {
   const text = BILLING_COPY[language];
   const { orders, pending, mobile, setMobile, checkout, submit } =
     useBillingCheckoutFlow();
 
-  const [renewing, setRenewing] = useState(false);
   const paid = billing.state === "paid" && !pending;
-  const action = paid ? text.renew : text.subscribe;
+  const action = billing.state === "expired" ? text.renew : text.subscribe;
 
   return (
     <>
-      {paid && !renewing ? (
-        <div className="space-y-3">
-          {quiet ? null : (
-            <>
-              <p role="status" className="font-semibold">
-                {text.paidNotice}
-              </p>
-              <p className="max-w-prose text-sm text-ink-muted">
-                {text.renewHint}
-              </p>
-            </>
-          )}
-          {billing.checkoutEnabled ? (
-            inline ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setRenewing(true)}
-              >
-                {text.renew}
-              </Button>
-            ) : (
-              <Link
-                to="/checkout"
-                className={cn(
-                  buttonVariants({
-                    variant: "secondary",
-                    size: fullWidth ? "default" : "sm",
-                  }),
-                  fullWidth && "w-full"
-                )}
-              >
-                {text.renew}
-              </Link>
-            )
-          ) : null}
-        </div>
+      {paid ? (
+        quiet ? null : (
+          <div className="space-y-3">
+            <p role="status" className="font-semibold">
+              {text.paidNotice}
+            </p>
+            <p className="max-w-prose text-sm text-ink-muted">
+              {text.renewHint}
+            </p>
+          </div>
+        )
       ) : pending ? (
         <div className="space-y-3" role="status">
           <p>
@@ -294,7 +269,8 @@ export function BillingCheckout({
               fullWidth && "w-full"
             )}
           >
-            {`${action} · ${formatBillingCurrency(billing.price, language)}`}
+            {label ??
+              `${action} · ${formatBillingCurrency(billing.price, language)}`}
           </Link>
         )
       ) : !billing.checkoutEnabled ? (

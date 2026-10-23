@@ -72,6 +72,7 @@ model User {
   dailyNotes               DailyNote[]
   workspaceItems           WorkspaceItem[]
   billingAccount           BillingAccount?
+  billingMembers           BillingMember[]
   billingOrders            BillingOrder[]
   storageReservations      StorageReservation[]
 
@@ -90,6 +91,18 @@ model BillingAccount {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("billing_account")
+}
+
+model BillingMember {
+  userId      String
+  environment String
+  memberId    String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, environment])
+  @@unique([environment, memberId])
+  @@map("billing_member")
 }
 
 model BillingOrder {

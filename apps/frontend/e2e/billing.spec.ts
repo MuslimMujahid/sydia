@@ -77,15 +77,16 @@ test("billing shows one promotional price, trial, and global storage", async ({
   await setup(page);
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Selamat! 7 hari gratis untuk Anda" })
+    page.getByRole("heading", { name: /^Trial aktif, sisa/ })
   ).toBeVisible();
-  await expect(page.getByText(/Tanpa kartu, tanpa pembayaran/)).toBeVisible();
   await expect(
-    page.getByText("Asisten yang ingat dan menindaklanjuti")
+    page.getByText(/Berlangganan sebelum trial berakhir/)
   ).toBeVisible();
+  await expect(page.getByText("Yang Anda dapatkan")).toBeVisible();
+  await expect(page.getByText("Diskon 50%")).toBeVisible();
   await expect(page.getByText("Rp 29.000", { exact: true })).toBeVisible();
   await expect(page.getByText("Rp 59.000", { exact: true })).toBeVisible();
-  await expect(page.getByText("1,5 GB terpakai dari 10 GB")).toBeVisible();
+  await expect(page.getByText("1,5 GB dari 10 GB terpakai")).toBeVisible();
   await expect(
     page.getByRole("progressbar", { name: "Penyimpanan" })
   ).toHaveAttribute("max", "10000000000");
@@ -103,11 +104,11 @@ test("a trial account is sent to the checkout page to subscribe", async ({
   await setup(page);
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("link", { name: "Berlangganan · Rp 29.000" })
+    page.getByRole("link", { name: "Berlangganan", exact: true })
   ).toHaveAttribute("href", "/checkout");
   await expect(page.getByLabel("Nomor telepon untuk tagihan")).toHaveCount(0);
 });
-test("a paid account sees its payment confirmed and can renew instead of paying again", async ({
+test("a paid account sees its payment confirmed and is not offered another payment", async ({
   page,
 }) => {
   await setup(page, {
@@ -117,11 +118,14 @@ test("a paid account sees its payment confirmed and can renew instead of paying 
   });
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Terima kasih sudah berlangganan" })
+    page.getByRole("heading", { name: "Sydia Plus aktif" })
   ).toBeVisible();
+  await expect(page.getByText(/^Sisa \d+ hari$/).first()).toBeVisible();
+  await expect(page.getByText("Rp 29.000", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Yang Anda dapatkan")).toHaveCount(0);
   await expect(
-    page.getByRole("link", { name: "Perpanjang langganan" })
-  ).toHaveAttribute("href", "/checkout");
+    page.getByRole("link", { name: "Berlangganan lagi" })
+  ).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^Berlangganan/ })).toHaveCount(
     0
   );
@@ -132,14 +136,12 @@ test("expired billing explains read-only access while keeping renewal available"
   await setup(page, { ...trial(), active: false, state: "expired" });
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Sydia siap membantu Anda lagi" })
+    page.getByRole("heading", { name: "Masa aktif Anda sudah berakhir" })
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Perpanjang langganan" })
+    page.getByRole("link", { name: "Berlangganan lagi" })
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Berlangganan · Rp 29.000" })
-  ).toBeVisible();
+  await expect(page.getByText("Rp 29.000", { exact: true })).toBeVisible();
 });
 test("an ambiguous invoice prevents a second checkout and explains review", async ({
   page,
@@ -169,17 +171,13 @@ test("billing retains English labels and the subscribe link", async ({
   await setup(page);
   await page.goto("/e2e/billing.html?lang=en");
   await expect(
-    page.getByRole("heading", {
-      name: "Congratulations! 7 free days are yours",
-    })
+    page.getByRole("heading", { name: /^Trial active, .* left$/ })
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /^Subscribe/ })).toHaveAttribute(
     "href",
     "/checkout"
   );
-  await expect(
-    page.getByText("The assistant that remembers and follows through")
-  ).toBeVisible();
+  await expect(page.getByText("What you get")).toBeVisible();
 });
 
 test("expired paid access shows the paid expiry instead of the old trial date", async ({
@@ -194,7 +192,7 @@ test("expired paid access shows the paid expiry instead of the old trial date", 
   });
   await page.goto("/e2e/billing.html");
   await expect(
-    page.getByRole("heading", { name: "Sydia siap membantu Anda lagi" })
+    page.getByRole("heading", { name: "Masa aktif Anda sudah berakhir" })
   ).toBeVisible();
   await mkdir("../../.impeccable/review", { recursive: true });
   await page.screenshot({
@@ -221,7 +219,7 @@ test("each paid payment opens its receipt from the history", async ({
     },
   ]);
   await page.goto("/e2e/billing.html");
-  const row = page.getByRole("link", { name: /Langganan Sydia.*Lunas/ });
+  const row = page.getByRole("link", { name: /Sydia Plus.*Lunas/ });
   await expect(row).toHaveAttribute("href", "/receipt/order-9");
   await expect(row).toContainText("Rp 29.000");
 });

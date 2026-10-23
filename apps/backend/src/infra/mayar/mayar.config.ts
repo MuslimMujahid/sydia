@@ -40,6 +40,8 @@ export function validateBillingEnvironment(
       'MAYAR_API_KEY',
       'MAYAR_WEBHOOK_TOKEN',
       'MAYAR_MERCHANT_ID',
+      'MAYAR_MEMBERSHIP_PRODUCT_ID',
+      'MAYAR_MEMBERSHIP_TIER_ID',
     ]) {
       if (typeof config[key] !== 'string' || !config[key].trim())
         throw new Error(`${key} is required for checkout`);

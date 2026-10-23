@@ -158,13 +158,18 @@ test("coming back from paying confirms the payment without a manual check", asyn
   // in this mock, the second is paid.
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(page.getByText("Pembayaran diterima")).toBeVisible();
+  await expect(page.getByText("Memproses pembayaran Anda")).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Mulai gunakan Sydia" })
+    page.getByRole("heading", {
+      name: "Pembayaran berhasil. Langganan sudah aktif",
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Mulai chat dengan Sydia" })
   ).toBeVisible();
 });
 
-test("a subscriber renewing is told the renewal is added after the current period", async ({
+test("a subscriber with paid time left is told it is active instead of getting a second order", async ({
   page,
 }) => {
   await setup(
@@ -173,8 +178,11 @@ test("a subscriber renewing is told the renewal is added after the current perio
   );
   await page.goto("/e2e/checkout.html");
   await expect(
-    page.getByRole("heading", { name: "Ringkasan pesanan" })
+    page.getByRole("heading", { name: "Langganan Anda sudah aktif" })
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Berlangganan" })).toHaveCount(
+    0
+  );
 });
 
 test("without a payment option the page says so instead of offering a form", async ({
