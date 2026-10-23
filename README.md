@@ -72,9 +72,13 @@ Data persists in the `postgres-data` volume. Stop it with the same file argument
 
 ## Production images
 
-GitHub Actions builds the frontend, backend, and migration images and publishes them to GHCR. `docker/docker-compose.prod.yml` pulls those images and runs the migration, backend, worker, and frontend services without rebuilding source on the deployment server. PostgreSQL and Redis are externally managed resources and are not provisioned by Compose.
+GitHub Actions builds the frontend, backend, and migration images and publishes them to GHCR. `docker/docker-compose.prod.yml` pulls those images and runs the migration, backend, worker, frontend, and GoWA services without rebuilding source on the deployment server. PostgreSQL and Redis are externally managed resources and are not provisioned by Compose.
 
 Before starting the stack, set `BACKEND_DB_URL` and `BACKEND_REDIS_URL` in `.env` to the externally managed PostgreSQL and Redis services, using URLs reachable from the containers. The migration service applies the checked-in Prisma migrations before the backend and worker start; no separate manual migration step is required. GHCR images must be readable by the deployment server; authenticate Docker to GHCR when the packages are private.
+
+For Coolify, deploy this Compose stack and set `BACKEND_WHATSAPP_WEBHOOK_SECRET` to a strong random secret in the deployment environment. Compose passes the same secret to GoWA and requires it to be nonempty. GoWA v9.3.0 runs privately on `http://gowa:3000`; Compose overrides the backend and worker's GoWA URL, so a local `.env` URL does not route production traffic to localhost. Webhooks return to `http://backend:${BACKEND_PORT}/whatsapp/webhook`. GoWA needs no public domain or published host port. The backend and worker wait for its `/health` check before starting.
+
+The `gowa-storage` and `gowa-statics` volumes retain provider session databases and assets across container replacements. Preserve and back up these volumes; removing them loses the stored provider state. Existing local pairing data is not automatically copied into a new production volume. Production uses the same disabled UI, MCP, automatic media download, and automatic read settings as the local runner.
 
 Production defaults to owner `muslimmujahid` and tag `main`. Override `GHCR_OWNER` or `IMAGE_TAG` in `.env` when deploying another namespace or environment, then run:
 

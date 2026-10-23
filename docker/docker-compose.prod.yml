@@ -8,6 +8,34 @@ include:
   - hindsight.environment.yml
 
 services:
+  gowa:
+    image: aldinokemal2104/go-whatsapp-web-multidevice:v9.3.0
+    restart: unless-stopped
+    command:
+      - rest
+      - --host=0.0.0.0
+      - --port=3000
+      - --db-uri=file:/app/storages/whatsapp.db?_foreign_keys=on
+      - --ui-enabled=false
+      - --mcp-enabled=false
+      - --auto-download-media=false
+      - --auto-mark-read=false
+      - --presence-on-connect=unavailable
+      - --webhook=http://backend:${BACKEND_PORT:?Set BACKEND_PORT}/whatsapp/webhook
+      - --webhook-events=message,message.ack
+    environment:
+      WHATSAPP_WEBHOOK_SECRET: ${BACKEND_WHATSAPP_WEBHOOK_SECRET:?Set BACKEND_WHATSAPP_WEBHOOK_SECRET}
+    volumes:
+      - gowa-storage:/app/storages
+      - gowa-statics:/app/statics
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+
   migration:
     image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-migration:${IMAGE_TAG:-main}
     env_file: ../.env
@@ -16,20 +44,28 @@ services:
   backend:
     image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-backend:${IMAGE_TAG:-main}
     env_file: ../.env
+    environment:
+      BACKEND_WHATSAPP_GOWA_URL: http://gowa:3000
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     restart: unless-stopped
     depends_on:
       migration:
         condition: service_completed_successfully
+      gowa:
+        condition: service_healthy
 
   worker:
     image: ghcr.io/${GHCR_OWNER:-muslimmujahid}/sydia-backend:${IMAGE_TAG:-main}
     env_file: ../.env
+    environment:
+      BACKEND_WHATSAPP_GOWA_URL: http://gowa:3000
     command: ["node", "dist/src/worker.js"]
     depends_on:
       migration:
         condition: service_completed_successfully
+      gowa:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -43,3 +79,7 @@ services:
     depends_on:
       backend:
         condition: service_started
+
+volumes:
+  gowa-storage:
+  gowa-statics:

@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev dev:worker",
+    "gowa": "bash apps/backend/scripts/gowa-run.sh",
     "lint": "turbo run lint",
     "setup-env": "node scripts/setup-env.js",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

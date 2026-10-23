@@ -170,6 +170,8 @@ export class WhatsAppService implements OnModuleInit {
     });
     this.gateway.registerRecovered((connection) => this.recover(connection));
     await this.messages.registerAdapter('whatsapp', {
+      beginProcessing: (messages, signal) =>
+        this.beginProcessing(messages, signal),
       prepare: (userId, message) => this.ingestInboundMedia(userId, message),
       send: async (user, _identity, message, content) => {
         await this.authorize(user.id, message);
@@ -403,6 +405,7 @@ export class WhatsAppService implements OnModuleInit {
         eventType: 'whatsapp.owner.verified',
         metadata: { connectionId: verified.id },
       });
+      await this.acknowledgeRead(message);
       await this.gateway.send(verified, (client, current) =>
         client.sendText(
           current.ownerExternalId!,
@@ -424,6 +427,7 @@ export class WhatsAppService implements OnModuleInit {
 
     try {
       const user = await this.requireUser(connection.userId);
+      await this.acknowledgeRead(message);
       await this.messages.handle({
         user,
         message,
@@ -445,6 +449,108 @@ export class WhatsAppService implements OnModuleInit {
       });
       throw error;
     }
+  }
+
+  private async acknowledgeRead(message: NormalizedInboundMessage) {
+    try {
+      await this.gateway.send(this.scope(message), (client, connection) => {
+        if (connection.ownerExternalId !== message.senderExternalId)
+          throw new WhatsAppConnectionRevoked();
+
+        return client.markRead(
+          connection.ownerExternalId,
+          message.providerMessageId,
+        );
+      });
+    } catch (error) {
+      // A receipt is optional feedback: one attempt, then continue the reply.
+      this.logger.warn(
+        'WhatsApp read acknowledgement failed; continuing reply.',
+        error,
+      );
+    }
+  }
+
+  private async beginProcessing(
+    messages: NormalizedInboundMessage[],
+    signal: AbortSignal,
+  ): Promise<() => Promise<void>> {
+    const message = messages.at(-1);
+    if (!message || signal.aborted) return () => Promise.resolve();
+    const scope = this.scope(message);
+
+    const presence = (action: 'composing' | 'paused') =>
+      this.gateway.send(scope, (client, connection) => {
+        if (
+          connection.ownerExternalId !== message.senderExternalId ||
+          message.isGroup ||
+          message.isFromMe
+        )
+          throw new WhatsAppConnectionRevoked();
+
+        return client.sendChatPresence(connection.ownerExternalId, action);
+      });
+
+    let stopped = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let inFlight: Promise<void> | undefined;
+    let stopping: Promise<void> | undefined;
+
+    const stop = (): Promise<void> => {
+      if (stopping) return stopping;
+      stopped = true;
+      if (timer) clearInterval(timer);
+      signal.removeEventListener('abort', onAbort);
+      stopping = (async () => {
+        await inFlight;
+
+        try {
+          await presence('paused');
+        } catch (error) {
+          this.logger.warn(
+            'WhatsApp typing stop failed; indicator will expire.',
+            error,
+          );
+        }
+      })();
+
+      return stopping;
+    };
+
+    const onAbort = () => {
+      void stop();
+    };
+
+    const pulse = (): Promise<void> => {
+      if (stopped || signal.aborted || inFlight) return Promise.resolve();
+      inFlight = presence('composing')
+        .catch((error: unknown) => {
+          // Stop refreshing after the first failure; the reply can still proceed.
+          this.logger.warn(
+            'WhatsApp typing failed; disabling refresh for this reply.',
+            error,
+          );
+          stopped = true;
+          if (timer) clearInterval(timer);
+        })
+        .finally(() => {
+          inFlight = undefined;
+        });
+
+      return inFlight;
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+    await pulse();
+
+    if (!stopped && !signal.aborted) {
+      timer = setInterval(() => {
+        void pulse();
+      }, 4_000);
+      timer.unref();
+    }
+
+    return stop;
   }
 
   private async ingestInboundMedia(

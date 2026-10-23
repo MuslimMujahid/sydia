@@ -90,7 +90,7 @@ export type ChannelTurnAdapter = {
   beginProcessing?: (
     messages: NormalizedInboundMessage[],
     signal: AbortSignal,
-  ) => Promise<() => void>;
+  ) => Promise<() => void | Promise<void>>;
   queued?: (message: NormalizedInboundMessage) => Promise<void>;
 };
 
@@ -338,7 +338,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
         });
     }, 1_000);
 
-    let stopProcessing: (() => void) | undefined;
+    let stopProcessing: (() => void | Promise<void>) | undefined;
 
     try {
       if (!user.emailVerified) {
@@ -384,7 +384,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
       if (unresolved) {
         await toolsReady;
         if (controller.signal.aborted) throw controller.signal.reason;
-        stopProcessing?.();
+        await stopProcessing?.();
         stopProcessing = undefined;
         await adapter.send(
           user,
@@ -435,7 +435,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
       if (result.assistantMessage) {
         const response = result.assistantMessage.content;
 
-        stopProcessing?.();
+        await stopProcessing?.();
         stopProcessing = undefined;
 
         await adapter.send(
@@ -505,7 +505,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
           }
         }
 
-        stopProcessing?.();
+        await stopProcessing?.();
         stopProcessing = undefined;
 
         try {
@@ -524,7 +524,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
         }
       }
     } finally {
-      stopProcessing?.();
+      await stopProcessing?.();
       clearInterval(monitor);
       turnIds.forEach((id) => this.abortControllers.delete(id));
     }
