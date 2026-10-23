@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { JSONSchema7 } from 'ai';
 import type { Prisma } from '../../../generated/prisma/client';
 import type { CalendarEventWrite, Document } from '../../../database/entities';
@@ -13,6 +14,7 @@ import type { CalendarSyncService } from '../../calendar/calendar-sync.service';
 import { DocumentService } from '../../documents/document.service';
 import type { AssistantTool } from './tool-executor.service';
 
+const logger = new Logger('PhaseTools');
 const LIST_DOCUMENTS_LIMIT = 25;
 const READ_DOCUMENT_DEFAULT_LIMIT = 4;
 const READ_DOCUMENT_MAX_LIMIT = 10;
@@ -717,10 +719,18 @@ matchingDocumentIds must list every saved file that matches the user's request; 
           );
 
         if (
-          (context?.channel === 'whatsapp' ||
-            context?.channel === 'telegram') &&
-          context.sendFile
+          context?.channel === 'whatsapp' ||
+          context?.channel === 'telegram'
         ) {
+          if (!context.sendFile) {
+            logger.error(
+              `File attachment sender unavailable for ${context.channel}.`,
+            );
+            throw new Error(
+              'File attachment delivery is unavailable for this channel.',
+            );
+          }
+
           const file = await deps.documents.loadFile(userId, documentId);
           if (!file) throw new Error('Document not found.');
           const sent = await context.sendFile(file);

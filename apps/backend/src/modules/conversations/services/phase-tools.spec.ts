@@ -422,53 +422,79 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(JSON.stringify(result)).not.toContain('transcript');
   });
 
-  test('sends one resolved document through the active channel', async () => {
-    const file = {
-      filename: 'invoice.pdf',
-      mimeType: 'application/pdf',
-      buffer: Buffer.from('invoice'),
-    };
-
-    const loadFile = jest
-      .fn<(userId: string, documentId: string) => Promise<typeof file>>()
-      .mockResolvedValue(file);
-
-    const sendFile = jest
-      .fn<
-        (value: {
-          filename: string;
-          mimeType: string;
-          buffer: Buffer;
-        }) => Promise<{ providerMessageId: string }>
-      >()
-      .mockResolvedValue({ providerMessageId: 'chat:44' });
-
-    const tool = tools({
-      documents: { loadFile } as unknown as DocumentService,
-    }).find(({ definition }) => definition.name === 'send_file');
-
-    await expect(
-      tool?.execute({
-        userId: 'user-1',
-        sourceMessageId: 'message-1',
-        idempotencyKey: 'send-file',
-        arguments: {
-          documentId: 'doc-1',
-          matchingDocumentIds: ['doc-1'],
-        },
-        context: { channel: 'telegram', sendFile },
-      }),
-    ).resolves.toEqual({
-      objectType: 'file',
-      object: {
-        documentId: 'doc-1',
+  test.each(['telegram', 'whatsapp'] as const)(
+    'sends one resolved document as an attachment through %s',
+    async (channel) => {
+      const file = {
         filename: 'invoice.pdf',
-        providerMessageId: 'chat:44',
-      },
-    });
-    expect(loadFile).toHaveBeenCalledWith('user-1', 'doc-1');
-    expect(sendFile).toHaveBeenCalledWith(file);
-  });
+        mimeType: 'application/pdf',
+        buffer: Buffer.from('invoice'),
+      };
+
+      const loadFile = jest
+        .fn<(userId: string, documentId: string) => Promise<typeof file>>()
+        .mockResolvedValue(file);
+
+      const sendFile = jest
+        .fn<
+          (value: {
+            filename: string;
+            mimeType: string;
+            buffer: Buffer;
+          }) => Promise<{ providerMessageId: string }>
+        >()
+        .mockResolvedValue({ providerMessageId: 'chat:44' });
+
+      const tool = tools({
+        documents: { loadFile } as unknown as DocumentService,
+      }).find(({ definition }) => definition.name === 'send_file');
+
+      await expect(
+        tool?.execute({
+          userId: 'user-1',
+          sourceMessageId: 'message-1',
+          idempotencyKey: 'send-file',
+          arguments: {
+            documentId: 'doc-1',
+            matchingDocumentIds: ['doc-1'],
+          },
+          context: { channel, sendFile },
+        }),
+      ).resolves.toEqual({
+        objectType: 'file',
+        object: {
+          documentId: 'doc-1',
+          filename: 'invoice.pdf',
+          providerMessageId: 'chat:44',
+        },
+      });
+      expect(loadFile).toHaveBeenCalledWith('user-1', 'doc-1');
+      expect(sendFile).toHaveBeenCalledWith(file);
+    },
+  );
+
+  test.each(['whatsapp', 'telegram'] as const)(
+    'rejects %s file delivery when the attachment sender is unavailable',
+    async (channel) => {
+      const linkFor = jest.fn();
+      const tool = tools({
+        documents: { linkFor } as unknown as DocumentService,
+      }).find(({ definition }) => definition.name === 'send_file')!;
+
+      await expect(
+        tool.execute({
+          userId: 'user-1',
+          sourceMessageId: 'message-1',
+          idempotencyKey: 'missing-sender',
+          arguments: { documentId: 'doc-1', matchingDocumentIds: ['doc-1'] },
+          context: { channel },
+        }),
+      ).rejects.toThrow(
+        'File attachment delivery is unavailable for this channel.',
+      );
+      expect(linkFor).not.toHaveBeenCalled();
+    },
+  );
 
   test('refuses ambiguous matches without sending a file', async () => {
     const sendFile = jest

@@ -490,6 +490,29 @@ describe('ContextBuilderService recent conversations', () => {
 });
 
 describe('ContextBuilderService system policy', () => {
+  it.each(['whatsapp', 'telegram'] as const)(
+    'instructs the assistant to deliver saved files through %s',
+    async (channel) => {
+      const builder = createBuilder(12000);
+      const { messages } = await builder.build(
+        user,
+        'conversation-1',
+        undefined,
+        channel,
+      );
+
+      expect(messages[0]?.content).toContain(
+        'Use send_file to deliver a saved file',
+      );
+      expect(messages[0]?.content).toContain(
+        'WhatsApp and Telegram support file attachments',
+      );
+      expect(messages[0]?.content).toContain(
+        'Ask the user to choose only when multiple files match',
+      );
+    },
+  );
+
   it('keeps referenced item scope narrower than additional lookup results', async () => {
     const { messages } = await createBuilder(10_000).build(
       user,
@@ -530,7 +553,7 @@ describe('ContextBuilderService system policy', () => {
       "Always search the user's saved documents before answering a question that depends on their files; a document list is metadata, not content, and never answers such a question by itself.",
     );
     expect(systemPolicy).toContain(
-      'Before sending files, confirm exactly which file or files the user wants.',
+      'Use send_file to deliver a saved file by its resolved documentId.',
     );
     expect(systemPolicy).toContain(
       'Your capabilities are limited to the tools provided in this session.',
