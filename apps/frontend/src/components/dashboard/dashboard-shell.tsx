@@ -156,23 +156,23 @@ export function DashboardShell({
     setDeleteTarget(null);
   }
 
-  const accountMenu = (
-    <AccountMenu
-      user={user}
-      billing={billingQuery.data}
-      collapsed={collapsed}
-      signingOut={signOutMutation.isPending}
-      onSignOut={() => void handleSignOut()}
-    />
-  );
+  const accountMenuProps = {
+    user,
+    billing: billingQuery.data,
+    collapsed,
+    signingOut: signOutMutation.isPending,
+    onSignOut: () => void handleSignOut(),
+  };
+
+  const accountMenu = <AccountMenu {...accountMenuProps} />;
 
   const sidebar = (
     <div className="flex h-full min-h-0 flex-col">
       <div className={cn("flex h-16 items-center px-3", !collapsed && "gap-3")}>
-        <Link
-          to="/"
-          search={{ conversation: undefined, attachment: undefined }}
-          aria-label="Sydia — chat baru"
+        <button
+          type="button"
+          aria-label={collapsed ? "Bentangkan sidebar" : "Ciutkan sidebar"}
+          onClick={() => setCollapsed((value) => !value)}
           className={cn(
             "flex min-w-0 items-center gap-3 rounded-md px-2 outline-none focus-visible:outline-2 focus-visible:outline-brand/50",
             collapsed && "mx-auto"
@@ -182,7 +182,7 @@ export function DashboardShell({
           {!collapsed ? (
             <span className="font-display text-sm font-bold">Sydia</span>
           ) : null}
-        </Link>
+        </button>
         {!collapsed ? (
           <Button
             variant="ghost"
@@ -358,13 +358,20 @@ export function DashboardShell({
               {mobileOpen ? <X /> : <Menu />}
             </Button>
             {chatSurface ? (
-              <Link
-                to="/"
-                search={{ conversation: undefined, attachment: undefined }}
-                className="ml-1 font-display text-sm font-bold"
+              <button
+                type="button"
+                aria-label={mobileOpen ? "Tutup navigasi" : "Buka navigasi"}
+                aria-controls="mobile-navigation"
+                aria-expanded={mobileOpen}
+                onClick={() => {
+                  setCollapsed(false);
+                  setMobileOpen((open) => !open);
+                }}
+                className="ml-1 flex items-center gap-2 rounded-md px-1 outline-none focus-visible:outline-2 focus-visible:outline-brand/50"
               >
-                Sydia
-              </Link>
+                <SydiaLogo className="h-6 shrink-0" />
+                <span className="font-display text-sm font-bold">Sydia</span>
+              </button>
             ) : (
               <div ref={setTitleSlot} className="ml-1 min-w-0 flex-1" />
             )}
@@ -372,10 +379,18 @@ export function DashboardShell({
               ref={setSearchSlot}
               className="flex shrink-0 items-center empty:hidden"
             />
-            <div className="ml-auto shrink-0 [&_button>span:not([data-slot=avatar])]:hidden">
-              {accountMenu}
+            <div className="ml-auto shrink-0">
+              <AccountMenu {...accountMenuProps} compact />
             </div>
           </header>
+
+          {mobileOpen ? (
+            <div
+              aria-hidden="true"
+              className="fixed inset-0 z-40 lg:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+          ) : null}
 
           {mobileOpen ? (
             <aside

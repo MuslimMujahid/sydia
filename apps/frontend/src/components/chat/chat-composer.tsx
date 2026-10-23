@@ -342,7 +342,9 @@ export function ChatComposer({
     if (
       event.key === "Enter" &&
       !event.shiftKey &&
-      !event.nativeEvent.isComposing
+      !event.nativeEvent.isComposing &&
+      // On touch devices the return key writes a new line; the send button sends.
+      !window.matchMedia("(pointer: coarse)").matches
     ) {
       event.preventDefault();
       void submit();
