@@ -38,6 +38,7 @@ export type CalendarEvent = Pick<
   | 'createdAt'
   | 'updatedAt'
 > & {
+  localEditedAt?: PrismaCalendarEvent['localEditedAt'];
   status: CalendarEventStatus;
   syncState: CalendarEventSyncState;
   googleMeetUrl?: string | null;

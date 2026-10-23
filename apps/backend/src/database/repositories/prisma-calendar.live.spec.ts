@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import type { Prisma } from '../../generated/prisma/client';
 import {
   afterAll,
@@ -209,6 +210,582 @@ live('Calendar sync PostgreSQL contract', () => {
       events,
     });
   }
+
+  test('a successful pull automatically resumes exhausted transient writes but keeps permanent failures stopped', async () => {
+    const { userId, bindingId } = await createBinding();
+    const operationIds: string[] = [];
+
+    for (const errorCode of [
+      'calendar_retry_budget_exhausted',
+      'google_validation_failed',
+    ]) {
+      const saved = await repository.createMutation(
+        userId,
+        {
+          title: errorCode,
+          startAt: new Date('2026-10-12T09:00:00Z'),
+          endAt: new Date('2026-10-12T10:00:00Z'),
+          timezone: 'UTC',
+        },
+        'google',
+        {
+          key: errorCode,
+          fingerprint: errorCode,
+          expiresAt: new Date('2099-01-01'),
+        },
+      );
+
+      if (saved.status !== 'saved' || !saved.operationId)
+        throw new Error('Expected a queued Google create.');
+      operationIds.push(saved.operationId);
+      await prisma.calendarSyncOperation.update({
+        where: { id: saved.operationId },
+        data: {
+          state: 'failed',
+          lastErrorCode: errorCode,
+          retryBudgetAttempts: 8,
+          firstAttemptAt: new Date('2026-01-01'),
+        },
+      });
+      await prisma.calendarEvent.update({
+        where: { id: saved.event.id },
+        data: { syncState: 'error', syncErrorCode: errorCode },
+      });
+    }
+
+    await commitInboundPage(bindingId, []);
+    expect(
+      await prisma.calendarSyncOperation.findUnique({
+        where: { id: operationIds[0] },
+      }),
+    ).toMatchObject({
+      state: 'pending',
+      retryBudgetAttempts: 0,
+      firstAttemptAt: null,
+    });
+    expect(
+      await prisma.calendarSyncOperation.findUnique({
+        where: { id: operationIds[1] },
+      }),
+    ).toMatchObject({ state: 'failed', retryBudgetAttempts: 8 });
+    expect(
+      await prisma.calendarEvent.findMany({
+        where: { userId },
+        orderBy: { title: 'asc' },
+        select: { syncState: true },
+      }),
+    ).toEqual([{ syncState: 'pending' }, { syncState: 'error' }]);
+  });
+
+  test('the retained-event migration preserves inactive recurrence identity and refreshes active legacy conflicts', async () => {
+    const inactive = await createBinding();
+    const active = await createBinding();
+    const series = inboundEvent('migration-series', 'Series');
+    series.event.recurrence = ['RRULE:FREQ=DAILY'];
+    const child = inboundEvent('migration-instance', 'Exception');
+    child.recurringParentProviderEventId = series.googleEventId;
+    child.originalStartAt = new Date('2026-10-12T09:00:00Z');
+    await commitInboundPage(inactive.bindingId, [series, child]);
+    await commitInboundPage(active.bindingId, [
+      inboundEvent('migration-conflict', 'Conflict'),
+    ]);
+    const pending = await repository.createMutation(
+      inactive.userId,
+      {
+        title: 'Not yet uploaded',
+        startAt: new Date('2026-10-12T09:00:00Z'),
+        endAt: new Date('2026-10-12T10:00:00Z'),
+        timezone: 'UTC',
+      },
+      'google',
+      {
+        key: 'migration-create',
+        fingerprint: 'migration-create',
+        expiresAt: new Date('2099-01-01'),
+      },
+    );
+
+    if (pending.status !== 'saved' || !pending.operationId)
+      throw new Error('Expected a pending create.');
+    await prisma.calendarIntegration.update({
+      where: {
+        userId_provider: { userId: inactive.userId, provider: 'google' },
+      },
+      data: { status: 'disconnected', activeBindingId: null },
+    });
+    await prisma.calendarEvent.updateMany({
+      where: { userId: active.userId },
+      data: { syncState: 'conflict' },
+    });
+    const sql = await readFile(
+      'prisma/migrations/20261023020000_calendar_retained_event_transition/migration.sql',
+      'utf8',
+    );
+
+    for (const statement of sql.split(';').filter((part) => part.trim()))
+      await prisma.$executeRawUnsafe(statement);
+    const parent = await prisma.calendarEvent.findFirstOrThrow({
+      where: { userId: inactive.userId, providerEventId: series.googleEventId },
+    });
+
+    expect(parent).toMatchObject({ provider: 'local', syncState: 'local' });
+    expect(
+      await repository.findById(inactive.userId, pending.event.id),
+    ).toMatchObject({ provider: 'local', syncState: 'local' });
+    expect(
+      await prisma.calendarSyncOperation.findUnique({
+        where: { id: pending.operationId },
+      }),
+    ).toMatchObject({ state: 'paused', claimToken: null });
+    expect(
+      await prisma.calendarEvent.findFirstOrThrow({
+        where: {
+          userId: inactive.userId,
+          providerEventId: child.googleEventId,
+        },
+      }),
+    ).toMatchObject({
+      provider: 'local',
+      recurringParentEventId: parent.id,
+      recurrenceExceptionKey: '2026-10-12T09:00:00.000Z',
+    });
+    expect(
+      await prisma.calendarEventLink.count({
+        where: { bindingId: inactive.bindingId },
+      }),
+    ).toBe(2);
+    expect(
+      await prisma.calendarBinding.findUnique({
+        where: { id: active.bindingId },
+      }),
+    ).toMatchObject({ syncToken: null, nextPageToken: null });
+  });
+
+  test('switching calendars retains editable local events and reconnecting relinks their latest edits', async () => {
+    const { userId, bindingId } = await createBinding();
+    const baseline = inboundEvent('retained-google-id', 'Original appointment');
+    await commitInboundPage(bindingId, [baseline]);
+    const link = await prisma.calendarEventLink.findFirstOrThrow({
+      where: { bindingId },
+    });
+
+    const eventId = link.calendarEventId!;
+
+    await repository.selectGoogleCalendar(userId, {
+      id: 'other-calendar',
+      name: 'Work',
+      timezone: 'UTC',
+    });
+    expect(await repository.findById(userId, eventId)).toMatchObject({
+      provider: 'local',
+      syncState: 'local',
+    });
+    const edited = await repository.updateMutation(
+      userId,
+      eventId,
+      { title: 'Edited while detached' },
+      {
+        key: 'detached-edit',
+        fingerprint: 'detached-edit',
+        expiresAt: new Date('2099-01-01'),
+      },
+    );
+
+    expect(edited).toMatchObject({ status: 'saved', operationId: null });
+    const selected = await repository.selectGoogleCalendar(userId, {
+      id: 'contract-calendar',
+      name: 'Personal',
+      timezone: 'UTC',
+    });
+
+    expect(selected).toMatchObject({ status: 'selected', bindingId });
+    await commitInboundPage(bindingId, [baseline], 3);
+
+    expect(await repository.findById(userId, eventId)).toMatchObject({
+      provider: 'google',
+      title: 'Edited while detached',
+      syncState: 'pending',
+    });
+    expect(await prisma.calendarEvent.count({ where: { userId } })).toBe(1);
+    expect(
+      await prisma.calendarSyncOperation.count({
+        where: { calendarEventId: eventId, state: 'pending', kind: 'update' },
+      }),
+    ).toBe(1);
+  });
+
+  test('deliberate disconnect keeps events local and OAuth reconnect reuses their original binding', async () => {
+    const { userId, bindingId } = await createBinding();
+    const baseline = inboundEvent('disconnected-event', 'Retained appointment');
+    await commitInboundPage(bindingId, [baseline]);
+    const link = await prisma.calendarEventLink.findFirstOrThrow({
+      where: { bindingId },
+    });
+
+    await repository.beginDisconnect(userId);
+    await repository.disconnect(userId);
+    expect(
+      await repository.findById(userId, link.calendarEventId!),
+    ).toMatchObject({ provider: 'local', syncState: 'local' });
+
+    const result = await repository.saveGoogleConnection({
+      userId,
+      googleSubject: `google-subject-${userId}`,
+      googleEmail: `${userId}@google.example.invalid`,
+      scope: 'https://www.googleapis.com/auth/calendar.events',
+      accessToken: 'synthetic-new-token',
+      refreshToken: 'synthetic-refresh-token',
+      expiresAt: new Date('2099-01-01'),
+      calendar: { id: 'contract-calendar', name: 'Personal', timezone: 'UTC' },
+    });
+
+    expect(result).toMatchObject({ status: 'connected', bindingId });
+    await commitInboundPage(bindingId, [baseline], 3);
+    expect(await prisma.calendarEvent.count({ where: { userId } })).toBe(1);
+    expect(
+      await repository.findById(userId, link.calendarEventId!),
+    ).toMatchObject({ provider: 'google', syncState: 'synced' });
+  });
+
+  test('a Google occurrence saves while authorization is paused and resolves its real identity after reconnecting', async () => {
+    const { userId, bindingId } = await createBinding();
+    const baseline = inboundEvent('offline-series', 'Series appointment');
+    baseline.event.recurrence = ['RRULE:FREQ=DAILY;COUNT=3'];
+    baseline.commonSnapshot = {
+      ...baseline.commonSnapshot,
+      recurrence: ['RRULE:FREQ=DAILY;COUNT=3'],
+    };
+    await commitInboundPage(bindingId, [baseline]);
+    const master = await prisma.calendarEvent.findFirstOrThrow({
+      where: { userId, providerEventId: 'offline-series' },
+    });
+
+    await prisma.calendarIntegration.updateMany({
+      where: { userId },
+      data: { status: 'reconnect_required' },
+    });
+    await prisma.calendarBinding.update({
+      where: { id: bindingId },
+      data: { state: 'paused' },
+    });
+    const occurrence = await new CalendarReadService(
+      repository,
+    ).resolveLocalOccurrenceForMutation(
+      userId,
+      master.id,
+      '2026-10-12T09:00:00.000Z',
+    );
+
+    if (!occurrence) throw new Error('Offline occurrence did not materialize.');
+    expect(
+      await repository.updateMutation(
+        userId,
+        occurrence.id,
+        { title: 'Edited while paused' },
+        {
+          key: 'offline-occurrence-edit',
+          fingerprint: 'offline-occurrence-edit',
+          expiresAt: new Date('2099-01-01'),
+        },
+      ),
+    ).toMatchObject({ status: 'saved', event: { syncState: 'pending' } });
+
+    await repository.saveGoogleConnection({
+      userId,
+      googleSubject: `google-subject-${userId}`,
+      googleEmail: `${userId}@google.example.invalid`,
+      scope: 'calendar.events',
+      accessToken: 'new-access',
+      refreshToken: 'new-refresh',
+      expiresAt: new Date('2099-01-01'),
+      calendar: { id: 'contract-calendar', name: 'Personal', timezone: 'UTC' },
+    });
+    await commitInboundPage(bindingId, [baseline], 2);
+    const pending = await prisma.calendarSyncOperation.findFirstOrThrow({
+      where: { calendarEventId: occurrence.id, state: 'pending' },
+    });
+
+    const resource = {
+      id: 'real-google-occurrence-id',
+      recurringEventId: 'offline-series',
+      etag: 'instance-v1',
+      summary: 'Series appointment',
+      status: 'confirmed',
+      originalStartTime: { dateTime: '2026-10-12T09:00:00.000Z' },
+      start: { dateTime: '2026-10-12T09:00:00.000Z', timeZone: 'UTC' },
+      end: { dateTime: '2026-10-12T10:00:00.000Z', timeZone: 'UTC' },
+    };
+
+    const updateEvent = jest
+      .fn<GoogleCalendarService['updateEvent']>()
+      .mockResolvedValue({
+        ...resource,
+        summary: 'Edited while paused',
+        etag: 'instance-v2',
+      });
+
+    const sync = new CalendarSyncService(
+      repository,
+      {
+        available: () => true,
+        listEventInstances: jest
+          .fn<GoogleCalendarService['listEventInstances']>()
+          .mockResolvedValue([resource]),
+        getEvent: jest
+          .fn<GoogleCalendarService['getEvent']>()
+          .mockResolvedValue(resource),
+        updateEvent,
+      } as unknown as GoogleCalendarService,
+      {} as QueueService,
+      new ConfigService({}),
+    );
+
+    await sync.processOperation(pending.id);
+    expect(updateEvent).toHaveBeenCalledWith(
+      'new-access',
+      'contract-calendar',
+      'real-google-occurrence-id',
+      pending.id,
+      { title: 'Edited while paused' },
+      'instance-v1',
+      expect.any(Object),
+    );
+    expect(await repository.findById(userId, occurrence.id)).toMatchObject({
+      title: 'Edited while paused',
+      providerEventId: 'real-google-occurrence-id',
+      syncState: 'synced',
+      recurringParentEventId: null,
+    });
+    expect(
+      await prisma.calendarEvent.count({
+        where: { userId, recurringParentProviderEventId: 'offline-series' },
+      }),
+    ).toBe(1);
+  });
+
+  test('a new exception edited while detached relinks in place when Google later imports its instance', async () => {
+    const { userId, bindingId } = await createBinding();
+    const baseline = inboundEvent('detached-series', 'Original series');
+    baseline.event.recurrence = ['RRULE:FREQ=DAILY;COUNT=3'];
+    baseline.commonSnapshot = {
+      ...baseline.commonSnapshot,
+      recurrence: ['RRULE:FREQ=DAILY;COUNT=3'],
+    };
+    await commitInboundPage(bindingId, [baseline]);
+    const master = await prisma.calendarEvent.findFirstOrThrow({
+      where: { userId, providerEventId: 'detached-series' },
+    });
+
+    await repository.selectGoogleCalendar(userId, {
+      id: 'work-calendar',
+      name: 'Work',
+      timezone: 'UTC',
+    });
+    const occurrence = await new CalendarReadService(
+      repository,
+    ).resolveLocalOccurrenceForMutation(
+      userId,
+      master.id,
+      '2026-10-12T09:00:00.000Z',
+    );
+
+    if (!occurrence)
+      throw new Error('Detached occurrence did not materialize.');
+    expect(
+      await repository.updateMutation(
+        userId,
+        occurrence.id,
+        { title: 'Detached exception edit' },
+        {
+          key: 'detached-exception',
+          fingerprint: 'detached-exception',
+          expiresAt: new Date('2099-01-01'),
+        },
+      ),
+    ).toMatchObject({ status: 'saved', operationId: null });
+    await repository.selectGoogleCalendar(userId, {
+      id: 'contract-calendar',
+      name: 'Personal',
+      timezone: 'UTC',
+    });
+    await commitInboundPage(bindingId, [baseline], 3);
+    expect(
+      await prisma.calendarSyncOperation.count({
+        where: { calendarEventId: occurrence.id, state: 'pending' },
+      }),
+    ).toBe(1);
+
+    await repository.requestFullResync(userId);
+    await commitInboundPage(
+      bindingId,
+      [
+        baseline,
+        parseInboundEvent(
+          {
+            id: 'imported-instance',
+            recurringEventId: 'detached-series',
+            summary: 'Original series',
+            status: 'confirmed',
+            etag: 'import-v1',
+            originalStartTime: { dateTime: '2026-10-12T09:00:00.000Z' },
+            start: { dateTime: '2026-10-12T09:00:00.000Z', timeZone: 'UTC' },
+            end: { dateTime: '2026-10-12T10:00:00.000Z', timeZone: 'UTC' },
+          },
+          'UTC',
+        ),
+      ],
+      3,
+    );
+    expect(await repository.findById(userId, occurrence.id)).toMatchObject({
+      title: 'Detached exception edit',
+      providerEventId: 'imported-instance',
+      provider: 'google',
+      recurringParentEventId: null,
+    });
+    expect(
+      await prisma.calendarEvent.count({
+        where: { userId, recurringParentProviderEventId: 'detached-series' },
+      }),
+    ).toBe(1);
+  });
+
+  test('deleting a Google series cancels imported exceptions and preserves pending occurrence edits for recovery', async () => {
+    const { userId, bindingId } = await createBinding();
+    const baseline = inboundEvent('deleted-series', 'Deleted series');
+    baseline.event.recurrence = ['RRULE:FREQ=DAILY;COUNT=3'];
+    baseline.commonSnapshot = {
+      ...baseline.commonSnapshot,
+      recurrence: ['RRULE:FREQ=DAILY;COUNT=3'],
+    };
+    const exception = parseInboundEvent(
+      {
+        id: 'deleted-series-exception',
+        recurringEventId: 'deleted-series',
+        summary: 'Moved occurrence',
+        status: 'confirmed',
+        etag: 'exception-v1',
+        originalStartTime: { dateTime: '2026-10-12T09:00:00.000Z' },
+        start: { dateTime: '2026-10-12T12:00:00.000Z', timeZone: 'UTC' },
+        end: { dateTime: '2026-10-12T13:00:00.000Z', timeZone: 'UTC' },
+      },
+      'UTC',
+    );
+
+    await commitInboundPage(bindingId, [baseline, exception]);
+    const master = await prisma.calendarEvent.findFirstOrThrow({
+      where: { userId, providerEventId: 'deleted-series' },
+    });
+
+    const read = new CalendarReadService(repository);
+    const local = await read.resolveLocalOccurrenceForMutation(
+      userId,
+      master.id,
+      '2026-10-13T09:00:00.000Z',
+    );
+
+    if (!local)
+      throw new Error('Pending series occurrence did not materialize.');
+    await repository.updateMutation(
+      userId,
+      local.id,
+      { title: 'Recoverable occurrence edit' },
+      {
+        key: 'before-series-deletion',
+        fingerprint: 'before-series-deletion',
+        expiresAt: new Date('2099-01-01'),
+      },
+    );
+    await repository.requestFullResync(userId);
+    await commitInboundPage(bindingId, [
+      parseInboundEvent({ id: 'deleted-series', status: 'cancelled' }, 'UTC'),
+    ]);
+    expect(
+      await read.list(userId, new Date('2026-10-11'), new Date('2026-10-15')),
+    ).toEqual([]);
+    expect(
+      await prisma.calendarSyncOperation.count({
+        where: { calendarEventId: local.id, state: 'pending' },
+      }),
+    ).toBe(0);
+    expect(await repository.listRecovery(userId)).toEqual([
+      expect.objectContaining({
+        eventId: local.id,
+        resolution: 'automatic:remote:series_deletion',
+        local: expect.objectContaining({
+          title: 'Recoverable occurrence edit',
+        }),
+      }),
+    ]);
+  });
+
+  test('switching Google accounts never uploads retained events or local-only events to the new source', async () => {
+    const { userId, bindingId } = await createBinding();
+    const baseline = inboundEvent(
+      'same-id-in-two-accounts',
+      'Private old account event',
+    );
+
+    await commitInboundPage(bindingId, [baseline]);
+    const previous = await prisma.calendarEvent.findFirstOrThrow({
+      where: { userId, providerEventId: baseline.googleEventId },
+    });
+
+    const local = await repository.createMutation(
+      userId,
+      {
+        title: 'Always local',
+        startAt: new Date('2026-10-12T09:00:00Z'),
+        endAt: new Date('2026-10-12T10:00:00Z'),
+        timezone: 'UTC',
+      },
+      'local',
+      {
+        key: 'local-only',
+        fingerprint: 'local-only',
+        expiresAt: new Date('2099-01-01'),
+      },
+    );
+
+    expect(local).toMatchObject({ status: 'saved', operationId: null });
+    const next = await repository.saveGoogleConnection({
+      userId,
+      googleSubject: 'another-account-subject',
+      googleEmail: 'another@example.invalid',
+      scope: 'calendar.events',
+      accessToken: 'another-access',
+      refreshToken: 'another-refresh',
+      expiresAt: new Date('2099-01-01'),
+      calendar: {
+        id: 'contract-calendar',
+        name: 'New account',
+        timezone: 'UTC',
+      },
+    });
+
+    if (next.status !== 'connected')
+      throw new Error('New synthetic account did not connect.');
+    await commitInboundPage(
+      next.bindingId,
+      [inboundEvent(baseline.googleEventId, 'New account event')],
+      2,
+    );
+    expect(await repository.findById(userId, previous.id)).toMatchObject({
+      title: 'Private old account event',
+      provider: 'local',
+      syncState: 'local',
+    });
+    expect(
+      await prisma.calendarEvent.count({
+        where: { userId, title: 'Always local', provider: 'local' },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.calendarSyncOperation.count({
+        where: { bindingId: next.bindingId },
+      }),
+    ).toBe(0);
+    expect(await prisma.calendarEvent.count({ where: { userId } })).toBe(3);
+  });
 
   async function createLegacyCandidate(
     userId: string,
@@ -442,7 +1019,7 @@ live('Calendar sync PostgreSQL contract', () => {
     ).toMatchObject({ state: 'completed', claimToken: null });
   });
 
-  test('delete completion preserves a newer pending edit while recording the confirmed deletion revision', async () => {
+  test('delete completion retains a newer edit in recovery while the confirmed deletion wins', async () => {
     const fixture = await claimedCompletion();
     await prisma.calendarEvent.update({
       where: { id: fixture.eventId },
@@ -454,7 +1031,8 @@ live('Calendar sync PostgreSQL contract', () => {
     ).toMatchObject({
       title: 'Newer desired title',
       revision: 3,
-      syncState: 'pending',
+      status: 'cancelled',
+      syncState: 'synced',
     });
     expect(
       await prisma.calendarEventLink.findUnique({
@@ -467,6 +1045,12 @@ live('Calendar sync PostgreSQL contract', () => {
         status: 'cancelled',
       }),
     });
+    expect(await repository.listRecovery(fixture.userId)).toEqual([
+      expect.objectContaining({
+        resolution: 'automatic:local:deletion',
+        local: expect.objectContaining({ title: 'Newer desired title' }),
+      }),
+    ]);
   });
 
   test.each([
@@ -757,6 +1341,77 @@ live('Calendar sync PostgreSQL contract', () => {
     ).toMatchObject({ state: 'completed', attempts: 2 });
   });
 
+  test('a pending deletion wins a provider edit using its current revision and retaining the provider version', async () => {
+    const fixture = await uncertainUpdate();
+    fixture.editRemote({ summary: 'Google edit before deletion' });
+    await prisma.calendarSyncOperation.update({
+      where: { id: fixture.operationId },
+      data: { kind: 'delete' },
+    });
+    await prisma.calendarEvent.update({
+      where: { id: fixture.eventId },
+      data: { status: 'cancelled' },
+    });
+    const deleteEvent = jest
+      .fn<GoogleCalendarService['deleteEvent']>()
+      .mockResolvedValue();
+
+    const sync = new CalendarSyncService(
+      repository,
+      {
+        available: () => true,
+        getEvent: fixture.getEvent,
+        deleteEvent,
+      } as unknown as GoogleCalendarService,
+      {} as QueueService,
+      new ConfigService({}),
+    );
+
+    await sync.processOperation(fixture.operationId);
+    expect(deleteEvent).toHaveBeenCalledWith(
+      'synthetic-access-token',
+      'contract-calendar',
+      fixture.providerId,
+      'etag-external-edit',
+      expect.any(Object),
+    );
+    expect(
+      await repository.findById(fixture.userId, fixture.eventId),
+    ).toMatchObject({ status: 'cancelled', syncState: 'synced' });
+    expect(await repository.listRecovery(fixture.userId)).toEqual([
+      expect.objectContaining({
+        resolution: expect.stringContaining('automatic:local:deletion'),
+        remote: expect.objectContaining({
+          title: 'Google edit before deletion',
+        }),
+      }),
+    ]);
+  });
+
+  test('a deleted Google event encountered before an outbound update cancels the edit and preserves recovery', async () => {
+    const fixture = await uncertainUpdate();
+    fixture.getEvent.mockRejectedValue(
+      new GoogleCalendarApiError(404, 'notFound', null),
+    );
+    await fixture.sync.processOperation(fixture.operationId);
+    expect(fixture.updateEvent).not.toHaveBeenCalled();
+    expect(
+      await repository.findById(fixture.userId, fixture.eventId),
+    ).toMatchObject({ status: 'cancelled', syncState: 'synced' });
+    expect(
+      await prisma.calendarSyncOperation.findUnique({
+        where: { id: fixture.operationId },
+      }),
+    ).toMatchObject({ state: 'cancelled' });
+    expect(await repository.listRecovery(fixture.userId)).toEqual([
+      expect.objectContaining({
+        resolution: 'automatic:remote:deletion',
+        local: expect.objectContaining({ title: 'Completion event' }),
+        remote: null,
+      }),
+    ]);
+  });
+
   test('an old operation marker cannot overwrite a later edit to the same provider field', async () => {
     const fixture = await uncertainUpdate();
     fixture.editRemote({
@@ -769,13 +1424,15 @@ live('Calendar sync PostgreSQL contract', () => {
     expect(fixture.updateEvent).not.toHaveBeenCalled();
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
-    ).toMatchObject({ title: 'Completion event', syncState: 'conflict' });
+    ).toMatchObject({ title: 'Later Google title', syncState: 'synced' });
     expect(
       await prisma.calendarSyncConflict.findFirst({
         where: { eventLinkId: fixture.linkId },
       }),
     ).toMatchObject({
       conflictingFields: ['title'],
+      state: 'resolved',
+      localSnapshot: expect.objectContaining({ title: 'Completion event' }),
       remoteSnapshot: expect.objectContaining({
         resource: expect.objectContaining({ summary: 'Later Google title' }),
         common: expect.objectContaining({ title: 'Later Google title' }),
@@ -909,10 +1566,49 @@ live('Calendar sync PostgreSQL contract', () => {
     });
   });
 
-  test('keeping Sydia after a conflict replaces superseded operations without blocking the chosen write', async () => {
+  async function persistLegacyConflict(
+    fixture: Awaited<ReturnType<typeof uncertainUpdate>>,
+  ) {
+    // Simulate an unresolved record created by the previous release; new
+    // reconciliation no longer creates open conflicts for overlapping edits.
+    const operation = await prisma.calendarSyncOperation.findUniqueOrThrow({
+      where: { id: fixture.operationId },
+    });
+
+    const inbound = parseInboundEvent(fixture.remote(), 'UTC');
+    await prisma.calendarSyncConflict.create({
+      data: {
+        bindingId: operation.bindingId,
+        eventLinkId: fixture.linkId,
+        localRevision: 2,
+        baseSnapshot: operation.baseSnapshot ?? undefined,
+        localSnapshot: operation.payload as Prisma.InputJsonObject,
+        remoteSnapshot: {
+          resource: fixture.remote() as Prisma.InputJsonObject,
+          common: inbound.commonSnapshot as Prisma.InputJsonObject,
+        },
+        conflictingFields: ['title'],
+        state: 'open',
+      },
+    });
+    await prisma.calendarEvent.update({
+      where: { id: fixture.eventId },
+      data: { syncState: 'conflict' },
+    });
+    await prisma.calendarEventLink.update({
+      where: { id: fixture.linkId },
+      data: { etag: 'etag-external-edit' },
+    });
+    await prisma.calendarSyncOperation.update({
+      where: { id: fixture.operationId },
+      data: { state: 'conflict' },
+    });
+  }
+
+  test('keeping Sydia after a legacy conflict replaces superseded operations without blocking the chosen write', async () => {
     const fixture = await uncertainUpdate();
     fixture.editRemote({ summary: 'Conflicting Google title' });
-    await fixture.sync.processOperation(fixture.operationId);
+    await persistLegacyConflict(fixture);
     const conflict = await prisma.calendarSyncConflict.findFirstOrThrow({
       where: { eventLinkId: fixture.linkId, state: 'open' },
     });
@@ -948,10 +1644,10 @@ live('Calendar sync PostgreSQL contract', () => {
     ).toMatchObject({ title: 'Completion event', syncState: 'synced' });
   });
 
-  test('using Google permits later edits and retry ignores the superseded failed operation', async () => {
+  test('using Google for a legacy conflict permits later edits and retry ignores the superseded failed operation', async () => {
     const fixture = await uncertainUpdate();
     fixture.editRemote({ summary: 'Chosen Google title' });
-    await fixture.sync.processOperation(fixture.operationId);
+    await persistLegacyConflict(fixture);
     const conflict = await prisma.calendarSyncConflict.findFirstOrThrow({
       where: { eventLinkId: fixture.linkId, state: 'open' },
     });
@@ -1183,7 +1879,8 @@ live('Calendar sync PostgreSQL contract', () => {
         }),
       ).toMatchObject({
         title: 'Completion event',
-        syncState: 'reconnect_required',
+        syncState: 'local',
+        provider: 'local',
         lastSyncedAt: null,
       });
     } finally {
@@ -1250,6 +1947,149 @@ live('Calendar sync PostgreSQL contract', () => {
       fetchSpy.mockRestore();
       limiter.onModuleDestroy();
     }
+  });
+
+  test('automatic recovery is owner-scoped and restoration creates one local event without uploading it', async () => {
+    const fixture = await pendingInboundEdit({ title: 'Recover this title' });
+    await commitInboundPage(fixture.bindingId, [
+      changedInbound(
+        fixture.baseline,
+        { title: 'Google won' },
+        { title: 'Google won' },
+      ),
+    ]);
+    const entries = await repository.listRecovery(fixture.userId);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      local: { title: 'Recover this title' },
+      remote: { title: 'Google won' },
+    });
+    expect(
+      await repository.findRecovery('another-user', entries[0]!.id),
+    ).toBeNull();
+    const service = new CalendarService(repository);
+    const restored = await service.restoreRecovery(
+      fixture.userId,
+      entries[0]!.id,
+      'local',
+      'restore-once',
+    );
+
+    const replayed = await service.restoreRecovery(
+      fixture.userId,
+      entries[0]!.id,
+      'local',
+      'restore-once',
+    );
+
+    expect(restored).toMatchObject({
+      title: 'Recover this title',
+      provider: 'local',
+      syncState: 'local',
+    });
+    expect(replayed.id).toBe(restored.id);
+    expect(
+      await prisma.calendarSyncOperation.count({
+        where: { calendarEventId: restored.id },
+      }),
+    ).toBe(0);
+  });
+
+  test('a later persisted local edit wins an inbound collision and retains the provider clock', async () => {
+    const fixture = await pendingInboundEdit({
+      title: 'Later local title',
+      localEditedAt: new Date('2026-10-23T02:00:00Z'),
+    });
+
+    const remote = changedInbound(
+      fixture.baseline,
+      { title: 'Earlier Google title' },
+      { title: 'Earlier Google title' },
+    );
+
+    remote.rawSnapshot = {
+      ...remote.rawSnapshot,
+      updated: '2026-10-23T01:00:00Z',
+    };
+    await commitInboundPage(fixture.bindingId, [remote]);
+    expect(
+      await repository.findById(fixture.userId, fixture.eventId),
+    ).toMatchObject({ title: 'Later local title', syncState: 'pending' });
+    expect(
+      await prisma.calendarEventLink.findUnique({
+        where: { id: fixture.linkId },
+      }),
+    ).toMatchObject({ remoteEditedAt: new Date('2026-10-23T01:00:00Z') });
+    expect(await repository.listRecovery(fixture.userId)).toEqual([
+      expect.objectContaining({
+        resolution: 'automatic:local:later_edit',
+        remote: expect.objectContaining({ title: 'Earlier Google title' }),
+      }),
+    ]);
+  });
+
+  test('a later Google edit wins even when local database bookkeeping has a newer timestamp', async () => {
+    const fixture = await pendingInboundEdit({
+      title: 'Earlier local title',
+      localEditedAt: new Date('2026-10-23T01:00:00Z'),
+      updatedAt: new Date('2099-01-01'),
+    });
+
+    const remote = changedInbound(
+      fixture.baseline,
+      { title: 'Later Google title' },
+      { title: 'Later Google title' },
+    );
+
+    remote.rawSnapshot = {
+      ...remote.rawSnapshot,
+      updated: '2026-10-23T02:00:00Z',
+    };
+    await commitInboundPage(fixture.bindingId, [remote]);
+    expect(
+      await repository.findById(fixture.userId, fixture.eventId),
+    ).toMatchObject({ title: 'Later Google title', syncState: 'synced' });
+    expect(await repository.listRecovery(fixture.userId)).toEqual([
+      expect.objectContaining({
+        resolution: 'automatic:remote:later_edit',
+        local: expect.objectContaining({ title: 'Earlier local title' }),
+      }),
+    ]);
+  });
+
+  test('older recovery versions remain accessible through owner-scoped pagination', async () => {
+    const fixture = await pendingInboundEdit({ title: 'Recoverable title' });
+    await commitInboundPage(fixture.bindingId, [
+      changedInbound(
+        fixture.baseline,
+        { title: 'Google title' },
+        { title: 'Google title' },
+      ),
+    ]);
+    const template = await prisma.calendarSyncConflict.findFirstOrThrow({
+      where: { eventLinkId: fixture.linkId },
+    });
+
+    await prisma.calendarSyncConflict.createMany({
+      data: Array.from({ length: 100 }, (_, index) => ({
+        bindingId: fixture.bindingId,
+        eventLinkId: fixture.linkId,
+        localRevision: 2,
+        localSnapshot: template.localSnapshot as Prisma.InputJsonObject,
+        remoteSnapshot: template.remoteSnapshot as Prisma.InputJsonObject,
+        state: 'resolved',
+        resolution: 'automatic:remote:later_edit',
+        createdAt: new Date(Date.UTC(2020, 0, 1, 0, index)),
+      })),
+    });
+    const first = await repository.listRecovery(fixture.userId);
+    expect(first).toHaveLength(100);
+    const second = await repository.listRecovery(fixture.userId, first[99]!.id);
+    expect(second).toHaveLength(1);
+    expect(second[0]!.id).not.toBe(first[99]!.id);
+    expect(
+      await repository.listRecovery('another-user', first[99]!.id),
+    ).toEqual([]);
   });
 
   async function pendingInboundEdit(local: Prisma.CalendarEventUpdateInput) {
@@ -1490,8 +2330,9 @@ live('Calendar sync PostgreSQL contract', () => {
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
     ).toMatchObject({
       title: 'Unsynced local edit',
-      syncState: 'conflict',
-      syncErrorCode: 'remote_deleted',
+      status: 'cancelled',
+      syncState: 'synced',
+      syncErrorCode: null,
     });
   });
 
@@ -1518,7 +2359,7 @@ live('Calendar sync PostgreSQL contract', () => {
     ).toBe(0);
   });
 
-  test('full resync refreshes an existing comparison when a conflicted event disappears', async () => {
+  test('full resync retains the previous recovery comparison when the event is later deleted', async () => {
     const fixture = await pendingInboundEdit({ title: 'Local title' });
     await commitInboundPage(fixture.bindingId, [
       changedInbound(
@@ -1540,15 +2381,16 @@ live('Calendar sync PostgreSQL contract', () => {
       await prisma.calendarSyncConflict.count({
         where: { eventLinkId: fixture.linkId, state: 'open' },
       }),
-    ).toBe(1);
+    ).toBe(0);
     expect(
       await prisma.calendarSyncConflict.findUnique({
         where: { id: conflict.id },
       }),
     ).toMatchObject({
-      conflictingFields: ['status'],
+      conflictingFields: ['title'],
+      state: 'resolved',
       remoteSnapshot: expect.objectContaining({
-        resource: expect.objectContaining({ status: 'cancelled' }),
+        common: expect.objectContaining({ title: 'Google title' }),
       }),
     });
     expect(
@@ -1559,14 +2401,14 @@ live('Calendar sync PostgreSQL contract', () => {
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
     ).toMatchObject({
-      title: 'Local title',
-      status: 'confirmed',
-      syncState: 'conflict',
-      revision: 2,
+      title: 'Google title',
+      status: 'cancelled',
+      syncState: 'synced',
+      revision: 4,
     });
   });
 
-  test('full resync preserves an existing conflict even when its local revision equals the baseline', async () => {
+  test('full resync honors deletion after automatic resolution even when the synced revision was reset', async () => {
     const fixture = await pendingInboundEdit({ title: 'Local title' });
     await commitInboundPage(fixture.bindingId, [
       changedInbound(
@@ -1588,14 +2430,14 @@ live('Calendar sync PostgreSQL contract', () => {
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
     ).toMatchObject({
-      title: 'Local title',
-      status: 'confirmed',
-      syncState: 'conflict',
-      revision: 2,
+      title: 'Google title',
+      status: 'cancelled',
+      syncState: 'synced',
+      revision: 4,
     });
   });
 
-  test('inbound start and end edits conflict as one time group without creating a hybrid interval', async () => {
+  test('inbound start and end edits resolve as one time group without creating a hybrid interval', async () => {
     const fixture = await pendingInboundEdit({
       startAt: new Date('2026-10-11T09:30:00Z'),
     });
@@ -1610,9 +2452,9 @@ live('Calendar sync PostgreSQL contract', () => {
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
     ).toMatchObject({
-      startAt: new Date('2026-10-11T09:30:00Z'),
-      endAt: new Date('2026-10-11T10:00:00Z'),
-      syncState: 'conflict',
+      startAt: new Date('2026-10-11T09:00:00Z'),
+      endAt: new Date('2026-10-11T11:00:00Z'),
+      syncState: 'synced',
     });
     expect(
       await prisma.calendarSyncConflict.findFirst({
@@ -1620,6 +2462,10 @@ live('Calendar sync PostgreSQL contract', () => {
       }),
     ).toMatchObject({
       conflictingFields: ['time'],
+      state: 'resolved',
+      localSnapshot: expect.objectContaining({
+        startAt: '2026-10-11T09:30:00.000Z',
+      }),
       remoteSnapshot: expect.objectContaining({
         common: expect.objectContaining({
           startAt: '2026-10-11T09:00:00.000Z',
@@ -1631,10 +2477,10 @@ live('Calendar sync PostgreSQL contract', () => {
       await prisma.calendarSyncOperation.findUnique({
         where: { id: fixture.operationId },
       }),
-    ).toMatchObject({ state: 'conflict' });
+    ).toMatchObject({ state: 'cancelled' });
   });
 
-  test('inbound recurrence changes conflict with a pending local time edit', async () => {
+  test('inbound recurrence changes retain the provider time group when edit clocks are unknown', async () => {
     const fixture = await pendingInboundEdit({
       startAt: new Date('2026-10-11T09:30:00Z'),
     });
@@ -1648,15 +2494,21 @@ live('Calendar sync PostgreSQL contract', () => {
     ]);
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
-    ).toMatchObject({ recurrence: [], syncState: 'conflict' });
+    ).toMatchObject({ recurrence: ['RRULE:FREQ=WEEKLY'], syncState: 'synced' });
     expect(
       await prisma.calendarSyncConflict.findFirst({
         where: { eventLinkId: fixture.linkId },
       }),
-    ).toMatchObject({ conflictingFields: ['time'] });
+    ).toMatchObject({
+      conflictingFields: ['time'],
+      state: 'resolved',
+      localSnapshot: expect.objectContaining({
+        startAt: '2026-10-11T09:30:00.000Z',
+      }),
+    });
   });
 
-  test('refreshing an inbound conflict preserves its coupled time comparison', async () => {
+  test('later provider changes preserve the original recovery comparison', async () => {
     const fixture = await pendingInboundEdit({
       startAt: new Date('2026-10-11T09:30:00Z'),
     });
@@ -1689,7 +2541,7 @@ live('Calendar sync PostgreSQL contract', () => {
       conflictingFields: ['time'],
       remoteSnapshot: expect.objectContaining({
         common: expect.objectContaining({
-          endAt: '2026-10-11T12:00:00.000Z',
+          endAt: '2026-10-11T11:00:00.000Z',
         }),
       }),
     });
@@ -1759,7 +2611,7 @@ live('Calendar sync PostgreSQL contract', () => {
     ).toBe(0);
   });
 
-  test('inbound timezone changes conflict with pending local date-range changes', async () => {
+  test('inbound timezone changes resolve the entire time group with recoverable local values', async () => {
     const fixture = await pendingInboundEdit({
       startAt: new Date('2026-10-11T09:30:00Z'),
     });
@@ -1773,15 +2625,15 @@ live('Calendar sync PostgreSQL contract', () => {
     ]);
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
-    ).toMatchObject({ timezone: 'UTC', syncState: 'conflict' });
+    ).toMatchObject({ timezone: 'Asia/Makassar', syncState: 'synced' });
     expect(
       await prisma.calendarSyncConflict.findFirst({
         where: { eventLinkId: fixture.linkId },
       }),
-    ).toMatchObject({ conflictingFields: ['time'] });
+    ).toMatchObject({ conflictingFields: ['time'], state: 'resolved' });
   });
 
-  test('inbound recurrence changes preserve a conflicting local all-day conversion', async () => {
+  test('inbound recurrence changes preserve a losing all-day conversion in recovery', async () => {
     const fixture = await pendingInboundEdit({
       startAt: null,
       endAt: null,
@@ -1800,18 +2652,25 @@ live('Calendar sync PostgreSQL contract', () => {
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
     ).toMatchObject({
-      startAt: null,
-      endAt: null,
-      allDayStartDate: new Date('2026-10-11T00:00:00Z'),
-      allDayEndDate: new Date('2026-10-13T00:00:00Z'),
-      recurrence: [],
-      syncState: 'conflict',
+      startAt: new Date('2026-10-11T09:00:00Z'),
+      endAt: new Date('2026-10-11T10:00:00Z'),
+      allDayStartDate: null,
+      allDayEndDate: null,
+      recurrence: ['RRULE:FREQ=WEEKLY'],
+      syncState: 'synced',
     });
     expect(
       await prisma.calendarSyncConflict.findFirst({
         where: { eventLinkId: fixture.linkId },
       }),
-    ).toMatchObject({ conflictingFields: ['time'] });
+    ).toMatchObject({
+      conflictingFields: ['time'],
+      state: 'resolved',
+      localSnapshot: expect.objectContaining({
+        allDayStartDate: '2026-10-11T00:00:00.000Z',
+        allDayEndDate: '2026-10-13T00:00:00.000Z',
+      }),
+    });
   });
 
   test('inbound attendee ordering confirms the same membership without a conflict or extra operation', async () => {
@@ -1892,7 +2751,7 @@ live('Calendar sync PostgreSQL contract', () => {
     ).toBe(1);
   });
 
-  test('a pending local deletion conflicts with a Google edit and preserves both versions', async () => {
+  test('a pending local deletion wins over a Google edit and preserves both versions for recovery', async () => {
     const fixture = await pendingInboundEdit({ status: 'cancelled' });
     await commitInboundPage(fixture.bindingId, [
       changedInbound(
@@ -1904,9 +2763,9 @@ live('Calendar sync PostgreSQL contract', () => {
     expect(
       await prisma.calendarEvent.findUnique({ where: { id: fixture.eventId } }),
     ).toMatchObject({
-      title: 'Grouped event',
+      title: 'Google edit before cancellation',
       status: 'cancelled',
-      syncState: 'conflict',
+      syncState: 'pending',
     });
     expect(
       await prisma.calendarSyncConflict.findFirst({
@@ -1914,6 +2773,8 @@ live('Calendar sync PostgreSQL contract', () => {
       }),
     ).toMatchObject({
       conflictingFields: ['status'],
+      state: 'resolved',
+      resolution: 'automatic:local:deletion',
       remoteSnapshot: expect.objectContaining({
         common: expect.objectContaining({
           title: 'Google edit before cancellation',
@@ -1925,10 +2786,14 @@ live('Calendar sync PostgreSQL contract', () => {
       await prisma.calendarSyncOperation.findUnique({
         where: { id: fixture.operationId },
       }),
-    ).toMatchObject({ kind: 'delete', state: 'conflict' });
+    ).toMatchObject({ kind: 'delete', state: 'cancelled' });
     expect(
       await prisma.calendarSyncOperation.count({
-        where: { calendarEventId: fixture.eventId },
+        where: {
+          calendarEventId: fixture.eventId,
+          kind: 'delete',
+          state: 'pending',
+        },
       }),
     ).toBe(1);
   });

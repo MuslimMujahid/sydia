@@ -33,7 +33,6 @@ import type {
   CalendarEventWriteInput,
 } from "@/lib/services/api/calendar/calendar.api";
 import {
-  useCopyCalendarEvent,
   useCreateCalendarEvent,
   useDeleteCalendarEvent,
   useExportCalendarEvent,
@@ -188,7 +187,6 @@ export function EventEditor({
   );
 
   const createMutation = useCreateCalendarEvent();
-  const copyMutation = useCopyCalendarEvent();
   const exportMutation = useExportCalendarEvent();
   const updateMutation = useUpdateCalendarEvent();
   const retrySyncMutation = useRetryCalendarEventSync();
@@ -315,14 +313,6 @@ export function EventEditor({
     onClose();
   }
 
-  async function handleCopyToSydia() {
-    if (!event || event.isOccurrence) return;
-    const key = idempotencyKey("copy", { eventId: event.id });
-    await copyMutation.mutateAsync({ eventId: event.id, idempotencyKey: key });
-    clearIdempotencyKey(key);
-    onClose();
-  }
-
   async function handleExportToGoogle() {
     if (!event) return;
     const key = idempotencyKey("export", { eventId: event.id });
@@ -340,51 +330,6 @@ export function EventEditor({
     await retrySyncMutation.mutateAsync(event.id);
     onClose();
   }
-
-  const isReadOnlyGoogleEvent =
-    event?.provider === "google" && event.syncState === "reconnect_required";
-
-  if (isReadOnlyGoogleEvent && event)
-    return (
-      <DialogContent
-        variant="sheet"
-        className="sm:max-h-[90dvh] sm:max-w-2xl sm:overflow-y-auto"
-      >
-        {header}
-        <DialogTitle>Acara Google Calendar</DialogTitle>
-        <DialogDescription className="mt-2">
-          Acara ini hanya-baca karena kalender Google sumbernya tidak sedang
-          tersinkron. Menyalinnya membuat acara terpisah yang dapat Anda edit di
-          Sydia.
-        </DialogDescription>
-        <p className="mt-5 rounded-sm bg-surface-1 px-4 py-3 font-medium text-ink">
-          {event.title}
-        </p>
-        <FormError message={copyMutation.error?.message} />
-        <div className="mt-6 flex justify-end gap-3 border-t border-surface-1 pt-5">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Tutup
-          </Button>
-          {event.isOccurrence ? (
-            <p className="self-center text-sm text-ink-muted">
-              Pilih kembali kalender Google sumber untuk menyalin kejadian
-              berulang ini.
-            </p>
-          ) : (
-            <Button
-              type="button"
-              disabled={copyMutation.isPending}
-              onClick={() => void handleCopyToSydia()}
-            >
-              {copyMutation.isPending ? (
-                <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-              ) : null}
-              {copyMutation.isPending ? "Menyalin…" : "Salin ke Sydia"}
-            </Button>
-          )}
-        </div>
-      </DialogContent>
-    );
 
   return (
     <DialogContent

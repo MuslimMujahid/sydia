@@ -724,7 +724,7 @@ describe('MessagingHandlerService', () => {
       jest.useFakeTimers();
       const { assistant, conversations, service, conversation } = setup();
       const send = jest.fn<() => Promise<void>>(() => Promise.resolve());
-      const stopProcessing = jest.fn();
+      const stopProcessing = jest.fn<() => void>();
       const beginProcessing = jest.fn(() => Promise.resolve(stopProcessing));
       const batch: ClaimedChannelTurns = {
         channelConversationId: 'channel-1',
@@ -812,11 +812,22 @@ describe('MessagingHandlerService', () => {
     },
   );
 
-  it('reports processing failures after stopping provider feedback', async () => {
+  it('awaits provider feedback cleanup before reporting processing failures', async () => {
     jest.useFakeTimers();
     const { assistant, conversations, service, conversation } = setup();
-    const send = jest.fn<() => Promise<void>>(() => Promise.resolve());
-    const stopProcessing = jest.fn();
+    let feedbackStopped = false;
+    let feedbackStoppedAtSend = false;
+    const send = jest.fn<() => Promise<void>>(() => {
+      feedbackStoppedAtSend = feedbackStopped;
+
+      return Promise.resolve();
+    });
+
+    const stopProcessing = jest.fn(async () => {
+      await Promise.resolve();
+      feedbackStopped = true;
+    });
+
     const batch: ClaimedChannelTurns = {
       channelConversationId: 'channel-1',
       conversationId: conversation.id,
@@ -861,6 +872,7 @@ describe('MessagingHandlerService', () => {
       expect.any(Date),
     );
     expect(stopProcessing).toHaveBeenCalledTimes(1);
+    expect(feedbackStoppedAtSend).toBe(true);
     expect(send).toHaveBeenCalledWith(
       user,
       'identity-1',

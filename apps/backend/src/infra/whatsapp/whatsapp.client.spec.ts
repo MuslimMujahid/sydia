@@ -48,6 +48,53 @@ test('on-demand media lookup carries the selected device and encodes the message
   );
 });
 
+test('read receipts target the received message through the selected assistant', async () => {
+  const request = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue(Response.json({ code: 'SUCCESS', results: {} }));
+
+  await makeClient().markRead('owner@s.whatsapp.net', 'message/a');
+  expect(request).toHaveBeenCalledWith(
+    'http://127.0.0.1:3001/message/message%2Fa/read',
+    expect.objectContaining({
+      method: 'POST',
+      headers: {
+        'X-Device-Id': 'assistant-a',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ phone: 'owner@s.whatsapp.net' }),
+    }),
+  );
+});
+
+test.each([
+  ['composing', 'start'],
+  ['paused', 'stop'],
+] as const)(
+  'typing %s uses the GoWA %s action and selected assistant',
+  async (action, providerAction) => {
+    const request = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(Response.json({ code: 'SUCCESS', results: {} }));
+
+    await makeClient().sendChatPresence('owner@s.whatsapp.net', action);
+    expect(request).toHaveBeenCalledWith(
+      'http://127.0.0.1:3001/send/chat-presence',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'X-Device-Id': 'assistant-a',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: 'owner@s.whatsapp.net',
+          action: providerAction,
+        }),
+      }),
+    );
+  },
+);
+
 test('outbound files carry their bytes and reply context through the selected assistant', async () => {
   const request = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
     Response.json({

@@ -1,5 +1,7 @@
 # Google Calendar two-way sync implementation plan
 
+> Product behavior update, 23 October 2026: [Google Calendar uninterrupted editing specification](./GOOGLE_CALENDAR_SYNC_SPEC.md) supersedes this plan's rules for interrupted editing, read-only cached events and copying, disconnects, source switching, reconnection, and manual conflict resolution. Other scope and infrastructure decisions below remain applicable.
+
 Date: 10 October 2026
 
 Status: Implementation paused for account-owner Google testing

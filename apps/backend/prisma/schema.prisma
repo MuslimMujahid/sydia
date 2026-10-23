@@ -1055,6 +1055,8 @@ model CalendarEvent {
   status                         String                  @default("confirmed")
   syncState                      String                  @default("local")
   revision                       Int                     @default(1)
+  localEditedAt                  DateTime?
+  occurrenceBaseline             Json?
   lastSyncedAt                   DateTime?
   syncErrorCode                  String?
   createdAt                      DateTime                @default(now())
@@ -1084,6 +1086,7 @@ model CalendarEventLink {
   originalStartAt                DateTime?
   originalStartDate              DateTime?              @db.Date
   etag                           String?
+  remoteEditedAt                 DateTime?
   remoteSnapshot                 Json?
   commonSnapshot                 Json?
   syncedRevision                 Int?

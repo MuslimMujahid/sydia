@@ -34,6 +34,8 @@ import {
   CalendarRangeDto,
   CreateCalendarEventDto,
   ResolveCalendarConflictDto,
+  RestoreCalendarRecoveryDto,
+  CalendarRecoveryQueryDto,
   ResolveCalendarOccurrenceDto,
   SelectGoogleCalendarDto,
   UpdateCalendarEventDto,
@@ -245,7 +247,7 @@ export class CalendarController {
 
     if (!series) return this.required(null);
 
-    if (series.provider === 'local') {
+    if (['local', 'google'].includes(series.provider)) {
       const occurrence =
         await this.calendarRead.resolveLocalOccurrenceForMutation(
           session.user.id,
@@ -329,6 +331,27 @@ export class CalendarController {
 
   @Get('conflicts') listConflicts(@Session() session: UserSession) {
     return this.service.listOpenConflicts(session.user.id);
+  }
+
+  @Get('recovery') listRecovery(
+    @Session() session: UserSession,
+    @Query() input: CalendarRecoveryQueryDto,
+  ) {
+    return this.service.listRecovery(session.user.id, input.beforeId);
+  }
+
+  @Post('recovery/:id/restore') restoreRecovery(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() input: RestoreCalendarRecoveryDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.service.restoreRecovery(
+      session.user.id,
+      id,
+      input.version,
+      idempotencyKey,
+    );
   }
 
   @Post('conflicts/:id/resolve') resolveConflict(
