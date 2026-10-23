@@ -1127,83 +1127,86 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
-  test('resolves local recurring occurrences before assistant edits', async () => {
-    const series = { provider: 'local' };
-    const occurrence = { id: 'local-exception-1' };
-    const updated = { id: occurrence.id, title: 'Review final' };
-    const findById = jest
-      .fn<(userId: string, id: string) => Promise<typeof series | null>>()
-      .mockResolvedValue(series);
+  test.each(['local', 'google'])(
+    'resolves %s recurring occurrences locally before assistant edits',
+    async (provider) => {
+      const series = { provider };
+      const occurrence = { id: 'local-exception-1' };
+      const updated = { id: occurrence.id, title: 'Review final' };
+      const findById = jest
+        .fn<(userId: string, id: string) => Promise<typeof series | null>>()
+        .mockResolvedValue(series);
 
-    const resolveLocalOccurrenceForMutation = jest
-      .fn<
-        (
-          userId: string,
-          seriesEventId: string,
-          occurrenceKey: string,
-        ) => Promise<typeof occurrence | null>
-      >()
-      .mockResolvedValue(occurrence);
+      const resolveLocalOccurrenceForMutation = jest
+        .fn<
+          (
+            userId: string,
+            seriesEventId: string,
+            occurrenceKey: string,
+          ) => Promise<typeof occurrence | null>
+        >()
+        .mockResolvedValue(occurrence);
 
-    const resolveGoogleOccurrenceForMutation = jest
-      .fn<() => Promise<null>>()
-      .mockResolvedValue(null);
+      const resolveGoogleOccurrenceForMutation = jest
+        .fn<() => Promise<null>>()
+        .mockResolvedValue(null);
 
-    const update = jest
-      .fn<
-        (
-          userId: string,
-          id: string,
-          input: unknown,
-          idempotencyKey: string,
-        ) => Promise<typeof updated>
-      >()
-      .mockResolvedValue(updated);
+      const update = jest
+        .fn<
+          (
+            userId: string,
+            id: string,
+            input: unknown,
+            idempotencyKey: string,
+          ) => Promise<typeof updated>
+        >()
+        .mockResolvedValue(updated);
 
-    const available = tools({
-      calendars: { findById } as unknown as ICalendarRepository,
-      calendarRead: {
-        resolveLocalOccurrenceForMutation,
-      } as unknown as CalendarReadService,
-      calendarSync: {
-        resolveGoogleOccurrenceForMutation,
-      } as unknown as CalendarSyncService,
-      calendarService: { update } as unknown as CalendarService,
-    });
-
-    const result = await available
-      .find((tool) => tool.definition.name === 'update_calendar_event')
-      ?.execute({
-        userId: 'user-1',
-        sourceMessageId: 'message-4',
-        idempotencyKey: 'local-occurrence-edit',
-        arguments: {
-          id: 'occurrence:local-series:2026-01-05T14%3A00%3A00.000Z',
-          scope: 'occurrence',
-          seriesEventId: 'local-series',
-          occurrenceKey: '2026-01-05T14:00:00.000Z',
-          title: 'Review final',
-        },
+      const available = tools({
+        calendars: { findById } as unknown as ICalendarRepository,
+        calendarRead: {
+          resolveLocalOccurrenceForMutation,
+        } as unknown as CalendarReadService,
+        calendarSync: {
+          resolveGoogleOccurrenceForMutation,
+        } as unknown as CalendarSyncService,
+        calendarService: { update } as unknown as CalendarService,
       });
 
-    expect(findById).toHaveBeenCalledWith('user-1', 'local-series');
-    expect(resolveLocalOccurrenceForMutation).toHaveBeenCalledWith(
-      'user-1',
-      'local-series',
-      '2026-01-05T14:00:00.000Z',
-    );
-    expect(resolveGoogleOccurrenceForMutation).not.toHaveBeenCalled();
-    expect(update).toHaveBeenCalledWith(
-      'user-1',
-      occurrence.id,
-      expect.objectContaining({ title: 'Review final' }),
-      'local-occurrence-edit',
-    );
-    expect(result).toEqual({
-      objectType: 'calendar_event',
-      object: updated,
-    });
-  });
+      const result = await available
+        .find((tool) => tool.definition.name === 'update_calendar_event')
+        ?.execute({
+          userId: 'user-1',
+          sourceMessageId: 'message-4',
+          idempotencyKey: 'local-occurrence-edit',
+          arguments: {
+            id: 'occurrence:local-series:2026-01-05T14%3A00%3A00.000Z',
+            scope: 'occurrence',
+            seriesEventId: 'local-series',
+            occurrenceKey: '2026-01-05T14:00:00.000Z',
+            title: 'Review final',
+          },
+        });
+
+      expect(findById).toHaveBeenCalledWith('user-1', 'local-series');
+      expect(resolveLocalOccurrenceForMutation).toHaveBeenCalledWith(
+        'user-1',
+        'local-series',
+        '2026-01-05T14:00:00.000Z',
+      );
+      expect(resolveGoogleOccurrenceForMutation).not.toHaveBeenCalled();
+      expect(update).toHaveBeenCalledWith(
+        'user-1',
+        occurrence.id,
+        expect.objectContaining({ title: 'Review final' }),
+        'local-occurrence-edit',
+      );
+      expect(result).toEqual({
+        objectType: 'calendar_event',
+        object: updated,
+      });
+    },
+  );
 
   test('documents every phase tool and parameter in English', () => {
     const available = tools();

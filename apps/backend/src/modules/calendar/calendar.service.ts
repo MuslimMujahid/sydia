@@ -179,6 +179,80 @@ export class CalendarService {
     return this.calendars.listOpenConflicts(userId);
   }
 
+  listRecovery(userId: string, beforeId?: string) {
+    return this.calendars.listRecovery(userId, beforeId);
+  }
+
+  async restoreRecovery(
+    userId: string,
+    id: string,
+    version: 'local' | 'remote',
+    idempotencyKey?: string,
+  ): Promise<CalendarEvent> {
+    const recovery = await this.calendars.findRecovery(userId, id);
+    if (!recovery)
+      throw new ApiException({
+        code: ErrorCodes.NOT_FOUND,
+        message: 'Riwayat acara tidak ditemukan.',
+        status: HttpStatus.NOT_FOUND,
+      });
+    const snapshot = recovery[version];
+    if (!snapshot || !snapshot.title)
+      throw new ApiException({
+        code: ErrorCodes.CONFLICT,
+        message: 'Versi ini tidak berisi acara yang dapat dipulihkan.',
+        status: HttpStatus.CONFLICT,
+      });
+    const common = {
+      title: snapshot.title,
+      description: snapshot.description,
+      location: snapshot.location,
+      attendees: snapshot.attendees,
+      recurrence: snapshot.recurrence,
+      status:
+        snapshot.status === 'tentative'
+          ? ('tentative' as const)
+          : ('confirmed' as const),
+    };
+
+    let input: CalendarEventWrite;
+    if (snapshot.allDayStartDate && snapshot.allDayEndDate) {
+      input = {
+        ...common,
+        allDayStartDate: new Date(snapshot.allDayStartDate),
+        allDayEndDate: new Date(snapshot.allDayEndDate),
+        timezone: snapshot.timezone,
+      };
+    } else if (snapshot.startAt && snapshot.endAt && snapshot.timezone) {
+      input = {
+        ...common,
+        startAt: new Date(snapshot.startAt),
+        endAt: new Date(snapshot.endAt),
+        timezone: snapshot.timezone,
+      };
+    } else
+      throw new ApiException({
+        code: ErrorCodes.CONFLICT,
+        message: 'Versi ini tidak memiliki waktu acara yang lengkap.',
+        status: HttpStatus.CONFLICT,
+      });
+    // Restoration is a deliberate local copy. It never revives the provider
+    // event, changes a tombstone, or sends old account data to a new source.
+    const result = await this.calendars.createMutation(
+      userId,
+      input,
+      'local',
+      mutationRequest(
+        userId,
+        'restore_recovery',
+        { id, version },
+        idempotencyKey,
+      ),
+    );
+
+    return this.saved(result);
+  }
+
   async resolveConflict(
     userId: string,
     conflictId: string,
@@ -352,7 +426,7 @@ export class CalendarService {
         throw new ApiException({
           code: ErrorCodes.CONFLICT,
           message:
-            'This cached Google event is read-only. Copy it to Sydia to edit it locally.',
+            'This Google feature requires an event linked to Google Calendar.',
           status: HttpStatus.CONFLICT,
         });
       case 'idempotency_conflict':

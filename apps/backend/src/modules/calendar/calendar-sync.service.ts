@@ -28,7 +28,7 @@ import {
 } from '../../infra/calendar';
 import { QueueService, type CalendarSyncJob } from '../../infra/queue';
 import { ApiException, ErrorCodes } from '../../shared/errors';
-import { reconcileCalendarUpdate } from './calendar-update-reconciliation';
+import { resolveCalendarUpdate } from './calendar-update-reconciliation';
 
 class CalendarUpdateConflictError extends Error {
   constructor(
@@ -1022,8 +1022,13 @@ export class CalendarSyncService {
 
       const saved = await this.calendars.failOperation(input);
 
+      const resolvedDeletion =
+        error instanceof CalendarUpdateConflictError &&
+        error.inbound.status === 'cancelled';
+
       if (!saved) calendarSyncMetrics.recordLeaseLoss('operation');
-      else if (outcome === 'conflict') calendarSyncMetrics.recordConflict();
+      else if (outcome === 'conflict' && !resolvedDeletion)
+        calendarSyncMetrics.recordConflict();
       if (persistedErrorCode === 'calendar_retry_budget_exhausted' && saved)
         calendarSyncMetrics.recordExhaustedRetry();
 
@@ -1035,6 +1040,10 @@ export class CalendarSyncService {
         this.logger.warn(
           `Calendar operation ${operationId} ${outcome === 'deferred' ? 'was deferred before its next provider request' : 'will retry'}; the relative deadline was persisted using Postgres time.`,
         );
+      } else if (resolvedDeletion) {
+        this.logger.log(
+          `Calendar operation ${operationId} honored Google deletion and retained recovery data.`,
+        );
       } else {
         this.logger.error(
           `Calendar operation ${operationId} stopped with ${input.errorCode}.`,
@@ -1043,11 +1052,13 @@ export class CalendarSyncService {
 
       const metricOutcome = !saved
         ? 'lease_lost'
-        : outcome === 'retry' ||
-            outcome === 'deferred' ||
-            outcome === 'conflict'
-          ? outcome
-          : 'failed';
+        : resolvedDeletion
+          ? 'success'
+          : outcome === 'retry' ||
+              outcome === 'deferred' ||
+              outcome === 'conflict'
+            ? outcome
+            : 'failed';
 
       calendarSyncMetrics.recordSyncWork(
         'operation',
@@ -1671,11 +1682,67 @@ export class CalendarSyncService {
       }
     }
 
-    const eventId =
+    let eventId =
       eventLink?.googleEventId ??
       (isRecord(operation.payload)
         ? optionalString(operation.payload.providerEventId)
         : null);
+
+    if (
+      !eventId &&
+      isRecord(operation.payload) &&
+      typeof operation.payload.recurringParentEventId === 'string'
+    ) {
+      const seriesEventId = operation.payload.recurringParentEventId;
+      let parentProviderId = optionalString(
+        operation.payload.recurringParentProviderEventId,
+      );
+
+      if (!parentProviderId) {
+        const parent = await this.calendars.findById(
+          binding.userId,
+          seriesEventId,
+        );
+
+        parentProviderId = parent?.providerEventId ?? null;
+        if (!parentProviderId) throw new CalendarVersionChangedError();
+      }
+
+      const occurrenceKey = optionalString(
+        operation.payload.recurrenceExceptionKey,
+      );
+
+      if (!parentProviderId || !occurrenceKey)
+        throw new Error('Deferred occurrence is missing its series identity.');
+      const instances = await this.google.listEventInstances(
+        accessToken,
+        binding.calendarId,
+        parentProviderId,
+        occurrenceKey,
+        this.requestContext(binding, 'outbound', this.operationFence(claim)),
+      );
+
+      const matches = instances.filter(
+        (instance) =>
+          instance.recurringEventId === parentProviderId &&
+          originalStartKey(instance) === occurrenceKey,
+      );
+
+      if (matches.length !== 1)
+        throw new Error('Google did not return a unique deferred occurrence.');
+      const inbound = parseInboundEvent(matches[0]!, binding.timezone);
+      const linked = await this.calendars.materializeGoogleOccurrence({
+        userId: binding.userId,
+        seriesEventId,
+        bindingId: binding.id,
+        calendarId: binding.calendarId,
+        connectionGeneration: operation.connectionGeneration,
+        inbound,
+      });
+
+      if (!linked) throw new GoogleCalendarRequestFencedError();
+      eventId = inbound.googleEventId;
+    }
 
     if (!eventId) {
       if (operation.kind === 'delete') return null;
@@ -1683,15 +1750,62 @@ export class CalendarSyncService {
     }
 
     if (operation.kind === 'delete') {
+      const context = this.requestContext(
+        binding,
+        'outbound',
+        this.operationFence(claim),
+      );
+
+      let current: GoogleEventResource;
+
+      try {
+        current = await this.google.getEvent(
+          accessToken,
+          binding.calendarId,
+          eventId,
+          context,
+        );
+      } catch (error) {
+        if (!isMissingRemoteEvent(error)) throw error;
+
+        return null;
+      }
+
+      if (current.status === 'cancelled') return null;
+      const inbound = parseInboundEvent(current, binding.timezone);
+
+      if (eventLink) {
+        const recorded = await this.calendars.recordAutomaticResolution({
+          operationId: operation.id,
+          claimToken: operation.claimToken,
+          claimEpoch: operation.claimEpoch,
+          eventLinkId: eventLink.id,
+          remoteEtag: remoteEtag(current),
+          fields: ['status'],
+          winner: 'local',
+          reason: 'deletion',
+          localSnapshot: operation.payload,
+          remoteSnapshot: { resource: current, common: inbound.commonSnapshot },
+        });
+
+        if (!recorded) throw new GoogleCalendarRequestFencedError();
+      }
+
+      const etag = remoteEtag(current);
+      if (!etag)
+        throw new Error('Google event deletion requires a current ETag.');
+
       try {
         await this.google.deleteEvent(
           accessToken,
           binding.calendarId,
           eventId,
-          eventLink?.etag ?? null,
-          this.requestContext(binding, 'outbound', this.operationFence(claim)),
+          etag,
+          context,
         );
       } catch (error) {
+        if (isPreconditionFailure(error))
+          throw new CalendarVersionChangedError();
         if (!isMissingRemoteEvent(error)) throw error;
       }
 
@@ -1700,7 +1814,7 @@ export class CalendarSyncService {
 
     const base = parseEventWrite(operation.baseSnapshot);
 
-    const reconcile = (resource: GoogleEventResource) => {
+    const reconcile = async (resource: GoogleEventResource) => {
       if (remoteId(resource) !== eventId)
         throw new Error(
           'Google returned a different event identity during update reconciliation.',
@@ -1708,9 +1822,46 @@ export class CalendarSyncService {
       const inbound = parseInboundEvent(resource, binding.timezone);
       if (!inbound.event || inbound.status === 'cancelled')
         throw new CalendarUpdateConflictError(inbound, ['status']);
-      const result = reconcileCalendarUpdate(base, payload, inbound.event);
-      if (result.status === 'conflict')
-        throw new CalendarUpdateConflictError(inbound, result.fields);
+
+      const editTime = (value: unknown): Date | null => {
+        if (value === undefined || value === null) return null;
+        if (typeof value !== 'string')
+          throw new Error('Calendar edit clock must be an ISO timestamp.');
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime()))
+          throw new Error('Calendar edit clock is invalid.');
+
+        return date;
+      };
+
+      const localClock = isRecord(operation.payload)
+        ? operation.payload.localEditedAt
+        : undefined;
+
+      const result = resolveCalendarUpdate(base, payload, inbound.event, {
+        localEditedAt: editTime(localClock),
+        remoteEditedAt: editTime(resource.updated),
+      });
+
+      if (result.recovery) {
+        const recorded = await this.calendars.recordAutomaticResolution({
+          operationId: operation.id,
+          claimToken: operation.claimToken,
+          claimEpoch: operation.claimEpoch,
+          eventLinkId: eventLink?.id,
+          remoteEtag: remoteEtag(resource),
+          fields: result.recovery.fields,
+          winner: result.recovery.winner,
+          reason: result.recovery.reason,
+          localSnapshot: operation.payload,
+          remoteSnapshot: { resource, common: inbound.commonSnapshot },
+        });
+
+        if (!recorded) throw new GoogleCalendarRequestFencedError();
+        this.logger.log(
+          `Calendar operation ${operation.id} resolved overlapping edits using ${result.recovery.winner} (${result.recovery.reason}); recovery was persisted.`,
+        );
+      }
 
       const meet = googleMeetDetails(resource);
       const needsConferenceChange =
@@ -1733,14 +1884,30 @@ export class CalendarSyncService {
       this.operationFence(claim),
     );
 
-    const current = await this.google.getEvent(
-      accessToken,
-      binding.calendarId,
-      eventId,
-      context,
-    );
+    let current: GoogleEventResource;
 
-    const patch = reconcile(current);
+    try {
+      current = await this.google.getEvent(
+        accessToken,
+        binding.calendarId,
+        eventId,
+        context,
+      );
+    } catch (error) {
+      if (!isMissingRemoteEvent(error)) throw error;
+      this.logger.log(
+        `Google event for operation ${operation.id} was deleted; retaining local edits for recovery.`,
+      );
+      throw new CalendarUpdateConflictError(
+        parseInboundEvent(
+          { id: eventId, status: 'cancelled' },
+          binding.timezone,
+        ),
+        ['status'],
+      );
+    }
+
+    const patch = await reconcile(current);
     if (Object.keys(patch).length === 0) return current;
     const etag = remoteEtag(current);
     if (!etag)
@@ -1757,7 +1924,7 @@ export class CalendarSyncService {
         context,
       );
 
-      if (Object.keys(reconcile(updated)).length !== 0)
+      if (Object.keys(await reconcile(updated)).length !== 0)
         throw new Error(
           'Google did not confirm the requested calendar fields after updating.',
         );
@@ -1775,7 +1942,7 @@ export class CalendarSyncService {
         context,
       );
 
-      if (Object.keys(reconcile(latest)).length === 0) return latest;
+      if (Object.keys(await reconcile(latest)).length === 0) return latest;
       throw new CalendarVersionChangedError();
     }
   }

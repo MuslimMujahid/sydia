@@ -53,7 +53,11 @@ function seriesKey(event: CalendarEventForRead): string {
   return `unlinked:${event.id}`;
 }
 
-function exceptionParentKey(event: CalendarEventForRead): string | null {
+function exceptionParentKey(
+  event: CalendarEventForRead,
+  parent?: CalendarEventForRead,
+): string | null {
+  if (parent) return seriesKey(parent);
   if (event.recurringParentEventId)
     return `local:${event.recurringParentEventId}`;
   if (event.providerBindingId && event.recurringParentProviderEventId)
@@ -347,6 +351,7 @@ export class CalendarReadService {
         event.recurrence.length > 0,
     );
 
+    const seriesById = new Map(series.map((item) => [item.id, item]));
     const seriesByKey = new Map(
       series.map((event) => [seriesKey(event), event] as const),
     );
@@ -354,7 +359,13 @@ export class CalendarReadService {
     const exceptionsBySeries = new Map<string, CalendarEventForRead[]>();
 
     for (const exception of events) {
-      const parentKey = exceptionParentKey(exception);
+      const parentKey = exceptionParentKey(
+        exception,
+        exception.recurringParentEventId
+          ? seriesById.get(exception.recurringParentEventId)
+          : undefined,
+      );
+
       if (!parentKey || !seriesByKey.has(parentKey)) continue;
       const grouped = exceptionsBySeries.get(parentKey) ?? [];
       grouped.push(exception);
@@ -369,10 +380,18 @@ export class CalendarReadService {
         cancelled.originalStartDate?.toISOString().slice(0, 10);
 
       if (!identity) continue;
-      const key = googleSeriesKey(
-        cancelled.bindingId,
-        cancelled.recurringParentProviderEventId,
+      const retainedParent = series.find(
+        (parent) =>
+          parent.providerBindingId === cancelled.bindingId &&
+          parent.providerEventId === cancelled.recurringParentProviderEventId,
       );
+
+      const key = retainedParent
+        ? seriesKey(retainedParent)
+        : googleSeriesKey(
+            cancelled.bindingId,
+            cancelled.recurringParentProviderEventId,
+          );
 
       const grouped = cancelledBySeries.get(key) ?? new Set<string>();
 
@@ -399,7 +418,12 @@ export class CalendarReadService {
     const result: CalendarEventOccurrence[] = [];
 
     for (const event of events) {
-      const parentKey = exceptionParentKey(event);
+      const parentKey = exceptionParentKey(
+        event,
+        event.recurringParentEventId
+          ? seriesById.get(event.recurringParentEventId)
+          : undefined,
+      );
 
       if (parentKey) {
         if (!event.recurringParentEventId && !seriesByKey.has(parentKey))
@@ -454,7 +478,7 @@ export class CalendarReadService {
 
     if (
       !series ||
-      series.provider !== 'local' ||
+      !['local', 'google'].includes(series.provider) ||
       series.recurringParentEventId !== null ||
       series.recurringParentProviderEventId !== null ||
       series.recurrence.length === 0 ||

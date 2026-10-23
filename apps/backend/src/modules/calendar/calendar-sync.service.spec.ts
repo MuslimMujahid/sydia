@@ -113,7 +113,17 @@ function outboundOperationHarness(kind: 'create' | 'update' = 'create') {
     .fn<GoogleCalendarService['updateEvent']>()
     .mockResolvedValue(resource);
 
-  const calendars = { claimOperation, completeOperation, failOperation };
+  const recordAutomaticResolution = jest
+    .fn<ICalendarRepository['recordAutomaticResolution']>()
+    .mockResolvedValue(true);
+
+  const calendars = {
+    claimOperation,
+    completeOperation,
+    failOperation,
+    recordAutomaticResolution,
+  };
+
   const google = {
     available: jest.fn<() => boolean>().mockReturnValue(true),
     createEvent,
@@ -132,6 +142,7 @@ function outboundOperationHarness(kind: 'create' | 'update' = 'create') {
   return {
     service,
     claim,
+    recordAutomaticResolution,
     payload,
     resource,
     getEvent,
@@ -641,9 +652,16 @@ describe('CalendarSyncService outbound operations', () => {
     );
   });
 
-  test('a later provider title edit conflicts even when the old operation marker remains', async () => {
-    const { service, getEvent, resource, updateEvent, failOperation } =
-      outboundOperationHarness('update');
+  test('a provider title edit is recovered and accepted without manual conflict review', async () => {
+    const {
+      service,
+      getEvent,
+      resource,
+      updateEvent,
+      failOperation,
+      completeOperation,
+      recordAutomaticResolution,
+    } = outboundOperationHarness('update');
 
     getEvent.mockResolvedValue({
       ...resource,
@@ -652,12 +670,56 @@ describe('CalendarSyncService outbound operations', () => {
     });
     await service.processOperation('operation-1');
     expect(updateEvent).not.toHaveBeenCalled();
-    expect(failOperation).toHaveBeenCalledWith(
+    expect(recordAutomaticResolution).toHaveBeenCalledWith(
       expect.objectContaining({
-        outcome: 'conflict',
-        conflict: expect.objectContaining({ conflictingFields: ['title'] }),
+        fields: ['title'],
+        winner: 'remote',
+        reason: 'unknown_timestamp',
+        localSnapshot: expect.objectContaining({
+          title: 'Dentist appointment',
+        }),
       }),
     );
+    expect(completeOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reconciledEvent: expect.objectContaining({
+          event: expect.objectContaining({ title: 'Later Google title' }),
+        }),
+      }),
+    );
+    expect(failOperation).not.toHaveBeenCalled();
+  });
+
+  test('a failed recovery save prevents an automatic Google overwrite', async () => {
+    const {
+      service,
+      claim,
+      getEvent,
+      resource,
+      updateEvent,
+      completeOperation,
+      recordAutomaticResolution,
+      failOperation,
+    } = outboundOperationHarness('update');
+
+    claim.operation.payload = {
+      ...(claim.operation.payload as object),
+      localEditedAt: '2026-10-10T13:00:00Z',
+    };
+    getEvent.mockResolvedValue({
+      ...resource,
+      summary: 'Google title',
+      updated: '2026-10-10T12:00:00Z',
+    });
+    recordAutomaticResolution.mockRejectedValue(
+      new Error('Recovery storage unavailable'),
+    );
+
+    await service.processOperation('operation-1');
+
+    expect(updateEvent).not.toHaveBeenCalled();
+    expect(completeOperation).not.toHaveBeenCalled();
+    expect(failOperation).toHaveBeenCalled();
   });
 
   test('an ETag race that already applied the desired update completes after a fresh read', async () => {

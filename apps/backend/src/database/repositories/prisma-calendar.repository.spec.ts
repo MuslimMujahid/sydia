@@ -6,6 +6,68 @@ import { PrismaCalendarRepository } from './prisma-calendar.repository.js';
 const USER_ID = 'user-1';
 const NOW = new Date('2026-10-10T12:00:00.000Z');
 
+test('a local save records its edit clock in both the event and durable Google operation', async () => {
+  const { repository, tx } = eventCreateHarness();
+
+  const result = await repository.createMutation(
+    USER_ID,
+    {
+      title: 'Clocked event',
+      startAt: new Date('2026-10-12T09:00:00Z'),
+      endAt: new Date('2026-10-12T10:00:00Z'),
+      timezone: 'UTC',
+    },
+    'google',
+    { key: 'clocked', fingerprint: 'clocked', expiresAt: NOW },
+  );
+
+  expect(result).toMatchObject({
+    status: 'saved',
+    event: { localEditedAt: NOW },
+  });
+  expect(tx.calendarSyncOperation.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({
+        payload: expect.objectContaining({
+          localEditedAt: '2026-10-10T12:00:00.000Z',
+        }),
+      }),
+    }),
+  );
+});
+
+test('new Google events are saved and queued while authorization needs reconnection', async () => {
+  const { repository, tx } = eventCreateHarness();
+  tx.calendarIntegration.findUnique.mockResolvedValue({
+    status: 'reconnect_required',
+    connectionGeneration: 3,
+    activeBindingId: 'binding-1',
+  });
+
+  const result = await repository.createMutation(
+    USER_ID,
+    {
+      title: 'Saved while paused',
+      startAt: new Date('2026-10-12T09:00:00Z'),
+      endAt: new Date('2026-10-12T10:00:00Z'),
+      timezone: 'UTC',
+    },
+    'google',
+    { key: 'paused', fingerprint: 'paused', expiresAt: NOW },
+  );
+
+  expect(result).toMatchObject({
+    status: 'saved',
+    operationId: 'operation-1',
+    event: { provider: 'google', syncState: 'pending' },
+  });
+  expect(tx.calendarSyncOperation.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({ bindingId: 'binding-1' }),
+    }),
+  );
+});
+
 function eventCreateHarness() {
   const tx = {
     $queryRaw: jest
@@ -340,14 +402,19 @@ function calendarSelectionHarness(input?: {
         .mockResolvedValue({ id: 'binding-new' }),
     },
     calendarSyncOperation: {
+      findMany: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
       updateMany: jest
         .fn<(args: unknown) => Promise<{ count: number }>>()
         .mockResolvedValue({ count: 0 }),
     },
     calendarEvent: {
+      findMany: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
       updateMany: jest
         .fn<(args: unknown) => Promise<{ count: number }>>()
         .mockResolvedValue({ count: 0 }),
+    },
+    calendarEventLink: {
+      findMany: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
     },
     calendarWatchChannel: {
       updateMany: jest
@@ -626,7 +693,7 @@ describe('PrismaCalendarRepository Google calendar selection', () => {
     );
   });
 
-  test('reactivates a known binding and adopts its paused operations to the new generation', async () => {
+  test('reactivates a known binding with a fresh pull before rebuilding linked writes', async () => {
     const { repository, tx } = calendarSelectionHarness({
       activeBindingId: 'binding-current',
       activeBinding: { calendarId: 'current-calendar', state: 'active' },
@@ -646,42 +713,26 @@ describe('PrismaCalendarRepository Google calendar selection', () => {
     });
 
     expect(tx.calendarBinding.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'binding-current' } }),
-    );
-    expect(tx.calendarWatchChannel.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          bindingId: 'binding-current',
-          state: { in: ['active', 'registering'] },
-          stoppedAt: null,
+          id: { in: ['binding-current'] },
+          state: { not: 'disconnected' },
         },
-        data: { state: 'cleanup_pending', cleanupRequestedAt: NOW },
       }),
     );
     expect(tx.calendarBinding.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'binding-target' },
-        data: expect.objectContaining({ state: 'initializing' }),
+        data: expect.objectContaining({ syncToken: null, nextPageToken: null }),
       }),
     );
     expect(tx.calendarSyncOperation.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { bindingId: 'binding-target', state: 'paused' },
-        data: expect.objectContaining({
-          state: 'pending',
-          connectionGeneration: 4,
-        }),
-      }),
-    );
-    expect(tx.calendarEvent.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
         where: expect.objectContaining({
-          providerLink: { is: { bindingId: 'binding-target' } },
-          syncOperations: {
-            some: { bindingId: 'binding-target', state: 'pending' },
-          },
+          bindingId: 'binding-target',
+          calendarEvent: { providerLink: { isNot: null } },
         }),
-        data: { syncState: 'pending', syncErrorCode: null },
+        data: { state: 'cancelled', claimToken: null, claimedUntil: null },
       }),
     );
   });

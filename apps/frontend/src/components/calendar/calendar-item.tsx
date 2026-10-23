@@ -119,7 +119,7 @@ function calendarSyncLabel(syncState: CalendarEvent["syncState"]): string {
     case "error":
       return "Sinkronisasi gagal; lihat Integrasi";
     case "reconnect_required":
-      return "Hubungkan ulang Google di Integrasi";
+      return "Tersimpan di Sydia · Sinkronisasi dijeda";
   }
 }
 
@@ -179,14 +179,11 @@ function ItemDetails({ item, timeZone, done }: ItemDetailsProps) {
           <span
             className={cn(
               "font-medium",
-              ["conflict", "error", "reconnect_required"].includes(
-                event.syncState
-              ) && "text-destructive"
+              ["conflict", "error"].includes(event.syncState) &&
+                "text-destructive"
             )}
             role={
-              ["conflict", "error", "reconnect_required"].includes(
-                event.syncState
-              )
+              ["conflict", "error"].includes(event.syncState)
                 ? "alert"
                 : "status"
             }

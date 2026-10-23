@@ -55,14 +55,14 @@ function GoogleCalendarIntegrationCard({
       title="Google Calendar"
       account={status?.connected || needsReconnect ? status?.googleEmail : null}
       logoSrc="/images/brands/google-calendar.svg"
-      checked={status?.connected === true}
+      checked={status?.connected === true || needsReconnect}
       disabled={
         !status ||
         statusQuery.isError ||
         isConnecting ||
         disconnectMutation.isPending ||
         disconnectPending ||
-        (!status.connected && status.available === false)
+        (!status.connected && !needsReconnect && status.available === false)
       }
       onCheckedChange={(checked) => {
         setConnectError(null);
@@ -107,7 +107,8 @@ function GoogleCalendarIntegrationCard({
       ) : null}
       {needsReconnect ? (
         <p className="text-sm text-ink-muted" role="status">
-          Aktifkan kembali untuk menghubungkan ulang akun Google.
+          Sinkronisasi Google dijeda. Perubahan tetap tersimpan di Sydia.
+          Matikan lalu aktifkan kembali untuk menghubungkan ulang.
         </p>
       ) : null}
       {disconnectPending ? (

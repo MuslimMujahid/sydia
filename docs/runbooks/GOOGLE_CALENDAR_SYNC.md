@@ -1,5 +1,7 @@
 # Google Calendar sync operations runbook
 
+> Behavior update: [uninterrupted editing specification](../GOOGLE_CALENDAR_SYNC_SPEC.md) supersedes the older read-only/copy and manual-conflict descriptions below. Settings uses the existing off/on toggle. Deploy all three 23 October calendar migrations before running the updated API/worker; they add edit clocks, deferred occurrence baselines, and transition inactive events while preserving source identity. Automatic decisions retain recovery history, accessible through the calendar toolbar. Restoring a saved version creates a local event and never writes it back to Google automatically.
+
 Status: Draft; validate against staging before production use.
 
 This runbook applies to the optional Google Calendar integration. It assumes

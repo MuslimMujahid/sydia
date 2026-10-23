@@ -1,6 +1,9 @@
 import { describe, expect, test } from '@jest/globals';
 import type { CalendarEventWrite } from '../../database/entities';
-import { reconcileCalendarUpdate } from './calendar-update-reconciliation.js';
+import {
+  reconcileCalendarUpdate,
+  resolveCalendarUpdate,
+} from './calendar-update-reconciliation.js';
 
 const base: CalendarEventWrite = {
   title: 'Original',
@@ -13,6 +16,109 @@ const base: CalendarEventWrite = {
   attendees: ['a@example.test', 'b@example.test'],
   status: 'confirmed',
 };
+
+describe('automatic calendar reconciliation', () => {
+  const earlier = new Date('2026-10-23T01:00:00Z');
+  const later = new Date('2026-10-23T02:00:00Z');
+
+  test('later local edit wins and preserves the losing provider version', () => {
+    const remote = { ...base, title: 'Google title' };
+    const result = resolveCalendarUpdate(
+      base,
+      { ...base, title: 'Sydia title' },
+      remote,
+      { localEditedAt: later, remoteEditedAt: earlier },
+    );
+
+    expect(result.patch).toEqual({ title: 'Sydia title' });
+    expect(result.recovery).toEqual({
+      fields: ['title'],
+      winner: 'local',
+      reason: 'later_edit',
+      local: { ...base, title: 'Sydia title' },
+      remote,
+    });
+  });
+
+  test('later provider edit wins without discarding independent local edits', () => {
+    const result = resolveCalendarUpdate(
+      base,
+      { ...base, title: 'Sydia title', location: 'New office' },
+      { ...base, title: 'Google title' },
+      { localEditedAt: earlier, remoteEditedAt: later },
+    );
+
+    expect(result.patch).toEqual({ location: 'New office' });
+    expect(result.recovery).toMatchObject({
+      fields: ['title'],
+      winner: 'remote',
+      reason: 'later_edit',
+      local: { title: 'Sydia title' },
+    });
+  });
+
+  test('equal timestamps retain Google and expose recoverable local values', () => {
+    const result = resolveCalendarUpdate(
+      base,
+      { ...base, title: 'Sydia title' },
+      { ...base, title: 'Google title' },
+      { localEditedAt: later, remoteEditedAt: later },
+    );
+
+    expect(result.patch).toEqual({});
+    expect(result.recovery).toMatchObject({
+      winner: 'remote',
+      reason: 'equal_timestamp',
+      local: { title: 'Sydia title' },
+    });
+  });
+
+  test('missing clocks retain Google with an explicit uncertain resolution', () => {
+    const result = resolveCalendarUpdate(
+      base,
+      { ...base, title: 'Sydia title' },
+      { ...base, title: 'Google title' },
+      { localEditedAt: null, remoteEditedAt: later },
+    );
+
+    expect(result.patch).toEqual({});
+    expect(result.recovery).toMatchObject({
+      winner: 'remote',
+      reason: 'unknown_timestamp',
+    });
+  });
+
+  test('independent edits merge even with missing clocks and need no recovery', () => {
+    expect(
+      resolveCalendarUpdate(
+        base,
+        { ...base, title: 'Sydia title' },
+        { ...base, location: 'Google office' },
+        { localEditedAt: null, remoteEditedAt: null },
+      ),
+    ).toEqual({ patch: { title: 'Sydia title' }, recovery: null });
+  });
+
+  test('time and recurrence resolve as one atomic group', () => {
+    const result = resolveCalendarUpdate(
+      base,
+      { ...base, startAt: new Date('2026-10-11T09:30:00Z') },
+      { ...base, recurrence: ['RRULE:FREQ=WEEKLY'] },
+      { localEditedAt: later, remoteEditedAt: earlier },
+    );
+
+    expect(result.patch).toEqual({
+      startAt: new Date('2026-10-11T09:30:00Z'),
+      endAt: new Date('2026-10-11T10:00:00Z'),
+      timezone: 'UTC',
+      recurrence: [],
+    });
+    expect(result.recovery).toMatchObject({
+      fields: ['time'],
+      winner: 'local',
+    });
+  });
+});
 
 describe('calendar update reconciliation', () => {
   test('patches local fields while preserving independent provider changes', () => {
