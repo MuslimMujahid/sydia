@@ -47,7 +47,10 @@ import {
   type WorkspaceDialogTarget,
 } from "./workspace-dialog";
 import { WorkspaceSearch } from "./workspace-search";
-import { useFolderCreation } from "./inline-folder-form";
+import {
+  FolderCreationErrorPopup,
+  useFolderCreation,
+} from "./inline-folder-form";
 
 type NotesWorkspacePageProps = {
   userId: string;
@@ -368,7 +371,7 @@ export function NotesWorkspacePage({
           <Command className="size-3" /> K
         </span>
       </div>
-      <div className="scrollbar-subtle mt-8 -mr-4 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-4">
+      <div className="mt-8 shrink-0">
         <WorkspaceDailyNavigation
           today={today}
           selectedDate={
@@ -397,6 +400,8 @@ export function NotesWorkspacePage({
             <Plus />
           </Button>
         </div>
+      </div>
+      <div className="-mr-4 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {workspace.isPending ? (
           <div
             aria-busy="true"
@@ -700,6 +705,7 @@ export function NotesWorkspacePage({
           <div className="min-h-0 flex-1">{sidebar}</div>
         </DialogContent>
       </Dialog>
+      <FolderCreationErrorPopup creation={folderCreation} />
       {dialog ? (
         <WorkspaceDialog
           target={dialog}

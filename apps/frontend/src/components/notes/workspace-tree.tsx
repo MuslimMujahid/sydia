@@ -1,9 +1,10 @@
-import { useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import {
   ChevronDown,
   ChevronRight,
   FileText,
   Folder,
+  FolderPlus,
   MoreHorizontal,
   Pencil,
   FolderInput,
@@ -27,14 +28,28 @@ type ItemMenuProps = {
   item: WorkspaceItem;
   className?: string;
   onAction: (action: ItemAction, item: WorkspaceItem) => void;
+  folderCreation?: FolderCreation;
 };
 
-export function ItemMenu({ item, onAction, className }: ItemMenuProps) {
+export function ItemMenu({
+  item,
+  onAction,
+  className,
+  folderCreation,
+}: ItemMenuProps) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const creatingFolder = useRef(false);
+
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (open) creatingFolder.current = false;
+      }}
+    >
       <DropdownMenuTrigger
         render={
           <Button
+            ref={trigger}
             variant="ghost"
             size="icon-sm"
             className={cn("min-h-11 min-w-11 sm:min-h-8 sm:min-w-8", className)}
@@ -44,7 +59,24 @@ export function ItemMenu({ item, onAction, className }: ItemMenuProps) {
       >
         <MoreHorizontal />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        finalFocus={() => !creatingFolder.current}
+      >
+        {item.kind === "folder" && folderCreation ? (
+          <DropdownMenuItem
+            disabled={Boolean(folderCreation.draft)}
+            onClick={() => {
+              if (trigger.current) {
+                creatingFolder.current = true;
+                folderCreation.start(item.id, trigger.current);
+              }
+            }}
+          >
+            <FolderPlus />
+            Tambah folder
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem onClick={() => onAction("rename", item)}>
           <Pencil />
           Ubah nama
@@ -88,6 +120,7 @@ export function WorkspaceTree({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [revealedDraft, setRevealedDraft] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
+  const [horizontallyScrolled, setHorizontallyScrolled] = useState(false);
   const live = items.filter((item) => !item.trashedAt);
 
   // Reveal the destination before committing the input, so autofocus also
@@ -215,15 +248,29 @@ export function WorkspaceTree({
                       )}
                     />
                   )}
-                  <span className={cn("truncate", selected && "font-semibold")}>
+                  <span
+                    className={cn(
+                      "whitespace-nowrap",
+                      selected && "font-semibold"
+                    )}
+                  >
                     {item.title}
                   </span>
                 </button>
-                <ItemMenu
-                  item={item}
-                  onAction={onAction}
-                  className="sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-                />
+                <div className="sticky -right-4 z-10 -mr-4 shrink-0 self-stretch bg-background sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                  <div
+                    className={cn(
+                      "flex h-full items-center pr-4 group-hover:bg-surface-1",
+                      selected && "bg-brand/10"
+                    )}
+                  >
+                    <ItemMenu
+                      item={item}
+                      onAction={onAction}
+                      folderCreation={folderCreation}
+                    />
+                  </div>
+                </div>
               </div>
               {folder && expanded ? branch(item.id, item.path) : null}
             </li>
@@ -235,18 +282,30 @@ export function WorkspaceTree({
 
   return (
     <div
-      className="min-h-20"
+      role="region"
+      aria-label="Daftar folder"
+      tabIndex={0}
+      className={cn(
+        "-mr-4 min-h-20 overflow-x-auto overscroll-x-contain pr-4 outline-none [scrollbar-width:none] focus-visible:outline-2 focus-visible:outline-brand [&::-webkit-scrollbar]:hidden",
+        horizontallyScrolled &&
+          "[mask-image:linear-gradient(to_right,transparent,black_1rem)]"
+      )}
+      onScroll={(event) =>
+        setHorizontallyScrolled(event.currentTarget.scrollLeft > 0)
+      }
       onDragOver={(event) => {
         event.preventDefault();
       }}
       onDrop={(event) => drop(event, null)}
     >
-      {branch(null, "Semua catatan")}
-      {live.length === 0 && !folderCreation.draft ? (
-        <p className="px-2 py-3 text-sm text-ink-muted">
-          Belum ada catatan khusus.
-        </p>
-      ) : null}
+      <div className="w-max min-w-full">
+        {branch(null, "Semua catatan")}
+        {live.length === 0 && !folderCreation.draft ? (
+          <p className="px-2 py-3 text-sm text-ink-muted">
+            Belum ada catatan khusus.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
