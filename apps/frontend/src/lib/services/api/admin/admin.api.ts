@@ -1,9 +1,10 @@
 import { api, toApiError } from "../api";
-import type { ApiResponse } from "../api.types";
+import type { ApiListResponse, ApiResponse } from "../api.types";
 import type {
   AdminOverview,
   AdminUser,
   AdminUserAction,
+  AdminUsersInput,
 } from "@/components/admin/types";
 
 export async function getAdminOverview(): Promise<AdminOverview> {
@@ -17,12 +18,21 @@ export async function getAdminOverview(): Promise<AdminOverview> {
   }
 }
 
-export async function getAdminUsers(): Promise<AdminUser[]> {
+export async function getAdminUsers(
+  input: AdminUsersInput
+): Promise<ApiListResponse<AdminUser>> {
   try {
-    const response = await api.get<ApiResponse<AdminUser[]>>("/admin/users");
+    const response = await api.get<ApiListResponse<AdminUser>>("/admin/users", {
+      params: {
+        ...input,
+        q: input.q.trim(),
+        status: input.status === "all" ? undefined : input.status,
+      },
+    });
 
-    return response.data.data;
+    return response.data;
   } catch (error) {
+    console.error("Admin users request failed", error);
     throw toApiError(error, "Daftar pengguna tidak dapat dimuat.");
   }
 }

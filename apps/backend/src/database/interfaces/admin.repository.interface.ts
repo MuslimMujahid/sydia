@@ -1,3 +1,5 @@
+import type { PaginationInput } from '../../shared/pagination';
+
 export type AdminUserStatus = 'active' | 'banned';
 
 export type AdminUsageCounts = {
@@ -33,9 +35,20 @@ export type AdminOverview = {
   llmCostBreakdown: Array<{ model: string; costUsd: number }>;
 };
 
+export type AdminUsersInput = PaginationInput & {
+  q?: string;
+  status?: AdminUserStatus;
+};
+
+export type AdminUsersPage = {
+  items: AdminUser[];
+  total: number;
+  offset: number;
+};
+
 export interface IAdminRepository {
   overview(now: Date): Promise<AdminOverview>;
-  users(now: Date): Promise<AdminUser[]>;
+  users(now: Date, input: AdminUsersInput): Promise<AdminUsersPage>;
   storageKeys(userId: string): Promise<string[]>;
   ban(userId: string, reason: string): Promise<boolean>;
   unban(userId: string): Promise<boolean>;

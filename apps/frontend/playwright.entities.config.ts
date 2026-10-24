@@ -4,6 +4,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3110";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: [
+    "admin-users.spec.ts",
     "billing.spec.ts",
     "onboarding-billing.spec.ts",
     "checkout.spec.ts",

@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { IsIn } from 'class-validator';
 import type { AdminAction } from './admin.service';
 import { AdminService } from './admin.service';
+import { AdminUsersQueryDto } from './admin-users.dto';
 
 const ADMIN_ACTIONS = ['ban', 'unban', 'force-sign-out', 'delete'] as const;
 
@@ -22,8 +23,8 @@ export class AdminController {
   }
 
   @Get('users')
-  users() {
-    return this.admin.users();
+  users(@Query() input: AdminUsersQueryDto) {
+    return this.admin.users(input);
   }
 
   @Patch('users/:userId')

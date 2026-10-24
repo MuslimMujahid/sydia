@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -130,6 +131,131 @@ function UserDetailPanel({ user }: { user: AdminUser }) {
   );
 }
 
+type UserRowProps = {
+  user: AdminUser;
+  expanded: boolean;
+  actionsDisabled: boolean;
+  onToggleDetail: (userId: string) => void;
+  onAction: (user: AdminUser, action: AdminUserAction) => void;
+};
+
+// Keep a detail toggle from re-rendering every other user's menus and formatted fields.
+const UserTableRow = memo(function UserTableRow({
+  user,
+  expanded,
+  actionsDisabled,
+  onToggleDetail,
+  onAction,
+}: UserRowProps) {
+  return (
+    <>
+      <tr key={user.id} className="border-b border-ink/6">
+        <td className="max-w-0 py-3.5 pr-4">
+          <p className="truncate text-[15px] font-medium text-ink">
+            {user.name}
+          </p>
+          <p className="truncate text-sm text-ink-muted">{user.email}</p>
+        </td>
+        <td className="px-4 py-3.5">
+          <StatusBadge status={user.status} />
+        </td>
+        <td className="px-4 py-3.5 font-mono text-[13px] text-ink-muted">
+          {formatDate(user.createdAt)}
+        </td>
+        <td className="px-4 py-3.5 font-mono text-[13px] text-ink-muted">
+          {formatLastActivity(user.lastActivityAt)}
+        </td>
+        <td className="py-3.5 pl-4">
+          <div className="flex items-center justify-end gap-1">
+            <DetailToggle
+              user={user}
+              expanded={expanded}
+              onToggle={() => onToggleDetail(user.id)}
+            />
+            <UserActionsMenu
+              user={user}
+              disabled={actionsDisabled}
+              onAction={onAction}
+            />
+          </div>
+        </td>
+      </tr>
+      {expanded ? (
+        <tr key={`${user.id}-detail`} className="border-b border-ink/6">
+          <td
+            colSpan={5}
+            id={detailPanelId(user.id)}
+            className="bg-surface-1/40 px-4 py-5"
+          >
+            <UserDetailPanel user={user} />
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+});
+
+const UserCard = memo(function UserCard({
+  user,
+  expanded,
+  actionsDisabled,
+  onToggleDetail,
+  onAction,
+}: UserRowProps) {
+  return (
+    <li
+      key={user.id}
+      className="rounded-lg border border-ink/6 bg-canvas p-4 shadow-card"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[15px] font-medium text-ink">
+            {user.name}
+          </p>
+          <p className="truncate text-sm text-ink-muted">{user.email}</p>
+        </div>
+        <StatusBadge status={user.status} />
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <dt className="text-[13px] leading-[1.4] text-ink-muted">Daftar</dt>
+          <dd className="mt-0.5 font-mono text-[13px] text-ink">
+            {formatDate(user.createdAt)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[13px] leading-[1.4] text-ink-muted">
+            Aktivitas terakhir
+          </dt>
+          <dd className="mt-0.5 font-mono text-[13px] text-ink">
+            {formatLastActivity(user.lastActivityAt)}
+          </dd>
+        </div>
+      </dl>
+      <div className="mt-3 flex items-center justify-between border-t border-ink/6 pt-2">
+        <DetailToggle
+          user={user}
+          expanded={expanded}
+          onToggle={() => onToggleDetail(user.id)}
+        />
+        <UserActionsMenu
+          user={user}
+          disabled={actionsDisabled}
+          onAction={onAction}
+        />
+      </div>
+      {expanded ? (
+        <div
+          id={detailPanelId(user.id)}
+          className="mt-3 border-t border-ink/6 pt-4"
+        >
+          <UserDetailPanel user={user} />
+        </div>
+      ) : null}
+    </li>
+  );
+});
+
 export function UsersTable({
   users,
   expandedUserId,
@@ -182,123 +308,30 @@ export function UsersTable({
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
-              const expanded = expandedUserId === user.id;
-
-              return [
-                <tr key={user.id} className="border-b border-ink/6">
-                  <td className="max-w-0 py-3.5 pr-4">
-                    <p className="truncate text-[15px] font-medium text-ink">
-                      {user.name}
-                    </p>
-                    <p className="truncate text-sm text-ink-muted">
-                      {user.email}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <StatusBadge status={user.status} />
-                  </td>
-                  <td className="px-4 py-3.5 font-mono text-[13px] text-ink-muted">
-                    {formatDate(user.createdAt)}
-                  </td>
-                  <td className="px-4 py-3.5 font-mono text-[13px] text-ink-muted">
-                    {formatLastActivity(user.lastActivityAt)}
-                  </td>
-                  <td className="py-3.5 pl-4">
-                    <div className="flex items-center justify-end gap-1">
-                      <DetailToggle
-                        user={user}
-                        expanded={expanded}
-                        onToggle={() => onToggleDetail(user.id)}
-                      />
-                      <UserActionsMenu
-                        user={user}
-                        disabled={actionsDisabled}
-                        onAction={onAction}
-                      />
-                    </div>
-                  </td>
-                </tr>,
-                expanded ? (
-                  <tr
-                    key={`${user.id}-detail`}
-                    className="border-b border-ink/6"
-                  >
-                    <td
-                      colSpan={5}
-                      id={detailPanelId(user.id)}
-                      className="bg-surface-1/40 px-4 py-5"
-                    >
-                      <UserDetailPanel user={user} />
-                    </td>
-                  </tr>
-                ) : null,
-              ];
-            })}
+            {users.map((user) => (
+              <UserTableRow
+                key={user.id}
+                user={user}
+                expanded={expandedUserId === user.id}
+                actionsDisabled={actionsDisabled}
+                onToggleDetail={onToggleDetail}
+                onAction={onAction}
+              />
+            ))}
           </tbody>
         </table>
       </div>
       <ul className="space-y-3 md:hidden">
-        {users.map((user) => {
-          const expanded = expandedUserId === user.id;
-
-          return (
-            <li
-              key={user.id}
-              className="rounded-lg border border-ink/6 bg-canvas p-4 shadow-card"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-medium text-ink">
-                    {user.name}
-                  </p>
-                  <p className="truncate text-sm text-ink-muted">
-                    {user.email}
-                  </p>
-                </div>
-                <StatusBadge status={user.status} />
-              </div>
-              <dl className="mt-3 grid grid-cols-2 gap-3">
-                <div>
-                  <dt className="text-[13px] leading-[1.4] text-ink-muted">
-                    Daftar
-                  </dt>
-                  <dd className="mt-0.5 font-mono text-[13px] text-ink">
-                    {formatDate(user.createdAt)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[13px] leading-[1.4] text-ink-muted">
-                    Aktivitas terakhir
-                  </dt>
-                  <dd className="mt-0.5 font-mono text-[13px] text-ink">
-                    {formatLastActivity(user.lastActivityAt)}
-                  </dd>
-                </div>
-              </dl>
-              <div className="mt-3 flex items-center justify-between border-t border-ink/6 pt-2">
-                <DetailToggle
-                  user={user}
-                  expanded={expanded}
-                  onToggle={() => onToggleDetail(user.id)}
-                />
-                <UserActionsMenu
-                  user={user}
-                  disabled={actionsDisabled}
-                  onAction={onAction}
-                />
-              </div>
-              {expanded ? (
-                <div
-                  id={detailPanelId(user.id)}
-                  className="mt-3 border-t border-ink/6 pt-4"
-                >
-                  <UserDetailPanel user={user} />
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
+        {users.map((user) => (
+          <UserCard
+            key={user.id}
+            user={user}
+            expanded={expandedUserId === user.id}
+            actionsDisabled={actionsDisabled}
+            onToggleDetail={onToggleDetail}
+            onAction={onAction}
+          />
+        ))}
       </ul>
     </>
   );

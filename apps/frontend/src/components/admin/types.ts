@@ -34,3 +34,10 @@ export type AdminOverview = {
 };
 
 export type AdminUserAction = "ban" | "unban" | "force-sign-out" | "delete";
+
+export type AdminUsersInput = {
+  offset: number;
+  limit: number;
+  q: string;
+  status: AdminUserStatus | "all";
+};

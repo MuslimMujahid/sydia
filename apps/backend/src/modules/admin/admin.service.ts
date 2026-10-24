@@ -3,10 +3,12 @@ import {
   ADMIN_REPOSITORY,
   AUDIT_EVENT_REPOSITORY,
   type IAdminRepository,
+  type AdminUsersInput,
   type IAuditEventRepository,
 } from '../../database/interfaces';
 import { StorageService } from '../../infra/storage';
 import { ApiException, ErrorCodes } from '../../shared/errors';
+import { PaginatedResult } from '../../shared/response';
 import { extractionKey } from '../../shared/documents';
 
 export type AdminAction = 'ban' | 'unban' | 'force-sign-out' | 'delete';
@@ -25,8 +27,14 @@ export class AdminService {
     return this.adminRepository.overview(new Date());
   }
 
-  users() {
-    return this.adminRepository.users(new Date());
+  async users(input: AdminUsersInput) {
+    const result = await this.adminRepository.users(new Date(), input);
+
+    return new PaginatedResult(result.items, {
+      offset: result.offset,
+      limit: input.limit,
+      total: result.total,
+    });
   }
 
   async act(

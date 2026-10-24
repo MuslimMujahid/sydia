@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { Search } from "lucide-react";
 import { EmptyState } from "@/components/app-states";
 import { DomainInlineError } from "@/components/domain/domain-page";
@@ -9,6 +9,7 @@ import {
   UserActionDialog,
   type PendingUserAction,
 } from "@/components/admin/user-actions";
+import { UsersPagination } from "@/components/admin/users-pagination";
 import { UsersTable } from "@/components/admin/users-table";
 import type {
   AdminOverview,
@@ -21,6 +22,14 @@ import { cn } from "@/lib/utils/cn";
 export type AdminPageProps = {
   overview: AdminOverview;
   users: AdminUser[];
+  pagination: { offset: number; limit: number; total: number };
+  query: string;
+  statusFilter: StatusFilter;
+  onQueryChange: (query: string) => void;
+  onStatusChange: (status: StatusFilter) => void;
+  onOffsetChange: (offset: number) => void;
+  onResetFilters: () => void;
+  isFetching?: boolean;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -70,6 +79,14 @@ function AdminSkeleton() {
 export function AdminPage({
   overview,
   users,
+  pagination,
+  query,
+  statusFilter,
+  onQueryChange,
+  onStatusChange,
+  onOffsetChange,
+  onResetFilters,
+  isFetching = false,
   isLoading = false,
   error = null,
   onRetry,
@@ -78,8 +95,6 @@ export function AdminPage({
   onForceSignOutUser,
   onDeleteUser,
 }: AdminPageProps) {
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{
     user: AdminUser;
@@ -89,19 +104,17 @@ export function AdminPage({
   const [pending, setPending] = useState<PendingUserAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const filteredUsers = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
+  const handleToggleDetail = useCallback((userId: string) => {
+    setExpandedUserId((current) => (current === userId ? null : userId));
+  }, []);
 
-    return users.filter((user) => {
-      if (statusFilter !== "all" && user.status !== statusFilter) return false;
-      if (!keyword) return true;
-
-      return (
-        user.name.toLowerCase().includes(keyword) ||
-        user.email.toLowerCase().includes(keyword)
-      );
-    });
-  }, [query, statusFilter, users]);
+  const handleAction = useCallback(
+    (user: AdminUser, action: AdminUserAction) => {
+      setActionError(null);
+      setConfirm({ user, action });
+    },
+    []
+  );
 
   const isFiltering = query.trim() !== "" || statusFilter !== "all";
 
@@ -170,16 +183,17 @@ export function AdminPage({
                   const active = statusFilter === filter.value;
                   const count =
                     filter.value === "all"
-                      ? users.length
-                      : users.filter((user) => user.status === filter.value)
-                          .length;
+                      ? overview.totalUsers
+                      : filter.value === "active"
+                        ? overview.activeUsers
+                        : overview.bannedUsers;
 
                   return (
                     <button
                       key={filter.value}
                       type="button"
                       aria-pressed={active}
-                      onClick={() => setStatusFilter(filter.value)}
+                      onClick={() => onStatusChange(filter.value)}
                       className={cn(
                         "-mb-px border-b-2 px-0 pb-2 font-sans text-[15px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50",
                         active
@@ -205,22 +219,17 @@ export function AdminPage({
                   aria-label="Cari pengguna"
                   placeholder="Cari nama atau email"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => onQueryChange(event.target.value)}
                   className="pl-9"
                 />
               </div>
             </div>
-            {isFiltering ? (
-              <p className="text-sm text-ink-muted" role="status">
-                Menampilkan {filteredUsers.length} dari {users.length} pengguna.
-              </p>
-            ) : null}
-            {users.length === 0 ? (
+            {users.length === 0 && !isFiltering ? (
               <EmptyState
                 title="Belum ada pengguna"
                 message="Pengguna yang mendaftar akan muncul di sini beserta status dan aktivitasnya."
               />
-            ) : filteredUsers.length === 0 ? (
+            ) : users.length === 0 ? (
               <EmptyState
                 title="Tidak ada pengguna yang cocok"
                 message="Coba kata kunci lain atau atur ulang filter status."
@@ -228,10 +237,7 @@ export function AdminPage({
                   <Button
                     variant="dark-outline"
                     size="sm"
-                    onClick={() => {
-                      setQuery("");
-                      setStatusFilter("all");
-                    }}
+                    onClick={onResetFilters}
                   >
                     Atur ulang filter
                   </Button>
@@ -239,20 +245,29 @@ export function AdminPage({
               />
             ) : (
               <UsersTable
-                users={filteredUsers}
+                users={users}
                 expandedUserId={expandedUserId}
-                actionsDisabled={pending !== null}
-                onToggleDetail={(userId) =>
-                  setExpandedUserId((current) =>
-                    current === userId ? null : userId
-                  )
-                }
-                onAction={(user, action) => {
-                  setActionError(null);
-                  setConfirm({ user, action });
-                }}
+                actionsDisabled={pending !== null || isFetching}
+                onToggleDetail={handleToggleDetail}
+                onAction={handleAction}
               />
             )}
+            <nav
+              aria-label="Paginasi pengguna"
+              aria-busy={isFetching}
+              className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/8 pt-4"
+            >
+              <p className="text-sm text-ink-muted" role="status">
+                {isFetching
+                  ? "Memuat pengguna…"
+                  : `Menampilkan ${pagination.total === 0 ? 0 : pagination.offset + 1}–${pagination.offset + users.length} dari ${pagination.total} pengguna`}
+              </p>
+              <UsersPagination
+                {...pagination}
+                isFetching={isFetching}
+                onOffsetChange={onOffsetChange}
+              />
+            </nav>
           </section>
         </>
       )}

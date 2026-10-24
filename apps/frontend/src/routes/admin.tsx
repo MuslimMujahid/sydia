@@ -10,7 +10,7 @@ import type {
 import { requireAdminSession } from "@/lib/auth";
 import {
   adminOverviewQueryOptions,
-  adminUsersQueryOptions,
+  useAdminUsersList,
   useAdminUserAction,
 } from "@/lib/services/api/admin/admin.queries";
 
@@ -32,7 +32,8 @@ export const Route = createFileRoute("/admin")({
 function AdminRoute() {
   const admin = Route.useRouteContext();
   const overviewQuery = useQuery(adminOverviewQueryOptions());
-  const usersQuery = useQuery(adminUsersQueryOptions());
+  const list = useAdminUsersList();
+  const usersQuery = list.query;
   const actionMutation = useAdminUserAction();
   const overview: AdminOverview = overviewQuery.data ?? {
     totalUsers: 0,
@@ -44,7 +45,7 @@ function AdminRoute() {
     llmCostBreakdown: [],
   };
 
-  const users: AdminUser[] = usersQuery.data ?? [];
+  const users: AdminUser[] = usersQuery.data?.data ?? [];
 
   async function act(user: AdminUser, action: AdminUserAction) {
     await actionMutation.mutateAsync({ userId: user.id, action });
@@ -55,6 +56,16 @@ function AdminRoute() {
       <AdminPage
         overview={overview}
         users={users}
+        pagination={
+          usersQuery.data?.pagination ?? { offset: 0, limit: 25, total: 0 }
+        }
+        query={list.search}
+        statusFilter={list.input.status}
+        onQueryChange={list.onSearchChange}
+        onStatusChange={list.onStatusChange}
+        onOffsetChange={list.onOffsetChange}
+        onResetFilters={list.onResetFilters}
+        isFetching={usersQuery.isFetching || list.search !== list.input.q}
         isLoading={overviewQuery.isPending || usersQuery.isPending}
         error={
           overviewQuery.error?.message ?? usersQuery.error?.message ?? null

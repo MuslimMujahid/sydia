@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
-import type { AdminOverview, AdminUser, IAdminRepository } from '../interfaces';
+import type {
+  AdminOverview,
+  AdminUsersInput,
+  AdminUsersPage,
+  IAdminRepository,
+} from '../interfaces';
 
 type AdminUserRow = {
   id: string;
@@ -82,8 +87,37 @@ export class PrismaAdminRepository implements IAdminRepository {
     };
   }
 
-  async users(now: Date): Promise<AdminUser[]> {
+  async users(now: Date, input: AdminUsersInput): Promise<AdminUsersPage> {
+    const keyword = input.q?.trim() ?? '';
+    const search = keyword
+      ? Prisma.sql`AND (strpos(lower(u."name"), lower(${keyword})) > 0 OR strpos(lower(u."email"), lower(${keyword})) > 0)`
+      : Prisma.empty;
+
+    const status = input.status
+      ? Prisma.sql`AND u."banned" = ${input.status === 'banned'}`
+      : Prisma.empty;
+
+    const where = Prisma.sql`WHERE TRUE ${search} ${status}`;
+    const [countRow] = await this.prisma.$queryRaw<
+      [{ total: bigint }]
+    >(Prisma.sql`
+      SELECT COUNT(*)::bigint AS total FROM "user" u ${where}
+    `);
+
+    const total = count(countRow.total);
+    // Account deletion or a status change can remove the final page.
+    const offset = Math.min(
+      input.offset,
+      Math.max(0, Math.ceil(total / input.limit) - 1) * input.limit,
+    );
+
     const rows = await this.prisma.$queryRaw<AdminUserRow[]>(Prisma.sql`
+      WITH page_users AS MATERIALIZED (
+        SELECT u."id", u."name", u."email", u."banned", u."createdAt", u."updatedAt"
+        FROM "user" u ${where}
+        ORDER BY u."createdAt" DESC, u."id" DESC
+        LIMIT ${input.limit} OFFSET ${offset}
+      )
       SELECT
         u."id",
         u."name",
@@ -91,11 +125,11 @@ export class PrismaAdminRepository implements IAdminRepository {
         u."banned",
         u."createdAt",
         GREATEST(
-          MAX(m."createdAt"),
-          MAX(s."updatedAt"),
+          (SELECT MAX(m."createdAt") FROM "message" m WHERE m."userId" = u."id"),
+          (SELECT MAX(s."updatedAt") FROM "session" s WHERE s."userId" = u."id"),
           u."updatedAt"
         ) AS "lastActivityAt",
-        COUNT(DISTINCT s."id") FILTER (WHERE s."expiresAt" > ${now})::bigint AS "activeSessions",
+        (SELECT COUNT(*) FROM "session" s WHERE s."userId" = u."id" AND s."expiresAt" > ${now})::bigint AS "activeSessions",
         COALESCE((SELECT SUM(x."size") FROM "file_asset" x WHERE x."userId" = u."id"), 0)::bigint AS "storageBytes",
         COALESCE((
           SELECT SUM(ar."costUsd")
@@ -110,18 +144,15 @@ export class PrismaAdminRepository implements IAdminRepository {
         (SELECT COUNT(*) FROM "task" x WHERE x."userId" = u."id")::bigint AS "tasks",
         (SELECT COUNT(*) FROM "contact" x WHERE x."userId" = u."id")::bigint AS "contacts",
         (SELECT COUNT(*) FROM "calendar_event" x WHERE x."userId" = u."id")::bigint AS "events"
-      FROM "user" u
-      LEFT JOIN "session" s ON s."userId" = u."id"
-      LEFT JOIN "message" m ON m."userId" = u."id"
-      GROUP BY u."id"
-      ORDER BY u."createdAt" DESC
+      FROM page_users u
+      ORDER BY u."createdAt" DESC, u."id" DESC
     `);
 
-    return rows.map((row) => ({
+    const items = rows.map((row) => ({
       id: row.id,
       name: row.name,
       email: row.email,
-      status: row.banned ? 'banned' : 'active',
+      status: row.banned ? ('banned' as const) : ('active' as const),
       createdAt: row.createdAt,
       lastActivityAt: row.lastActivityAt,
       activeSessions: count(row.activeSessions),
@@ -137,6 +168,8 @@ export class PrismaAdminRepository implements IAdminRepository {
         events: count(row.events),
       },
     }));
+
+    return { items, total, offset };
   }
 
   async ban(userId: string, reason: string): Promise<boolean> {
