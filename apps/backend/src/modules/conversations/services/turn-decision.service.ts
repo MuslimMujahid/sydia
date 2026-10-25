@@ -4,7 +4,6 @@ import {
   DECISION_GATEWAY,
   DecisionSettings,
   type DecisionGateway,
-  type DecisionFailure,
   type DecisionQuestion,
 } from '../../../infra/decision-gateway';
 import { containsDecisionCredential } from '../../../shared/decision-privacy';
@@ -24,13 +23,6 @@ export type TurnDecisionInput = {
   recallEligible: boolean;
 };
 export type TurnDecision = { recall: boolean; toolNames?: readonly string[] };
-
-class ToolSelectionUnavailableError extends Error {
-  constructor(readonly reason: DecisionFailure) {
-    super(`Tool selection is unavailable: ${reason}`);
-    this.name = 'ToolSelectionUnavailableError';
-  }
-}
 
 @Injectable()
 export class TurnDecisionService implements OnModuleDestroy {
@@ -89,11 +81,15 @@ export class TurnDecisionService implements OnModuleDestroy {
       };
 
     if (toolMode !== 'off') {
-      for (const [group, names] of Object.entries(TOOL_GROUPS))
+      for (const [group, names] of Object.entries(TOOL_GROUPS)) {
+        // Assistance capabilities are discovered through skills during the
+        // turn rather than routed up front.
+        if (group === 'assistance') continue;
         questions[`group_${group}`] = {
           type: 'noul',
           instructions: `Does responding to the latest message in this conversation require any of these tools: ${names.join(', ')}?`,
         };
+      }
     }
 
     const operation = async (): Promise<TurnDecision> => {
@@ -114,10 +110,19 @@ export class TurnDecisionService implements OnModuleDestroy {
         this.logger.warn(
           `Turn decision failed: reason=${result.reason} recallMode=${recallMode} toolsMode=${toolMode}`,
         );
+        // Routing is advisory (SKILL-01): an unavailable selector offers the
+        // full registry for this turn rather than failing the user's request.
         if (toolMode === 'enabled')
-          throw new ToolSelectionUnavailableError(result.reason);
+          this.logger.warn(
+            JSON.stringify({
+              event: 'tool_selection_degraded',
+              reason: result.reason,
+              remediation:
+                'All registered tools offered for this turn; check decision gateway capacity/timeouts.',
+            }),
+          );
 
-        return initial;
+        return { recall: initial.recall };
       }
 
       const probability = (key: string): number | null => {

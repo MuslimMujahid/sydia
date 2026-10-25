@@ -71,6 +71,20 @@ export interface INotificationRepository {
    * deliberately avoids per-user round trips.
    */
   listSchedulingTargets(): Promise<NotificationSchedulingTarget[]>;
+  /** Deliveries of one kind created at or after an instant (outreach budget). */
+  /** Content of delivered notifications of one kind since an instant, newest first. */
+  listDeliveredContentSince(
+    userId: string,
+    kind: string,
+    since: Date,
+    limit: number,
+  ): Promise<string[]>;
+  countDeliveriesSince(
+    userId: string,
+    kind: string,
+    since: Date,
+    statuses: readonly string[],
+  ): Promise<number>;
 }
 
 export type NotificationSchedulingTarget = {

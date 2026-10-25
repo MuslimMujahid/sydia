@@ -27,3 +27,4 @@ export * from './prisma-file-deletion.repository';
 export * from './prisma-whatsapp-connection.repository';
 
 export * from './prisma-billing.repository';
+export * from './prisma-assistant-action.repository';

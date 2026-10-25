@@ -169,17 +169,16 @@ test.each([
   });
 });
 
-test('failed enabled tool selection rejects the turn instead of returning an empty registry', async () => {
+test('failed enabled tool selection offers the full registry instead of an empty one', async () => {
   const { service, decide } = setup();
   decide.mockResolvedValueOnce({
     status: 'fallback',
     reason: 'timeout',
     latencyMs: 600,
   });
-  await expect(service.decide('user', input)).rejects.toMatchObject({
-    name: 'ToolSelectionUnavailableError',
-    reason: 'timeout',
-  });
+  const decision = await service.decide('user', input);
+  // No toolNames means no pruning: every registered tool stays available.
+  expect(decision.toolNames).toBeUndefined();
 });
 test('outside cohort retains incumbent behavior without calling the decision provider', async () => {
   const { service, decide } = setup();
@@ -420,9 +419,9 @@ test.each([
     expect(await service.decide('user', input)).toEqual(expected);
   },
 );
-test('registry covers 45 distinct tools and rejects missing prerequisites', () => {
+test('registry covers 51 distinct tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(45);
+  expect(names).toHaveLength(51);
   expect(() => validateToolGroups(names)).not.toThrow();
   expect(() => validateToolGroups(names.slice(1))).toThrow();
 });

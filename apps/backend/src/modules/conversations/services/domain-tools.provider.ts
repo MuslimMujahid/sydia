@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   CALENDAR_REPOSITORY,
   CATEGORY_REPOSITORY,
@@ -30,6 +30,14 @@ import { NotesService } from '../../notes/notes.service';
 import { createNotesWorkspaceTools } from './notes-workspace-tools';
 import type { AssistantTool } from './tool-executor.service';
 import { validateToolGroups } from './tool-groups';
+import {
+  AssistancePolicyService,
+  AssistantActionService,
+  AvailabilityService,
+  createSecretaryTools,
+  SkillCatalogService,
+  WorkContextService,
+} from '../../secretary';
 
 @Injectable()
 export class DomainToolsProvider {
@@ -52,6 +60,11 @@ export class DomainToolsProvider {
     secrets: SecretsService,
     dailyNotes: DailyNoteService,
     notes: NotesService,
+    @Optional() skills?: SkillCatalogService,
+    @Optional() workContext?: WorkContextService,
+    @Optional() availability?: AvailabilityService,
+    @Optional() actions?: AssistantActionService,
+    @Optional() policy?: AssistancePolicyService,
   ) {
     this.tools = [
       ...createDomainTools({
@@ -75,7 +88,19 @@ export class DomainToolsProvider {
       }),
       ...createDailyNoteTools({ dailyNotes }),
       ...createNotesWorkspaceTools(notes),
+      ...(skills && workContext && availability && actions && policy
+        ? createSecretaryTools({
+            skills: skills.skills,
+            context: workContext,
+            availability,
+            actions,
+            policy,
+          })
+        : []),
     ];
-    validateToolGroups(this.tools.map(({ definition }) => definition.name));
+    const names = this.tools.map(({ definition }) => definition.name);
+    // Harnesses without the secretary module register only domain tools.
+    validateToolGroups(names, skills ? [] : ['assistance']);
+    skills?.validateTools(names);
   }
 }

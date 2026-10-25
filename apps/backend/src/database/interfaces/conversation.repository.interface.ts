@@ -137,6 +137,28 @@ export interface IConversationRepository {
     userId: string,
     messageId: string,
   ): Promise<string | null>;
+  /** Owned user-authored messages matching any term, newest first. */
+  searchUserMessages(
+    userId: string,
+    terms: readonly string[],
+    limit: number,
+  ): Promise<
+    Array<Pick<Message, 'id' | 'conversationId' | 'content' | 'createdAt'>>
+  >;
+  /** Owned messages after a point in one conversation, oldest first. */
+  findMessagesSince(
+    userId: string,
+    conversationId: string,
+    since: Date,
+  ): Promise<Array<Pick<Message, 'id' | 'role' | 'content' | 'createdAt'>>>;
+  /** Persists an assistant message not tied to a user turn (background outreach). */
+  appendAssistantMessage(
+    userId: string,
+    conversationId: string,
+    content: string,
+  ): Promise<Message>;
+  /** The owner's most recently active web conversation, if any. */
+  findLatestConversationId(userId: string): Promise<string | null>;
   findUserMemoryEvidence(
     userId: string,
     messageId: string,

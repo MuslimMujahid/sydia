@@ -12,6 +12,10 @@
       {
         "include": "modules/conversations/prompts/**/*.md",
         "watchAssets": true
+      },
+      {
+        "include": "modules/secretary/skills/**/*.md",
+        "watchAssets": true
       }
     ]
   }

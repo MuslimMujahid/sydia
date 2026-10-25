@@ -824,6 +824,81 @@ export class PrismaConversationRepository implements IConversationRepository {
     return message?.content ?? null;
   }
 
+  async searchUserMessages(
+    userId: string,
+    terms: readonly string[],
+    limit: number,
+  ) {
+    const filtered = [...new Set(terms.map((term) => term.trim()))]
+      .filter((term) => term.length >= 3)
+      .slice(0, 8);
+
+    if (filtered.length === 0) return [];
+
+    return this.prisma.message.findMany({
+      where: {
+        userId,
+        role: 'user',
+        OR: filtered.map((term) => ({
+          content: { contains: term, mode: 'insensitive' as const },
+        })),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: Math.max(1, Math.min(limit, 20)),
+      select: {
+        id: true,
+        conversationId: true,
+        content: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  findMessagesSince(userId: string, conversationId: string, since: Date) {
+    return this.prisma.message.findMany({
+      where: { userId, conversationId, createdAt: { gte: since } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 50,
+      select: { id: true, role: true, content: true, createdAt: true },
+    });
+  }
+
+  async appendAssistantMessage(
+    userId: string,
+    conversationId: string,
+    content: string,
+  ): Promise<Message> {
+    return this.prisma.$transaction(async (transaction) => {
+      const owned = await transaction.conversation.findFirst({
+        where: { id: conversationId, userId },
+        select: { id: true },
+      });
+
+      if (!owned) throw new ConversationNotFoundError();
+      const message = await transaction.message.create({
+        data: { conversationId, userId, role: 'assistant', content },
+        select: messageSelect,
+      });
+
+      await transaction.conversation.update({
+        where: { id: conversationId },
+        data: { lastMessageAt: message.createdAt },
+      });
+
+      return message;
+    });
+  }
+
+  async findLatestConversationId(userId: string): Promise<string | null> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { userId, channel: 'web', messages: { some: {} } },
+      orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    });
+
+    return conversation?.id ?? null;
+  }
+
   findUserMemoryEvidence(userId: string, messageId: string) {
     return this.prisma.message.findFirst({
       where: { id: messageId, userId, role: 'user' },

@@ -1,13 +1,21 @@
 import { Body, Controller, HttpStatus, Logger, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
-import { IsUUID } from 'class-validator';
+import { IsISO8601, IsOptional, IsUUID } from 'class-validator';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { DailyBriefingService, FollowUpService } from './proactive.service';
+import { SecretaryBackgroundService } from './secretary-background.service';
 
 export class DevNotificationDto {
   @IsUUID('4')
   requestId!: string;
+}
+
+export class DevSecretarySweepDto {
+  /** Controlled clock for QA harnesses only; never derived from chat text. */
+  @IsOptional()
+  @IsISO8601()
+  at?: string;
 }
 
 @Roles(['user'])
@@ -19,7 +27,24 @@ export class DevNotificationsController {
     private readonly config: ConfigService,
     private readonly briefings: DailyBriefingService,
     private readonly followUps: FollowUpService,
+    private readonly secretary: SecretaryBackgroundService,
   ) {}
+
+  /** Runs the background secretary evaluation for the signed-in owner only. */
+  @Post('secretary-sweep')
+  async secretarySweep(
+    @Session() session: UserSession,
+    @Body() input: DevSecretarySweepDto,
+  ) {
+    this.requireDevelopment();
+
+    return {
+      decisions: await this.secretary.sweep(
+        input.at ? new Date(input.at) : new Date(),
+        session.user.id,
+      ),
+    };
+  }
 
   @Post('daily-brief')
   async dailyBrief(

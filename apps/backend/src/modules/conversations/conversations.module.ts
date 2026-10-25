@@ -11,6 +11,7 @@ import { DocumentsModule } from '../documents/documents.module';
 import { ContactsModule } from '../contacts/contacts.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { SecretsModule } from '../secrets/secrets.module';
+import { SecretaryModule } from '../secretary/secretary.module';
 import {
   CHAT_PREVIEW_REPOSITORY,
   CONVERSATION_REPOSITORY,
@@ -46,6 +47,7 @@ import {
     ContactsModule,
     CalendarModule,
     SecretsModule,
+    SecretaryModule,
   ],
   controllers: [ConversationsController],
   providers: [

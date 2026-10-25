@@ -166,6 +166,7 @@ function setup(
     new ConfigService({ NODE_ENV: environment }),
     briefings,
     followUps,
+    {} as never,
   );
 
   return {

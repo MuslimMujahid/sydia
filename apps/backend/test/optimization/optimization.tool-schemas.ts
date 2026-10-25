@@ -43,7 +43,10 @@ export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
     ...createNotesWorkspaceTools(unavailable()),
   ].map(({ definition }) => definition);
 
-  validateToolGroups(definitions.map(({ name }) => name));
+  validateToolGroups(
+    definitions.map(({ name }) => name),
+    ['assistance'],
+  );
 
   return Object.fromEntries(
     definitions

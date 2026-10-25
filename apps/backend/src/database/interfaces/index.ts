@@ -27,3 +27,4 @@ export * from './file-deletion.repository.interface';
 export * from './whatsapp-connection.repository.interface';
 
 export * from './billing.repository.interface';
+export * from './assistant-action.repository.interface';
