@@ -353,7 +353,12 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     nextCursor: number | null;
   } | null> {
     const row = await this.prisma.document.findFirst({
-      where: { id: documentId, userId, status: 'ready' },
+      where: {
+        id: documentId,
+        userId,
+        status: 'ready',
+        deletingOperationId: null,
+      },
       select: {
         ...documentMetadataSelect,
         chunks: {
@@ -525,7 +530,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     const rows = await this.prisma.documentChunk.findMany({
       where: {
         userId,
-        document: { status: 'ready' },
+        document: { status: 'ready', deletingOperationId: null },
         ...(documentIds?.length ? { documentId: { in: documentIds } } : {}),
         OR: [query, ...terms].map((term) => ({
           content: { contains: term, mode: 'insensitive' as const },
@@ -572,7 +577,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return this.prisma.$queryRaw<
       Array<DocumentChunk & { documentId: string; title: string }>
     >(
-      Prisma.sql`SELECT dc.id, dc."documentId", dc."chunkIndex", dc."pageNumber", dc.content, d.title FROM document_chunk dc JOIN document d ON d.id = dc."documentId" WHERE dc."userId" = ${userId} AND d.status = 'ready' AND dc.embedding IS NOT NULL ${ids} ORDER BY dc.embedding <=> ${vector}::vector LIMIT ${limit}`,
+      Prisma.sql`SELECT dc.id, dc."documentId", dc."chunkIndex", dc."pageNumber", dc.content, d.title FROM document_chunk dc JOIN document d ON d.id = dc."documentId" WHERE dc."userId" = ${userId} AND d."userId" = ${userId} AND d."deletingOperationId" IS NULL AND d.status = 'ready' AND dc.embedding IS NOT NULL ${ids} ORDER BY dc.embedding <=> ${vector}::vector LIMIT ${limit}`,
     );
   }
 

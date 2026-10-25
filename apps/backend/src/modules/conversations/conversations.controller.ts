@@ -1,4 +1,8 @@
 import {
+  ChatSourceUnavailableError,
+  ChatSourceConflictError,
+} from '../../database/entities';
+import {
   Body,
   Controller,
   Delete,
@@ -81,6 +85,23 @@ export class ConversationsController {
         this.previewContext(input),
       );
     } catch (error) {
+      if (
+        error instanceof ChatSourceUnavailableError ||
+        error instanceof ChatSourceConflictError
+      ) {
+        throw new ApiException({
+          code:
+            error instanceof ChatSourceConflictError
+              ? ErrorCodes.CONFLICT
+              : ErrorCodes.BAD_REQUEST,
+          status:
+            error instanceof ChatSourceConflictError
+              ? HttpStatus.CONFLICT
+              : HttpStatus.BAD_REQUEST,
+          message: error.message,
+        });
+      }
+
       if (error instanceof ConversationNotFoundError) throw this.notFound();
       throw error;
     }
@@ -128,8 +149,10 @@ export class ConversationsController {
   ) {
     if (
       scope.previewSessionId &&
-      'activeNoteRef' in scope &&
-      scope.activeNoteRef
+      (('activeNoteRef' in scope && scope.activeNoteRef) ||
+        ('sourceSegments' in scope &&
+          Array.isArray(scope.sourceSegments) &&
+          scope.sourceSegments.length))
     ) {
       throw new ApiException({
         code: ErrorCodes.BAD_REQUEST,

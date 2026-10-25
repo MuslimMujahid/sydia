@@ -50,7 +50,21 @@ export type Message = Pick<
   'id' | 'conversationId' | 'role' | 'content' | 'createdAt'
 > & {
   attachments?: Array<{ fileAsset: MessageAttachment }>;
-} & Partial<Pick<PrismaMessage, 'activeNoteRef'>>;
+} & Partial<
+    Pick<
+      PrismaMessage,
+      'activeNoteRef' | 'sourceSegments' | 'sourceDocumentIds'
+    >
+  >;
+
+export type ChatSource = {
+  kind: 'file' | 'folder' | 'note';
+  id: string;
+  label: string;
+  path?: string;
+};
+export type ChatSegment =
+  { type: 'text'; text: string } | { type: 'source'; source: ChatSource };
 
 export type AssistantRun = Pick<
   PrismaAssistantRun,
@@ -127,3 +141,18 @@ export type NewToolInvocation = {
   arguments: Prisma.InputJsonValue;
   idempotencyKey: string;
 };
+
+export class ChatSourceUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ChatSourceUnavailableError';
+  }
+}
+export class ChatSourceConflictError extends Error {
+  constructor() {
+    super(
+      'Pesan ini sudah dikirim dengan sumber berbeda. Kirim sebagai pesan baru.',
+    );
+    this.name = 'ChatSourceConflictError';
+  }
+}

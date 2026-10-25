@@ -673,3 +673,62 @@ describe('ToolExecutorService', () => {
     ).toEqual(['create_task', 'list_tasks']);
   });
 });
+
+describe('selected sources with an open note', () => {
+  test.each([
+    ['selected', 'completed', true],
+    ['open-note', 'completed', true],
+    ['unselected', 'failed', false],
+  ])(
+    'reading %s preserves the selected and active-note boundaries',
+    async (id, status, shouldRead) => {
+      const pending = {
+        id: 'tool',
+        assistantRunId: 'run',
+        label: 'Read note',
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const read = resolved({ content: 'Note content' });
+      const repository = {
+        createToolInvocation: resolved(pending),
+        claimToolInvocation: resolved(true),
+        findSourceScope: resolved({
+          segments: [],
+          documentIds: [],
+          noteRefs: ['custom:selected'],
+          activeNoteRef: 'custom:open-note',
+        }),
+        updateToolInvocation: jest
+          .fn()
+          .mockImplementation((_id: unknown, update: unknown) =>
+            Promise.resolve({ ...pending, ...(update as object) }),
+          ),
+      } as unknown as IConversationRepository;
+
+      const executor = new ToolExecutorService(repository, [
+        {
+          definition: {
+            name: 'read_custom_note',
+            label: 'Read note',
+            description: 'Read a note.',
+            parameters: { type: 'object' },
+          },
+          parseArguments: (value) => value as Prisma.InputJsonValue,
+          execute: read,
+        },
+      ]);
+
+      const result = await executor.execute('owner', 'run', 'message', {
+        id: 'call',
+        name: 'read_custom_note',
+        arguments: { id },
+      });
+
+      expect(result.invocation.status).toBe(status);
+      expect(read).toHaveBeenCalledTimes(shouldRead ? 1 : 0);
+    },
+  );
+});

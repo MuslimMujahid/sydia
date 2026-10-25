@@ -1268,3 +1268,109 @@ describe('phase 5 and 6 assistant tools', () => {
     }
   });
 });
+
+describe('selected message source retrieval', () => {
+  test('searches the fixed accepted membership rather than the whole library', async () => {
+    const search = jest.fn<DocumentService['search']>().mockResolvedValue([]);
+    const searchForMessage = jest.fn<DocumentService['searchForMessage']>();
+    const searchTool = tools({
+      documents: { search, searchForMessage } as unknown as DocumentService,
+    }).find((tool) => tool.definition.name === 'search_documents')!;
+
+    const result = await searchTool.execute({
+      userId: 'owner',
+      sourceMessageId: 'message',
+      arguments: { query: 'budget' },
+      idempotencyKey: 'call',
+      context: { sourceDocumentIds: ['accepted-budget', 'accepted-schedule'] },
+    });
+
+    expect(search).toHaveBeenCalledWith('owner', 'budget', 6, [
+      'accepted-budget',
+      'accepted-schedule',
+    ]);
+    expect(searchForMessage).not.toHaveBeenCalled();
+    expect(result).toEqual({ sources: [] });
+  });
+  test('an empty selected folder never widens into an account-wide search', async () => {
+    const search = jest.fn<DocumentService['search']>();
+    const searchForMessage = jest.fn<DocumentService['searchForMessage']>();
+    const searchTool = tools({
+      documents: { search, searchForMessage } as unknown as DocumentService,
+    }).find((tool) => tool.definition.name === 'search_documents')!;
+
+    expect(
+      await searchTool.execute({
+        userId: 'owner',
+        sourceMessageId: 'message',
+        arguments: { query: 'budget' },
+        idempotencyKey: 'call',
+        context: { sourceDocumentIds: [] },
+      }),
+    ).toEqual({ sources: [] });
+    expect(search).not.toHaveBeenCalled();
+    expect(searchForMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('selected document metadata', () => {
+  test('paginates the entire fixed membership without exposing other files', async () => {
+    const metadata = Array.from({ length: 32 }, (_, index) => ({
+      id: `file-${index}`,
+      title: `File ${index}`,
+      file: { mimeType: 'text/plain', size: 10 },
+      status: 'ready',
+      createdAt: new Date('2026-10-25T00:00:00Z'),
+    }));
+
+    const listMetadata = jest
+      .fn<DocumentService['listMetadata']>()
+      .mockResolvedValue(
+        metadata as Awaited<ReturnType<DocumentService['listMetadata']>>,
+      );
+
+    const listing = tools({
+      documents: { listMetadata } as unknown as DocumentService,
+    }).find((tool) => tool.definition.name === 'list_documents')!;
+
+    const input = {
+      userId: 'owner',
+      sourceMessageId: 'message',
+      idempotencyKey: 'call',
+      context: {
+        sourceDocumentIds: metadata.slice(2).map((document) => document.id),
+      },
+    };
+
+    const first = await listing.execute({ ...input, arguments: {} });
+    const second = await listing.execute({
+      ...input,
+      arguments: { cursor: 25 },
+    });
+
+    expect(first).toMatchObject({
+      total: 30,
+      nextCursor: 25,
+      documents: expect.arrayContaining([
+        expect.objectContaining({ id: 'file-2' }),
+      ]),
+    });
+    expect((first as { documents: unknown[] }).documents).toHaveLength(25);
+    expect(second).toMatchObject({
+      total: 30,
+      nextCursor: null,
+      documents: metadata
+        .slice(27)
+        .map((document) => expect.objectContaining({ id: document.id })),
+    });
+    expect(JSON.stringify([first, second])).not.toContain('"id":"file-0"');
+    expect(JSON.stringify([first, second])).not.toContain('"id":"file-1"');
+    expect(
+      await listing.execute({
+        ...input,
+        arguments: {},
+        context: { sourceDocumentIds: [] },
+      }),
+    ).toEqual({ documents: [] });
+  });
+});

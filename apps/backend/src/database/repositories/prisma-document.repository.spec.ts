@@ -38,7 +38,12 @@ describe('PrismaDocumentRepository ordered reads', () => {
 
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'doc-1', userId: 'user-1', status: 'ready' },
+        where: {
+          id: 'doc-1',
+          userId: 'user-1',
+          status: 'ready',
+          deletingOperationId: null,
+        },
         select: expect.objectContaining({
           chunks: expect.objectContaining({
             where: { chunkIndex: { gte: 3 } },

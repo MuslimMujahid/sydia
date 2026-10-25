@@ -16,6 +16,7 @@ const entityFixture: Plugin = {
         fixture !== "/e2e/checkout.html" &&
         fixture !== "/e2e/account-menu.html" &&
         fixture !== "/e2e/note-drawer.html" &&
+        fixture !== "/e2e/chat-sources.html" &&
         fixture !== "/e2e/entity-renderer.html" &&
         fixture !== "/e2e/chat-previews.html" &&
         fixture !== "/e2e/dev-toolbar.html" &&

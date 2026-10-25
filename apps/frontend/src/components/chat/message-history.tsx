@@ -1,3 +1,5 @@
+import { useChatNotes } from "./chat-notes";
+import { SourceChip } from "./chat-source-editor";
 import { AlertTriangle, FileText, LoaderCircle, RotateCcw } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -386,7 +388,11 @@ export function MessageHistory({
   messages: ConversationMessage[];
   assistantRuns: AssistantRun[];
   toolInvocations: ToolInvocation[];
-  optimisticMessage?: { content: string; attachmentCount?: number };
+  optimisticMessage?: {
+    content: string;
+    attachmentCount?: number;
+    sourceSegments?: import("./chat-source-types").ChatSegment[];
+  };
   isSending: boolean;
   streamedActivity?: AssistantActivity;
   streamedText?: string;
@@ -397,6 +403,7 @@ export function MessageHistory({
   locale: SupportedLocale;
   timezone: string;
 }) {
+  const notes = useChatNotes();
   const runsByMessageId = useMemo(() => {
     const byMessageId: Record<string, AssistantRun> = {};
 
@@ -585,7 +592,28 @@ export function MessageHistory({
               {isUser ? (
                 <>
                   <p className="break-words whitespace-pre-wrap text-base leading-6 text-ink-soft">
-                    {message.content}
+                    {message.sourceSegments?.length
+                      ? message.sourceSegments.map((segment, index) =>
+                          segment.type === "text" ? (
+                            <span key={index}>{segment.text}</span>
+                          ) : (
+                            <SourceChip
+                              key={index}
+                              source={segment.source}
+                              locale={locale}
+                              onOpen={
+                                segment.source.kind === "note" && notes
+                                  ? (event) =>
+                                      notes.open(
+                                        segment.source.id,
+                                        event.currentTarget
+                                      )
+                                  : undefined
+                              }
+                            />
+                          )
+                        )
+                      : message.content}
                   </p>
                   {message.attachments.length ? (
                     <ul
@@ -719,7 +747,28 @@ export function MessageHistory({
             className="max-w-[85%] rounded-md bg-surface-1 px-4 py-3 text-ink opacity-70 sm:max-w-[75%]"
           >
             <p className="break-words whitespace-pre-wrap text-base leading-6 text-ink-soft">
-              {optimisticMessage.content}
+              {optimisticMessage.sourceSegments?.length
+                ? optimisticMessage.sourceSegments.map((segment, index) =>
+                    segment.type === "text" ? (
+                      <span key={index}>{segment.text}</span>
+                    ) : (
+                      <SourceChip
+                        key={index}
+                        source={segment.source}
+                        locale={locale}
+                        onOpen={
+                          segment.source.kind === "note" && notes
+                            ? (event) =>
+                                notes.open(
+                                  segment.source.id,
+                                  event.currentTarget
+                                )
+                            : undefined
+                        }
+                      />
+                    )
+                  )
+                : optimisticMessage.content}
             </p>
             {optimisticMessage.attachmentCount ? (
               <p className="mt-2 flex items-center justify-end gap-1.5 text-sm text-ink-muted">

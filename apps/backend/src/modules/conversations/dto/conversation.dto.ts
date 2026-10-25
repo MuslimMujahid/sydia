@@ -1,6 +1,8 @@
-import { Transform } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ValidateNested,
+  ValidateIf,
   IsArray,
   IsNotEmpty,
   IsIn,
@@ -21,12 +23,53 @@ export class ChatPreviewScopeDto {
   previewChannel?: 'web' | 'telegram' | 'whatsapp';
 }
 
+export class ChatSourceDto {
+  @IsIn(['file', 'folder', 'note'])
+  kind!: 'file' | 'folder' | 'note';
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  id!: string;
+
+  @IsString()
+  @MaxLength(500)
+  label!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  path?: string;
+}
+export class ChatSegmentDto {
+  @IsIn(['text', 'source'])
+  type!: 'text' | 'source';
+
+  @ValidateIf((value: ChatSegmentDto) => value.type === 'text')
+  @IsString()
+  @MaxLength(20000)
+  text!: string;
+
+  @ValidateIf((value: ChatSegmentDto) => value.type === 'source')
+  @ValidateNested()
+  @Type(() => ChatSourceDto)
+  @IsNotEmpty()
+  source!: ChatSourceDto;
+}
+
 export class SendMessageDto extends ChatPreviewScopeDto {
   @IsOptional()
   @IsString()
   @MaxLength(256)
   @Matches(/^(custom:[a-zA-Z0-9_-]+|daily:\d{4}-\d{2}-\d{2})$/)
   activeNoteRef?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => ChatSegmentDto)
+  sourceSegments?: ChatSegmentDto[];
 
   @IsOptional()
   @IsString()

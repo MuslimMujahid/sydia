@@ -1,3 +1,4 @@
+import type { ChatSegment } from "@/components/chat/chat-source-types";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
@@ -42,6 +43,7 @@ export type ConversationMessage = {
   content: string;
   createdAt: string;
   attachments: Array<{ fileAsset: ConversationAttachment }>;
+  sourceSegments?: ChatSegment[] | null;
 };
 
 export type AssistantRunStatus = "queued" | "running" | "completed" | "failed";
@@ -100,6 +102,7 @@ export type SendMessageVariables = Partial<ChatPreviewScope> & {
   idempotencyKey: string;
   attachmentIds?: string[];
   activeNoteRef?: string;
+  sourceSegments?: ChatSegment[];
 };
 export type AssistantActivityPhase = "queued" | "preparing" | "executing_tool";
 
@@ -257,6 +260,23 @@ const messageSchema = z.object({
   content: z.string(),
   createdAt: z.string(),
   attachments: z.array(attachmentSchema),
+  sourceSegments: z
+    .array(
+      z.discriminatedUnion("type", [
+        z.object({ type: z.literal("text"), text: z.string() }),
+        z.object({
+          type: z.literal("source"),
+          source: z.object({
+            kind: z.enum(["file", "folder", "note"]),
+            id: z.string(),
+            label: z.string(),
+            path: z.string().optional(),
+          }),
+        }),
+      ])
+    )
+    .nullable()
+    .optional(),
 });
 
 const runSchema = z.object({

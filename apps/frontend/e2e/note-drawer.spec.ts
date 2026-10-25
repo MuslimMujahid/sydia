@@ -6,7 +6,7 @@ const doc = (text: string) => ({
   content: [{ type: "paragraph", content: [{ type: "text", text }] }],
 });
 
-async function setup(page: Page) {
+async function setup(page: Page, includeUserSources = false) {
   const state = {
     title: "Keputusan desain",
     content: doc("Keputusan awal"),
@@ -41,6 +41,37 @@ async function setup(page: Page) {
       updatedAt: at,
     },
     messages: [
+      ...(includeUserSources
+        ? [
+            {
+              id: "user-sources",
+              conversationId: "conversation-1",
+              role: "user",
+              content: "Read these notes",
+              createdAt: at,
+              attachments: [],
+              sourceSegments: [
+                {
+                  type: "source",
+                  source: {
+                    kind: "note",
+                    id: "custom:design",
+                    label: "Keputusan desain",
+                  },
+                },
+                { type: "text", text: " and " },
+                {
+                  type: "source",
+                  source: {
+                    kind: "note",
+                    id: "daily:2026-10-18",
+                    label: "2026-10-18",
+                  },
+                },
+              ],
+            },
+          ]
+        : []),
       {
         id: "answer-1",
         conversationId: "conversation-1",
@@ -314,7 +345,7 @@ test("restores usable desktop chat after resizing an open mobile editor", async 
     .fill("Chat remains usable");
   await expect(
     page.getByRole("textbox", { name: "Pesan untuk Sydia", exact: true })
-  ).toHaveValue("Chat remains usable");
+  ).toHaveText("Chat remains usable");
 });
 
 test("drains edits made during an in-flight save before switching notes", async ({
@@ -360,7 +391,7 @@ test("holds a message with its draft when saving fails and dispatches only after
   expect(s.sends).toHaveLength(0);
   await expect(
     page.getByRole("textbox", { name: "Pesan untuk Sydia", exact: true })
-  ).toHaveValue("Ringkas catatan ini");
+  ).toHaveText("Ringkas catatan ini");
   s.fail = false;
   await page
     .getByRole("button", { name: "Coba lagi", exact: true })
@@ -393,7 +424,7 @@ test("an unavailable selection holds the message until the drawer is explicitly 
   await expect(page.getByRole("alert").first()).toContainText(
     "Muat catatan atau tutup editornya sebelum mengirim. Pesan Anda tetap tersedia."
   );
-  await expect(composer).toHaveValue("Ringkas catatan ini");
+  await expect(composer).toHaveText("Ringkas catatan ini");
   expect(s.sends).toHaveLength(0);
   await close(page);
   await page.getByRole("button", { name: "Kirim pesan", exact: true }).click();
@@ -460,4 +491,34 @@ test("an inaccessible dirty note retains a read-only draft until explicit discar
     .click();
   await expect(body(page)).toHaveCount(0);
   expect(JSON.stringify(s.content)).toContain("Keputusan awal");
+});
+
+test("a user message custom-note badge opens that note in the editor", async ({
+  page,
+}) => {
+  const state = await setup(page, true);
+  await page
+    .getByRole("article", { name: "Pesan Anda" })
+    .getByRole("button", { name: "Catatan: Keputusan desain", exact: true })
+    .click();
+  await expect(
+    page.getByRole("textbox", { name: "Isi catatan" })
+  ).toContainText("Keputusan awal");
+  expect(state.writes).toEqual([]);
+});
+
+test("a user message daily-note badge opens the daily note editor", async ({
+  page,
+}) => {
+  await setup(page, true);
+  await page
+    .getByRole("article", { name: "Pesan Anda" })
+    .getByRole("button", { name: /Catatan: .*18 Oktober 2026/ })
+    .click();
+  await expect(
+    page.getByRole("textbox", { name: "Isi catatan" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Judul catatan" })
+  ).toHaveCount(0);
 });

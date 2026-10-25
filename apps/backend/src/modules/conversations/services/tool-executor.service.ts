@@ -42,6 +42,7 @@ export type AssistantSkillState = {
 };
 
 export type AssistantToolExecutionContext = {
+  sourceDocumentIds?: string[];
   channel?: MessageProvider;
   sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>;
   conversationId?: string;
@@ -450,12 +451,40 @@ export class ToolExecutorService {
     }
 
     try {
+      const scope = this.conversations.findSourceScope
+        ? await this.conversations.findSourceScope(userId, inputMessageId)
+        : null;
+
+      const scopedContext = scope
+        ? { ...context, sourceDocumentIds: scope.documentIds }
+        : context;
+
+      if (scope && call.name === 'read_document') {
+        const input = argumentsValue as Record<string, unknown>;
+        if (!scope.documentIds.includes(String(input.documentId)))
+          throw new Error('Read a file from the selected sources.');
+      }
+
+      if (
+        scope &&
+        (call.name === 'read_custom_note' || call.name === 'read_daily_note')
+      ) {
+        const input = argumentsValue as Record<string, unknown>;
+        const ref =
+          call.name === 'read_custom_note'
+            ? `custom:${String(input.id)}`
+            : `daily:${String(input.date)}`;
+
+        if (!scope.noteRefs.includes(ref) && scope.activeNoteRef !== ref)
+          throw new Error('Read a note from the selected sources.');
+      }
+
       const result = await assistantTool.execute({
         sourceMessageId: inputMessageId,
         userId,
         arguments: argumentsValue,
         idempotencyKey,
-        context,
+        context: scopedContext,
       });
 
       const persistedResult: Prisma.InputJsonValue = assistantTool.sensitive

@@ -11,6 +11,7 @@ import {
 import type {
   AssistantActivity,
   SendMessageVariables,
+  SendMessageResult,
 } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { ChatComposer } from "./chat-composer";
@@ -122,22 +123,16 @@ function ChatPageContent({
     string | undefined
   >();
 
+  const acceptedTurn = useRef<SendMessageResult | undefined>(undefined);
+  const lastSendKey = useRef<string | undefined>(undefined);
+
   const sendMutation = useSendConversationMessage({
     onActivity: setStreamedActivity,
     onTextDelta: (delta) => setStreamedText((text) => text + delta),
     onTurn: (result) => {
       setSubmissionConversationId(result.conversation.id);
 
-      if (!conversationId) {
-        void navigate({
-          to: "/",
-          search: {
-            conversation: result.conversation.id,
-            attachment: undefined,
-          },
-          replace: true,
-        });
-      }
+      acceptedTurn.current = result;
 
       if (
         result.assistantRun.status === "completed" ||
@@ -206,10 +201,38 @@ function ChatPageContent({
       phase: "queued",
       label: locale === "en" ? "Waiting for its turn…" : "Menunggu giliran…",
     });
-    await sendMutation.mutateAsync({
-      ...values,
-      ...(activeNoteRef ? { activeNoteRef } : {}),
-    });
+    const previous = acceptedTurn.current;
+    const retryAccepted =
+      lastSendKey.current === values.idempotencyKey &&
+      previous?.assistantRun.status === "failed";
+
+    lastSendKey.current = values.idempotencyKey;
+    if (!retryAccepted) acceptedTurn.current = undefined;
+    const result = retryAccepted
+      ? await retryMutation.mutateAsync({
+          conversationId: previous.conversation.id,
+          runId: previous.assistantRun.id,
+        })
+      : await sendMutation.mutateAsync({
+          ...values,
+          ...(activeNoteRef ? { activeNoteRef } : {}),
+        });
+
+    if (result.assistantRun.status === "failed") {
+      throw new Error(
+        result.assistantRun.errorMessage ||
+          (locale === "en"
+            ? "The response failed. Your draft is kept."
+            : "Jawaban gagal. Draf Anda tetap tersimpan.")
+      );
+    }
+
+    if (!conversationId)
+      await navigate({
+        to: "/",
+        search: { conversation: result.conversation.id, attachment: undefined },
+        replace: true,
+      });
   }
 
   function handleRetry(runId: string) {
@@ -233,6 +256,7 @@ function ChatPageContent({
     isSending && !hasActiveRun && !streamCompleted
       ? {
           content: sendMutation.variables.content,
+          sourceSegments: sendMutation.variables.sourceSegments,
           attachmentCount: sendMutation.variables.attachmentIds?.length ?? 0,
         }
       : undefined;
@@ -275,8 +299,14 @@ function ChatPageContent({
         ref={scrollViewportRef}
         className="min-h-0 flex-1 overflow-y-auto scroll-smooth"
       >
-        {isNewConversation && !isSending ? (
-          <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8">
+        {isNewConversation ? (
+          <div
+            className={
+              isSending
+                ? "hidden"
+                : "flex min-h-full items-center justify-center px-4 py-10 sm:px-8"
+            }
+          >
             <div className="w-full max-w-3xl -translate-y-[4vh] text-center">
               <h1 className="font-display text-[22px] leading-[1.22] font-normal tracking-[-0.018em] sm:text-[26px]">
                 {locale === "en"
@@ -302,6 +332,7 @@ function ChatPageContent({
         {isNewConversation && isSending ? (
           <MessageHistory
             messages={[]}
+            optimisticMessage={optimisticMessage}
             assistantRuns={[]}
             toolInvocations={[]}
             isSending={!streamCompleted}
@@ -342,7 +373,7 @@ function ChatPageContent({
       </div>
 
       <ChatNoteContextIndicator />
-      {!isNewConversation || isSending ? (
+      {!isNewConversation ? (
         <ChatComposer
           key={conversationId ?? "new-sending"}
           conversationId={conversationId}

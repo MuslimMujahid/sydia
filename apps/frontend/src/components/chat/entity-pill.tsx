@@ -1,10 +1,4 @@
-import {
-  AlarmClock,
-  CalendarDays,
-  CheckSquare2,
-  FileText,
-  Files,
-} from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { useState } from "react";
 import {
   Popover,
@@ -14,42 +8,13 @@ import {
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
 import type { ChatEntity } from "./chat-entities";
+import {
+  ENTITY_PILL_BASE_CLASS_NAME,
+  ENTITY_PILL_STYLES,
+} from "./entity-pill-styles";
 import { EntitySnapshotDetails } from "./entity-snapshot-details";
 import { EntityDetails } from "./entity-details";
 import { useChatNotes } from "./chat-notes";
-
-const ENTITY_STYLES = {
-  note: {
-    icon: Files,
-    color: "bg-brand/8 text-ink hover:bg-brand/15",
-    en: "Note",
-    id: "Catatan",
-  },
-  task: {
-    icon: CheckSquare2,
-    color: "bg-blue-50 text-blue-800 hover:bg-blue-100",
-    en: "Task",
-    id: "Tugas",
-  },
-  reminder: {
-    icon: AlarmClock,
-    color: "bg-amber-50 text-amber-900 hover:bg-amber-100",
-    en: "Reminder",
-    id: "Pengingat",
-  },
-  file: {
-    icon: FileText,
-    color: "bg-violet-50 text-violet-800 hover:bg-violet-100",
-    en: "File",
-    id: "File",
-  },
-  event: {
-    icon: CalendarDays,
-    color: "bg-emerald-50 text-emerald-800 hover:bg-emerald-100",
-    en: "Event",
-    id: "Acara",
-  },
-};
 
 interface EntityPillProps {
   entity: ChatEntity;
@@ -68,7 +33,7 @@ export function EntityPill({
 }: EntityPillProps) {
   const [open, setOpen] = useState(false);
   const notes = useChatNotes();
-  const style = ENTITY_STYLES[entity.kind];
+  const style = ENTITY_PILL_STYLES[entity.kind];
   const Icon =
     entity.kind === "note" && entity.ref.startsWith("daily:")
       ? CalendarDays
@@ -92,7 +57,8 @@ export function EntityPill({
         aria-label={`${style[locale]}: ${displayLabel}`}
         disabled={!notes}
         className={cn(
-          "mx-0.5 inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-0.5 align-baseline text-[0.875em] leading-6 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          ENTITY_PILL_BASE_CLASS_NAME,
+          "mx-0.5 cursor-pointer align-baseline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           style.color
         )}
         onClick={(event) => notes?.open(entity.ref, event.currentTarget)}
@@ -110,7 +76,8 @@ export function EntityPill({
         data-entity-kind={entity.kind}
         aria-label={`${style[locale]}: ${displayLabel}`}
         className={cn(
-          "mx-0.5 inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-0.5 align-baseline text-[0.875em] leading-6 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          ENTITY_PILL_BASE_CLASS_NAME,
+          "mx-0.5 cursor-pointer align-baseline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           style.color
         )}
       >

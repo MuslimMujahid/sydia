@@ -1,3 +1,8 @@
+import {
+  ChatSourceEditor,
+  type ChatSourceEditorHandle,
+} from "./chat-source-editor";
+import type { ChatSegment } from "./chat-source-types";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileAudio,
@@ -11,16 +16,12 @@ import {
 } from "lucide-react";
 import {
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
-  type KeyboardEvent,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils/cn";
 import type { SendMessageVariables } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import {
@@ -77,12 +78,6 @@ async function waitForDocument(documentId: string, locale: SupportedLocale) {
   }
 }
 
-function fitTextarea(textarea: HTMLTextAreaElement | null) {
-  if (!textarea) return;
-  textarea.style.height = "auto";
-  textarea.style.height = `${textarea.scrollHeight}px`;
-}
-
 function AttachmentIcon({ kind }: { kind: FileKind }) {
   const Icon =
     kind === "audio" ? FileAudio : kind === "image" ? FileImage : FileText;
@@ -103,12 +98,13 @@ export function ChatComposer({
   onSend,
 }: ChatComposerProps) {
   const [content, setContent] = useState("");
+  const [sourceSegments, setSourceSegments] = useState<ChatSegment[]>([]);
+  const sourceEditorRef = useRef<ChatSourceEditorHandle>(null);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [submissionError, setSubmissionError] = useState<string>();
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadMutation = useUploadDocument();
   const libraryDocument = useQuery(
     documentQueryOptions(initialAttachmentId ?? "")
@@ -117,19 +113,6 @@ export function ChatComposer({
   const lastSubmission = useRef<
     { signature: string; idempotencyKey: string } | undefined
   >(undefined);
-
-  // Grow with the draft so the message box never scrolls internally.
-  useLayoutEffect(() => {
-    fitTextarea(textareaRef.current);
-  }, [content]);
-
-  // Line wrapping changes with the width, so refit when the window resizes.
-  useEffect(() => {
-    const refit = () => fitTextarea(textareaRef.current);
-    window.addEventListener("resize", refit);
-
-    return () => window.removeEventListener("resize", refit);
-  }, []);
 
   useEffect(() => {
     if (!initialAttachmentId) return;
@@ -298,7 +281,12 @@ export function ChatComposer({
       attachment.documentId ? [attachment.documentId] : []
     );
 
-    const signature = `${submittedContent}\u0000${attachmentIds.join(",")}`;
+    const signature = JSON.stringify([
+      submittedContent,
+      attachmentIds,
+      sourceSegments,
+    ]);
+
     const idempotencyKey =
       lastSubmission.current?.signature === signature
         ? lastSubmission.current.idempotencyKey
@@ -312,8 +300,15 @@ export function ChatComposer({
         content: submittedContent,
         idempotencyKey,
         attachmentIds,
+        sourceSegments: sourceSegments.some(
+          (segment) => segment.type === "source"
+        )
+          ? sourceSegments
+          : undefined,
       });
       setContent("");
+      setSourceSegments([]);
+      sourceEditorRef.current?.clear();
       setAttachments([]);
       lastSubmission.current = undefined;
     } catch (error) {
@@ -336,19 +331,6 @@ export function ChatComposer({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void submit();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing &&
-      // On touch devices the return key writes a new line; the send button sends.
-      !window.matchMedia("(pointer: coarse)").matches
-    ) {
-      event.preventDefault();
-      void submit();
-    }
   }
 
   // The home message box keeps its status line below it. The docked box sits
@@ -466,7 +448,7 @@ export function ChatComposer({
           </ul>
         ) : null}
         {/* 52px tall (1px border + 8px padding + 34px row) with a 26px radius gives perfect half-circle ends. */}
-        <div className="flex items-end gap-1 rounded-[26px] border border-hairline bg-surface-1 p-2 focus-within:border-ink/16">
+        <div className="relative flex items-end gap-1 rounded-[26px] border border-hairline bg-surface-1 p-2 focus-within:border-ink/16">
           <input
             ref={fileInputRef}
             type="file"
@@ -485,32 +467,18 @@ export function ChatComposer({
           >
             <Paperclip />
           </Button>
-          <Textarea
-            ref={textareaRef}
-            rows={1}
-            value={content}
-            aria-label={
-              locale === "en" ? "Message for Sydia" : "Pesan untuk Sydia"
-            }
-            aria-describedby="composer-help composer-state"
-            placeholder={
-              locale === "en"
-                ? "Write a message or attach a file…"
-                : "Tulis pesan atau lampirkan file…"
-            }
-            disabled={disabled || isSending}
-            onChange={(event) => {
+          <ChatSourceEditor
+            ref={sourceEditorRef}
+            locale={locale}
+            disabled={!!disabled || isSending || submitting}
+            embedded={embedded}
+            onChange={(text, segments) => {
               if (errorMessage) onDraftChange?.();
-              setContent(event.target.value);
+              setContent(text);
+              setSourceSegments(segments);
               lastSubmission.current = undefined;
             }}
-            onKeyDown={handleKeyDown}
-            className={cn(
-              "min-h-8.5 resize-none border-0 bg-transparent px-2 py-1.25 shadow-none hover:border-transparent focus-visible:border-transparent focus-visible:ring-0 disabled:bg-transparent",
-              // The home message box grows freely; the docked one is capped so
-              // a very long draft cannot push the conversation off screen.
-              embedded ? "overflow-hidden" : "max-h-[40vh] overflow-y-auto"
-            )}
+            onSubmit={() => void submit()}
           />
           <Button
             type="submit"

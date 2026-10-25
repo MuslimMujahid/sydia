@@ -1,3 +1,13 @@
+import { lockFileLibrary } from './file-library-lock';
+import {
+  resolveChatSources,
+  chatSourceSignature,
+} from './chat-source-resolution';
+import {
+  ChatSourceUnavailableError,
+  ChatSourceConflictError,
+  type ChatSegment,
+} from '../entities/conversation.entity';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
@@ -44,6 +54,8 @@ const messageSelect = {
   role: true,
   content: true,
   activeNoteRef: true,
+  sourceSegments: true,
+  sourceDocumentIds: true,
   createdAt: true,
   attachments: {
     select: {
@@ -689,6 +701,88 @@ export class PrismaConversationRepository implements IConversationRepository {
     });
   }
 
+  async findSourceScope(userId: string, messageId: string) {
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, userId, role: 'user' },
+      select: {
+        sourceSegments: true,
+        sourceDocumentIds: true,
+        activeNoteRef: true,
+      },
+    });
+
+    if (!message?.sourceSegments) return null;
+    const segments = message.sourceSegments as ChatSegment[];
+    if (!segments.some((segment) => segment.type === 'source')) return null;
+    const noteRefs: string[] = [];
+
+    for (const segment of segments) {
+      if (segment.type !== 'source') continue;
+      const source = segment.source;
+
+      if (source.kind === 'folder') {
+        const folder = await this.prisma.fileFolder.findFirst({
+          where: { id: source.id, userId, deletingOperationId: null },
+          select: { id: true },
+        });
+
+        if (!folder)
+          throw new ChatSourceUnavailableError('Folder sumber tidak tersedia.');
+      } else if (source.kind === 'note') {
+        if (source.id.startsWith('custom:')) {
+          const note = await this.prisma.workspaceItem.findFirst({
+            where: {
+              id: source.id.slice(7),
+              userId,
+              kind: 'note',
+              trashedAt: null,
+            },
+            select: { id: true },
+          });
+
+          if (!note)
+            throw new ChatSourceUnavailableError(
+              'Catatan sumber tidak tersedia.',
+            );
+        } else {
+          const note = await this.prisma.dailyNote.findUnique({
+            where: { userId_date: { userId, date: source.id.slice(6) } },
+            select: { id: true },
+          });
+
+          if (!note)
+            throw new ChatSourceUnavailableError(
+              'Catatan harian sumber tidak tersedia.',
+            );
+        }
+
+        noteRefs.push(source.id);
+      }
+    }
+
+    const available = await this.prisma.document.count({
+      where: {
+        id: { in: message.sourceDocumentIds },
+        userId,
+        deletingOperationId: null,
+      },
+    });
+
+    if (available !== message.sourceDocumentIds.length)
+      throw new ChatSourceUnavailableError(
+        'Satu atau beberapa file sumber tidak tersedia.',
+      );
+
+    return {
+      segments,
+      documentIds: message.sourceDocumentIds,
+      noteRefs,
+      ...(message.activeNoteRef
+        ? { activeNoteRef: message.activeNoteRef }
+        : {}),
+    };
+  }
+
   async writeUserMessage(
     input: UserMessageWrite,
   ): Promise<UserMessageWriteResult> {
@@ -705,6 +799,18 @@ export class PrismaConversationRepository implements IConversationRepository {
     });
 
     if (existing) {
+      if (input.sourceSegments?.length || existing.sourceSegments) {
+        const prior = existing.sourceSegments as ChatSegment[] | null;
+
+        if (
+          existing.content !== input.content ||
+          chatSourceSignature(prior ?? []) !==
+            chatSourceSignature(input.sourceSegments ?? [])
+        ) {
+          throw new ChatSourceConflictError();
+        }
+      }
+
       const { conversation, ...userMessage } = existing;
 
       return { conversation, userMessage, replayed: true };
@@ -712,6 +818,8 @@ export class PrismaConversationRepository implements IConversationRepository {
 
     try {
       return await this.prisma.$transaction(async (transaction) => {
+        if (input.sourceSegments?.some((segment) => segment.type === 'source'))
+          await lockFileLibrary(transaction, input.userId);
         let conversation: Conversation;
 
         if (input.conversationId) {
@@ -753,6 +861,32 @@ export class PrismaConversationRepository implements IConversationRepository {
           throw new Error('Satu atau beberapa lampiran tidak ditemukan.');
         }
 
+        const sources = input.sourceSegments?.length
+          ? await resolveChatSources(
+              transaction,
+              input.userId,
+              input.sourceSegments,
+            )
+          : undefined;
+
+        if (sources && attachmentAssets.length) {
+          const attachedDocuments = await transaction.document.findMany({
+            where: {
+              userId: input.userId,
+              fileAssetId: { in: attachmentAssets.map((asset) => asset.id) },
+              deletingOperationId: null,
+            },
+            select: { id: true },
+          });
+
+          sources.documentIds = [
+            ...new Set([
+              ...sources.documentIds,
+              ...attachedDocuments.map((document) => document.id),
+            ]),
+          ];
+        }
+
         const userMessage = await transaction.message.create({
           data: {
             conversationId: conversation.id,
@@ -760,6 +894,12 @@ export class PrismaConversationRepository implements IConversationRepository {
             role: 'user',
             content: input.content,
             activeNoteRef: input.activeNoteRef,
+            ...(sources
+              ? {
+                  sourceSegments: sources.segments,
+                  sourceDocumentIds: sources.documentIds,
+                }
+              : {}),
             idempotencyKey: input.idempotencyKey,
             ...(attachmentAssets.length
               ? {
@@ -802,6 +942,16 @@ export class PrismaConversationRepository implements IConversationRepository {
         });
 
         if (replay) {
+          if (input.sourceSegments?.length || replay.sourceSegments) {
+            if (
+              replay.content !== input.content ||
+              chatSourceSignature(
+                (replay.sourceSegments as ChatSegment[] | null) ?? [],
+              ) !== chatSourceSignature(input.sourceSegments ?? [])
+            )
+              throw new ChatSourceConflictError();
+          }
+
           const { conversation, ...userMessage } = replay;
 
           return { conversation, userMessage, replayed: true };

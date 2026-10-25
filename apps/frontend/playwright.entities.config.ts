@@ -10,6 +10,7 @@ export default defineConfig({
     "checkout.spec.ts",
     "account-menu.spec.ts",
     "note-drawer.spec.ts",
+    "chat-sources.spec.ts",
     "notes-move.spec.ts",
     "entity-renderer.spec.ts",
     "chat-previews.spec.ts",

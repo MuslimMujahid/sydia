@@ -550,15 +550,30 @@ Use it when the user asks what files or documents are available.
 
 Do not use it when contents, semantic search, or the active message's attachments are needed.
 
-Returns each document's id, filename, MIME type, size, status, and creation time, capped at 25 documents; this tool takes no parameters.`,
-        parameters: schema({}),
+Returns each document's id, filename, MIME type, size, status, and creation time, 25 per page. With message sources, lists only their fixed file membership. Continue using nextCursor when present.`,
+        parameters: schema({
+          cursor: {
+            type: 'integer',
+            minimum: 0,
+            description:
+              'Optional non-negative metadata offset; defaults to 0. Use nextCursor to continue the same fixed selection.',
+          },
+        }),
       },
       readOnly: true,
       parseArguments,
-      execute: async ({ userId }) => {
-        const documents = await deps.documents.listMetadata(userId);
+      execute: async ({ userId, arguments: raw, context }) => {
+        const cursor = integer(record(raw), 'cursor', 0);
+        if (cursor < 0) throw new Error('Invalid document metadata cursor.');
+        const metadata = await deps.documents.listMetadata(userId);
+        const scope = context?.sourceDocumentIds;
+        const documents =
+          scope === undefined
+            ? metadata
+            : metadata.filter((document) => scope.includes(document.id));
+
         const listed = documents
-          .slice(0, LIST_DOCUMENTS_LIMIT)
+          .slice(cursor, cursor + LIST_DOCUMENTS_LIMIT)
           .map((document) => ({
             id: document.id,
             filename: document.title,
@@ -569,7 +584,14 @@ Returns each document's id, filename, MIME type, size, status, and creation time
           }));
 
         return documents.length > LIST_DOCUMENTS_LIMIT
-          ? { documents: listed, total: documents.length }
+          ? {
+              documents: listed,
+              total: documents.length,
+              nextCursor:
+                cursor + listed.length < documents.length
+                  ? cursor + listed.length
+                  : null,
+            }
           : { documents: listed };
       },
     },
@@ -783,14 +805,27 @@ Returns up to six relevance-ranked sources with document identity, filename, pos
       },
       readOnly: true,
       parseArguments,
-      execute: async ({ userId, sourceMessageId, arguments: raw }) => ({
-        sources: (
-          await deps.documents.searchForMessage(
-            userId,
-            sourceMessageId,
-            text(record(raw), 'query')!,
-            6,
-          )
+      execute: async ({
+        userId,
+        sourceMessageId,
+        arguments: raw,
+        context,
+      }) => ({
+        sources: (context?.sourceDocumentIds !== undefined
+          ? context.sourceDocumentIds.length
+            ? await deps.documents.search(
+                userId,
+                text(record(raw), 'query')!,
+                6,
+                context.sourceDocumentIds,
+              )
+            : []
+          : await deps.documents.searchForMessage(
+              userId,
+              sourceMessageId,
+              text(record(raw), 'query')!,
+              6,
+            )
         ).map((chunk) => ({
           documentId: chunk.documentId,
           filename: chunk.title,

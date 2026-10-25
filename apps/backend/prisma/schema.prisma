@@ -332,6 +332,8 @@ model Message {
   content           String
   providerMessageId String?
   activeNoteRef     String?
+  sourceSegments    Json?
+  sourceDocumentIds String[] @default([])
   attachments       MessageAttachment[]
   idempotencyKey    String?
   createdAt         DateTime            @default(now())

@@ -25,6 +25,7 @@ export type UserMessageWrite = {
   idempotencyKey: string;
   attachmentIds?: string[];
   activeNoteRef?: string;
+  sourceSegments?: import('../entities/conversation.entity').ChatSegment[];
   channel?: string;
 };
 
@@ -132,6 +133,15 @@ export interface IConversationRepository {
     externalIdentityId: string,
     chatExternalId: string,
   ): Promise<void>;
+  findSourceScope(
+    userId: string,
+    messageId: string,
+  ): Promise<{
+    segments: import('../entities/conversation.entity').ChatSegment[];
+    documentIds: string[];
+    noteRefs: string[];
+    activeNoteRef?: string;
+  } | null>;
   writeUserMessage(input: UserMessageWrite): Promise<UserMessageWriteResult>;
   findUserMessageContent(
     userId: string,

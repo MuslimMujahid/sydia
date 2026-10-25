@@ -1,3 +1,7 @@
+import {
+  ChatSourceUnavailableError,
+  ChatSourceConflictError,
+} from '../../../database/entities';
 import { BillingAccessService } from '../../billing';
 import {
   HttpStatus,
@@ -188,6 +192,7 @@ export class AssistantOrchestratorService {
       idempotencyKey: string;
       attachmentIds?: string[];
       activeNoteRef?: string;
+      sourceSegments?: import('../../../database/entities/conversation.entity').ChatSegment[];
     },
     context?: AssistantExecutionContext,
   ): Promise<AssistantTurnResult & { userMessage: Message }> {
@@ -220,6 +225,7 @@ export class AssistantOrchestratorService {
       idempotencyKey: string;
       attachmentIds?: string[];
       activeNoteRef?: string;
+      sourceSegments?: import('../../../database/entities/conversation.entity').ChatSegment[];
     },
     context?: AssistantExecutionContext,
   ): ReadableStream<InferUIMessageChunk<AssistantStreamMessage>> {
@@ -349,6 +355,12 @@ export class AssistantOrchestratorService {
           error instanceof Error ? error.stack : String(error),
         );
 
+        if (
+          error instanceof ChatSourceUnavailableError ||
+          error instanceof ChatSourceConflictError
+        )
+          return error.message;
+
         return assistantMessage(user.locale, 'safeFailure');
       },
     });
@@ -362,6 +374,7 @@ export class AssistantOrchestratorService {
       idempotencyKey: string;
       attachmentIds?: string[];
       activeNoteRef?: string;
+      sourceSegments?: import('../../../database/entities/conversation.entity').ChatSegment[];
       channel?: MessageProvider;
       abortSignal?: AbortSignal;
       toolsReady?: Promise<void>;
@@ -455,6 +468,7 @@ export class AssistantOrchestratorService {
       idempotencyKey: string;
       attachmentIds?: string[];
       activeNoteRef?: string;
+      sourceSegments?: import('../../../database/entities/conversation.entity').ChatSegment[];
     },
   ): Promise<{
     conversation: Conversation;
@@ -477,6 +491,7 @@ export class AssistantOrchestratorService {
       idempotencyKey: input.idempotencyKey,
       attachmentIds: input.attachmentIds,
       activeNoteRef: input.activeNoteRef,
+      sourceSegments: input.sourceSegments,
     });
 
     if (
