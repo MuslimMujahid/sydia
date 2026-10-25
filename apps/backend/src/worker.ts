@@ -44,6 +44,7 @@ import {
   NotificationComposerService,
   NotificationService,
   ProactiveSchedulerService,
+  SecretaryBackgroundService,
 } from './modules/notifications';
 
 async function bootstrap(): Promise<void> {
@@ -297,7 +298,29 @@ async function bootstrap(): Promise<void> {
 
   await scheduler.register();
 
+  // Built-in background secretary: same agent and skills, every five minutes.
+  const secretaryBackground = context.get(SecretaryBackgroundService);
+  const secretarySweepMs = 5 * 60_000;
+  let secretarySweepRunning = false;
+  const secretaryTimer = setInterval(() => {
+    if (secretarySweepRunning) return;
+    secretarySweepRunning = true;
+    void secretaryBackground
+      .sweep()
+      .catch((error: unknown) =>
+        Logger.error(
+          'Secretary background sweep failed; next sweep retries.',
+          error instanceof Error ? error.stack : undefined,
+          'SecretaryWorker',
+        ),
+      )
+      .finally(() => {
+        secretarySweepRunning = false;
+      });
+  }, secretarySweepMs);
+
   const close = async () => {
+    clearInterval(secretaryTimer);
     // A channel turn can still enqueue and await a document. Keep its worker
     // alive until preparation and the response finish.
     await context.get(MessagingHandlerService).stopAndDrain();

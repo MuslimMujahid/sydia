@@ -64,6 +64,18 @@ export type GenerateRequest = {
    * loop. Omit it and generation behaves exactly as before.
    */
   acknowledgeTerminalStep?: ToolStepAcknowledger;
+  /**
+   * Re-evaluated before every step: the tool names offered to the model for
+   * that step. Lets guidance loaded mid-turn expose more tools without
+   * restarting the turn. Omit to offer every tool in `tools`.
+   */
+  activeTools?: () => readonly string[];
+  /**
+   * Reviews the model's final answer text (a step without tool calls) before
+   * it is streamed or returned, and may replace it. Not applied to
+   * deterministic terminal acknowledgements.
+   */
+  reviewFinalText?: (text: string) => Promise<string>;
 };
 
 export type GenerateResult = {

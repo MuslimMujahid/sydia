@@ -30,9 +30,27 @@ export type AssistantFile = {
   buffer: Buffer;
 };
 
+/** Turn-scoped skill state: loaded guidance and the tools it unlocked. */
+export type AssistantSkillState = {
+  loaded: Map<string, string>;
+  activeTools: Set<string>;
+  /** Hard upper bound on tools (background runs); undefined means all registered. */
+  allowedTools?: ReadonlySet<string>;
+  loads: number;
+  /** Memory/source ids actually retrieved this turn; constraints must cite them. */
+  evidence: Set<string>;
+};
+
 export type AssistantToolExecutionContext = {
   channel?: MessageProvider;
   sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>;
+  conversationId?: string;
+  runId?: string;
+  /** Background evaluations are not user instructions and cannot authorize mutations. */
+  trigger?: 'user' | 'background';
+  /** Evaluation clock for background runs (controlled in QA harnesses). */
+  now?: Date;
+  skills?: AssistantSkillState;
 };
 
 export type AssistantTool = {
@@ -276,7 +294,7 @@ export class ToolExecutorService {
               if (toolsReady) await toolsReady;
               if (abortSignal?.aborted) throw abortSignal.reason;
 
-              if (assistantTool.internal) {
+              if (assistantTool.internal || context?.trigger === 'background') {
                 const result = await assistantTool.execute({
                   userId,
                   sourceMessageId: inputMessageId,

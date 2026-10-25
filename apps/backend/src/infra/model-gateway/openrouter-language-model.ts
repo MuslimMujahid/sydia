@@ -554,6 +554,19 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       messages: request.messages,
       allowSystemInMessages: true as const,
       tools: request.tools,
+      ...(request.activeTools && request.tools
+        ? {
+            prepareStep: () => {
+              const names = new Set(request.activeTools!());
+
+              return {
+                activeTools: Object.keys(request.tools!).filter((name) =>
+                  names.has(name),
+                ),
+              };
+            },
+          }
+        : {}),
       ...(request.outputSchema
         ? {
             output: Output.object({ schema: jsonSchema(request.outputSchema) }),
@@ -679,6 +692,13 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                     lastExecutedToolNames = [...executedToolNames];
                     request.onToolCall?.(chunk.toolName);
                   } else if (chunk.type === 'finish-step') {
+                    if (
+                      request.reviewFinalText &&
+                      mayCallTools &&
+                      !stepCalledTool &&
+                      stepText.trim()
+                    )
+                      stepText = await request.reviewFinalText(stepText);
                     flushStep();
                     usage = chunk.usage;
                     providerMetadata = chunk.providerMetadata;
@@ -735,12 +755,20 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               }
 
               const result = await generateText(options(terminalText));
-              const finalText = (
+              let finalText = (
                 terminalText.text ??
                 (request.outputSchema
                   ? JSON.stringify(result.output)
                   : result.text)
               ).trim();
+
+              if (
+                request.reviewFinalText &&
+                terminalText.text === null &&
+                !request.outputSchema &&
+                finalText
+              )
+                finalText = (await request.reviewFinalText(finalText)).trim();
 
               assertAssistantText(finalText);
 

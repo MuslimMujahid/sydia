@@ -50,6 +50,14 @@ export const TOOL_GROUPS = {
     'delete_category',
   ],
   time: ['get_current_datetime'],
+  assistance: [
+    'load_skill',
+    'get_work_context',
+    'check_availability',
+    'prepare_action',
+    'respond_to_action',
+    'set_assistance_preference',
+  ],
 } as const;
 export type ToolGroup = keyof typeof TOOL_GROUPS;
 
@@ -79,8 +87,14 @@ export function toolNamesForGroups(
   );
 }
 
-export function validateToolGroups(registered: readonly string[]): void {
-  const declared = Object.values(TOOL_GROUPS).flat();
+export function validateToolGroups(
+  registered: readonly string[],
+  omittedGroups: readonly ToolGroup[] = [],
+): void {
+  const declared = Object.entries(TOOL_GROUPS)
+    .filter(([group]) => !omittedGroups.includes(group as ToolGroup))
+    .flatMap(([, names]) => [...names]);
+
   if (
     new Set(declared).size !== declared.length ||
     registered.length !== declared.length ||

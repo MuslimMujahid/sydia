@@ -300,6 +300,38 @@ export class PrismaNotificationRepository implements INotificationRepository {
     });
   }
 
+  async listDeliveredContentSince(
+    userId: string,
+    kind: string,
+    since: Date,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.prisma.notificationDelivery.findMany({
+      where: { userId, kind, status: 'delivered', createdAt: { gte: since } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      select: { content: true },
+    });
+
+    return rows.map((row) => row.content);
+  }
+
+  countDeliveriesSince(
+    userId: string,
+    kind: string,
+    since: Date,
+    statuses: readonly string[],
+  ): Promise<number> {
+    return this.prisma.notificationDelivery.count({
+      where: {
+        userId,
+        kind,
+        createdAt: { gte: since },
+        status: { in: [...statuses] },
+      },
+    });
+  }
+
   async listSchedulingTargets(): Promise<NotificationSchedulingTarget[]> {
     const rows = await this.prisma.user.findMany({
       where: { banned: false },
