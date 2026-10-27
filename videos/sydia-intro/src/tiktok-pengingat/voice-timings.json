@@ -1,0 +1,465 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 3.84,
+    "words": [
+      {
+        "text": "Duh,",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "telat!",
+        "start": 0.48,
+        "end": 1.12
+      },
+      {
+        "text": "Tangan",
+        "start": 1.52,
+        "end": 1.76
+      },
+      {
+        "text": "penuh,",
+        "start": 1.84,
+        "end": 2.56
+      },
+      {
+        "text": "nggak",
+        "start": 2.6,
+        "end": 2.72
+      },
+      {
+        "text": "sempat",
+        "start": 2.76,
+        "end": 3.04
+      },
+      {
+        "text": "ngetik.",
+        "start": 3.08,
+        "end": 3.84
+      }
+    ]
+  },
+  "vn-rina": {
+    "id": "vn-rina",
+    "duration": 7.84,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.8
+      },
+      {
+        "text": "nanti",
+        "start": 0.88,
+        "end": 1.28
+      },
+      {
+        "text": "jam",
+        "start": 1.36,
+        "end": 1.52
+      },
+      {
+        "text": "tujuh",
+        "start": 1.6,
+        "end": 1.8
+      },
+      {
+        "text": "malam",
+        "start": 1.84,
+        "end": 2.32
+      },
+      {
+        "text": "ingetin",
+        "start": 2.4,
+        "end": 2.8
+      },
+      {
+        "text": "aku",
+        "start": 2.92,
+        "end": 3.04
+      },
+      {
+        "text": "beli",
+        "start": 3.12,
+        "end": 3.28
+      },
+      {
+        "text": "obat",
+        "start": 3.36,
+        "end": 3.6
+      },
+      {
+        "text": "buat",
+        "start": 3.68,
+        "end": 3.84
+      },
+      {
+        "text": "Mama.",
+        "start": 3.92,
+        "end": 4.72
+      },
+      {
+        "text": "Terus",
+        "start": 4.8,
+        "end": 5.2
+      },
+      {
+        "text": "besok",
+        "start": 5.28,
+        "end": 5.52
+      },
+      {
+        "text": "pagi",
+        "start": 5.6,
+        "end": 6
+      },
+      {
+        "text": "transfer",
+        "start": 6.08,
+        "end": 6.48
+      },
+      {
+        "text": "SPP",
+        "start": 6.64,
+        "end": 6.96
+      },
+      {
+        "text": "Adik,",
+        "start": 7.04,
+        "end": 7.32
+      },
+      {
+        "text": "ya.",
+        "start": 7.36,
+        "end": 7.84
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 8.08,
+    "words": [
+      {
+        "text": "Siap,",
+        "start": 0,
+        "end": 0.72
+      },
+      {
+        "text": "dua-duanya",
+        "start": 0.8,
+        "end": 1.36
+      },
+      {
+        "text": "sudah",
+        "start": 1.44,
+        "end": 1.64
+      },
+      {
+        "text": "saya",
+        "start": 1.68,
+        "end": 1.84
+      },
+      {
+        "text": "catat.",
+        "start": 1.92,
+        "end": 2.4
+      },
+      {
+        "text": "Beli",
+        "start": 2.8,
+        "end": 2.96
+      },
+      {
+        "text": "obat",
+        "start": 3.04,
+        "end": 3.36
+      },
+      {
+        "text": "untuk",
+        "start": 3.44,
+        "end": 3.6
+      },
+      {
+        "text": "Mama",
+        "start": 3.68,
+        "end": 4.08
+      },
+      {
+        "text": "jam",
+        "start": 4.16,
+        "end": 4.32
+      },
+      {
+        "text": "tujuh",
+        "start": 4.4,
+        "end": 4.6
+      },
+      {
+        "text": "malam,",
+        "start": 4.64,
+        "end": 5.2
+      },
+      {
+        "text": "dan",
+        "start": 5.44,
+        "end": 5.68
+      },
+      {
+        "text": "transfer",
+        "start": 5.76,
+        "end": 6.24
+      },
+      {
+        "text": "SPP",
+        "start": 6.32,
+        "end": 6.8
+      },
+      {
+        "text": "Adik",
+        "start": 6.88,
+        "end": 7.2
+      },
+      {
+        "text": "besok",
+        "start": 7.28,
+        "end": 7.52
+      },
+      {
+        "text": "pagi.",
+        "start": 7.64,
+        "end": 8.08
+      }
+    ]
+  },
+  "remind-sydia": {
+    "id": "remind-sydia",
+    "duration": 3.04,
+    "words": [
+      {
+        "text": "Rina,",
+        "start": 0,
+        "end": 0.8
+      },
+      {
+        "text": "waktunya",
+        "start": 0.88,
+        "end": 1.28
+      },
+      {
+        "text": "beli",
+        "start": 1.36,
+        "end": 1.52
+      },
+      {
+        "text": "obat",
+        "start": 1.6,
+        "end": 1.76
+      },
+      {
+        "text": "untuk",
+        "start": 1.84,
+        "end": 2.08
+      },
+      {
+        "text": "Mama.",
+        "start": 2.12,
+        "end": 3.04
+      }
+    ]
+  },
+  "again-sydia": {
+    "id": "again-sydia",
+    "duration": 5.76,
+    "words": [
+      {
+        "text": "Belum",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "sempat,",
+        "start": 0.32,
+        "end": 0.8
+      },
+      {
+        "text": "ya?",
+        "start": 0.92,
+        "end": 1.52
+      },
+      {
+        "text": "Saya",
+        "start": 1.56,
+        "end": 1.76
+      },
+      {
+        "text": "ingatkan",
+        "start": 1.84,
+        "end": 2.24
+      },
+      {
+        "text": "lagi.",
+        "start": 2.44,
+        "end": 3.2
+      },
+      {
+        "text": "Obat",
+        "start": 3.28,
+        "end": 3.52
+      },
+      {
+        "text": "Mama",
+        "start": 3.6,
+        "end": 4.08
+      },
+      {
+        "text": "jangan",
+        "start": 4.16,
+        "end": 4.4
+      },
+      {
+        "text": "sampai",
+        "start": 4.48,
+        "end": 4.8
+      },
+      {
+        "text": "lupa.",
+        "start": 4.84,
+        "end": 5.76
+      }
+    ]
+  },
+  "done-rina": {
+    "id": "done-rina",
+    "duration": 2.48,
+    "words": [
+      {
+        "text": "Udah",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "beli!",
+        "start": 0.32,
+        "end": 0.88
+      },
+      {
+        "text": "Makasih,",
+        "start": 1.12,
+        "end": 1.653
+      },
+      {
+        "text": "Sydia.",
+        "start": 1.707,
+        "end": 2.48
+      }
+    ]
+  },
+  "done-sydia": {
+    "id": "done-sydia",
+    "duration": 5.04,
+    "words": [
+      {
+        "text": "Sip,",
+        "start": 0,
+        "end": 0.56
+      },
+      {
+        "text": "saya",
+        "start": 0.64,
+        "end": 0.8
+      },
+      {
+        "text": "tandai",
+        "start": 0.88,
+        "end": 1.2
+      },
+      {
+        "text": "selesai.",
+        "start": 1.24,
+        "end": 1.96
+      },
+      {
+        "text": "Besok",
+        "start": 2.16,
+        "end": 2.48
+      },
+      {
+        "text": "pagi",
+        "start": 2.64,
+        "end": 2.96
+      },
+      {
+        "text": "saya",
+        "start": 3.04,
+        "end": 3.28
+      },
+      {
+        "text": "ingatkan",
+        "start": 3.36,
+        "end": 3.84
+      },
+      {
+        "text": "soal",
+        "start": 3.92,
+        "end": 4.16
+      },
+      {
+        "text": "SPP.",
+        "start": 4.24,
+        "end": 5.04
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 4.08,
+    "words": [
+      {
+        "text": "Cukup",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "kirim",
+        "start": 0.36,
+        "end": 0.56
+      },
+      {
+        "text": "voice",
+        "start": 0.64,
+        "end": 0.88
+      },
+      {
+        "text": "note.",
+        "start": 0.96,
+        "end": 1.6
+      },
+      {
+        "text": "Sisanya,",
+        "start": 1.64,
+        "end": 2.56
+      },
+      {
+        "text": "biar",
+        "start": 2.64,
+        "end": 2.8
+      },
+      {
+        "text": "saya",
+        "start": 2.88,
+        "end": 3.12
+      },
+      {
+        "text": "yang",
+        "start": 3.2,
+        "end": 3.36
+      },
+      {
+        "text": "urus.",
+        "start": 3.6,
+        "end": 4.08
+      }
+    ]
+  }
+}

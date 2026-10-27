@@ -1,0 +1,576 @@
+{
+  "hook": {
+    "id": "hook",
+    "duration": 7.92,
+    "words": [
+      {
+        "text": "Janji",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "dengan",
+        "start": 0.44,
+        "end": 0.64
+      },
+      {
+        "text": "klien,",
+        "start": 0.72,
+        "end": 1.52
+      },
+      {
+        "text": "tagihan",
+        "start": 1.64,
+        "end": 1.92
+      },
+      {
+        "text": "listrik,",
+        "start": 2,
+        "end": 2.8
+      },
+      {
+        "text": "dokumen",
+        "start": 2.84,
+        "end": 3.2
+      },
+      {
+        "text": "dari",
+        "start": 3.253,
+        "end": 3.36
+      },
+      {
+        "text": "kantor.",
+        "start": 3.44,
+        "end": 4.2
+      },
+      {
+        "text": "Semuanya",
+        "start": 4.4,
+        "end": 4.96
+      },
+      {
+        "text": "tercecer",
+        "start": 5.08,
+        "end": 5.68
+      },
+      {
+        "text": "di",
+        "start": 5.76,
+        "end": 5.84
+      },
+      {
+        "text": "chat,",
+        "start": 5.92,
+        "end": 6.4
+      },
+      {
+        "text": "lalu",
+        "start": 6.48,
+        "end": 6.88
+      },
+      {
+        "text": "terlupa.",
+        "start": 7.04,
+        "end": 7.92
+      }
+    ]
+  },
+  "intro": {
+    "id": "intro",
+    "duration": 6.56,
+    "words": [
+      {
+        "text": "Kenalkan",
+        "start": 0,
+        "end": 0.64
+      },
+      {
+        "text": "Sydia.",
+        "start": 0.8,
+        "end": 1.76
+      },
+      {
+        "text": "Asisten",
+        "start": 1.84,
+        "end": 2.24
+      },
+      {
+        "text": "pribadi",
+        "start": 2.32,
+        "end": 2.72
+      },
+      {
+        "text": "yang",
+        "start": 2.84,
+        "end": 2.96
+      },
+      {
+        "text": "selalu",
+        "start": 3.12,
+        "end": 3.52
+      },
+      {
+        "text": "ingat,",
+        "start": 3.6,
+        "end": 4.133
+      },
+      {
+        "text": "dan",
+        "start": 4.187,
+        "end": 4.24
+      },
+      {
+        "text": "memastikan",
+        "start": 4.32,
+        "end": 5.04
+      },
+      {
+        "text": "semuanya",
+        "start": 5.16,
+        "end": 5.68
+      },
+      {
+        "text": "beres.",
+        "start": 5.8,
+        "end": 6.56
+      }
+    ]
+  },
+  "chat": {
+    "id": "chat",
+    "duration": 3.84,
+    "words": [
+      {
+        "text": "Cukup",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "kirim",
+        "start": 0.32,
+        "end": 0.56
+      },
+      {
+        "text": "pesan",
+        "start": 0.76,
+        "end": 0.96
+      },
+      {
+        "text": "lewat",
+        "start": 1,
+        "end": 1.2
+      },
+      {
+        "text": "WhatsApp.",
+        "start": 1.28,
+        "end": 2
+      },
+      {
+        "text": "Tulis",
+        "start": 2.16,
+        "end": 2.4
+      },
+      {
+        "text": "saja",
+        "start": 2.507,
+        "end": 2.72
+      },
+      {
+        "text": "seperti",
+        "start": 2.8,
+        "end": 3.12
+      },
+      {
+        "text": "biasa.",
+        "start": 3.32,
+        "end": 3.84
+      }
+    ]
+  },
+  "actions": {
+    "id": "actions",
+    "duration": 6.16,
+    "words": [
+      {
+        "text": "Sydia",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "langsung",
+        "start": 0.48,
+        "end": 0.8
+      },
+      {
+        "text": "mengubahnya",
+        "start": 0.853,
+        "end": 1.44
+      },
+      {
+        "text": "jadi",
+        "start": 1.56,
+        "end": 1.68
+      },
+      {
+        "text": "tugas,",
+        "start": 1.76,
+        "end": 2.56
+      },
+      {
+        "text": "pengingat,",
+        "start": 2.68,
+        "end": 3.36
+      },
+      {
+        "text": "dan",
+        "start": 3.44,
+        "end": 3.52
+      },
+      {
+        "text": "jadwal",
+        "start": 3.6,
+        "end": 4
+      },
+      {
+        "text": "di",
+        "start": 4.08,
+        "end": 4.16
+      },
+      {
+        "text": "kalender.",
+        "start": 4.24,
+        "end": 4.92
+      },
+      {
+        "text": "Otomatis.",
+        "start": 5.12,
+        "end": 6.16
+      }
+    ]
+  },
+  "media": {
+    "id": "media",
+    "duration": 5.68,
+    "words": [
+      {
+        "text": "Lagi",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "sibuk?",
+        "start": 0.32,
+        "end": 1.12
+      },
+      {
+        "text": "Kirim",
+        "start": 1.16,
+        "end": 1.36
+      },
+      {
+        "text": "voice",
+        "start": 1.44,
+        "end": 1.68
+      },
+      {
+        "text": "note,",
+        "start": 1.76,
+        "end": 2.24
+      },
+      {
+        "text": "foto,",
+        "start": 2.32,
+        "end": 2.96
+      },
+      {
+        "text": "atau",
+        "start": 3.08,
+        "end": 3.227
+      },
+      {
+        "text": "dokumen.",
+        "start": 3.253,
+        "end": 4.08
+      },
+      {
+        "text": "Sydia",
+        "start": 4.16,
+        "end": 4.48
+      },
+      {
+        "text": "paham",
+        "start": 4.56,
+        "end": 4.96
+      },
+      {
+        "text": "isinya.",
+        "start": 5.04,
+        "end": 5.68
+      }
+    ]
+  },
+  "memory": {
+    "id": "memory",
+    "duration": 5.44,
+    "words": [
+      {
+        "text": "Lupa",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "sesuatu?",
+        "start": 0.36,
+        "end": 1.12
+      },
+      {
+        "text": "Tanya",
+        "start": 1.28,
+        "end": 1.6
+      },
+      {
+        "text": "saja.",
+        "start": 1.64,
+        "end": 2.32
+      },
+      {
+        "text": "Sydia",
+        "start": 2.48,
+        "end": 2.88
+      },
+      {
+        "text": "ingat",
+        "start": 2.96,
+        "end": 3.36
+      },
+      {
+        "text": "semua",
+        "start": 3.48,
+        "end": 3.76
+      },
+      {
+        "text": "yang",
+        "start": 3.84,
+        "end": 3.92
+      },
+      {
+        "text": "pernah",
+        "start": 4,
+        "end": 4.32
+      },
+      {
+        "text": "Anda",
+        "start": 4.4,
+        "end": 4.56
+      },
+      {
+        "text": "ceritakan.",
+        "start": 4.64,
+        "end": 5.44
+      }
+    ]
+  },
+  "briefing": {
+    "id": "briefing",
+    "duration": 4.08,
+    "words": [
+      {
+        "text": "Setiap",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "pagi,",
+        "start": 0.48,
+        "end": 1.2
+      },
+      {
+        "text": "rangkuman",
+        "start": 1.32,
+        "end": 1.68
+      },
+      {
+        "text": "hari",
+        "start": 1.76,
+        "end": 1.92
+      },
+      {
+        "text": "Anda",
+        "start": 2,
+        "end": 2.4
+      },
+      {
+        "text": "sudah",
+        "start": 2.48,
+        "end": 2.72
+      },
+      {
+        "text": "menunggu",
+        "start": 2.84,
+        "end": 3.2
+      },
+      {
+        "text": "di",
+        "start": 3.28,
+        "end": 3.36
+      },
+      {
+        "text": "WhatsApp.",
+        "start": 3.64,
+        "end": 4.08
+      }
+    ]
+  },
+  "dashboard": {
+    "id": "dashboard",
+    "duration": 8.16,
+    "words": [
+      {
+        "text": "Mau",
+        "start": 0,
+        "end": 0.16
+      },
+      {
+        "text": "lihat",
+        "start": 0.24,
+        "end": 0.48
+      },
+      {
+        "text": "semuanya",
+        "start": 0.56,
+        "end": 0.88
+      },
+      {
+        "text": "sekaligus?",
+        "start": 0.92,
+        "end": 1.8
+      },
+      {
+        "text": "Buka",
+        "start": 2,
+        "end": 2.24
+      },
+      {
+        "text": "dasbor",
+        "start": 2.36,
+        "end": 2.64
+      },
+      {
+        "text": "web.",
+        "start": 2.8,
+        "end": 3.04
+      },
+      {
+        "text": "Tugas,",
+        "start": 3.36,
+        "end": 4
+      },
+      {
+        "text": "kalender,",
+        "start": 4.16,
+        "end": 5.04
+      },
+      {
+        "text": "memori,",
+        "start": 5.16,
+        "end": 5.68
+      },
+      {
+        "text": "dan",
+        "start": 5.8,
+        "end": 5.92
+      },
+      {
+        "text": "file,",
+        "start": 6,
+        "end": 6.64
+      },
+      {
+        "text": "rapi",
+        "start": 6.72,
+        "end": 7.12
+      },
+      {
+        "text": "di",
+        "start": 7.2,
+        "end": 7.28
+      },
+      {
+        "text": "satu",
+        "start": 7.32,
+        "end": 7.44
+      },
+      {
+        "text": "tempat.",
+        "start": 7.52,
+        "end": 8.16
+      }
+    ]
+  },
+  "cta": {
+    "id": "cta",
+    "duration": 5.76,
+    "words": [
+      {
+        "text": "Biar",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "Sydia",
+        "start": 0.32,
+        "end": 0.8
+      },
+      {
+        "text": "yang",
+        "start": 0.88,
+        "end": 0.96
+      },
+      {
+        "text": "ingat.",
+        "start": 1.08,
+        "end": 1.52
+      },
+      {
+        "text": "Coba",
+        "start": 1.84,
+        "end": 2.08
+      },
+      {
+        "text": "gratis",
+        "start": 2.24,
+        "end": 2.4
+      },
+      {
+        "text": "tujuh",
+        "start": 2.48,
+        "end": 2.68
+      },
+      {
+        "text": "hari,",
+        "start": 2.72,
+        "end": 3.28
+      },
+      {
+        "text": "tanpa",
+        "start": 3.36,
+        "end": 3.6
+      },
+      {
+        "text": "kartu,",
+        "start": 3.68,
+        "end": 4.4
+      },
+      {
+        "text": "tanpa",
+        "start": 4.52,
+        "end": 4.72
+      },
+      {
+        "text": "pembayaran.",
+        "start": 4.8,
+        "end": 5.76
+      }
+    ]
+  }
+}

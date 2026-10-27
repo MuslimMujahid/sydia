@@ -1,0 +1,426 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 3.68,
+    "words": [
+      {
+        "text": "Duh,",
+        "start": 0,
+        "end": 0.72
+      },
+      {
+        "text": "formulirnya",
+        "start": 0.88,
+        "end": 1.36
+      },
+      {
+        "text": "minta",
+        "start": 1.4,
+        "end": 1.68
+      },
+      {
+        "text": "foto",
+        "start": 1.8,
+        "end": 1.92
+      },
+      {
+        "text": "KTP",
+        "start": 2,
+        "end": 2.56
+      },
+      {
+        "text": "sama",
+        "start": 2.64,
+        "end": 2.8
+      },
+      {
+        "text": "KK.",
+        "start": 2.96,
+        "end": 3.68
+      }
+    ]
+  },
+  "gallery-rina": {
+    "id": "gallery-rina",
+    "duration": 4.24,
+    "words": [
+      {
+        "text": "Galeri",
+        "start": 0,
+        "end": 0.56
+      },
+      {
+        "text": "isinya",
+        "start": 0.64,
+        "end": 1.04
+      },
+      {
+        "text": "ribuan",
+        "start": 1.16,
+        "end": 1.44
+      },
+      {
+        "text": "foto.",
+        "start": 1.6,
+        "end": 2.36
+      },
+      {
+        "text": "Nyarinya",
+        "start": 2.56,
+        "end": 2.96
+      },
+      {
+        "text": "dari",
+        "start": 3.04,
+        "end": 3.2
+      },
+      {
+        "text": "mana,",
+        "start": 3.28,
+        "end": 3.68
+      },
+      {
+        "text": "coba?",
+        "start": 3.72,
+        "end": 4.24
+      }
+    ]
+  },
+  "ingat-rina": {
+    "id": "ingat-rina",
+    "duration": 3.44,
+    "words": [
+      {
+        "text": "Eh,",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "bentar.",
+        "start": 0.4,
+        "end": 1.08
+      },
+      {
+        "text": "Kan",
+        "start": 1.28,
+        "end": 1.44
+      },
+      {
+        "text": "udah",
+        "start": 1.52,
+        "end": 1.68
+      },
+      {
+        "text": "aku",
+        "start": 1.76,
+        "end": 1.84
+      },
+      {
+        "text": "simpan",
+        "start": 1.92,
+        "end": 2.16
+      },
+      {
+        "text": "di",
+        "start": 2.24,
+        "end": 2.32
+      },
+      {
+        "text": "Sydia!",
+        "start": 2.44,
+        "end": 3.44
+      }
+    ]
+  },
+  "ask-rina": {
+    "id": "ask-rina",
+    "duration": 3.76,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.8
+      },
+      {
+        "text": "kirimin",
+        "start": 0.88,
+        "end": 1.28
+      },
+      {
+        "text": "foto",
+        "start": 1.44,
+        "end": 1.6
+      },
+      {
+        "text": "KTP",
+        "start": 1.68,
+        "end": 2.24
+      },
+      {
+        "text": "sama",
+        "start": 2.32,
+        "end": 2.56
+      },
+      {
+        "text": "KK",
+        "start": 2.64,
+        "end": 2.88
+      },
+      {
+        "text": "aku,",
+        "start": 3.04,
+        "end": 3.307
+      },
+      {
+        "text": "dong.",
+        "start": 3.413,
+        "end": 3.76
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 4.8,
+    "words": [
+      {
+        "text": "Ini",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "KTP",
+        "start": 0.4,
+        "end": 0.96
+      },
+      {
+        "text": "dan",
+        "start": 1.12,
+        "end": 1.28
+      },
+      {
+        "text": "KK",
+        "start": 1.44,
+        "end": 1.76
+      },
+      {
+        "text": "Anda.",
+        "start": 1.88,
+        "end": 2.24
+      },
+      {
+        "text": "Langsung",
+        "start": 2.64,
+        "end": 2.96
+      },
+      {
+        "text": "bisa",
+        "start": 3.04,
+        "end": 3.2
+      },
+      {
+        "text": "diunggah",
+        "start": 3.28,
+        "end": 3.6
+      },
+      {
+        "text": "ke",
+        "start": 3.68,
+        "end": 3.76
+      },
+      {
+        "text": "formulirnya.",
+        "start": 3.88,
+        "end": 4.8
+      }
+    ]
+  },
+  "upload-rina": {
+    "id": "upload-rina",
+    "duration": 3.92,
+    "words": [
+      {
+        "text": "Tinggal",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "unggah,",
+        "start": 0.4,
+        "end": 1.12
+      },
+      {
+        "text": "beres!",
+        "start": 1.28,
+        "end": 1.92
+      },
+      {
+        "text": "Nggak",
+        "start": 2.08,
+        "end": 2.24
+      },
+      {
+        "text": "perlu",
+        "start": 2.32,
+        "end": 2.48
+      },
+      {
+        "text": "bongkar",
+        "start": 2.52,
+        "end": 2.8
+      },
+      {
+        "text": "galeri",
+        "start": 2.88,
+        "end": 3.2
+      },
+      {
+        "text": "lagi.",
+        "start": 3.36,
+        "end": 3.92
+      }
+    ]
+  },
+  "thanks-rina": {
+    "id": "thanks-rina",
+    "duration": 3.2,
+    "words": [
+      {
+        "text": "Makasih,",
+        "start": 0,
+        "end": 0.44
+      },
+      {
+        "text": "Sydia!",
+        "start": 0.48,
+        "end": 1.28
+      },
+      {
+        "text": "Formulirnya",
+        "start": 1.4,
+        "end": 2
+      },
+      {
+        "text": "udah",
+        "start": 2.08,
+        "end": 2.24
+      },
+      {
+        "text": "kekirim.",
+        "start": 2.36,
+        "end": 3.2
+      }
+    ]
+  },
+  "thanks-sydia": {
+    "id": "thanks-sydia",
+    "duration": 6.72,
+    "words": [
+      {
+        "text": "Sama-sama,",
+        "start": 0,
+        "end": 0.667
+      },
+      {
+        "text": "Rina.",
+        "start": 0.693,
+        "end": 1.12
+      },
+      {
+        "text": "Akta",
+        "start": 1.6,
+        "end": 1.84
+      },
+      {
+        "text": "kelahiran",
+        "start": 1.92,
+        "end": 2.48
+      },
+      {
+        "text": "dan",
+        "start": 2.56,
+        "end": 2.72
+      },
+      {
+        "text": "NPWP",
+        "start": 2.88,
+        "end": 3.6
+      },
+      {
+        "text": "Anda",
+        "start": 3.68,
+        "end": 4.08
+      },
+      {
+        "text": "juga",
+        "start": 4.16,
+        "end": 4.4
+      },
+      {
+        "text": "saya",
+        "start": 4.44,
+        "end": 4.64
+      },
+      {
+        "text": "simpan,",
+        "start": 4.76,
+        "end": 5.36
+      },
+      {
+        "text": "kalau",
+        "start": 5.44,
+        "end": 5.6
+      },
+      {
+        "text": "nanti",
+        "start": 5.64,
+        "end": 5.84
+      },
+      {
+        "text": "dibutuhkan.",
+        "start": 5.88,
+        "end": 6.72
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 3.36,
+    "words": [
+      {
+        "text": "Simpan",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "sekali.",
+        "start": 0.52,
+        "end": 1.36
+      },
+      {
+        "text": "Siap",
+        "start": 1.44,
+        "end": 1.76
+      },
+      {
+        "text": "kapan",
+        "start": 1.84,
+        "end": 2.16
+      },
+      {
+        "text": "pun",
+        "start": 2.24,
+        "end": 2.48
+      },
+      {
+        "text": "Anda",
+        "start": 2.56,
+        "end": 2.72
+      },
+      {
+        "text": "butuh.",
+        "start": 2.84,
+        "end": 3.36
+      }
+    ]
+  }
+}

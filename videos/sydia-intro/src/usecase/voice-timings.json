@@ -1,0 +1,380 @@
+{
+  "flash-rina": {
+    "id": "flash-rina",
+    "duration": 4.48,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.72
+      },
+      {
+        "text": "simpan",
+        "start": 0.8,
+        "end": 1.12
+      },
+      {
+        "text": "grafik",
+        "start": 1.24,
+        "end": 1.44
+      },
+      {
+        "text": "ini,",
+        "start": 1.52,
+        "end": 1.76
+      },
+      {
+        "text": "ya.",
+        "start": 1.84,
+        "end": 2.08
+      },
+      {
+        "text": "Penting",
+        "start": 2.24,
+        "end": 2.64
+      },
+      {
+        "text": "buat",
+        "start": 2.76,
+        "end": 2.88
+      },
+      {
+        "text": "presentasi",
+        "start": 3.04,
+        "end": 3.36
+      },
+      {
+        "text": "klien",
+        "start": 3.4,
+        "end": 3.68
+      },
+      {
+        "text": "nanti.",
+        "start": 3.84,
+        "end": 4.48
+      }
+    ]
+  },
+  "flash-sydia": {
+    "id": "flash-sydia",
+    "duration": 4.16,
+    "words": [
+      {
+        "text": "Siap,",
+        "start": 0,
+        "end": 0.64
+      },
+      {
+        "text": "sudah",
+        "start": 0.72,
+        "end": 0.96
+      },
+      {
+        "text": "saya",
+        "start": 1,
+        "end": 1.12
+      },
+      {
+        "text": "simpan.",
+        "start": 1.2,
+        "end": 1.84
+      },
+      {
+        "text": "Kapan",
+        "start": 2,
+        "end": 2.24
+      },
+      {
+        "text": "pun",
+        "start": 2.32,
+        "end": 2.4
+      },
+      {
+        "text": "butuh,",
+        "start": 2.48,
+        "end": 3.12
+      },
+      {
+        "text": "tinggal",
+        "start": 3.2,
+        "end": 3.36
+      },
+      {
+        "text": "tanya.",
+        "start": 3.44,
+        "end": 4.16
+      }
+    ]
+  },
+  "today-rina": {
+    "id": "today-rina",
+    "duration": 4.16,
+    "words": [
+      {
+        "text": "Aduh,",
+        "start": 0,
+        "end": 0.76
+      },
+      {
+        "text": "grafiknya",
+        "start": 0.88,
+        "end": 1.28
+      },
+      {
+        "text": "belum",
+        "start": 1.36,
+        "end": 1.52
+      },
+      {
+        "text": "masuk!",
+        "start": 1.6,
+        "end": 2.36
+      },
+      {
+        "text": "Nama",
+        "start": 2.56,
+        "end": 2.8
+      },
+      {
+        "text": "filenya",
+        "start": 2.92,
+        "end": 3.28
+      },
+      {
+        "text": "apa,",
+        "start": 3.48,
+        "end": 3.76
+      },
+      {
+        "text": "ya?",
+        "start": 3.84,
+        "end": 4.16
+      }
+    ]
+  },
+  "ask-rina": {
+    "id": "ask-rina",
+    "duration": 4.88,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.88
+      },
+      {
+        "text": "grafik",
+        "start": 0.96,
+        "end": 1.28
+      },
+      {
+        "text": "penjualan",
+        "start": 1.4,
+        "end": 1.92
+      },
+      {
+        "text": "yang",
+        "start": 1.96,
+        "end": 2
+      },
+      {
+        "text": "aku",
+        "start": 2.08,
+        "end": 2.24
+      },
+      {
+        "text": "simpan",
+        "start": 2.36,
+        "end": 2.64
+      },
+      {
+        "text": "bulan",
+        "start": 2.76,
+        "end": 2.88
+      },
+      {
+        "text": "lalu,",
+        "start": 2.96,
+        "end": 3.68
+      },
+      {
+        "text": "kirim",
+        "start": 3.72,
+        "end": 3.92
+      },
+      {
+        "text": "sekarang,",
+        "start": 4,
+        "end": 4.36
+      },
+      {
+        "text": "ya.",
+        "start": 4.4,
+        "end": 4.88
+      }
+    ]
+  },
+  "ask-sydia": {
+    "id": "ask-sydia",
+    "duration": 6.88,
+    "words": [
+      {
+        "text": "Ini",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "grafiknya.",
+        "start": 0.36,
+        "end": 1.08
+      },
+      {
+        "text": "Anda",
+        "start": 1.28,
+        "end": 1.52
+      },
+      {
+        "text": "simpan",
+        "start": 1.64,
+        "end": 1.92
+      },
+      {
+        "text": "tanggal",
+        "start": 2,
+        "end": 2.32
+      },
+      {
+        "text": "dua",
+        "start": 2.4,
+        "end": 2.56
+      },
+      {
+        "text": "puluh",
+        "start": 2.64,
+        "end": 2.76
+      },
+      {
+        "text": "empat",
+        "start": 2.8,
+        "end": 2.96
+      },
+      {
+        "text": "September,",
+        "start": 3.04,
+        "end": 3.92
+      },
+      {
+        "text": "dari",
+        "start": 3.96,
+        "end": 4.16
+      },
+      {
+        "text": "Mbak",
+        "start": 4.2,
+        "end": 4.32
+      },
+      {
+        "text": "Sinta.",
+        "start": 4.4,
+        "end": 4.88
+      },
+      {
+        "text": "Semangat",
+        "start": 5.28,
+        "end": 5.68
+      },
+      {
+        "text": "presentasinya!",
+        "start": 5.76,
+        "end": 6.88
+      }
+    ]
+  },
+  "thanks-rina": {
+    "id": "thanks-rina",
+    "duration": 3.04,
+    "words": [
+      {
+        "text": "Makasih,",
+        "start": 0,
+        "end": 0.6
+      },
+      {
+        "text": "Sydia.",
+        "start": 0.64,
+        "end": 1.2
+      },
+      {
+        "text": "Kamu",
+        "start": 1.52,
+        "end": 1.76
+      },
+      {
+        "text": "penyelamat!",
+        "start": 1.84,
+        "end": 3.04
+      }
+    ]
+  },
+  "thanks-sydia": {
+    "id": "thanks-sydia",
+    "duration": 3.6,
+    "words": [
+      {
+        "text": "Sama-sama.",
+        "start": 0,
+        "end": 0.8
+      },
+      {
+        "text": "Saya",
+        "start": 1.2,
+        "end": 1.44
+      },
+      {
+        "text": "siap",
+        "start": 1.52,
+        "end": 1.76
+      },
+      {
+        "text": "membantu,",
+        "start": 1.84,
+        "end": 2.64
+      },
+      {
+        "text": "kapan",
+        "start": 2.68,
+        "end": 2.96
+      },
+      {
+        "text": "saja.",
+        "start": 3.04,
+        "end": 3.6
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 1.52,
+    "words": [
+      {
+        "text": "Biar",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "saya",
+        "start": 0.32,
+        "end": 0.64
+      },
+      {
+        "text": "yang",
+        "start": 0.72,
+        "end": 0.8
+      },
+      {
+        "text": "ingat.",
+        "start": 0.88,
+        "end": 1.52
+      }
+    ]
+  }
+}
