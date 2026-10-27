@@ -1,11 +1,12 @@
 // Generates one ElevenLabs clip per line, plus word timings.
-// Usage: node --env-file=.env --experimental-strip-types scripts/generate-voiceover.ts <intro|usecase|tiktok|pengingat|langganan|ktp> [lineId...]
+// Usage: node --env-file=.env --experimental-strip-types scripts/generate-voiceover.ts <intro|usecase|tiktok|pengingat|langganan|ktp|kue> [lineId...]
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { SCRIPT } from "../src/script.ts";
 import { TIKTOK_SCRIPT } from "../src/tiktok/script.ts";
 import { PENGINGAT_SCRIPT } from "../src/tiktok-pengingat/script.ts";
 import { LANGGANAN_SCRIPT } from "../src/tiktok-langganan/script.ts";
 import { KTP_SCRIPT } from "../src/tiktok-ktp/script.ts";
+import { KUE_SCRIPT } from "../src/tiktok-kue/script.ts";
 import { USECASE_SCRIPT } from "../src/usecase/script.ts";
 
 const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -51,6 +52,11 @@ const SETS: Record<
     lines: KTP_SCRIPT,
     dir: "public/tiktok-ktp",
     timingsFile: "src/tiktok-ktp/voice-timings.json",
+  },
+  kue: {
+    lines: KUE_SCRIPT,
+    dir: "public/tiktok-kue",
+    timingsFile: "src/tiktok-kue/voice-timings.json",
   },
 };
 

@@ -9,6 +9,7 @@ import {
   SydiaTiktokPengingat,
 } from "./tiktok-pengingat/SydiaTiktokPengingat";
 import { KTP_FRAMES, SydiaTiktokKtp } from "./tiktok-ktp/SydiaTiktokKtp";
+import { KUE_FRAMES, SydiaTiktokKue } from "./tiktok-kue/SydiaTiktokKue";
 import {
   LANGGANAN_FRAMES,
   SydiaTiktokLangganan,
@@ -66,6 +67,14 @@ export const RemotionRoot: React.FC = () => {
         id="SydiaTiktokKtp"
         component={SydiaTiktokKtp}
         durationInFrames={KTP_FRAMES(30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="SydiaTiktokKue"
+        component={SydiaTiktokKue}
+        durationInFrames={KUE_FRAMES(30)}
         fps={30}
         width={1080}
         height={1920}

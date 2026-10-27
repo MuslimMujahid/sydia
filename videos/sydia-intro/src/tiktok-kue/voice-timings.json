@@ -1,0 +1,460 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 4,
+    "words": [
+      {
+        "text": "Besok",
+        "start": 0,
+        "end": 0.48
+      },
+      {
+        "text": "Dita",
+        "start": 0.52,
+        "end": 0.72
+      },
+      {
+        "text": "ulang",
+        "start": 0.8,
+        "end": 0.96
+      },
+      {
+        "text": "tahun.",
+        "start": 1.04,
+        "end": 1.8
+      },
+      {
+        "text": "Aku",
+        "start": 2,
+        "end": 2.24
+      },
+      {
+        "text": "mau",
+        "start": 2.28,
+        "end": 2.4
+      },
+      {
+        "text": "pesan",
+        "start": 2.56,
+        "end": 2.72
+      },
+      {
+        "text": "kue",
+        "start": 2.8,
+        "end": 3.04
+      },
+      {
+        "text": "buat",
+        "start": 3.12,
+        "end": 3.2
+      },
+      {
+        "text": "kejutan.",
+        "start": 3.28,
+        "end": 4
+      }
+    ]
+  },
+  "ragu-rina": {
+    "id": "ragu-rina",
+    "duration": 5.04,
+    "words": [
+      {
+        "text": "Eh,",
+        "start": 0,
+        "end": 0.48
+      },
+      {
+        "text": "tapi",
+        "start": 0.52,
+        "end": 1.04
+      },
+      {
+        "text": "Dita",
+        "start": 1.28,
+        "end": 1.6
+      },
+      {
+        "text": "ada",
+        "start": 1.72,
+        "end": 1.84
+      },
+      {
+        "text": "alergi",
+        "start": 1.92,
+        "end": 2.32
+      },
+      {
+        "text": "nggak,",
+        "start": 2.36,
+        "end": 2.64
+      },
+      {
+        "text": "ya?",
+        "start": 2.72,
+        "end": 2.88
+      },
+      {
+        "text": "Kayaknya",
+        "start": 3.28,
+        "end": 3.84
+      },
+      {
+        "text": "pernah",
+        "start": 3.92,
+        "end": 4.16
+      },
+      {
+        "text": "cerita.",
+        "start": 4.24,
+        "end": 5.04
+      }
+    ]
+  },
+  "ask-rina": {
+    "id": "ask-rina",
+    "duration": 4.56,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.88
+      },
+      {
+        "text": "Dita",
+        "start": 0.96,
+        "end": 1.2
+      },
+      {
+        "text": "alergi",
+        "start": 1.28,
+        "end": 1.68
+      },
+      {
+        "text": "apa,",
+        "start": 1.84,
+        "end": 2.12
+      },
+      {
+        "text": "ya?",
+        "start": 2.16,
+        "end": 2.68
+      },
+      {
+        "text": "Mau",
+        "start": 2.72,
+        "end": 2.8
+      },
+      {
+        "text": "pesan",
+        "start": 2.88,
+        "end": 3.12
+      },
+      {
+        "text": "kue",
+        "start": 3.2,
+        "end": 3.36
+      },
+      {
+        "text": "ulang",
+        "start": 3.4,
+        "end": 3.6
+      },
+      {
+        "text": "tahun.",
+        "start": 3.68,
+        "end": 4.56
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 7.36,
+    "words": [
+      {
+        "text": "Dita",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "alergi",
+        "start": 0.48,
+        "end": 0.8
+      },
+      {
+        "text": "kacang.",
+        "start": 0.88,
+        "end": 1.52
+      },
+      {
+        "text": "Anda",
+        "start": 2,
+        "end": 2.24
+      },
+      {
+        "text": "cerita",
+        "start": 2.32,
+        "end": 2.64
+      },
+      {
+        "text": "bulan",
+        "start": 2.8,
+        "end": 2.96
+      },
+      {
+        "text": "Juli,",
+        "start": 3.04,
+        "end": 3.68
+      },
+      {
+        "text": "waktu",
+        "start": 3.72,
+        "end": 3.92
+      },
+      {
+        "text": "makan",
+        "start": 4,
+        "end": 4.24
+      },
+      {
+        "text": "siang",
+        "start": 4.32,
+        "end": 4.48
+      },
+      {
+        "text": "bareng.",
+        "start": 4.56,
+        "end": 5.28
+      },
+      {
+        "text": "Pilih",
+        "start": 5.52,
+        "end": 5.76
+      },
+      {
+        "text": "kue",
+        "start": 5.84,
+        "end": 6
+      },
+      {
+        "text": "tanpa",
+        "start": 6.08,
+        "end": 6.32
+      },
+      {
+        "text": "kacang,",
+        "start": 6.36,
+        "end": 6.76
+      },
+      {
+        "text": "ya.",
+        "start": 6.8,
+        "end": 7.36
+      }
+    ]
+  },
+  "pick-rina": {
+    "id": "pick-rina",
+    "duration": 3.76,
+    "words": [
+      {
+        "text": "Hampir",
+        "start": 0,
+        "end": 0.64
+      },
+      {
+        "text": "aja",
+        "start": 0.8,
+        "end": 0.96
+      },
+      {
+        "text": "pesan",
+        "start": 1.08,
+        "end": 1.2
+      },
+      {
+        "text": "brownies",
+        "start": 1.32,
+        "end": 1.6
+      },
+      {
+        "text": "kacang!",
+        "start": 1.64,
+        "end": 2.16
+      },
+      {
+        "text": "Ganti",
+        "start": 2.56,
+        "end": 2.8
+      },
+      {
+        "text": "red",
+        "start": 2.88,
+        "end": 2.96
+      },
+      {
+        "text": "velvet,",
+        "start": 3.08,
+        "end": 3.413
+      },
+      {
+        "text": "deh.",
+        "start": 3.467,
+        "end": 3.76
+      }
+    ]
+  },
+  "thanks-rina": {
+    "id": "thanks-rina",
+    "duration": 2.88,
+    "words": [
+      {
+        "text": "Makasih,",
+        "start": 0,
+        "end": 0.48
+      },
+      {
+        "text": "Sydia!",
+        "start": 0.56,
+        "end": 1.04
+      },
+      {
+        "text": "Kuenya",
+        "start": 1.36,
+        "end": 1.76
+      },
+      {
+        "text": "udah",
+        "start": 1.84,
+        "end": 1.947
+      },
+      {
+        "text": "dipesan.",
+        "start": 1.973,
+        "end": 2.88
+      }
+    ]
+  },
+  "thanks-sydia": {
+    "id": "thanks-sydia",
+    "duration": 5.76,
+    "words": [
+      {
+        "text": "Sama-sama,",
+        "start": 0,
+        "end": 0.667
+      },
+      {
+        "text": "Rina.",
+        "start": 0.693,
+        "end": 1.12
+      },
+      {
+        "text": "Besok",
+        "start": 1.52,
+        "end": 1.92
+      },
+      {
+        "text": "jam",
+        "start": 2,
+        "end": 2.08
+      },
+      {
+        "text": "tujuh",
+        "start": 2.16,
+        "end": 2.36
+      },
+      {
+        "text": "pagi,",
+        "start": 2.4,
+        "end": 3.12
+      },
+      {
+        "text": "saya",
+        "start": 3.16,
+        "end": 3.36
+      },
+      {
+        "text": "ingatkan",
+        "start": 3.44,
+        "end": 3.92
+      },
+      {
+        "text": "untuk",
+        "start": 4,
+        "end": 4.16
+      },
+      {
+        "text": "ucapkan",
+        "start": 4.24,
+        "end": 4.56
+      },
+      {
+        "text": "selamat",
+        "start": 4.64,
+        "end": 5.04
+      },
+      {
+        "text": "ke",
+        "start": 5.08,
+        "end": 5.12
+      },
+      {
+        "text": "Dita.",
+        "start": 5.2,
+        "end": 5.76
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 4.16,
+    "words": [
+      {
+        "text": "Hal",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "kecil",
+        "start": 0.36,
+        "end": 0.72
+      },
+      {
+        "text": "tentang",
+        "start": 0.84,
+        "end": 1.04
+      },
+      {
+        "text": "orang",
+        "start": 1.12,
+        "end": 1.28
+      },
+      {
+        "text": "tersayang,",
+        "start": 1.44,
+        "end": 2.4
+      },
+      {
+        "text": "biar",
+        "start": 2.44,
+        "end": 2.64
+      },
+      {
+        "text": "Sydia",
+        "start": 2.76,
+        "end": 3.12
+      },
+      {
+        "text": "yang",
+        "start": 3.2,
+        "end": 3.28
+      },
+      {
+        "text": "ingatkan.",
+        "start": 3.36,
+        "end": 4.16
+      }
+    ]
+  }
+}
