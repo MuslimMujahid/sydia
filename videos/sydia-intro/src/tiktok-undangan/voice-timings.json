@@ -1,0 +1,273 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 4.8,
+    "words": [
+      {
+        "text": "Undangan",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "nikahan",
+        "start": 0.52,
+        "end": 0.8
+      },
+      {
+        "text": "Sarah",
+        "start": 0.88,
+        "end": 1.28
+      },
+      {
+        "text": "numpuk",
+        "start": 1.52,
+        "end": 2
+      },
+      {
+        "text": "sama",
+        "start": 2.08,
+        "end": 2.24
+      },
+      {
+        "text": "undangan",
+        "start": 2.32,
+        "end": 2.64
+      },
+      {
+        "text": "lain.",
+        "start": 2.72,
+        "end": 3.12
+      },
+      {
+        "text": "Tanggalnya",
+        "start": 3.52,
+        "end": 3.92
+      },
+      {
+        "text": "kapan,",
+        "start": 3.96,
+        "end": 4.48
+      },
+      {
+        "text": "ya?",
+        "start": 4.56,
+        "end": 4.8
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 5.84,
+    "words": [
+      {
+        "text": "Sarah",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "dan",
+        "start": 0.48,
+        "end": 0.64
+      },
+      {
+        "text": "Bagas,",
+        "start": 0.72,
+        "end": 1.52
+      },
+      {
+        "text": "Sabtu",
+        "start": 1.6,
+        "end": 2
+      },
+      {
+        "text": "tujuh",
+        "start": 2.08,
+        "end": 2.293
+      },
+      {
+        "text": "November,",
+        "start": 2.32,
+        "end": 3.08
+      },
+      {
+        "text": "jam",
+        "start": 3.2,
+        "end": 3.44
+      },
+      {
+        "text": "sebelas",
+        "start": 3.52,
+        "end": 3.76
+      },
+      {
+        "text": "siang,",
+        "start": 3.84,
+        "end": 4.4
+      },
+      {
+        "text": "di",
+        "start": 4.44,
+        "end": 4.48
+      },
+      {
+        "text": "Graha",
+        "start": 4.56,
+        "end": 4.96
+      },
+      {
+        "text": "Cakrawala.",
+        "start": 5.04,
+        "end": 5.84
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 2.48,
+    "words": [
+      {
+        "text": "Foto",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "sekali,",
+        "start": 0.44,
+        "end": 1.04
+      },
+      {
+        "text": "jadwal",
+        "start": 1.2,
+        "end": 1.6
+      },
+      {
+        "text": "beres.",
+        "start": 1.68,
+        "end": 2.48
+      }
+    ]
+  },
+  "send-rina": {
+    "id": "send-rina",
+    "duration": 2.72,
+    "words": [
+      {
+        "text": "Aku",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "foto",
+        "start": 0.4,
+        "end": 0.56
+      },
+      {
+        "text": "undangannya,",
+        "start": 0.64,
+        "end": 1.52
+      },
+      {
+        "text": "kirim",
+        "start": 1.56,
+        "end": 1.76
+      },
+      {
+        "text": "ke",
+        "start": 1.8,
+        "end": 1.84
+      },
+      {
+        "text": "Sydia.",
+        "start": 1.92,
+        "end": 2.72
+      }
+    ]
+  },
+  "gift-sydia": {
+    "id": "gift-sydia",
+    "duration": 5.2,
+    "words": [
+      {
+        "text": "Sudah",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "masuk",
+        "start": 0.32,
+        "end": 0.64
+      },
+      {
+        "text": "kalender",
+        "start": 0.72,
+        "end": 1.04
+      },
+      {
+        "text": "Anda.",
+        "start": 1.12,
+        "end": 1.92
+      },
+      {
+        "text": "Tiga",
+        "start": 2,
+        "end": 2.16
+      },
+      {
+        "text": "hari",
+        "start": 2.24,
+        "end": 2.4
+      },
+      {
+        "text": "sebelumnya",
+        "start": 2.48,
+        "end": 3.12
+      },
+      {
+        "text": "saya",
+        "start": 3.2,
+        "end": 3.44
+      },
+      {
+        "text": "ingatkan",
+        "start": 3.56,
+        "end": 4.08
+      },
+      {
+        "text": "beli",
+        "start": 4.16,
+        "end": 4.32
+      },
+      {
+        "text": "kado.",
+        "start": 4.36,
+        "end": 5.2
+      }
+    ]
+  },
+  "thanks-rina": {
+    "id": "thanks-rina",
+    "duration": 2.08,
+    "words": [
+      {
+        "text": "Nah,",
+        "start": 0,
+        "end": 0.64
+      },
+      {
+        "text": "aku",
+        "start": 0.76,
+        "end": 0.88
+      },
+      {
+        "text": "tinggal",
+        "start": 0.96,
+        "end": 1.2
+      },
+      {
+        "text": "datang.",
+        "start": 1.36,
+        "end": 2.08
+      }
+    ]
+  }
+}
