@@ -1,0 +1,217 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 5.68,
+    "words": [
+      {
+        "text": "AC-nya",
+        "start": 0,
+        "end": 0.56
+      },
+      {
+        "text": "netes,",
+        "start": 0.76,
+        "end": 1.36
+      },
+      {
+        "text": "panas",
+        "start": 1.6,
+        "end": 1.92
+      },
+      {
+        "text": "banget.",
+        "start": 2,
+        "end": 2.88
+      },
+      {
+        "text": "Tukang",
+        "start": 3.12,
+        "end": 3.36
+      },
+      {
+        "text": "yang",
+        "start": 3.4,
+        "end": 3.44
+      },
+      {
+        "text": "kemarin,",
+        "start": 3.52,
+        "end": 4.32
+      },
+      {
+        "text": "aku",
+        "start": 4.4,
+        "end": 4.56
+      },
+      {
+        "text": "lupa",
+        "start": 4.64,
+        "end": 4.96
+      },
+      {
+        "text": "namanya.",
+        "start": 5.04,
+        "end": 5.68
+      }
+    ]
+  },
+  "ask-rina": {
+    "id": "ask-rina",
+    "duration": 3.6,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.96
+      },
+      {
+        "text": "nomor",
+        "start": 1.04,
+        "end": 1.28
+      },
+      {
+        "text": "tukang",
+        "start": 1.36,
+        "end": 1.68
+      },
+      {
+        "text": "AC",
+        "start": 1.76,
+        "end": 2
+      },
+      {
+        "text": "yang",
+        "start": 2.08,
+        "end": 2.16
+      },
+      {
+        "text": "kemarin",
+        "start": 2.24,
+        "end": 2.64
+      },
+      {
+        "text": "siapa?",
+        "start": 2.72,
+        "end": 3.6
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 5.52,
+    "words": [
+      {
+        "text": "Pak",
+        "start": 0,
+        "end": 0.16
+      },
+      {
+        "text": "Joko,",
+        "start": 0.24,
+        "end": 0.88
+      },
+      {
+        "text": "tukang",
+        "start": 0.96,
+        "end": 1.2
+      },
+      {
+        "text": "AC.",
+        "start": 1.28,
+        "end": 1.84
+      },
+      {
+        "text": "Terakhir",
+        "start": 2.24,
+        "end": 2.64
+      },
+      {
+        "text": "datang",
+        "start": 2.72,
+        "end": 2.96
+      },
+      {
+        "text": "bulan",
+        "start": 3.04,
+        "end": 3.28
+      },
+      {
+        "text": "Maret.",
+        "start": 3.32,
+        "end": 3.84
+      },
+      {
+        "text": "Nomornya",
+        "start": 4.08,
+        "end": 4.56
+      },
+      {
+        "text": "saya",
+        "start": 4.64,
+        "end": 4.8
+      },
+      {
+        "text": "kirim.",
+        "start": 4.88,
+        "end": 5.52
+      }
+    ]
+  },
+  "call-rina": {
+    "id": "call-rina",
+    "duration": 2.56,
+    "words": [
+      {
+        "text": "Nah,",
+        "start": 0,
+        "end": 0.48
+      },
+      {
+        "text": "ini",
+        "start": 0.56,
+        "end": 0.72
+      },
+      {
+        "text": "dia.",
+        "start": 0.88,
+        "end": 1.2
+      },
+      {
+        "text": "Aku",
+        "start": 1.36,
+        "end": 1.52
+      },
+      {
+        "text": "telepon",
+        "start": 1.6,
+        "end": 1.92
+      },
+      {
+        "text": "sekarang.",
+        "start": 1.96,
+        "end": 2.56
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 2.4,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.72
+      },
+      {
+        "text": "asisten",
+        "start": 0.88,
+        "end": 1.36
+      },
+      {
+        "text": "pribadimu.",
+        "start": 1.44,
+        "end": 2.4
+      }
+    ]
+  }
+}

@@ -1,0 +1,283 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 4.4,
+    "words": [
+      {
+        "text": "Montirnya",
+        "start": 0,
+        "end": 0.48
+      },
+      {
+        "text": "nanya,",
+        "start": 0.56,
+        "end": 1.36
+      },
+      {
+        "text": "terakhir",
+        "start": 1.44,
+        "end": 1.76
+      },
+      {
+        "text": "ganti",
+        "start": 1.84,
+        "end": 2.08
+      },
+      {
+        "text": "oli",
+        "start": 2.2,
+        "end": 2.32
+      },
+      {
+        "text": "kapan?",
+        "start": 2.36,
+        "end": 2.88
+      },
+      {
+        "text": "Aku",
+        "start": 3.28,
+        "end": 3.52
+      },
+      {
+        "text": "lupa.",
+        "start": 3.6,
+        "end": 4.4
+      }
+    ]
+  },
+  "ask-rina": {
+    "id": "ask-rina",
+    "duration": 3.28,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.96
+      },
+      {
+        "text": "terakhir",
+        "start": 1.04,
+        "end": 1.52
+      },
+      {
+        "text": "aku",
+        "start": 1.68,
+        "end": 1.92
+      },
+      {
+        "text": "ganti",
+        "start": 1.96,
+        "end": 2.24
+      },
+      {
+        "text": "oli",
+        "start": 2.36,
+        "end": 2.48
+      },
+      {
+        "text": "kapan?",
+        "start": 2.52,
+        "end": 3.28
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 4.56,
+    "words": [
+      {
+        "text": "Dua",
+        "start": 0,
+        "end": 0.16
+      },
+      {
+        "text": "puluh",
+        "start": 0.24,
+        "end": 0.4
+      },
+      {
+        "text": "tujuh",
+        "start": 0.48,
+        "end": 0.747
+      },
+      {
+        "text": "Agustus,",
+        "start": 0.8,
+        "end": 1.52
+      },
+      {
+        "text": "hari",
+        "start": 1.76,
+        "end": 1.92
+      },
+      {
+        "text": "Kamis,",
+        "start": 2,
+        "end": 2.6
+      },
+      {
+        "text": "tepat",
+        "start": 2.72,
+        "end": 3.12
+      },
+      {
+        "text": "dua",
+        "start": 3.2,
+        "end": 3.36
+      },
+      {
+        "text": "bulan",
+        "start": 3.44,
+        "end": 3.68
+      },
+      {
+        "text": "yang",
+        "start": 3.76,
+        "end": 3.84
+      },
+      {
+        "text": "lalu.",
+        "start": 3.88,
+        "end": 4.56
+      }
+    ]
+  },
+  "minta-rina": {
+    "id": "minta-rina",
+    "duration": 3.04,
+    "words": [
+      {
+        "text": "Udah",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "lama.",
+        "start": 0.32,
+        "end": 0.88
+      },
+      {
+        "text": "Ingetin",
+        "start": 1.2,
+        "end": 1.52
+      },
+      {
+        "text": "aku",
+        "start": 1.6,
+        "end": 1.68
+      },
+      {
+        "text": "ganti",
+        "start": 1.76,
+        "end": 2
+      },
+      {
+        "text": "oli",
+        "start": 2.12,
+        "end": 2.24
+      },
+      {
+        "text": "lagi,",
+        "start": 2.36,
+        "end": 2.56
+      },
+      {
+        "text": "ya.",
+        "start": 2.68,
+        "end": 3.04
+      }
+    ]
+  },
+  "ingat-sydia": {
+    "id": "ingat-sydia",
+    "duration": 4.56,
+    "words": [
+      {
+        "text": "Siap.",
+        "start": 0,
+        "end": 0.88
+      },
+      {
+        "text": "Dua",
+        "start": 0.96,
+        "end": 1.04
+      },
+      {
+        "text": "bulan",
+        "start": 1.12,
+        "end": 1.36
+      },
+      {
+        "text": "lagi,",
+        "start": 1.44,
+        "end": 2.16
+      },
+      {
+        "text": "dua",
+        "start": 2.2,
+        "end": 2.32
+      },
+      {
+        "text": "puluh",
+        "start": 2.4,
+        "end": 2.56
+      },
+      {
+        "text": "tujuh",
+        "start": 2.64,
+        "end": 2.773
+      },
+      {
+        "text": "Desember,",
+        "start": 2.8,
+        "end": 3.6
+      },
+      {
+        "text": "saya",
+        "start": 3.64,
+        "end": 3.84
+      },
+      {
+        "text": "ingatkan.",
+        "start": 3.92,
+        "end": 4.56
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 3.28,
+    "words": [
+      {
+        "text": "Catat",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "sekali,",
+        "start": 0.4,
+        "end": 1.28
+      },
+      {
+        "text": "sisanya",
+        "start": 1.36,
+        "end": 2
+      },
+      {
+        "text": "saya",
+        "start": 2.16,
+        "end": 2.48
+      },
+      {
+        "text": "yang",
+        "start": 2.56,
+        "end": 2.64
+      },
+      {
+        "text": "ingat.",
+        "start": 2.76,
+        "end": 3.28
+      }
+    ]
+  }
+}

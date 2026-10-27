@@ -1,0 +1,318 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 5.36,
+    "words": [
+      {
+        "text": "Pak",
+        "start": 0,
+        "end": 0.16
+      },
+      {
+        "text": "Budi",
+        "start": 0.2,
+        "end": 0.56
+      },
+      {
+        "text": "tiba-tiba",
+        "start": 0.64,
+        "end": 1.12
+      },
+      {
+        "text": "minta",
+        "start": 1.2,
+        "end": 1.36
+      },
+      {
+        "text": "call",
+        "start": 1.52,
+        "end": 1.68
+      },
+      {
+        "text": "jam",
+        "start": 1.76,
+        "end": 1.92
+      },
+      {
+        "text": "dua.",
+        "start": 2,
+        "end": 2.4
+      },
+      {
+        "text": "Mepet",
+        "start": 2.72,
+        "end": 3.12
+      },
+      {
+        "text": "banget,",
+        "start": 3.28,
+        "end": 4
+      },
+      {
+        "text": "link",
+        "start": 4.12,
+        "end": 4.24
+      },
+      {
+        "text": "Meet",
+        "start": 4.32,
+        "end": 4.4
+      },
+      {
+        "text": "belum",
+        "start": 4.52,
+        "end": 4.64
+      },
+      {
+        "text": "ada!",
+        "start": 4.8,
+        "end": 5.36
+      }
+    ]
+  },
+  "ask-rina": {
+    "id": "ask-rina",
+    "duration": 3.36,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.8
+      },
+      {
+        "text": "jadwalin",
+        "start": 0.88,
+        "end": 1.36
+      },
+      {
+        "text": "Meet",
+        "start": 1.48,
+        "end": 1.6
+      },
+      {
+        "text": "sama",
+        "start": 1.64,
+        "end": 1.84
+      },
+      {
+        "text": "Pak",
+        "start": 1.92,
+        "end": 2
+      },
+      {
+        "text": "Budi",
+        "start": 2.08,
+        "end": 2.32
+      },
+      {
+        "text": "jam",
+        "start": 2.44,
+        "end": 2.56
+      },
+      {
+        "text": "dua,",
+        "start": 2.64,
+        "end": 2.88
+      },
+      {
+        "text": "ya.",
+        "start": 3.04,
+        "end": 3.36
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 5.44,
+    "words": [
+      {
+        "text": "Siap.",
+        "start": 0,
+        "end": 0.56
+      },
+      {
+        "text": "Undangan",
+        "start": 0.96,
+        "end": 1.44
+      },
+      {
+        "text": "sudah",
+        "start": 1.48,
+        "end": 1.68
+      },
+      {
+        "text": "saya",
+        "start": 1.76,
+        "end": 1.92
+      },
+      {
+        "text": "kirim",
+        "start": 2,
+        "end": 2.32
+      },
+      {
+        "text": "ke",
+        "start": 2.36,
+        "end": 2.4
+      },
+      {
+        "text": "email",
+        "start": 2.48,
+        "end": 2.72
+      },
+      {
+        "text": "Pak",
+        "start": 2.76,
+        "end": 2.88
+      },
+      {
+        "text": "Budi.",
+        "start": 2.92,
+        "end": 3.36
+      },
+      {
+        "text": "Link",
+        "start": 3.76,
+        "end": 3.92
+      },
+      {
+        "text": "Meet-nya",
+        "start": 4.04,
+        "end": 4.4
+      },
+      {
+        "text": "sedang",
+        "start": 4.48,
+        "end": 4.72
+      },
+      {
+        "text": "dibuat.",
+        "start": 4.76,
+        "end": 5.44
+      }
+    ]
+  },
+  "ready-sydia": {
+    "id": "ready-sydia",
+    "duration": 4.4,
+    "words": [
+      {
+        "text": "Link",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "Google",
+        "start": 0.4,
+        "end": 0.56
+      },
+      {
+        "text": "Meet",
+        "start": 0.64,
+        "end": 0.88
+      },
+      {
+        "text": "sudah",
+        "start": 0.92,
+        "end": 1.2
+      },
+      {
+        "text": "siap.",
+        "start": 1.28,
+        "end": 2
+      },
+      {
+        "text": "Pak",
+        "start": 2.04,
+        "end": 2.16
+      },
+      {
+        "text": "Budi",
+        "start": 2.2,
+        "end": 2.48
+      },
+      {
+        "text": "juga",
+        "start": 2.56,
+        "end": 2.72
+      },
+      {
+        "text": "sudah",
+        "start": 2.8,
+        "end": 3.04
+      },
+      {
+        "text": "dapat",
+        "start": 3.08,
+        "end": 3.44
+      },
+      {
+        "text": "undangannya.",
+        "start": 3.52,
+        "end": 4.4
+      }
+    ]
+  },
+  "thanks-rina": {
+    "id": "thanks-rina",
+    "duration": 2.56,
+    "words": [
+      {
+        "text": "Okedeh,",
+        "start": 0,
+        "end": 0.88
+      },
+      {
+        "text": "aku",
+        "start": 1,
+        "end": 1.12
+      },
+      {
+        "text": "tinggal",
+        "start": 1.2,
+        "end": 1.36
+      },
+      {
+        "text": "gabung",
+        "start": 1.44,
+        "end": 1.68
+      },
+      {
+        "text": "aja.",
+        "start": 1.76,
+        "end": 2.56
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 2.8,
+    "words": [
+      {
+        "text": "Call",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "dadakan,",
+        "start": 0.36,
+        "end": 1.2
+      },
+      {
+        "text": "Sydia",
+        "start": 1.28,
+        "end": 1.76
+      },
+      {
+        "text": "yang",
+        "start": 1.84,
+        "end": 1.92
+      },
+      {
+        "text": "siapkan.",
+        "start": 2,
+        "end": 2.8
+      }
+    ]
+  }
+}

@@ -14,9 +14,10 @@ import { PhotoBubble, Shown } from "../parts";
 import { Caption, Line, spokenAt } from "../voice";
 
 const VO_AT = 0.4;
-// The photo lands in the composer on "foto", and goes out on "kirim".
+// The photo lands in the composer on "foto" (word 1), and goes out on
+// "kirim" (word 5) — she dawdles on "aja ahh" while the chip sits there.
 const ATTACH_AT = spokenAt("send-rina", VO_AT, 1) + 0.1;
-const SEND_AT = spokenAt("send-rina", VO_AT, 3) + 0.25;
+const SEND_AT = spokenAt("send-rina", VO_AT, 5) + 0.25;
 const READ_AT = SEND_AT + 0.75;
 
 export const SEND_SECONDS = READ_AT + 1.5;

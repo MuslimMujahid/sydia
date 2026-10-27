@@ -11,8 +11,9 @@ const SYDIA_AT = 0.45;
 
 export const END_SECONDS = SYDIA_AT + LINES["end-sydia"].duration + 2.0;
 
+// 92px keeps the longest line ("jadwal, undangan") on one row inside the safe area.
 const headline = {
-  fontSize: 104,
+  fontSize: 92,
   fontWeight: 800,
   letterSpacing: "-0.045em",
   lineHeight: 1.06,
@@ -39,14 +40,15 @@ export const End = () => (
       <Pop at={0.1}>
         <Logo size={190} />
       </Pop>
-      {/* Two lines by hand: "Foto sekali," sets up, "jadwal beres." pays off. */}
+      {/* Three lines by hand: "Foto sekali," sets up, the list builds,
+          "semua beres." pays off in the gradient. */}
       <SyncedWords
         scene="end-sydia"
         source={LINES}
         lead={SYDIA_AT}
         from={0}
         to={1}
-        style={{ ...headline, marginTop: 56 }}
+        style={{ ...headline, marginTop: 48 }}
       />
       <SyncedWords
         scene="end-sydia"
@@ -54,12 +56,20 @@ export const End = () => (
         lead={SYDIA_AT}
         from={2}
         to={3}
-        highlight={[2, 3]}
-        style={{ ...headline, marginTop: 14 }}
+        style={{ ...headline, marginTop: 12 }}
+      />
+      <SyncedWords
+        scene="end-sydia"
+        source={LINES}
+        lead={SYDIA_AT}
+        from={4}
+        to={5}
+        highlight={[4, 5]}
+        style={{ ...headline, marginTop: 12 }}
       />
       <Rise
         at={SYDIA_AT + LINES["end-sydia"].duration + 0.2}
-        style={{ marginTop: 72 }}
+        style={{ marginTop: 64 }}
       >
         <div
           style={{

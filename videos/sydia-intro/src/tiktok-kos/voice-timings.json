@@ -1,0 +1,288 @@
+{
+  "hook-rina": {
+    "id": "hook-rina",
+    "duration": 4.24,
+    "words": [
+      {
+        "text": "Aku",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "nemu",
+        "start": 0.28,
+        "end": 0.48
+      },
+      {
+        "text": "anak",
+        "start": 0.56,
+        "end": 0.72
+      },
+      {
+        "text": "kucing",
+        "start": 0.8,
+        "end": 1.2
+      },
+      {
+        "text": "di",
+        "start": 1.24,
+        "end": 1.28
+      },
+      {
+        "text": "depan",
+        "start": 1.36,
+        "end": 1.6
+      },
+      {
+        "text": "kos.",
+        "start": 1.68,
+        "end": 2.08
+      },
+      {
+        "text": "Boleh",
+        "start": 2.48,
+        "end": 2.72
+      },
+      {
+        "text": "nggak,",
+        "start": 2.76,
+        "end": 3.04
+      },
+      {
+        "text": "ya,",
+        "start": 3.12,
+        "end": 3.24
+      },
+      {
+        "text": "dibawa",
+        "start": 3.28,
+        "end": 3.6
+      },
+      {
+        "text": "masuk?",
+        "start": 3.72,
+        "end": 4.24
+      }
+    ]
+  },
+  "ask-rina": {
+    "id": "ask-rina",
+    "duration": 3.68,
+    "words": [
+      {
+        "text": "Sydia,",
+        "start": 0,
+        "end": 0.88
+      },
+      {
+        "text": "di",
+        "start": 0.96,
+        "end": 1.04
+      },
+      {
+        "text": "kontrak",
+        "start": 1.12,
+        "end": 1.36
+      },
+      {
+        "text": "kos",
+        "start": 1.48,
+        "end": 1.6
+      },
+      {
+        "text": "aku",
+        "start": 1.68,
+        "end": 2.08
+      },
+      {
+        "text": "boleh",
+        "start": 2.24,
+        "end": 2.48
+      },
+      {
+        "text": "bawa",
+        "start": 2.52,
+        "end": 2.72
+      },
+      {
+        "text": "hewan",
+        "start": 2.8,
+        "end": 3.12
+      },
+      {
+        "text": "nggak?",
+        "start": 3.2,
+        "end": 3.68
+      }
+    ]
+  },
+  "reply-sydia": {
+    "id": "reply-sydia",
+    "duration": 5.52,
+    "words": [
+      {
+        "text": "Pasal",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "tujuh:",
+        "start": 0.4,
+        "end": 0.88
+      },
+      {
+        "text": "hewan",
+        "start": 1.28,
+        "end": 1.6
+      },
+      {
+        "text": "peliharaan",
+        "start": 1.68,
+        "end": 2.24
+      },
+      {
+        "text": "boleh,",
+        "start": 2.32,
+        "end": 3.04
+      },
+      {
+        "text": "asal",
+        "start": 3.12,
+        "end": 3.68
+      },
+      {
+        "text": "izin",
+        "start": 3.84,
+        "end": 4.08
+      },
+      {
+        "text": "pemilik",
+        "start": 4.16,
+        "end": 4.48
+      },
+      {
+        "text": "kos",
+        "start": 4.6,
+        "end": 4.72
+      },
+      {
+        "text": "dulu.",
+        "start": 4.76,
+        "end": 5.52
+      }
+    ]
+  },
+  "draft-rina": {
+    "id": "draft-rina",
+    "duration": 2.24,
+    "words": [
+      {
+        "text": "Buatin",
+        "start": 0,
+        "end": 0.4
+      },
+      {
+        "text": "pesan",
+        "start": 0.56,
+        "end": 0.72
+      },
+      {
+        "text": "buat",
+        "start": 0.84,
+        "end": 0.96
+      },
+      {
+        "text": "Ibu",
+        "start": 1,
+        "end": 1.2
+      },
+      {
+        "text": "Kos,",
+        "start": 1.28,
+        "end": 1.653
+      },
+      {
+        "text": "dong.",
+        "start": 1.787,
+        "end": 2.24
+      }
+    ]
+  },
+  "draft-sydia": {
+    "id": "draft-sydia",
+    "duration": 3.68,
+    "words": [
+      {
+        "text": "Ini",
+        "start": 0,
+        "end": 0.32
+      },
+      {
+        "text": "drafnya.",
+        "start": 0.36,
+        "end": 1.08
+      },
+      {
+        "text": "Anda",
+        "start": 1.28,
+        "end": 1.52
+      },
+      {
+        "text": "salin,",
+        "start": 1.6,
+        "end": 2.32
+      },
+      {
+        "text": "lalu",
+        "start": 2.36,
+        "end": 2.64
+      },
+      {
+        "text": "kirim",
+        "start": 2.72,
+        "end": 2.96
+      },
+      {
+        "text": "sendiri.",
+        "start": 3.04,
+        "end": 3.68
+      }
+    ]
+  },
+  "end-sydia": {
+    "id": "end-sydia",
+    "duration": 3.36,
+    "words": [
+      {
+        "text": "Kirim",
+        "start": 0,
+        "end": 0.24
+      },
+      {
+        "text": "sekali,",
+        "start": 0.32,
+        "end": 1.28
+      },
+      {
+        "text": "Sydia",
+        "start": 1.36,
+        "end": 1.84
+      },
+      {
+        "text": "yang",
+        "start": 1.92,
+        "end": 2
+      },
+      {
+        "text": "bantu",
+        "start": 2.08,
+        "end": 2.4
+      },
+      {
+        "text": "ingatkan.",
+        "start": 2.48,
+        "end": 3.36
+      }
+    ]
+  }
+}

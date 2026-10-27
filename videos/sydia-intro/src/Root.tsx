@@ -14,6 +14,10 @@ import {
   SydiaTiktokUndangan,
   UNDANGAN_FRAMES,
 } from "./tiktok-undangan/SydiaTiktokUndangan";
+import { OLI_FRAMES, SydiaTiktokOli } from "./tiktok-oli/SydiaTiktokOli";
+import { KOS_FRAMES, SydiaTiktokKos } from "./tiktok-kos/SydiaTiktokKos";
+import { AC_FRAMES, SydiaTiktokAc } from "./tiktok-ac/SydiaTiktokAc";
+import { MEET_FRAMES, SydiaTiktokMeet } from "./tiktok-meet/SydiaTiktokMeet";
 import {
   LANGGANAN_FRAMES,
   SydiaTiktokLangganan,
@@ -87,6 +91,38 @@ export const RemotionRoot: React.FC = () => {
         id="SydiaTiktokUndangan"
         component={SydiaTiktokUndangan}
         durationInFrames={UNDANGAN_FRAMES(30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="SydiaTiktokOli"
+        component={SydiaTiktokOli}
+        durationInFrames={OLI_FRAMES(30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="SydiaTiktokKos"
+        component={SydiaTiktokKos}
+        durationInFrames={KOS_FRAMES(30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="SydiaTiktokAc"
+        component={SydiaTiktokAc}
+        durationInFrames={AC_FRAMES(30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="SydiaTiktokMeet"
+        component={SydiaTiktokMeet}
+        durationInFrames={MEET_FRAMES(30)}
         fps={30}
         width={1080}
         height={1920}

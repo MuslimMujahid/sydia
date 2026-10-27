@@ -1,5 +1,5 @@
 // Generates one ElevenLabs clip per line, plus word timings.
-// Usage: node --env-file=.env --experimental-strip-types scripts/generate-voiceover.ts <intro|usecase|tiktok|pengingat|langganan|ktp|kue|undangan> [lineId...]
+// Usage: node --env-file=.env --experimental-strip-types scripts/generate-voiceover.ts <intro|usecase|tiktok|pengingat|langganan|ktp|kue|undangan|oli|kos|ac|meet> [lineId...]
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { SCRIPT } from "../src/script.ts";
 import { TIKTOK_SCRIPT } from "../src/tiktok/script.ts";
@@ -8,6 +8,10 @@ import { LANGGANAN_SCRIPT } from "../src/tiktok-langganan/script.ts";
 import { KTP_SCRIPT } from "../src/tiktok-ktp/script.ts";
 import { KUE_SCRIPT } from "../src/tiktok-kue/script.ts";
 import { UNDANGAN_SCRIPT } from "../src/tiktok-undangan/script.ts";
+import { OLI_SCRIPT } from "../src/tiktok-oli/script.ts";
+import { KOS_SCRIPT } from "../src/tiktok-kos/script.ts";
+import { AC_SCRIPT } from "../src/tiktok-ac/script.ts";
+import { MEET_SCRIPT } from "../src/tiktok-meet/script.ts";
 import { USECASE_SCRIPT } from "../src/usecase/script.ts";
 
 const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -63,6 +67,26 @@ const SETS: Record<
     lines: UNDANGAN_SCRIPT,
     dir: "public/tiktok-undangan",
     timingsFile: "src/tiktok-undangan/voice-timings.json",
+  },
+  oli: {
+    lines: OLI_SCRIPT,
+    dir: "public/tiktok-oli",
+    timingsFile: "src/tiktok-oli/voice-timings.json",
+  },
+  kos: {
+    lines: KOS_SCRIPT,
+    dir: "public/tiktok-kos",
+    timingsFile: "src/tiktok-kos/voice-timings.json",
+  },
+  ac: {
+    lines: AC_SCRIPT,
+    dir: "public/tiktok-ac",
+    timingsFile: "src/tiktok-ac/voice-timings.json",
+  },
+  meet: {
+    lines: MEET_SCRIPT,
+    dir: "public/tiktok-meet",
+    timingsFile: "src/tiktok-meet/voice-timings.json",
   },
 };
 

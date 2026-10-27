@@ -13,7 +13,7 @@ export const UNDANGAN_SCRIPT = [
   {
     id: "send-rina",
     speaker: "rina",
-    text: "Aku foto undangannya, kirim ke Sydia.",
+    text: "Aku foto undangannya aja ahh, kirim ke Sydia.",
   },
   {
     id: "reply-sydia",
@@ -28,12 +28,12 @@ export const UNDANGAN_SCRIPT = [
   {
     id: "thanks-rina",
     speaker: "rina",
-    text: "Nah, aku tinggal datang.",
+    text: "Okedeh, kalau dengan Sydia pasti aman.",
   },
   {
     id: "end-sydia",
     speaker: "sydia",
-    text: "Foto sekali, jadwal beres.",
+    text: "Foto sekali, jadwal, undangan semua beres.",
   },
 ] as const;
 
