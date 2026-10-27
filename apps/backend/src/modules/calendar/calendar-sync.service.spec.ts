@@ -47,6 +47,7 @@ function outboundOperationHarness(kind: 'create' | 'update' = 'create') {
       baseSnapshot:
         kind === 'update' ? { ...payload, title: 'Original title' } : null,
       stableGoogleEventId: 'stable-google-event-id',
+      calendarEventId: 'event-1',
       claimToken: 'claim-token-1',
       claimEpoch: 8,
     },
@@ -121,7 +122,18 @@ function outboundOperationHarness(kind: 'create' | 'update' = 'create') {
     updateEvent,
   };
 
-  const queues = { calendarSync: { add: jest.fn() } };
+  const meetFollowUpAdd = jest
+    .fn<(...args: unknown[]) => Promise<void>>()
+    .mockResolvedValue();
+
+  const queues = {
+    calendarSync: { add: jest.fn() },
+    googleMeetFollowUps: {
+      add: meetFollowUpAdd,
+      getJob: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+    },
+  };
+
   const service = new CalendarSyncService(
     calendars as unknown as ICalendarRepository,
     google as unknown as GoogleCalendarService,
@@ -140,6 +152,7 @@ function outboundOperationHarness(kind: 'create' | 'update' = 'create') {
     completeOperation,
     failOperation,
     createEvent,
+    meetFollowUpAdd,
   };
 }
 
@@ -584,6 +597,48 @@ describe('CalendarSyncService outbound operations', () => {
     );
     expect(completeOperation).toHaveBeenCalled();
     expect(failOperation).not.toHaveBeenCalled();
+  });
+
+  test('a completed write with a pending conference queues the first Meet follow-up poll', async () => {
+    const { service, claim, payload, resource, getEvent, meetFollowUpAdd } =
+      outboundOperationHarness('update');
+
+    claim.operation.payload = { ...payload, createGoogleMeet: true };
+    getEvent.mockResolvedValue({
+      ...resource,
+      conferenceData: { createRequest: { status: { statusCode: 'pending' } } },
+    });
+
+    await service.processOperation('operation-1');
+
+    expect(meetFollowUpAdd).toHaveBeenCalledWith(
+      'poll',
+      { kind: 'poll', userId: 'user-1', eventId: 'event-1', attempt: 0 },
+      expect.objectContaining({ delay: 5_000 }),
+    );
+  });
+
+  test('a write that resolved its Meet link immediately queues no follow-up poll', async () => {
+    const { service, claim, payload, resource, getEvent, meetFollowUpAdd } =
+      outboundOperationHarness('update');
+
+    claim.operation.payload = { ...payload, createGoogleMeet: true };
+    getEvent.mockResolvedValue({
+      ...resource,
+      hangoutLink: 'https://meet.google.com/abc-defg-hij',
+    });
+
+    await service.processOperation('operation-1');
+
+    expect(meetFollowUpAdd).not.toHaveBeenCalled();
+  });
+
+  test('a write without a Meet request queues no follow-up poll', async () => {
+    const { service, meetFollowUpAdd } = outboundOperationHarness('create');
+
+    await service.processOperation('operation-1');
+
+    expect(meetFollowUpAdd).not.toHaveBeenCalled();
   });
 
   test('a pending Meet request is not recreated when its operation is retried', async () => {

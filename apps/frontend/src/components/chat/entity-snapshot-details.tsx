@@ -1,6 +1,7 @@
 import { PopoverTitle } from "@/components/ui/popover";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
-import type { ChatEntity } from "./chat-entities";
+import { googleMeetJoinUrl, type ChatEntity } from "./chat-entities";
+import { EventMeetJoinButton, EventMeetNote } from "./entity-details";
 import {
   formatAllDayEventRange,
   formatEntityRecurrence,
@@ -24,6 +25,8 @@ export function EntitySnapshotDetails({
     }).format(new Date(value));
 
   const details: string[] = [];
+  const meet = entity.kind === "event" ? entity : null;
+  const meetJoinUrl = googleMeetJoinUrl(meet?.googleMeetUrl);
 
   if (entity.kind === "note") {
     if (entity.path) details.push(entity.path);
@@ -70,6 +73,22 @@ export function EntitySnapshotDetails({
           {detail}
         </p>
       ))}
+      {meet ? (
+        <EventMeetNote
+          url={meet.googleMeetUrl}
+          status={meet.googleMeetStatus}
+          locale={locale}
+        />
+      ) : null}
+      {meetJoinUrl ? (
+        <div className="mt-3">
+          <EventMeetJoinButton
+            title={entity.title}
+            url={meetJoinUrl}
+            locale={locale}
+          />
+        </div>
+      ) : null}
       <p className="mt-3 text-xs text-ink-muted">
         {locale === "en"
           ? "Snapshot from this test response. Update it through the message box."

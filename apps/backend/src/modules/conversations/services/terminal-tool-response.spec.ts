@@ -765,6 +765,135 @@ describe('terminal tool response', () => {
     },
   );
 
+  it.each([
+    {
+      name: 'the raw Google Meet link once it exists',
+      meet: {
+        googleMeetUrl: 'https://meet.google.com/abc-defg-hij',
+        googleMeetStatus: 'success',
+      },
+      en: 'https://meet.google.com/abc-defg-hij',
+      id: 'https://meet.google.com/abc-defg-hij',
+    },
+    {
+      name: 'a pending link without claiming it is ready',
+      meet: { googleMeetStatus: 'pending' },
+      en: "Google Meet link is being created. I'll send it when it's ready.",
+      id: 'Link Google Meet sedang dibuat. Saya kirim begitu siap.',
+    },
+    {
+      name: 'a failed link creation',
+      meet: { googleMeetStatus: 'failure' },
+      en: "Couldn't create the Google Meet link.",
+      id: 'Link Google Meet gagal dibuat.',
+    },
+  ])('reports $name on every channel', ({ meet, en, id }) => {
+    for (const locale of ['en', 'id'] as const) {
+      const meetDetail = locale === 'en' ? en : id;
+      const heading =
+        locale === 'en'
+          ? 'All set, your event is saved in Sydia.'
+          : 'Siap, acara sudah disimpan di Sydia.';
+
+      const date =
+        locale === 'en'
+          ? '22 Sept 2026, 10:00–11:00 UTC'
+          : '22 Sep 2026, 10.00–11.00 UTC';
+
+      const syncDetail =
+        locale === 'en'
+          ? 'Google Calendar sync is pending.'
+          : 'Sinkronisasi Google Calendar masih menunggu.';
+
+      const result = {
+        objectType: 'calendar_event',
+        object: {
+          title: 'Rapat',
+          startAt: AT,
+          endAt: new Date('2026-09-22T11:00:00.000Z'),
+          syncState: 'pending',
+          ...meet,
+        },
+      };
+
+      for (const channel of ['web', 'telegram', 'whatsapp'] as const) {
+        const rendered =
+          channel === 'web'
+            ? web(locale, [execution('create_calendar_event', result)])
+            : chat(
+                locale,
+                [execution('create_calendar_event', result)],
+                channel,
+              );
+
+        const title = channel === 'whatsapp' ? 'Rapat' : '**Rapat**';
+
+        expect(rendered).toBe(
+          `${heading}\n\n- ${title} — ${date} · ${meetDetail} · ${syncDetail}`,
+        );
+      }
+    }
+  });
+
+  it('adds no Google Meet line when the event has no video conference', () => {
+    const result = {
+      objectType: 'calendar_event',
+      object: {
+        title: 'Rapat',
+        startAt: AT,
+        endAt: new Date('2026-09-22T11:00:00.000Z'),
+        syncState: 'pending',
+      },
+    };
+
+    for (const locale of ['en', 'id'] as const) {
+      const rendered = web(locale, [
+        execution('create_calendar_event', result),
+      ]);
+
+      expect(rendered).not.toContain('Google Meet');
+      expect(rendered).not.toContain('meet.google.com');
+    }
+
+    expect(
+      web('en', [
+        execution('create_calendar_event', {
+          objectType: 'calendar_event',
+          object: { ...result.object, googleMeetStatus: null },
+        }),
+      ]),
+    ).toBe(
+      'All set, your event is saved in Sydia.\n\n- **Rapat** — 22 Sept 2026, 10:00–11:00 UTC · Google Calendar sync is pending.',
+    );
+  });
+
+  it('refuses the receipt when a Google Meet value is malformed', () => {
+    const object = {
+      title: 'Rapat',
+      startAt: AT,
+      endAt: new Date('2026-09-22T11:00:00.000Z'),
+      syncState: 'pending',
+    };
+
+    expect(
+      web('en', [
+        execution('create_calendar_event', {
+          objectType: 'calendar_event',
+          object: { ...object, googleMeetUrl: 'javascript:alert(1)' },
+        }),
+      ]),
+    ).toBeNull();
+
+    expect(
+      web('en', [
+        execution('create_calendar_event', {
+          objectType: 'calendar_event',
+          object: { ...object, googleMeetStatus: 'queued' },
+        }),
+      ]),
+    ).toBeNull();
+  });
+
   it('does not infer Google delivery when a calendar result lacks sync state', () => {
     const result = web('en', [
       execution('create_calendar_event', {

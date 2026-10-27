@@ -131,6 +131,51 @@ function dateOnly(
   return parsed;
 }
 
+/**
+ * Conservative address shape: Google rejects anything else, and a bare name
+ * must never reach the provider as an attendee.
+ */
+const EMAIL_PATTERN = /^[^\s@,;<>()[\]]+@[^\s@,;<>()[\]]+\.[A-Za-z]{2,}$/u;
+
+type AttendeeSplit = { attendees: string[]; rejected: string[] };
+
+/**
+ * Splits model-supplied attendee values into addresses the calendar can invite
+ * and values it cannot, so a name like "Pak Budi" is reported back instead of
+ * being sent to Google. Duplicates are dropped case-insensitively.
+ */
+function attendeeSplit(
+  value: Record<string, unknown>,
+  key: string,
+): AttendeeSplit {
+  const found = value[key];
+  if (found === undefined) return { attendees: [], rejected: [] };
+  if (!Array.isArray(found))
+    throw new Error(`${key} must be a list of email addresses.`);
+
+  const attendees: string[] = [];
+  const rejected: string[] = [];
+  const seen = new Set<string>();
+
+  for (const item of found as unknown[]) {
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+
+    if (!EMAIL_PATTERN.test(trimmed)) {
+      if (!rejected.includes(trimmed)) rejected.push(trimmed);
+      continue;
+    }
+
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    attendees.push(trimmed);
+  }
+
+  return { attendees, rejected };
+}
+
 export function createPhaseTools(deps: {
   contacts: IContactRepository;
   contactGroups: IContactGroupRepository;
@@ -879,7 +924,7 @@ title is required. For a timed event, provide startAt and endAt as ISO datetimes
 
 For a whole-day event or a multi-day date range without times, use allDayStartDate and allDayEndDate as YYYY-MM-DD values and omit startAt, endAt, and timezone. The end date is exclusive: convert the user's inclusive last day to the following calendar day, including for a single-day event. Confirm the user's inclusive date range, not the exclusive stored end. Do not mix timed and all-day fields.
 
-Description (Catatan), location, and attendees are optional. Notes may contain basic HTML for requested rich text formatting; otherwise use plain text and omit notes when there are no extra details. Non-string attendees are ignored. For a repeating event, pass recurrence as an array of RFC 5545 recurrence lines, usually one RRULE, preserving the requested frequency, interval, weekdays, and ending condition. Omit recurrence for a one-time event; use the first occurrence's date/time range for the event.
+Description (Catatan), location, and attendees are optional. Notes may contain basic HTML for requested rich text formatting; otherwise use plain text and omit notes when there are no extra details. attendees accepts email addresses only: for a named person, call resolve_contact first and use that contact's email address. Never put a name in attendees. If the contact has no email address, ask the user for it instead of guessing. Values that are not email addresses are dropped and returned in rejectedAttendees; tell the user those people were not invited. For a repeating event, pass recurrence as an array of RFC 5545 recurrence lines, usually one RRULE, preserving the requested frequency, interval, weekdays, and ending condition. Omit recurrence for a one-time event; use the first occurrence's date/time range for the event.
 
 destination='local' saves only in Sydia; use it when the user declines Google Calendar. destination='google' creates the event in the user's connected Google Calendar and requires a writable connection. Omit destination or use 'auto' to keep the usual connection-based choice. This creates an event, not a new Google calendar. For a requested Google Meet video conference, set createGoogleMeet=true and destination='google'; Google Meet cannot be added to a Sydia-only event. Omit createGoogleMeet unless requested. The video link is generated asynchronously: only share a returned googleMeetUrl, never invent one or claim it is ready while pending.
 
@@ -947,10 +992,12 @@ The returned event has syncState: local, pending, synced, conflict, error, or re
             },
             attendees: {
               type: 'array',
-              description: 'Optional attendee values for the event.',
+              description:
+                "Optional attendee email addresses. Resolve a named person with resolve_contact and use that contact's email; never pass a name. Ask the user for the address when the contact has none.",
               items: {
                 ...string,
-                description: 'An attendee identifier or address.',
+                description:
+                  'An attendee email address, such as budi@example.com.',
               },
             },
           },
@@ -989,16 +1036,19 @@ The returned event has syncState: local, pending, synced, conflict, error, or re
         if (createGoogleMeet && destination === 'local')
           throw new Error('Google Meet requires a Google Calendar event.');
 
+        const { attendees, rejected } = attendeeSplit(a, 'attendees');
         const common = {
           title: text(a, 'title')!,
           description: text(a, 'description', false) ?? null,
           location: text(a, 'location', false) ?? null,
           recurrence: texts(a, 'recurrence'),
           ...(createGoogleMeet !== undefined ? { createGoogleMeet } : {}),
-          attendees: Array.isArray(a.attendees)
-            ? a.attendees.filter((v): v is string => typeof v === 'string')
-            : [],
+          attendees,
         };
+
+        // Sits beside `object` so the terminal receipt still reads the event.
+        const rejectedAttendees =
+          rejected.length > 0 ? { rejectedAttendees: rejected } : {};
 
         if (hasAllDayDates) {
           const allDayStartDate = dateOnly(a, 'allDayStartDate', false);
@@ -1027,6 +1077,7 @@ The returned event has syncState: local, pending, synced, conflict, error, or re
               destination,
               idempotencyKey,
             ),
+            ...rejectedAttendees,
           };
         }
 
@@ -1057,6 +1108,7 @@ The returned event has syncState: local, pending, synced, conflict, error, or re
             destination,
             idempotencyKey,
           ),
+          ...rejectedAttendees,
         };
       },
     },
@@ -1070,7 +1122,7 @@ Use it when the user asks to change an event and provides its event id.
 
 Do not use it to create or cancel an event, or when the event is not identified by id.
 
-id is required and the other fields are optional; only supplied fields are passed on. Timed date values must be ISO datetimes. To change an event to all-day, provide both allDayStartDate and allDayEndDate as YYYY-MM-DD values, with the exclusive end after the start; do not mix them with timed fields. A missing event raises an error. If the id belongs to a listed recurring occurrence, ask whether to update that occurrence or the entire series. For one Google occurrence, pass scope='occurrence' with its seriesEventId, occurrenceKey, and instanceEventId from the listed result. For a local-only occurrence, pass scope='occurrence' with its seriesEventId and occurrenceKey; use scope='series' and its seriesEventId for the whole series. The returned event has syncState: local, pending, synced, conflict, error, or reconnect_required. Report it accurately: local means saved only in Sydia; pending means saved in Sydia and waiting to sync; synced means Google accepted the latest change; conflict, error, and reconnect_required mean the Google write is not confirmed. Do not use global sync status to infer whether this specific event synced.`,
+id is required and the other fields are optional; only supplied fields are passed on. Timed date values must be ISO datetimes. attendees replaces the whole attendee list and accepts email addresses only: for a named person, call resolve_contact first and use that contact's email address. Never put a name in attendees. If the contact has no email address, ask the user for it instead of guessing. Values that are not email addresses are dropped and returned in rejectedAttendees; tell the user those people were not invited. To change an event to all-day, provide both allDayStartDate and allDayEndDate as YYYY-MM-DD values, with the exclusive end after the start; do not mix them with timed fields. A missing event raises an error. If the id belongs to a listed recurring occurrence, ask whether to update that occurrence or the entire series. For one Google occurrence, pass scope='occurrence' with its seriesEventId, occurrenceKey, and instanceEventId from the listed result. For a local-only occurrence, pass scope='occurrence' with its seriesEventId and occurrenceKey; use scope='series' and its seriesEventId for the whole series. The returned event has syncState: local, pending, synced, conflict, error, or reconnect_required. Report it accurately: local means saved only in Sydia; pending means saved in Sydia and waiting to sync; synced means Google accepted the latest change; conflict, error, and reconnect_required mean the Google write is not confirmed. Do not use global sync status to infer whether this specific event synced.`,
         parameters: schema(
           {
             id: {
@@ -1125,6 +1177,16 @@ id is required and the other fields are optional; only supplied fields are passe
               ...string,
               description: 'Google instance id from the listed result.',
             },
+            attendees: {
+              type: 'array',
+              description:
+                "Optional replacement attendee email addresses for the whole list. Resolve a named person with resolve_contact and use that contact's email; never pass a name. Ask the user for the address when the contact has none. Omit it to keep the current attendees.",
+              items: {
+                ...string,
+                description:
+                  'An attendee email address, such as budi@example.com.',
+              },
+            },
           },
           ['id'],
         ),
@@ -1167,6 +1229,7 @@ id is required and the other fields are optional; only supplied fields are passe
                 : {}),
             };
 
+        const { attendees, rejected } = attendeeSplit(a, 'attendees');
         const updated = await deps.calendarService.update(
           userId,
           eventId,
@@ -1175,13 +1238,19 @@ id is required and the other fields are optional; only supplied fields are passe
             description: text(a, 'description', false),
             location: text(a, 'location', false),
             ...temporalInput,
+            ...(a.attendees !== undefined ? { attendees } : {}),
           },
           idempotencyKey,
         );
 
         if (!updated) throw new Error('Event not found.');
 
-        return { objectType: 'calendar_event', object: updated };
+        return {
+          objectType: 'calendar_event',
+          object: updated,
+          // Sits beside `object` so the terminal receipt still reads the event.
+          ...(rejected.length > 0 ? { rejectedAttendees: rejected } : {}),
+        };
       },
     },
     {

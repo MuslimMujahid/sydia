@@ -1071,6 +1071,170 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  test('creating an event keeps email attendees and reports rejected values', async () => {
+    const create = jest
+      .fn<(...args: unknown[]) => Promise<{ id: string }>>()
+      .mockResolvedValue({ id: 'event-1' });
+
+    const tool = tools({
+      calendarService: { create } as unknown as CalendarService,
+    }).find(
+      (candidate) => candidate.definition.name === 'create_calendar_event',
+    );
+
+    const result = await tool!.execute({
+      userId: 'user-1',
+      sourceMessageId: 'attendee-event',
+      idempotencyKey: 'attendee-event',
+      arguments: {
+        title: 'Project sync',
+        startAt: '2026-10-19T01:00:00Z',
+        endAt: '2026-10-19T02:00:00Z',
+        attendees: [
+          ' budi@example.test ',
+          'Pak Budi',
+          'BUDI@example.test',
+          'rina@example.test',
+        ],
+      },
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        attendees: ['budi@example.test', 'rina@example.test'],
+      }),
+      'auto',
+      'attendee-event',
+    );
+    expect(result).toEqual({
+      objectType: 'calendar_event',
+      object: { id: 'event-1' },
+      rejectedAttendees: ['Pak Budi'],
+    });
+  });
+
+  test('creating an event with only email attendees omits rejectedAttendees', async () => {
+    const create = jest
+      .fn<(...args: unknown[]) => Promise<{ id: string }>>()
+      .mockResolvedValue({ id: 'event-1' });
+
+    const tool = tools({
+      calendarService: { create } as unknown as CalendarService,
+    }).find(
+      (candidate) => candidate.definition.name === 'create_calendar_event',
+    );
+
+    const result = await tool!.execute({
+      userId: 'user-1',
+      sourceMessageId: 'valid-attendee',
+      idempotencyKey: 'valid-attendee',
+      arguments: {
+        title: 'All-day planning',
+        allDayStartDate: '2026-10-19',
+        allDayEndDate: '2026-10-20',
+        attendees: ['rina@example.test'],
+      },
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ attendees: ['rina@example.test'] }),
+      'auto',
+      'valid-attendee',
+    );
+    expect(result).toEqual({
+      objectType: 'calendar_event',
+      object: { id: 'event-1' },
+    });
+  });
+
+  test('updating an event keeps email attendees and reports rejected values', async () => {
+    const update = jest
+      .fn<(...args: unknown[]) => Promise<{ id: string }>>()
+      .mockResolvedValue({ id: 'event-1' });
+
+    const tool = tools({
+      calendarService: { update } as unknown as CalendarService,
+    }).find(
+      (candidate) => candidate.definition.name === 'update_calendar_event',
+    );
+
+    const result = await tool!.execute({
+      userId: 'user-1',
+      sourceMessageId: 'update-attendees',
+      idempotencyKey: 'update-attendees',
+      arguments: {
+        id: 'event-1',
+        attendees: ['rina@example.test', 'Bu Rina', 'not-an-email'],
+      },
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      'user-1',
+      'event-1',
+      expect.objectContaining({ attendees: ['rina@example.test'] }),
+      'update-attendees',
+    );
+    expect(result).toEqual({
+      objectType: 'calendar_event',
+      object: { id: 'event-1' },
+      rejectedAttendees: ['Bu Rina', 'not-an-email'],
+    });
+  });
+
+  test('an update without attendees leaves the stored list untouched', async () => {
+    const update = jest
+      .fn<(...args: unknown[]) => Promise<{ id: string }>>()
+      .mockResolvedValue({ id: 'event-1' });
+
+    const tool = tools({
+      calendarService: { update } as unknown as CalendarService,
+    }).find(
+      (candidate) => candidate.definition.name === 'update_calendar_event',
+    );
+
+    const result = await tool!.execute({
+      userId: 'user-1',
+      sourceMessageId: 'update-title-only',
+      idempotencyKey: 'update-title-only',
+      arguments: { id: 'event-1', title: 'Renamed' },
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      'user-1',
+      'event-1',
+      {
+        title: 'Renamed',
+        description: undefined,
+        location: undefined,
+      },
+      'update-title-only',
+    );
+    expect(result).toEqual({
+      objectType: 'calendar_event',
+      object: { id: 'event-1' },
+    });
+  });
+
+  test('both calendar mutation tools ask the model for attendee emails', () => {
+    const available = tools();
+
+    for (const name of ['create_calendar_event', 'update_calendar_event']) {
+      const tool = available.find(
+        (candidate) => candidate.definition.name === name,
+      );
+
+      expect(tool!.definition.description).toContain('resolve_contact');
+      expect(tool!.definition.description).toContain(
+        'Never put a name in attendees.',
+      );
+      expect(tool!.definition.parameters.properties).toMatchObject({
+        attendees: { type: 'array', items: { type: 'string' } },
+      });
+    }
+  });
+
   test('updates all-day dates and requires a complete exclusive range', async () => {
     const update = jest
       .fn<

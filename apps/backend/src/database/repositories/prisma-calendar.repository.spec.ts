@@ -144,6 +144,119 @@ test('reading an event exposes its saved Meet link without leaking its provider 
   expect(result).not.toHaveProperty('providerLink');
 });
 
+function meetSnapshotHarness(input?: {
+  status?: string;
+  tombstoneAt?: Date | null;
+  googleEventId?: string;
+  previousSnapshot?: unknown;
+}) {
+  const update = jest
+    .fn<(args: unknown) => Promise<void>>()
+    .mockResolvedValue();
+
+  const tx = {
+    calendarEvent: {
+      findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        title: 'Sprint review',
+        status: input?.status ?? 'confirmed',
+        providerLink: {
+          id: 'link-1',
+          googleEventId: input?.googleEventId ?? 'google-event-1',
+          bindingId: 'binding-1',
+          tombstoneAt: input?.tombstoneAt ?? null,
+          remoteSnapshot:
+            input?.previousSnapshot === undefined
+              ? {
+                  conferenceData: {
+                    createRequest: { status: { statusCode: 'pending' } },
+                  },
+                }
+              : input.previousSnapshot,
+        },
+      }),
+    },
+    calendarEventLink: { update },
+  };
+
+  const prisma = {
+    $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) =>
+      callback(tx),
+    ),
+  };
+
+  const repository = new PrismaCalendarRepository(
+    prisma as unknown as PrismaService,
+    {} as TokenCipher,
+  );
+
+  const save = (snapshot: unknown) =>
+    repository.saveGoogleMeetSnapshot({
+      userId: USER_ID,
+      eventId: 'event-1',
+      googleEventId: 'google-event-1',
+      bindingId: 'binding-1',
+      remoteSnapshot: snapshot,
+      remoteEtag: 'etag-9',
+    });
+
+  return { save, update };
+}
+
+test('saving a resolved conference reports the pending to success transition', async () => {
+  const { save, update } = meetSnapshotHarness();
+
+  await expect(
+    save({
+      id: 'google-event-1',
+      hangoutLink: 'https://meet.google.com/abc-defg-hij',
+    }),
+  ).resolves.toEqual({
+    status: 'saved',
+    previous: 'pending',
+    current: 'success',
+    googleMeetUrl: 'https://meet.google.com/abc-defg-hij',
+    title: 'Sprint review',
+  });
+
+  expect(update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id: 'link-1' },
+      data: expect.objectContaining({ etag: 'etag-9' }),
+    }),
+  );
+});
+
+test('saving an unchanged pending conference reports no transition', async () => {
+  const { save } = meetSnapshotHarness();
+
+  await expect(
+    save({
+      id: 'google-event-1',
+      conferenceData: { createRequest: { status: { statusCode: 'pending' } } },
+    }),
+  ).resolves.toMatchObject({ previous: 'pending', current: 'pending' });
+});
+
+test('a cancelled event is not given a Meet snapshot', async () => {
+  const { save, update } = meetSnapshotHarness({ status: 'cancelled' });
+
+  await expect(save({ id: 'google-event-1' })).resolves.toEqual({
+    status: 'cancelled',
+  });
+  expect(update).not.toHaveBeenCalled();
+});
+
+test('a relinked event rejects a snapshot fetched for the old provider id', async () => {
+  const { save, update } = meetSnapshotHarness({
+    googleEventId: 'google-event-2',
+  });
+
+  await expect(save({ id: 'google-event-1' })).resolves.toEqual({
+    status: 'stale',
+  });
+  expect(update).not.toHaveBeenCalled();
+});
+
 function eventRow() {
   return {
     id: 'event-1',

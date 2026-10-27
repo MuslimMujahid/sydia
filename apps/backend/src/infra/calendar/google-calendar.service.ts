@@ -419,7 +419,7 @@ export class GoogleCalendarService {
     operationId: string,
     input: CalendarEventWrite,
     context: GoogleCalendarRequestContext,
-    sendUpdates: 'all' | 'none' = 'none',
+    sendUpdates?: 'all' | 'none',
   ): Promise<GoogleEventResource> {
     const body = this.eventBody(input);
     body.id = eventId;
@@ -427,10 +427,14 @@ export class GoogleCalendarService {
     body.extendedProperties = {
       private: { sydiaOperationId: operationId },
     };
+    // Google only emails invitations when the create request asks for it, so a
+    // new event that already has attendees defaults to notifying them.
+    const notify =
+      sendUpdates ?? (input.attendees?.length ? 'all' : ('none' as const));
 
     return this.calendar(
       token,
-      `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${sendUpdates}&conferenceDataVersion=1`,
+      `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${notify}&conferenceDataVersion=1`,
       'POST',
       body,
       undefined,

@@ -29,6 +29,7 @@ import {
 import { QueueService, type CalendarSyncJob } from '../../infra/queue';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { reconcileCalendarUpdate } from './calendar-update-reconciliation';
+import { enqueueGoogleMeetFollowUp } from './google-meet-follow-up';
 
 class CalendarUpdateConflictError extends Error {
   constructor(
@@ -1102,6 +1103,37 @@ export class CalendarSyncService {
         'operation',
         'success',
         performance.now() - operationStartedAt,
+      );
+    }
+
+    if (complete) await this.scheduleMeetFollowUp(claim, resource);
+  }
+
+  /**
+   * Google creates a Meet conference asynchronously, so a write that leaves the
+   * conference `pending` needs a bounded re-read to settle it and tell the user.
+   */
+  private async scheduleMeetFollowUp(
+    claim: CalendarSyncOperationClaim,
+    resource: GoogleEventResource | null,
+  ): Promise<void> {
+    const eventId = claim.operation.calendarEventId;
+    if (!resource || !eventId || claim.operation.kind === 'delete') return;
+    if (googleMeetDetails(resource).googleMeetStatus !== 'pending') return;
+
+    try {
+      await enqueueGoogleMeetFollowUp(
+        this.queues,
+        claim.binding.userId,
+        eventId,
+        0,
+      );
+    } catch (error) {
+      // The write itself succeeded; surface the dropped follow-up loudly
+      // instead of failing a completed operation.
+      this.logger.error(
+        `Google Meet follow-up for event ${eventId} could not be queued; the promised link message will not arrive.`,
+        error instanceof Error ? error.stack : String(error),
       );
     }
   }

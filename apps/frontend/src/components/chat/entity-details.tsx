@@ -1,6 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Check, Inbox, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Check,
+  Inbox,
+  LoaderCircle,
+  RotateCcw,
+  Trash2,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import { useEffect } from "react";
 import { dayKeyInZone } from "@/components/calendar/calendar-date";
 import { Button } from "@/components/ui/button";
@@ -19,7 +27,7 @@ import {
 } from "@/lib/services/api/tasks/tasks.queries";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { formatFileSize } from "@/lib/utils/format";
-import type { ChatEntity } from "./chat-entities";
+import { googleMeetJoinUrl, type ChatEntity } from "./chat-entities";
 import {
   formatAllDayEventRange,
   formatEntityRecurrence,
@@ -349,6 +357,71 @@ function FileDetails({ entity, locale }: DetailsProps) {
   );
 }
 
+type EventMeetProps = {
+  title: string;
+  url?: string | null;
+  status?: "pending" | "success" | "failure" | null;
+  locale: SupportedLocale;
+};
+
+/** A Meet link is only ever a join action; conferencing state stays quiet text. */
+export function EventMeetNote({
+  url,
+  status,
+  locale,
+}: Omit<EventMeetProps, "title">) {
+  if (googleMeetJoinUrl(url)) return null;
+
+  if (status === "pending")
+    return (
+      <p
+        className="mt-1 flex items-center gap-2 text-sm text-ink-muted"
+        role="status"
+      >
+        <LoaderCircle
+          className="size-3.5 animate-spin motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+        {locale === "en" ? "Creating Meet link…" : "Link Meet sedang dibuat…"}
+      </p>
+    );
+
+  if (status === "failure")
+    return (
+      <p className="mt-1 flex items-center gap-2 text-sm text-ink-muted">
+        <VideoOff className="size-3.5" aria-hidden="true" />
+        {locale === "en"
+          ? "Couldn't create Meet link"
+          : "Link Meet gagal dibuat"}
+      </p>
+    );
+
+  return null;
+}
+
+export function EventMeetJoinButton({ title, url, locale }: EventMeetProps) {
+  const joinUrl = googleMeetJoinUrl(url);
+  if (!joinUrl) return null;
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      nativeButton={false}
+      role="link"
+      aria-label={
+        locale === "en"
+          ? `Join Google Meet for ${title}`
+          : `Gabung Google Meet untuk ${title}`
+      }
+      render={<a href={joinUrl} target="_blank" rel="noopener noreferrer" />}
+    >
+      <Video aria-hidden="true" />
+      {locale === "en" ? "Join Google Meet" : "Gabung Google Meet"}
+    </Button>
+  );
+}
+
 function EventDetails({
   entity,
   locale,
@@ -397,6 +470,9 @@ function EventDetails({
       </>
     );
 
+  // The refreshed event is authoritative; the snapshot only fills an older payload.
+  const meetUrl = event.googleMeetUrl ?? entity.googleMeetUrl;
+
   return (
     <>
       <PopoverTitle className="break-words">{event.title}</PopoverTitle>
@@ -424,31 +500,42 @@ function EventDetails({
           {event.location}
         </p>
       ) : null}
-      <Button
-        size="sm"
-        variant="ghost"
-        className="mt-4"
-        nativeButton={false}
-        role="link"
-        render={
-          <Link
-            to="/calendar"
-            search={{
-              date:
-                event.allDayStartDate?.slice(0, 10) ??
-                (event.startAt
-                  ? dayKeyInZone(
-                      new Date(event.startAt),
-                      event.timezone ?? timezone
-                    )
-                  : undefined),
-              view: "day",
-            }}
-          />
-        }
-      >
-        {locale === "en" ? "View calendar" : "Lihat kalender"}
-      </Button>
+      <EventMeetNote
+        url={meetUrl}
+        status={event.googleMeetStatus ?? entity.googleMeetStatus}
+        locale={locale}
+      />
+      <div className="mt-4 flex flex-wrap gap-2">
+        <EventMeetJoinButton
+          title={event.title}
+          url={meetUrl}
+          locale={locale}
+        />
+        <Button
+          size="sm"
+          variant="ghost"
+          nativeButton={false}
+          role="link"
+          render={
+            <Link
+              to="/calendar"
+              search={{
+                date:
+                  event.allDayStartDate?.slice(0, 10) ??
+                  (event.startAt
+                    ? dayKeyInZone(
+                        new Date(event.startAt),
+                        event.timezone ?? timezone
+                      )
+                    : undefined),
+                view: "day",
+              }}
+            />
+          }
+        >
+          {locale === "en" ? "View calendar" : "Lihat kalender"}
+        </Button>
+      </div>
     </>
   );
 }

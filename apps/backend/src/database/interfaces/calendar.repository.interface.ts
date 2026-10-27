@@ -1,6 +1,7 @@
 import type {
   CalendarEvent,
   CalendarEventForRead,
+  CalendarEventStatus,
   CalendarEventWrite,
   CalendarIntegration,
 } from '../entities';
@@ -185,6 +186,13 @@ export interface ICalendarRepository {
     eventId: string,
   ): Promise<CalendarRetryOperationResult>;
   completeOperation(input: CompleteCalendarSyncOperation): Promise<boolean>;
+  googleMeetTarget(
+    userId: string,
+    eventId: string,
+  ): Promise<GoogleMeetTarget | null>;
+  saveGoogleMeetSnapshot(
+    input: SaveGoogleMeetSnapshot,
+  ): Promise<GoogleMeetTransition>;
   failOperation(input: FailCalendarSyncOperation): Promise<boolean>;
   cleanupSyncRecords(input: {
     completedOperationRetentionDays: number;
@@ -448,6 +456,8 @@ export type CalendarSyncOperationClaim = {
     payload: unknown;
     baseSnapshot: unknown;
     stableGoogleEventId: string | null;
+    /** Local event this write belongs to; absent for pure provider deletes. */
+    calendarEventId: string | null;
     claimToken: string;
     claimEpoch: number;
   };
@@ -472,6 +482,44 @@ export type CalendarSyncOperationClaim = {
     commonSnapshot: unknown;
   } | null;
 };
+
+export type GoogleMeetStatus = 'pending' | 'success' | 'failure';
+
+/** Everything a Meet follow-up poll needs to re-read one Google event. */
+export type GoogleMeetTarget = {
+  title: string;
+  googleEventId: string;
+  bindingId: string;
+  calendarId: string;
+  googleSubject: string;
+  connectionGeneration: number;
+  status: CalendarEventStatus;
+  meetStatus: GoogleMeetStatus | null;
+  meetUrl: string | null;
+};
+
+export type SaveGoogleMeetSnapshot = {
+  userId: string;
+  eventId: string;
+  googleEventId: string;
+  bindingId: string;
+  remoteSnapshot: unknown;
+  remoteEtag: string | null;
+};
+
+/**
+ * The observed Meet transition for one saved snapshot. `previous` is the state
+ * the link held before the write, so the caller can notify exactly once.
+ */
+export type GoogleMeetTransition =
+  | {
+      status: 'saved';
+      previous: GoogleMeetStatus | null;
+      current: GoogleMeetStatus | null;
+      googleMeetUrl: string | null;
+      title: string;
+    }
+  | { status: 'missing' | 'cancelled' | 'stale' };
 
 export type CompleteCalendarSyncOperation = {
   operationId: string;

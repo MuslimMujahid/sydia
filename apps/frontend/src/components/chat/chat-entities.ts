@@ -44,10 +44,38 @@ const fileSchema = z.object({
   url: z.url().optional(),
 });
 
+/**
+ * Only Google-hosted links may become a join action; anything else is treated as
+ * absent. The path is anchored right after the host so a lookalike domain such as
+ * `meet.google.com.example.test` cannot pass, while a real link keeps its query.
+ */
+const GOOGLE_MEET_URL = /^https:\/\/meet\.google\.com\/[^\s/]+(?:\?[^\s]*)?$/i;
+
+export function googleMeetJoinUrl(
+  value: string | null | undefined
+): string | null {
+  const url = value?.trim() ?? "";
+
+  return GOOGLE_MEET_URL.test(url) ? url : null;
+}
+
 const eventIdentity = {
   ...identity,
   status: z.enum(["confirmed", "cancelled"]).optional(),
   location: z.string().nullable().optional(),
+  // A rejected link or an unknown conferencing state must not drop the event itself.
+  googleMeetUrl: z
+    .string()
+    .trim()
+    .refine((value) => GOOGLE_MEET_URL.test(value))
+    .nullable()
+    .optional()
+    .catch(undefined),
+  googleMeetStatus: z
+    .enum(["pending", "success", "failure"])
+    .nullable()
+    .optional()
+    .catch(undefined),
 };
 
 const calendarDay = z

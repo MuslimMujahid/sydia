@@ -917,6 +917,51 @@ function calendarSyncDetail(locale: SupportedLocale, state: unknown): string {
   }
 }
 
+/**
+ * Google Meet lines for one event: the raw link once it exists, otherwise the
+ * honest state of the asynchronous link creation. Returns an empty list when
+ * the event has no video conference, and null for a malformed value so the
+ * caller refuses the whole acknowledgement rather than guess.
+ */
+function googleMeetDetails(
+  locale: SupportedLocale,
+  object: Record<string, unknown>,
+): string[] | null {
+  if (object.googleMeetUrl != null) {
+    // Raw link, so native channels auto-link it; never a fabricated label.
+    const url = httpUrl(object.googleMeetUrl);
+
+    return url ? [url] : null;
+  }
+
+  const status = object.googleMeetStatus;
+  if (status == null) return [];
+
+  switch (status) {
+    case 'pending':
+      return [
+        pick(
+          locale,
+          "Google Meet link is being created. I'll send it when it's ready.",
+          'Link Google Meet sedang dibuat. Saya kirim begitu siap.',
+        ),
+      ];
+    case 'failure':
+      return [
+        pick(
+          locale,
+          "Couldn't create the Google Meet link.",
+          'Link Google Meet gagal dibuat.',
+        ),
+      ];
+    // A success without a link has nothing confirmed to show.
+    case 'success':
+      return [];
+    default:
+      return null;
+  }
+}
+
 /** Validates the whole batch before emitting a confirmation; latest IDs count once. */
 function receiptAck(
   context: TerminalResponseContext,
@@ -1363,6 +1408,10 @@ function eventItems(
     if (!location) return null;
     item.details.push(location);
   }
+
+  const meet = googleMeetDetails(context.locale, object);
+  if (!meet) return null;
+  item.details.push(...meet);
 
   item.details.push(calendarSyncDetail(context.locale, object.syncState));
 

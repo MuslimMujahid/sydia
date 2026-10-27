@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { ToolInvocation } from "@/lib/services/api/conversations/conversations.api";
 import {
   collectChatEntities,
+  googleMeetJoinUrl,
   matchEntityText,
   type ChatEntity,
 } from "./chat-entities";
@@ -198,6 +199,115 @@ describe("collectChatEntities", () => {
       result.entities[0]?.kind === "file" && result.entities[0].url,
       "https://example.test/documents/doc-1/content"
     );
+  });
+  it("recognizes the Google Meet link and state of a created event", () => {
+    const result = collectChatEntities([
+      tool("create_calendar_event", {
+        objectType: "calendar_event",
+        object: {
+          id: "event-meet",
+          title: "Rapat tim",
+          startAt: timestamp,
+          endAt: "2026-10-08T09:00:00.000Z",
+          timezone: "Asia/Makassar",
+          googleMeetUrl: "https://meet.google.com/abc-defg-hij",
+          googleMeetStatus: "success",
+        },
+      }),
+    ]);
+
+    assert.deepEqual(result.diagnostics, []);
+    assert.deepEqual(
+      result.entities.map((entity) =>
+        entity.kind === "event"
+          ? [entity.googleMeetUrl, entity.googleMeetStatus]
+          : null
+      ),
+      [["https://meet.google.com/abc-defg-hij", "success"]]
+    );
+  });
+  it("records a pending Meet link without a URL", () => {
+    const result = collectChatEntities([
+      tool("create_calendar_event", {
+        object: {
+          id: "event-meet-pending",
+          title: "Rapat tim",
+          startAt: timestamp,
+          endAt: "2026-10-08T09:00:00.000Z",
+          timezone: "Asia/Makassar",
+          googleMeetUrl: null,
+          googleMeetStatus: "pending",
+        },
+      }),
+    ]);
+
+    const event = result.entities[0];
+    assert.equal(event?.kind === "event" && event.googleMeetUrl, null);
+    assert.equal(event?.kind === "event" && event.googleMeetStatus, "pending");
+  });
+  it("drops a conferencing link that is not a Google Meet URL but keeps the event", () => {
+    const result = collectChatEntities([
+      tool("create_calendar_event", {
+        object: {
+          id: "event-meet-foreign",
+          title: "Rapat tim",
+          startAt: timestamp,
+          endAt: "2026-10-08T09:00:00.000Z",
+          timezone: "Asia/Makassar",
+          googleMeetUrl: "https://meet.google.com.evil.test/abc-defg-hij",
+          googleMeetStatus: "mystery",
+        },
+      }),
+    ]);
+
+    assert.deepEqual(result.diagnostics, []);
+    const event = result.entities[0];
+    assert.equal(event?.id, "event-meet-foreign");
+    assert.equal(event?.kind === "event" && event.googleMeetUrl, undefined);
+    assert.equal(event?.kind === "event" && event.googleMeetStatus, undefined);
+  });
+  it("tolerates an event result without any Meet fields", () => {
+    const result = collectChatEntities([
+      tool("create_calendar_event", {
+        object: {
+          id: "event-no-meet",
+          title: "Rapat tim",
+          startAt: timestamp,
+          endAt: "2026-10-08T09:00:00.000Z",
+          timezone: "Asia/Makassar",
+        },
+      }),
+    ]);
+
+    assert.deepEqual(result.diagnostics, []);
+    const event = result.entities[0];
+    assert.equal(event?.kind === "event" && "googleMeetUrl" in event, false);
+    assert.equal(event?.kind === "event" && "googleMeetStatus" in event, false);
+  });
+  it("accepts only Google-hosted Meet links as a join action", () => {
+    for (const value of [
+      "https://meet.google.com/abc-defg-hij",
+      "https://meet.google.com/abc-defg-hij?authuser=1",
+    ])
+      assert.equal(googleMeetJoinUrl(value), value);
+    assert.equal(
+      googleMeetJoinUrl(" https://meet.google.com/abc-defg-hij "),
+      "https://meet.google.com/abc-defg-hij"
+    );
+
+    // A lookalike host, a downgraded scheme, or an injected scheme is never a join target.
+    for (const value of [
+      "http://meet.google.com/abc-defg-hij",
+      "https://meet.google.com.evil.test/abc-defg-hij",
+      "https://evil.test/https://meet.google.com/abc-defg-hij",
+      "javascript:alert(1)//meet.google.com/abc",
+      "https://meet.google.com/",
+      "https://zoom.test/j/1",
+      "",
+      null,
+      undefined,
+    ])
+      assert.equal(googleMeetJoinUrl(value), null, `rejects ${String(value)}`);
   });
   it("recognizes events despite a null convenience objectType", () => {
     const result = collectChatEntities([

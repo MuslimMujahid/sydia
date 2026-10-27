@@ -11,6 +11,7 @@ import { PrismaService } from '../../infra/prisma';
 import type {
   CalendarEvent,
   CalendarEventForRead,
+  CalendarEventStatus,
   CalendarEventWrite,
   CalendarIntegration,
 } from '../entities';
@@ -37,7 +38,10 @@ import type {
   CompleteCalendarSyncOperation,
   ConsumedCalendarOAuthRequest,
   FailCalendarSyncOperation,
+  GoogleMeetTarget,
+  GoogleMeetTransition,
   ICalendarRepository,
+  SaveGoogleMeetSnapshot,
   SaveGoogleConnectionInput,
   SaveCalendarSyncPageInput,
 } from '../interfaces';
@@ -3041,6 +3045,7 @@ export class PrismaCalendarRepository implements ICalendarRepository {
           payload: true,
           baseSnapshot: true,
           stableGoogleEventId: true,
+          calendarEventId: true,
           claimToken: true,
           claimEpoch: true,
         },
@@ -3304,6 +3309,121 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       }
 
       return true;
+    });
+  }
+
+  async googleMeetTarget(
+    userId: string,
+    eventId: string,
+  ): Promise<GoogleMeetTarget | null> {
+    const row = await this.prisma.calendarEvent.findFirst({
+      where: { id: eventId, userId },
+      select: {
+        title: true,
+        status: true,
+        providerLink: {
+          select: {
+            googleEventId: true,
+            bindingId: true,
+            tombstoneAt: true,
+            remoteSnapshot: true,
+            binding: {
+              select: {
+                calendarId: true,
+                googleSubject: true,
+                state: true,
+                integration: {
+                  select: {
+                    status: true,
+                    activeBindingId: true,
+                    connectionGeneration: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const link = row?.providerLink;
+    const binding = link?.binding;
+    const integration = binding?.integration;
+
+    if (!row || !link || !binding || !integration) return null;
+    const meet = googleMeetDetails(link.remoteSnapshot);
+    // A disconnected or re-bound integration has no credentials for this poll.
+    if (
+      link.tombstoneAt !== null ||
+      integration.status !== 'connected' ||
+      integration.activeBindingId !== link.bindingId ||
+      !['active', 'initializing'].includes(binding.state)
+    )
+      return null;
+
+    return {
+      title: row.title,
+      googleEventId: link.googleEventId,
+      bindingId: link.bindingId,
+      calendarId: binding.calendarId,
+      googleSubject: binding.googleSubject,
+      connectionGeneration: integration.connectionGeneration,
+      status: row.status as CalendarEventStatus,
+      meetStatus: meet.googleMeetStatus,
+      meetUrl: meet.googleMeetUrl,
+    };
+  }
+
+  async saveGoogleMeetSnapshot(
+    input: SaveGoogleMeetSnapshot,
+  ): Promise<GoogleMeetTransition> {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.calendarEvent.findFirst({
+        where: { id: input.eventId, userId: input.userId },
+        select: {
+          title: true,
+          status: true,
+          providerLink: {
+            select: {
+              id: true,
+              googleEventId: true,
+              bindingId: true,
+              tombstoneAt: true,
+              remoteSnapshot: true,
+            },
+          },
+        },
+      });
+
+      const link = row?.providerLink;
+      if (!row || !link) return { status: 'missing' as const };
+      if (row.status === 'cancelled' || link.tombstoneAt !== null)
+        return { status: 'cancelled' as const };
+      // The link must still point at the event this poll fetched from Google.
+      if (
+        link.googleEventId !== input.googleEventId ||
+        link.bindingId !== input.bindingId
+      )
+        return { status: 'stale' as const };
+
+      const previous = googleMeetDetails(link.remoteSnapshot);
+      const current = googleMeetDetails(input.remoteSnapshot);
+
+      await tx.calendarEventLink.update({
+        where: { id: link.id },
+        data: {
+          remoteSnapshot: inputJsonObject(input.remoteSnapshot),
+          ...(input.remoteEtag !== null ? { etag: input.remoteEtag } : {}),
+        },
+      });
+
+      return {
+        status: 'saved' as const,
+        previous: previous.googleMeetStatus,
+        current: current.googleMeetStatus,
+        googleMeetUrl: current.googleMeetUrl,
+        title: row.title,
+      };
     });
   }
 

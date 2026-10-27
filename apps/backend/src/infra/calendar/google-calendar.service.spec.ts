@@ -320,6 +320,104 @@ test('creating a Meet conference sends a stable request id and conference versio
   }
 });
 
+describe('GoogleCalendarService create invitations', () => {
+  test('a new event with attendees asks Google to send invitations', async () => {
+    const { service, context } = meetRequestHarness();
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{"id":"event-1"}'));
+
+    try {
+      await service.createEvent(
+        'synthetic-token',
+        'primary',
+        'event-1',
+        'operation-1',
+        {
+          title: 'Kickoff',
+          startAt: new Date('2026-10-12T01:00:00Z'),
+          endAt: new Date('2026-10-12T02:00:00Z'),
+          timezone: 'Asia/Makassar',
+          attendees: ['budi@example.test'],
+        },
+        context,
+      );
+
+      const [url, init] = fetchSpy.mock.calls[0]!;
+      expect(url).toEqual(expect.stringContaining('sendUpdates=all'));
+      expect(JSON.parse(init?.body as string)).toMatchObject({
+        attendees: [{ email: 'budi@example.test' }],
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test.each([
+    { title: 'without an attendee list', attendees: undefined },
+    { title: 'with an empty attendee list', attendees: [] },
+  ])('a new event $title sends no invitations', async ({ attendees }) => {
+    const { service, context } = meetRequestHarness();
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{"id":"event-1"}'));
+
+    try {
+      await service.createEvent(
+        'synthetic-token',
+        'primary',
+        'event-1',
+        'operation-1',
+        {
+          title: 'Solo focus block',
+          startAt: new Date('2026-10-12T01:00:00Z'),
+          endAt: new Date('2026-10-12T02:00:00Z'),
+          timezone: 'Asia/Makassar',
+          ...(attendees ? { attendees } : {}),
+        },
+        context,
+      );
+
+      expect(fetchSpy.mock.calls[0]![0]).toEqual(
+        expect.stringContaining('sendUpdates=none'),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test('an explicit sendUpdates choice overrides the attendee default', async () => {
+    const { service, context } = meetRequestHarness();
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{"id":"event-1"}'));
+
+    try {
+      await service.createEvent(
+        'synthetic-token',
+        'primary',
+        'event-1',
+        'operation-1',
+        {
+          title: 'Quiet import',
+          startAt: new Date('2026-10-12T01:00:00Z'),
+          endAt: new Date('2026-10-12T02:00:00Z'),
+          timezone: 'Asia/Makassar',
+          attendees: ['budi@example.test'],
+        },
+        context,
+        'none',
+      );
+
+      expect(fetchSpy.mock.calls[0]![0]).toEqual(
+        expect.stringContaining('sendUpdates=none'),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
+
 test('disabling Google Meet explicitly clears provider conference data', async () => {
   const { service, context } = meetRequestHarness();
   const fetchSpy = jest

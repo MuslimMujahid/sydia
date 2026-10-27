@@ -12,6 +12,7 @@ import { CalendarService } from './calendar.service';
 import { CalendarReadService } from './calendar-read.service';
 import { CalendarOAuthService } from './calendar-oauth.service';
 import { CalendarSyncService } from './calendar-sync.service';
+import { GoogleMeetFollowUpService } from './google-meet-follow-up.service';
 
 @Module({
   imports: [CalendarProviderModule],
@@ -27,6 +28,7 @@ import { CalendarSyncService } from './calendar-sync.service';
     CalendarReminderService,
     CalendarOAuthService,
     CalendarSyncService,
+    GoogleMeetFollowUpService,
   ],
   exports: [
     CALENDAR_REPOSITORY,
@@ -34,6 +36,7 @@ import { CalendarSyncService } from './calendar-sync.service';
     CalendarReadService,
     CalendarReminderService,
     CalendarSyncService,
+    GoogleMeetFollowUpService,
     CalendarProviderModule,
   ],
 })

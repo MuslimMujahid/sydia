@@ -6,7 +6,9 @@ import { Worker } from 'bullmq';
 import { AppModule } from './app.module';
 import { BillingService } from './modules/billing';
 import { processCalendarReminderJob } from './modules/notifications/calendar-reminder-job.processor';
+import { processGoogleMeetFollowUpJob } from './modules/notifications/google-meet-follow-up-job.processor';
 import { CalendarReminderService } from './modules/calendar/calendar-reminder.service';
+import { GoogleMeetFollowUpService } from './modules/calendar/google-meet-follow-up.service';
 import { processReminderJob } from './modules/reminders/reminder-job.processor';
 import {
   REMINDER_REPOSITORY,
@@ -22,6 +24,7 @@ import {
   type FollowUpJob,
   type CalendarSyncJob,
   type CalendarReminderJob,
+  type GoogleMeetFollowUpJob,
   type MemoryDreamJob,
   type MemoryDeliveryJob,
   type MemoryIngestionJob,
@@ -68,6 +71,7 @@ async function bootstrap(): Promise<void> {
   const scheduler = context.get(ProactiveSchedulerService);
   const calendarSync = context.get(CalendarSyncService);
   const calendarReminders = context.get(CalendarReminderService);
+  const googleMeetFollowUps = context.get(GoogleMeetFollowUpService);
   const connection = {
     url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
   };
@@ -122,6 +126,24 @@ async function bootstrap(): Promise<void> {
     { every: 30_000 },
     { name: 'sweep', data: { kind: 'sweep' } },
   );
+
+  const googleMeetFollowUpWorker = new Worker<GoogleMeetFollowUpJob>(
+    'google-meet-follow-ups',
+    (job) =>
+      processGoogleMeetFollowUpJob(
+        { googleMeetFollowUps, notifications, composer },
+        job.data,
+      ),
+    { connection },
+  );
+
+  googleMeetFollowUpWorker.on('failed', (job, error) => {
+    Logger.error(
+      `Google Meet follow-up job ${job?.id} failed: ${error.message}`,
+      error.stack,
+      'GoogleMeetFollowUpWorker',
+    );
+  });
 
   const documentWorker = new Worker<DocumentJob>(
     'documents',
@@ -301,6 +323,7 @@ async function bootstrap(): Promise<void> {
       billingWorker.close(),
       reminderWorker.close(),
       calendarReminderWorker.close(),
+      googleMeetFollowUpWorker.close(),
       documentWorker.close(),
       memoryDreamWorker.close(),
       memoryDeliveryWorker.close(),

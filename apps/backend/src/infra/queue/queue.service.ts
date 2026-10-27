@@ -11,6 +11,17 @@ export type CalendarReminderDispatch = {
   timezone: string;
 };
 export type CalendarReminderJob = { kind: 'sweep' } | CalendarReminderDispatch;
+/**
+ * Re-reads a Google event whose Meet conference is still being created, so the
+ * promised "I will send it when it is ready" message actually arrives.
+ */
+export type GoogleMeetFollowUpJob = {
+  kind: 'poll';
+  userId: string;
+  eventId: string;
+  /** Zero-based index into the bounded polling schedule. */
+  attempt: number;
+};
 export type ReminderJob = {
   reminderId: string;
   idempotencyKey: string;
@@ -73,6 +84,7 @@ export class QueueService implements OnModuleDestroy {
   readonly dailyNoteIndexes: Queue<DailyNoteIndexJob>;
   readonly calendarSync: Queue<CalendarSyncJob>;
   readonly calendarReminders: Queue<CalendarReminderJob>;
+  readonly googleMeetFollowUps: Queue<GoogleMeetFollowUpJob>;
   constructor(config: ConfigService) {
     const connection = {
       url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
@@ -138,6 +150,12 @@ export class QueueService implements OnModuleDestroy {
       'calendar-reminders',
       { connection, defaultJobOptions },
     );
+    // Each poll re-enqueues the next attempt itself, so a transient Google
+    // error must not silently drop the chain: keep the retry default.
+    this.googleMeetFollowUps = new Queue<GoogleMeetFollowUpJob>(
+      'google-meet-follow-ups',
+      { connection, defaultJobOptions },
+    );
     this.calendarSync = new Queue<CalendarSyncJob>('calendar-sync', {
       connection,
       defaultJobOptions: {
@@ -164,6 +182,7 @@ export class QueueService implements OnModuleDestroy {
       this.dailyNoteIndexes.close(),
       this.calendarSync.close(),
       this.calendarReminders.close(),
+      this.googleMeetFollowUps.close(),
     ]);
   }
 }
