@@ -6,6 +6,8 @@ import type {
   AdminUsersInput,
   AdminUsersPage,
   IAdminRepository,
+  AdminGiftPlusInput,
+  AdminGiftPlusResult,
 } from '../interfaces';
 
 type AdminUserRow = {
@@ -14,6 +16,7 @@ type AdminUserRow = {
   email: string;
   banned: boolean;
   createdAt: Date;
+  paidUntil: Date | null;
   lastActivityAt: Date | null;
   activeSessions: bigint;
   storageBytes: bigint;
@@ -49,6 +52,99 @@ function money(value: Prisma.Decimal): number {
 @Injectable()
 export class PrismaAdminRepository implements IAdminRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async giftPlus(input: AdminGiftPlusInput): Promise<AdminGiftPlusResult> {
+    return this.prisma.$transaction(async (tx) => {
+      // Share the payment lock so gifts and verified payments cannot lose time.
+      const users = await tx.$queryRaw<Array<{ createdAt: Date }>>`
+        SELECT "createdAt" FROM "user" WHERE id = ${input.userId} FOR UPDATE
+      `;
+
+      const user = users[0];
+      if (!user) return { status: 'not-found' };
+
+      const previous = await tx.auditEvent.findFirst({
+        where: {
+          userId: input.userId,
+          eventType: 'admin.user.gift-plus',
+          metadata: { path: ['requestId'], equals: input.requestId },
+        },
+        select: { metadata: true },
+      });
+
+      if (previous) {
+        const metadata = previous.metadata;
+        if (
+          !metadata ||
+          typeof metadata !== 'object' ||
+          Array.isArray(metadata) ||
+          metadata.actorId !== input.actorId ||
+          metadata.durationDays !== input.durationDays
+        )
+          return { status: 'conflict' };
+        if (
+          typeof metadata.paidUntil !== 'string' ||
+          !Number.isFinite(Date.parse(metadata.paidUntil))
+        )
+          throw new Error('Gift audit event is missing a valid paidUntil');
+
+        return { status: 'applied', paidUntil: new Date(metadata.paidUntil) };
+      }
+
+      const trialStartsAt = new Date(
+        Math.max(user.createdAt.getTime(), input.rolloutAt.getTime()),
+      );
+
+      const account = await tx.billingAccount.upsert({
+        where: { userId: input.userId },
+        update: {},
+        create: {
+          userId: input.userId,
+          trialStartsAt,
+          trialEndsAt: new Date(
+            trialStartsAt.getTime() + input.trialDays * 86_400_000,
+          ),
+          lastActivatedAt: trialStartsAt,
+        },
+      });
+
+      const paidUntil = new Date(
+        Math.max(
+          input.now.getTime(),
+          account.paidUntil?.getTime() ?? 0,
+          account.trialEndsAt.getTime(),
+        ) +
+          input.durationDays * 86_400_000,
+      );
+
+      await tx.billingAccount.update({
+        where: { userId: input.userId },
+        data: {
+          paidUntil,
+          lastActivatedAt:
+            (account.paidUntil && account.paidUntil > input.now) ||
+            (account.trialStartsAt <= input.now &&
+              account.trialEndsAt > input.now)
+              ? account.lastActivatedAt
+              : input.now,
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          userId: input.userId,
+          eventType: 'admin.user.gift-plus',
+          metadata: {
+            actorId: input.actorId,
+            requestId: input.requestId,
+            durationDays: input.durationDays,
+            paidUntil: paidUntil.toISOString(),
+          },
+        },
+      });
+
+      return { status: 'applied', paidUntil };
+    });
+  }
 
   async overview(now: Date): Promise<AdminOverview> {
     const [rows, costs] = await Promise.all([
@@ -124,6 +220,7 @@ export class PrismaAdminRepository implements IAdminRepository {
         u."email",
         u."banned",
         u."createdAt",
+        (SELECT b."paidUntil" FROM "billing_account" b WHERE b."userId" = u."id") AS "paidUntil",
         GREATEST(
           (SELECT MAX(m."createdAt") FROM "message" m WHERE m."userId" = u."id"),
           (SELECT MAX(s."updatedAt") FROM "session" s WHERE s."userId" = u."id"),
@@ -154,6 +251,7 @@ export class PrismaAdminRepository implements IAdminRepository {
       email: row.email,
       status: row.banned ? ('banned' as const) : ('active' as const),
       createdAt: row.createdAt,
+      paidUntil: row.paidUntil,
       lastActivityAt: row.lastActivityAt,
       activeSessions: count(row.activeSessions),
       storageBytes: count(row.storageBytes),

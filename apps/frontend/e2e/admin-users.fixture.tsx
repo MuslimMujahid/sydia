@@ -1,11 +1,25 @@
+import { useCallback } from "react";
+import type { OnGiftPlus } from "../src/components/admin/types";
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AdminPage } from "../src/components/admin/admin-page";
-import { useAdminUsersList } from "../src/lib/services/api/admin/admin.queries";
+import {
+  useAdminUsersList,
+  useAdminGiftPlus,
+} from "../src/lib/services/api/admin/admin.queries";
 import "../src/styles/globals.css";
+import { createQueryClient } from "../src/lib/query-client";
+
+const client = createQueryClient();
+client.setDefaultOptions({ queries: { retry: false } });
 
 function AdminFixture() {
   const list = useAdminUsersList();
+  const { mutateAsync: giftPlus } = useAdminGiftPlus();
+  const handleGiftPlus = useCallback<OnGiftPlus>(
+    (user, input) => giftPlus({ userId: user.id, input }),
+    [giftPlus]
+  );
 
   return (
     <main className="p-4 sm:p-8">
@@ -33,6 +47,7 @@ function AdminFixture() {
         isFetching={list.query.isFetching || list.search !== list.input.q}
         error={list.query.error?.message}
         onRetry={() => void list.query.refetch()}
+        onGiftPlus={handleGiftPlus}
         onBanUser={async () => {}}
         onUnbanUser={async () => {}}
         onForceSignOutUser={async () => {}}
@@ -45,9 +60,7 @@ function AdminFixture() {
 const root = document.getElementById("root");
 if (!root) throw new Error("Admin fixture root is missing");
 createRoot(root).render(
-  <QueryClientProvider
-    client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-  >
+  <QueryClientProvider client={client}>
     <AdminFixture />
   </QueryClientProvider>
 );

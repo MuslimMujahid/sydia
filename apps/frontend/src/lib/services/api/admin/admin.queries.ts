@@ -5,10 +5,17 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
-import { getAdminOverview, getAdminUsers, updateAdminUser } from "./admin.api";
+import {
+  getAdminOverview,
+  getAdminUsers,
+  updateAdminUser,
+  giftAdminUserPlus,
+} from "./admin.api";
+import { billingKeys } from "../billing/billing.api";
 import type {
   AdminUserAction,
   AdminUsersInput,
+  AdminGiftPlusInput,
 } from "@/components/admin/types";
 
 export const adminQueryKeys = {
@@ -45,6 +52,19 @@ export function useAdminUserAction() {
     meta: {
       invalidateQueries: [adminQueryKeys.overview(), adminQueryKeys.users()],
     },
+  });
+}
+
+export function useAdminGiftPlus() {
+  return useMutation({
+    mutationFn: ({
+      userId,
+      input,
+    }: {
+      userId: string;
+      input: AdminGiftPlusInput;
+    }) => giftAdminUserPlus(userId, input),
+    meta: { invalidateQueries: [adminQueryKeys.users(), billingKeys.status] },
   });
 }
 

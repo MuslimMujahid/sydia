@@ -1,3 +1,4 @@
+import type { OnGiftPlus } from "./types";
 import { useCallback, useState } from "react";
 import { Search } from "lucide-react";
 import { EmptyState } from "@/components/app-states";
@@ -37,6 +38,7 @@ export type AdminPageProps = {
   onUnbanUser: (user: AdminUser) => Promise<void>;
   onForceSignOutUser: (user: AdminUser) => Promise<void>;
   onDeleteUser: (user: AdminUser) => Promise<void>;
+  onGiftPlus: OnGiftPlus;
 };
 
 type StatusFilter = AdminUserStatus | "all";
@@ -94,6 +96,7 @@ export function AdminPage({
   onUnbanUser,
   onForceSignOutUser,
   onDeleteUser,
+  onGiftPlus,
 }: AdminPageProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{
@@ -137,6 +140,7 @@ export function AdminPage({
       await actionHandlers[confirm.action](confirm.user);
       setConfirm(null);
     } catch (caught) {
+      console.error("Admin user action failed", caught);
       setActionError(
         caught instanceof Error && caught.message
           ? caught.message
@@ -246,6 +250,7 @@ export function AdminPage({
             ) : (
               <UsersTable
                 users={users}
+                onGiftPlus={onGiftPlus}
                 expandedUserId={expandedUserId}
                 actionsDisabled={pending !== null || isFetching}
                 onToggleDetail={handleToggleDetail}

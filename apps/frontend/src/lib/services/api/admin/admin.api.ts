@@ -5,7 +5,29 @@ import type {
   AdminUser,
   AdminUserAction,
   AdminUsersInput,
+  AdminGiftPlusInput,
+  AdminGiftPlusResult,
 } from "@/components/admin/types";
+
+export async function giftAdminUserPlus(
+  userId: string,
+  input: AdminGiftPlusInput
+): Promise<AdminGiftPlusResult> {
+  try {
+    const response = await api.post<ApiResponse<AdminGiftPlusResult>>(
+      `/admin/users/${encodeURIComponent(userId)}/gift-plus`,
+      input
+    );
+
+    return response.data.data;
+  } catch (error) {
+    console.error("Admin Sydia Plus gift failed", error);
+    throw toApiError(
+      error,
+      "Hadiah Sydia Plus belum dapat diberikan. Coba lagi."
+    );
+  }
+}
 
 export async function getAdminOverview(): Promise<AdminOverview> {
   try {

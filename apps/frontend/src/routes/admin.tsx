@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AdminPage } from "@/components/admin/admin-page";
@@ -6,12 +7,14 @@ import type {
   AdminOverview,
   AdminUser,
   AdminUserAction,
+  OnGiftPlus,
 } from "@/components/admin/types";
 import { requireAdminSession } from "@/lib/auth";
 import {
   adminOverviewQueryOptions,
   useAdminUsersList,
   useAdminUserAction,
+  useAdminGiftPlus,
 } from "@/lib/services/api/admin/admin.queries";
 
 export const Route = createFileRoute("/admin")({
@@ -35,6 +38,12 @@ function AdminRoute() {
   const list = useAdminUsersList();
   const usersQuery = list.query;
   const actionMutation = useAdminUserAction();
+  const { mutateAsync: giftPlus } = useAdminGiftPlus();
+  const handleGiftPlus = useCallback<OnGiftPlus>(
+    (user, input) => giftPlus({ userId: user.id, input }),
+    [giftPlus]
+  );
+
   const overview: AdminOverview = overviewQuery.data ?? {
     totalUsers: 0,
     activeUsers: 0,
@@ -73,6 +82,7 @@ function AdminRoute() {
         onRetry={() => {
           void Promise.all([overviewQuery.refetch(), usersQuery.refetch()]);
         }}
+        onGiftPlus={handleGiftPlus}
         onBanUser={(user) => act(user, "ban")}
         onUnbanUser={(user) => act(user, "unban")}
         onForceSignOutUser={(user) => act(user, "force-sign-out")}

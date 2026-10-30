@@ -38,6 +38,24 @@ Keep `MAYAR_API_KEY` and `MAYAR_WEBHOOK_TOKEN` server-only. Never log headers, r
 callback bodies, or customer contact data. Callback authentication uses a static
 token rather than a body signature, so durable transaction idempotency is essential.
 
+## Gift Sydia Plus
+
+Administrators can open **Beri Plus** beside a user on `/admin`, select 7, 30,
+90, or 180 days (or a custom whole number from 1 to 3,650), then apply the gift.
+Days are added after the later of the current time, remaining trial, and paid
+expiry. Existing trial dates are retained. No invoice or payment is created.
+
+The action requires a valid `BACKEND_BILLING_ROLLOUT_AT` and an admin session.
+`POST /admin/users/:userId/gift-plus` accepts `{ durationDays, requestId }`, where
+`requestId` is a UUID v4. Retry the same request ID and duration after an uncertain
+response; it grants access once. Gifts and payments share the account lock.
+The `admin.user.gift-plus` audit event records the administrator, duration,
+request ID, and resulting expiry in the same transaction as the entitlement.
+
+With `BILLING_CONTRACT_DB_URL` set to the dedicated local contract database,
+verify gifts with the backend Jest pattern `admin-gift-plus|prisma-admin.repository.spec`.
+For the UI, run `bun run --cwd apps/frontend test:e2e --config=playwright.entities.config.ts admin-users.spec.ts --workers=1`.
+
 ## Verify
 
 - `MAYAR_ENVIRONMENT=sandbox bun run --cwd apps/backend billing:sandbox-smoke`

@@ -1,3 +1,5 @@
+import { GiftPlusPopover } from "./gift-plus-popover";
+import type { OnGiftPlus } from "./types";
 import { memo } from "react";
 import { ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +137,7 @@ type UserRowProps = {
   user: AdminUser;
   expanded: boolean;
   actionsDisabled: boolean;
+  onGiftPlus: OnGiftPlus;
   onToggleDetail: (userId: string) => void;
   onAction: (user: AdminUser, action: AdminUserAction) => void;
 };
@@ -144,6 +147,7 @@ const UserTableRow = memo(function UserTableRow({
   user,
   expanded,
   actionsDisabled,
+  onGiftPlus,
   onToggleDetail,
   onAction,
 }: UserRowProps) {
@@ -155,6 +159,11 @@ const UserTableRow = memo(function UserTableRow({
             {user.name}
           </p>
           <p className="truncate text-sm text-ink-muted">{user.email}</p>
+          {user.paidUntil && (
+            <p className="mt-1 text-xs text-ink-muted">
+              Sydia Plus hingga {formatDate(user.paidUntil)}
+            </p>
+          )}
         </td>
         <td className="px-4 py-3.5">
           <StatusBadge status={user.status} />
@@ -171,6 +180,11 @@ const UserTableRow = memo(function UserTableRow({
               user={user}
               expanded={expanded}
               onToggle={() => onToggleDetail(user.id)}
+            />
+            <GiftPlusPopover
+              user={user}
+              disabled={actionsDisabled}
+              onGiftPlus={onGiftPlus}
             />
             <UserActionsMenu
               user={user}
@@ -199,6 +213,7 @@ const UserCard = memo(function UserCard({
   user,
   expanded,
   actionsDisabled,
+  onGiftPlus,
   onToggleDetail,
   onAction,
 }: UserRowProps) {
@@ -213,6 +228,11 @@ const UserCard = memo(function UserCard({
             {user.name}
           </p>
           <p className="truncate text-sm text-ink-muted">{user.email}</p>
+          {user.paidUntil && (
+            <p className="mt-1 text-xs text-ink-muted">
+              Sydia Plus hingga {formatDate(user.paidUntil)}
+            </p>
+          )}
         </div>
         <StatusBadge status={user.status} />
       </div>
@@ -238,11 +258,18 @@ const UserCard = memo(function UserCard({
           expanded={expanded}
           onToggle={() => onToggleDetail(user.id)}
         />
-        <UserActionsMenu
-          user={user}
-          disabled={actionsDisabled}
-          onAction={onAction}
-        />
+        <div className="flex items-center gap-1">
+          <GiftPlusPopover
+            user={user}
+            disabled={actionsDisabled}
+            onGiftPlus={onGiftPlus}
+          />
+          <UserActionsMenu
+            user={user}
+            disabled={actionsDisabled}
+            onAction={onAction}
+          />
+        </div>
       </div>
       {expanded ? (
         <div
@@ -260,18 +287,20 @@ export function UsersTable({
   users,
   expandedUserId,
   actionsDisabled,
+  onGiftPlus,
   onToggleDetail,
   onAction,
 }: {
   users: AdminUser[];
   expandedUserId: string | null;
   actionsDisabled: boolean;
+  onGiftPlus: OnGiftPlus;
   onToggleDetail: (userId: string) => void;
   onAction: (user: AdminUser, action: AdminUserAction) => void;
 }) {
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <table className="w-full table-fixed border-collapse text-left">
           <caption className="sr-only">
             Daftar pengguna Sydia beserta status dan aktivitasnya
@@ -302,7 +331,7 @@ export function UsersTable({
               >
                 Aktivitas terakhir
               </th>
-              <th scope="col" className="w-44 py-3 pl-4 text-right">
+              <th scope="col" className="w-64 py-3 pl-4 text-right">
                 <span className="sr-only">Detail dan aksi</span>
               </th>
             </tr>
@@ -314,6 +343,7 @@ export function UsersTable({
                 user={user}
                 expanded={expandedUserId === user.id}
                 actionsDisabled={actionsDisabled}
+                onGiftPlus={onGiftPlus}
                 onToggleDetail={onToggleDetail}
                 onAction={onAction}
               />
@@ -321,13 +351,14 @@ export function UsersTable({
           </tbody>
         </table>
       </div>
-      <ul className="space-y-3 md:hidden">
+      <ul className="space-y-3 lg:hidden">
         {users.map((user) => (
           <UserCard
             key={user.id}
             user={user}
             expanded={expandedUserId === user.id}
             actionsDisabled={actionsDisabled}
+            onGiftPlus={onGiftPlus}
             onToggleDetail={onToggleDetail}
             onAction={onAction}
           />

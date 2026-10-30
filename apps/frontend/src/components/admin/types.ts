@@ -16,6 +16,7 @@ export type AdminUser = {
   email: string;
   status: AdminUserStatus;
   createdAt: string;
+  paidUntil: string | null;
   lastActivityAt: string | null;
   activeSessions: number;
   storageBytes: number;
@@ -34,6 +35,13 @@ export type AdminOverview = {
 };
 
 export type AdminUserAction = "ban" | "unban" | "force-sign-out" | "delete";
+
+export type AdminGiftPlusInput = { durationDays: number; requestId: string };
+export type AdminGiftPlusResult = { paidUntil: string };
+export type OnGiftPlus = (
+  user: AdminUser,
+  input: AdminGiftPlusInput
+) => Promise<AdminGiftPlusResult>;
 
 export type AdminUsersInput = {
   offset: number;

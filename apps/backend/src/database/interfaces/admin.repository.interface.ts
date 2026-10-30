@@ -18,6 +18,7 @@ export type AdminUser = {
   email: string;
   status: AdminUserStatus;
   createdAt: Date;
+  paidUntil: Date | null;
   lastActivityAt: Date | null;
   activeSessions: number;
   storageBytes: number;
@@ -47,6 +48,7 @@ export type AdminUsersPage = {
 };
 
 export interface IAdminRepository {
+  giftPlus(input: AdminGiftPlusInput): Promise<AdminGiftPlusResult>;
   overview(now: Date): Promise<AdminOverview>;
   users(now: Date, input: AdminUsersInput): Promise<AdminUsersPage>;
   storageKeys(userId: string): Promise<string[]>;
@@ -57,3 +59,16 @@ export interface IAdminRepository {
 }
 
 export const ADMIN_REPOSITORY = Symbol('IAdminRepository');
+
+export type AdminGiftPlusInput = {
+  actorId: string;
+  userId: string;
+  durationDays: number;
+  requestId: string;
+  now: Date;
+  rolloutAt: Date;
+  trialDays: number;
+};
+
+export type AdminGiftPlusResult =
+  { status: 'applied'; paidUntil: Date } | { status: 'not-found' | 'conflict' };
