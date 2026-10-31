@@ -12,6 +12,8 @@ import { AppNotFound } from "@/components/app-states";
 import { registerServiceWorker } from "@/lib/pwa/register-service-worker";
 import "@/styles/globals.css";
 
+const SITE_ORIGIN = "https://sydia.muslimmujahid.com";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
     head: () => ({
@@ -27,6 +29,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           content:
             "Asisten pribadi untuk mencatat, mengingat, dan menindaklanjuti hal penting.",
         },
+        { property: "og:type", content: "website" },
+        { property: "og:site_name", content: "Sydia" },
+        {
+          property: "og:title",
+          content: "Sydia · Asisten pribadi yang selalu ingat",
+        },
+        {
+          property: "og:description",
+          content:
+            "Pengingat, tugas, catatan, sampai file. Titip semuanya lewat WhatsApp, Telegram, atau web.",
+        },
+        { property: "og:image", content: `${SITE_ORIGIN}/og-image.png` },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "880" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: `${SITE_ORIGIN}/og-image.png` },
       ],
       links: [
         {
