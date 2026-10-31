@@ -15,6 +15,8 @@ export const TOOL_GROUPS = {
     'search_documents',
   ],
   notes: [
+    'list_note_questions',
+    'respond_to_note_question',
     'write_daily_note',
     'read_daily_note',
     'search_daily_notes',

@@ -2,7 +2,8 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { PrismaClient } from '../../generated/prisma/client';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { PrismaClient, type Prisma } from '../../generated/prisma/client';
 
 /**
  * Single Prisma client for the whole application.
@@ -13,12 +14,34 @@ import { PrismaClient } from '../../generated/prisma/client';
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
+  private readonly databaseRoot: Prisma.TransactionClient;
+  private readonly transactionScope =
+    new AsyncLocalStorage<Prisma.TransactionClient>();
+
+  /** Repositories participating in a composed commit share this connection. */
+  get client(): Prisma.TransactionClient {
+    return this.transactionScope.getStore() ?? this.databaseRoot;
+  }
+
+  async inTransaction<T>(
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    const active = this.transactionScope.getStore();
+    if (active) return work(active);
+
+    return this.$transaction(
+      (tx) => this.transactionScope.run(tx, () => work(tx)),
+      { timeout: 30_000 },
+    );
+  }
+
   constructor(config: ConfigService) {
     const pool = new Pool({
       connectionString: config.getOrThrow<string>('BACKEND_DB_URL'),
     });
 
     super({ adapter: new PrismaPg(pool, { disposeExternalPool: true }) });
+    this.databaseRoot = this;
   }
 
   async onModuleDestroy(): Promise<void> {

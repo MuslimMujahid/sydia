@@ -6,6 +6,7 @@ import {
   generateText,
   jsonSchema,
   NoOutputGeneratedError,
+  NoObjectGeneratedError,
   Output,
   stepCountIs,
   streamText,
@@ -751,7 +752,13 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   );
                 }
 
-                return { text: finalText, usage: normalizedUsage };
+                return {
+                  text: finalText,
+                  usage: normalizedUsage,
+                  ...(request.includeCompletionMetadata
+                    ? { finishReason: await result.finishReason }
+                    : {}),
+                };
               }
 
               const result = await generateText(options(terminalText));
@@ -787,7 +794,13 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 costUsd: normalizedUsage.costUsd,
               });
 
-              return { text: finalText, usage: normalizedUsage };
+              return {
+                text: finalText,
+                usage: normalizedUsage,
+                ...(request.includeCompletionMetadata
+                  ? { finishReason: result.finishReason }
+                  : {}),
+              };
             } catch (error) {
               trace.update({ error: traceError(error) });
               throw error;
@@ -800,7 +813,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             !textEmitted &&
             toolsRetrySafe(request.retrySafeTools, [...executedToolNames]) &&
             (retryableApiError(error) ||
-              NoOutputGeneratedError.isInstance(error));
+              NoOutputGeneratedError.isInstance(error) ||
+              (Boolean(request.outputSchema) &&
+                NoObjectGeneratedError.isInstance(error)));
 
           this.logger.warn(
             JSON.stringify({
@@ -834,7 +849,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             !lastTextEmitted &&
             toolsRetrySafe(request.retrySafeTools, lastExecutedToolNames) &&
             (retryableApiError(error) ||
-              NoOutputGeneratedError.isInstance(error));
+              NoOutputGeneratedError.isInstance(error) ||
+              (Boolean(request.outputSchema) &&
+                NoObjectGeneratedError.isInstance(error)));
 
           if (!canRetry || request.abortSignal?.aborted) throw error;
 

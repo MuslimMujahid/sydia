@@ -15,4 +15,6 @@ export default {
     '/node_modules/(?!(@nestjs|better-auth|better-call|better-fetch|@noble|@standard-schema|defu|jose|kysely|nanostores|rou3|set-cookie-parser|zod)/)',
   ],
   testEnvironment: 'node',
+  // Recycle workers between suites so ESM transforms do not accumulate indefinitely.
+  workerIdleMemoryLimit: '512MB',
 };

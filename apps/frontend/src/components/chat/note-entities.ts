@@ -63,6 +63,9 @@ export function collectNoteEntities(invocation: ToolInvocation): {
     return result;
   }
 
+  // A successfully accepted pending request has no resulting note identity yet.
+  if (output.status === "deferred" && output.saved === false) return result;
+
   const mutation = [
     "create_custom_note",
     "update_custom_note",

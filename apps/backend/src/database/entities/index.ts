@@ -24,3 +24,4 @@ export * from './whatsapp-connection.entity';
 
 export * from './billing.entity';
 export * from './assistant-action.entity';
+export * from './note-work.entity';

@@ -1,3 +1,8 @@
+import { NoteAgentCoordinatorService } from './modules/conversations/services/note-agent-coordinator.service';
+import {
+  processNoteOrganizationJob,
+  registerNoteOrganizationRecovery,
+} from './modules/notes/note-organization.job';
 import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
@@ -25,6 +30,7 @@ import {
   type MemoryDreamJob,
   type MemoryDeliveryJob,
   type MemoryIngestionJob,
+  type NoteOrganizationJob,
 } from './infra/queue';
 import { DocumentService, processDocumentJob } from './modules/documents';
 import { MessagingHandlerService } from './modules/messaging';
@@ -133,6 +139,22 @@ async function bootstrap(): Promise<void> {
       concurrency: config.get<number>('BACKEND_DOCUMENT_CONCURRENCY', 1),
     },
   );
+
+  const noteOrganization = context.get(NoteAgentCoordinatorService);
+  const noteOrganizationWorker = new Worker<NoteOrganizationJob>(
+    'note-organizations',
+    (job) => processNoteOrganizationJob(noteOrganization, job.data),
+    { connection, concurrency: 1 },
+  );
+
+  noteOrganizationWorker.on('failed', (job, error) =>
+    Logger.error(
+      `Note organization job ${job?.id} failed; durable work remains pending.`,
+      error.stack,
+      'NoteOrganizationWorker',
+    ),
+  );
+  await registerNoteOrganizationRecovery(queues.noteOrganizations);
 
   const memoryDreamWorker = new Worker<MemoryDreamJob>(
     'memory-dreams',
@@ -325,6 +347,7 @@ async function bootstrap(): Promise<void> {
     // alive until preparation and the response finish.
     await context.get(MessagingHandlerService).stopAndDrain();
     await Promise.all([
+      noteOrganizationWorker.close(),
       billingWorker.close(),
       reminderWorker.close(),
       calendarReminderWorker.close(),

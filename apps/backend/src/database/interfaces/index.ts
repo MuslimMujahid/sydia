@@ -28,3 +28,6 @@ export * from './whatsapp-connection.repository.interface';
 
 export * from './billing.repository.interface';
 export * from './assistant-action.repository.interface';
+export * from './note-presence.repository.interface';
+export * from './note-work.repository.interface';
+export * from './note-agent-run.repository.interface';

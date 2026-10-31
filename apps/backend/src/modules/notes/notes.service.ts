@@ -294,6 +294,34 @@ export class NotesService {
     );
   }
 
+  /** Preview against one owner snapshot; this performs no writes or indexing. */
+  async preview(userId: string, command: WorkspaceCommand, at: Date) {
+    const items = await this.repository.list(userId);
+    const target = items.find((item) => item.id === command.id);
+    if (
+      command.action !== 'create' &&
+      (!target || target.revision !== command.revision)
+    )
+      throw new Error(
+        'Read the current owner note revision before proposing an edit.',
+      );
+    const commit = applyWorkspaceCommand(items, command, {
+      userId,
+      now: at,
+      sourceType: 'proposal',
+    });
+
+    return {
+      expectedVersion: target ? String(target.revision) : null,
+      item: commit.result,
+      effect: {
+        action: command.action,
+        writes: commit.writes,
+        deletes: commit.deletes,
+      },
+    };
+  }
+
   async execute(
     userId: string,
     command: WorkspaceCommand,

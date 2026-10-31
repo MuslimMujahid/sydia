@@ -19,6 +19,54 @@ describe('rich text document parsing', () => {
     expect(parseRichTextDocument({ type: 'doc', content: {} })).toBeNull();
   });
 
+  test('rejects a nested marked text node whose type was lost', () => {
+    expect(
+      parseRichTextDocument({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ text: 'Bukti tersimpan', marks: [{ type: 'bold' }] }],
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  test('rejects primitive children instead of silently dropping their content', () => {
+    expect(
+      parseRichTextDocument({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: ['record'] }],
+      }),
+    ).toBeNull();
+  });
+
+  test('rejects a text node without string content', () => {
+    expect(
+      parseRichTextDocument({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 42 }] }],
+      }),
+    ).toBeNull();
+  });
+
+  test('rejects malformed formatting marks', () => {
+    expect(
+      parseRichTextDocument({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'record', marks: [{ bold: true }] },
+            ],
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
   test('keeps unknown node types the editor may add later', () => {
     const document = parseRichTextDocument({
       type: 'doc',

@@ -36,6 +36,7 @@ describe('skill catalog', () => {
     expect(skills.map((item) => item.name)).toEqual([
       'commitment-capture',
       'meeting-preparation',
+      'note-capture',
       'scheduling',
       'work-resumption',
     ]);

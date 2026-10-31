@@ -1,3 +1,6 @@
+import { ApiException, ErrorCodes } from '../../../shared/errors';
+import { toolErrorContent } from './tool-executor.service';
+import { HttpStatus } from '@nestjs/common';
 import { jest } from '@jest/globals';
 import type { Prisma } from '../../../generated/prisma/client';
 import type { IConversationRepository } from '../../../database/interfaces';
@@ -731,4 +734,17 @@ describe('selected sources with an open note', () => {
       expect(read).toHaveBeenCalledTimes(shouldRead ? 1 : 0);
     },
   );
+});
+
+test('tool failures expose the domain validation message instead of the generic exception name', () => {
+  const error = new ApiException({
+    code: ErrorCodes.BAD_REQUEST,
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Isi catatan tidak valid.',
+  });
+
+  expect(JSON.parse(toolErrorContent(error))).toEqual({
+    error: 'tool_failed',
+    message: 'Isi catatan tidak valid.',
+  });
 });

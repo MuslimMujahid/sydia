@@ -28,3 +28,6 @@ export * from './prisma-whatsapp-connection.repository';
 
 export * from './prisma-billing.repository';
 export * from './prisma-assistant-action.repository';
+export * from './prisma-note-presence.repository';
+export * from './prisma-note-work.repository';
+export * from './prisma-note-agent-run.repository';

@@ -48,6 +48,8 @@ export type GenerateRequest = {
   temperature?: number;
   maxOutputTokens?: number;
   maxSteps?: number;
+  /** Include the provider finish reason for callers that must verify a completed run. */
+  includeCompletionMetadata?: boolean;
   /** Optional provider-enforced JSON shape for non-streaming policy/classification. */
   outputSchema?: JSONSchema7;
   /** Keep model/token/cost tracing while withholding additional copies of sensitive content. */
@@ -80,6 +82,7 @@ export type GenerateRequest = {
 
 export type GenerateResult = {
   text: string;
+  finishReason?: string;
   usage: { inputTokens?: number; outputTokens?: number; costUsd?: number };
 };
 

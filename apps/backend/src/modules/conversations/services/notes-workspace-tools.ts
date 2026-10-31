@@ -1,6 +1,6 @@
 import { withNoteReferenceGuidance } from './note-tool-references';
 import type { NotesService } from '../../notes/notes.service';
-import { plainTextToRichText } from '../../../shared/rich-text';
+import { prepareNoteWorkspaceCommand } from './note-workspace-command';
 import type { AssistantTool } from './tool-executor.service';
 
 type ToolJson = ReturnType<AssistantTool['parseArguments']>;
@@ -26,25 +26,6 @@ function text(
     throw new Error(`${key} must be non-empty text.`);
 
   return value.trim();
-}
-
-function parent(input: Record<string, unknown>): string | null | undefined {
-  if (input.parentId === null) return null;
-
-  return text(input, 'parentId', false);
-}
-
-function revision(input: Record<string, unknown>): number {
-  if (
-    typeof input.revision !== 'number' ||
-    !Number.isInteger(input.revision) ||
-    input.revision < 1
-  )
-    throw new Error(
-      'Read the current item and pass its revision before editing it.',
-    );
-
-  return input.revision;
 }
 
 function json(value: unknown): ToolJson {
@@ -137,37 +118,39 @@ export function createNotesWorkspaceTools(
         name: 'create_custom_note',
         label: 'Create custom note',
         description:
-          'Create a freely titled custom note when the user explicitly asks for a custom note or names a folder destination. Resolve the folder first. An unspecified quick capture such as “catat ini” belongs to today’s daily note via write_daily_note. Optional text initializes a new document; omit it for a saved empty note. Do not create unresolved linked notes unless requested.',
+          'Create a freely titled custom note when it is a useful maintained home for the owner’s records or when requested. Honor explicit destinations; inspect existing notes and paths when needed. A daily note is a useful default when a better home is not established. Optional content is the complete Tiptap document, preserving formatting and real noteLink target identities. Optional text initializes a document when content is omitted. Omit both for an empty note. A plain source label is not a link; use a noteLink node for a confirmed target.',
         parameters: parameters(
           {
             title: { type: 'string' },
             parentId: { ...parentId, type: ['string', 'null'] },
             text: { type: 'string' },
+            content: {
+              type: 'object',
+              additionalProperties: true,
+              description:
+                'Complete initial Tiptap JSON document, including actual noteLink nodes when links are intended. Takes precedence over text.',
+            },
           },
           ['title'],
         ),
       },
       parseArguments: (value) => json(record(value)),
-      execute: async ({ userId, arguments: raw, idempotencyKey, context }) => {
-        const input = record(raw);
-        const body = text(input, 'text', false);
-
-        return json(
-          await notes.create(
+      execute: async ({ userId, arguments: raw, idempotencyKey, context }) =>
+        json(
+          await notes.execute(
             userId,
-            {
-              kind: 'note',
-              title: text(input, 'title')!,
-              parentId: parent(input),
-              requestKey: idempotencyKey,
-              ...(body === undefined
-                ? {}
-                : { content: plainTextToRichText(body) }),
-            },
+            prepareNoteWorkspaceCommand(
+              notes,
+              'create_custom_note',
+              record(raw),
+              {
+                userId,
+                requestKey: idempotencyKey,
+              },
+            ),
             context?.channel ?? 'chat',
           ),
-        );
-      },
+        ),
     },
     {
       definition: {
@@ -187,25 +170,22 @@ export function createNotesWorkspaceTools(
         ),
       },
       parseArguments: (value) => json(record(value)),
-      execute: async ({ userId, arguments: raw, context }) => {
-        const input = record(raw);
-
-        return json(
-          await notes.update(
+      execute: async ({ userId, arguments: raw, idempotencyKey, context }) =>
+        json(
+          await notes.execute(
             userId,
-            text(input, 'id')!,
-            {
-              revision: revision(input),
-              title: text(input, 'title', false),
-              parentId: parent(input),
-              ...(input.content === undefined
-                ? {}
-                : { content: input.content }),
-            },
+            prepareNoteWorkspaceCommand(
+              notes,
+              'update_custom_note',
+              record(raw),
+              {
+                userId,
+                requestKey: idempotencyKey,
+              },
+            ),
             context?.channel ?? 'chat',
           ),
-        );
-      },
+        ),
     },
     {
       definition: {
@@ -236,73 +216,22 @@ export function createNotesWorkspaceTools(
         ),
       },
       parseArguments: (value) => json(record(value)),
-      execute: async ({ userId, arguments: raw, idempotencyKey, context }) => {
-        const input = record(raw);
-        const source = context?.channel ?? 'chat';
-        const action = text(input, 'action');
-        if (action === 'create_folder')
-          return json(
-            await notes.create(
-              userId,
-              {
-                kind: 'folder',
-                title: text(input, 'title')!,
-                parentId: parent(input),
-                requestKey: idempotencyKey,
-              },
-              source,
-            ),
-          );
-        const itemId = text(input, 'id')!;
-        const version = revision(input);
-        if (action === 'rename')
-          return json(
-            await notes.update(
-              userId,
-              itemId,
-              { revision: version, title: text(input, 'title')! },
-              source,
-            ),
-          );
-
-        if (action === 'move') {
-          const destination = parent(input);
-          if (destination === undefined)
-            throw new Error(
-              'Choose parentId explicitly; null moves to the root.',
-            );
-
-          return json(
-            await notes.update(
-              userId,
-              itemId,
-              { revision: version, parentId: destination },
-              source,
-            ),
-          );
-        }
-
-        if (action !== 'trash' && action !== 'restore' && action !== 'delete')
-          throw new Error('Unknown workspace operation.');
-        if (action === 'delete' && input.permanentDeletionRequested !== true)
-          throw new Error(
-            'Ordinary deletion moves to Trash. Permanent deletion requires an explicit user request.',
-          );
-
-        return json(
+      execute: async ({ userId, arguments: raw, idempotencyKey, context }) =>
+        json(
           await notes.execute(
             userId,
-            {
-              action,
-              id: itemId,
-              revision: version,
-              title: text(input, 'title', false),
-              parentId: parent(input),
-            },
-            source,
+            prepareNoteWorkspaceCommand(
+              notes,
+              'manage_notes_item',
+              record(raw),
+              {
+                userId,
+                requestKey: idempotencyKey,
+              },
+            ),
+            context?.channel ?? 'chat',
           ),
-        );
-      },
+        ),
     },
   ];
 

@@ -1,9 +1,12 @@
 import { schemaOnlyTools } from './optimization.tool-schemas';
 import { toolNamesForGroups } from '../../src/modules/conversations/services/tool-groups';
 
-test('real schemas cover all 45 domain tools without any executable function', () => {
+test('real schemas cover domain and note clarification tools without any executable function', () => {
   const tools = schemaOnlyTools();
-  expect(Object.keys(tools)).toHaveLength(45);
+  expect(Object.keys(tools)).toHaveLength(47);
+  expect(Object.keys(tools)).toEqual(
+    expect.arrayContaining(['list_note_questions', 'respond_to_note_question']),
+  );
   for (const value of Object.values(tools))
     expect(value.execute).toBeUndefined();
   expect(tools.create_task?.description).toContain('task');

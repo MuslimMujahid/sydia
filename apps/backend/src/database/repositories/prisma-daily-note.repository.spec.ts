@@ -43,7 +43,7 @@ function repositoryWith(
   };
 
   const prisma = {
-    $transaction: jest.fn((work: (tx: Transaction) => Promise<unknown>) =>
+    inTransaction: jest.fn((work: (tx: Transaction) => Promise<unknown>) =>
       work(tx),
     ),
   } as unknown as PrismaService;

@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ApiException } from '../../../shared/errors';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   jsonSchema,
   tool,
@@ -16,6 +17,7 @@ import type {
   SupportedLocale,
 } from '../../../database/entities';
 import type { MessageProvider } from '../../../shared/messaging';
+import type { NoteWork } from '../../../database/entities';
 import { terminalToolInputSchema } from './terminal-tool-response';
 
 export type AssistantToolDefinition = {
@@ -52,6 +54,12 @@ export type AssistantToolExecutionContext = {
   /** Evaluation clock for background runs (controlled in QA harnesses). */
   now?: Date;
   skills?: AssistantSkillState;
+  /** Shared across all calls and SDK steps in a bounded agent run. */
+  toolBudget?: { remaining: number; exceeded?: boolean };
+  /** Unresolved failed note mutations in a bounded background run. */
+  noteMutationFailures?: Set<string>;
+  /** Authenticated durable source supplied by the note recovery coordinator. */
+  noteSourceWork?: NoteWork;
 };
 
 export type AssistantTool = {
@@ -109,10 +117,24 @@ const PRISMA_CODE_FRAME_LINE =
   /^\s*(?:→\s*)?(?:\d+\s+\S|\S*\.(?:ts|js|mjs|cjs|prisma):\d+(?::\d+)?\s*$)/;
 
 function toolErrorContent(error: unknown): string {
-  const message =
+  let message =
     error instanceof Error && error.message.trim()
       ? error.message
       : 'Tool execution failed.';
+
+  if (error instanceof ApiException) {
+    const response = error.getResponse();
+    if (
+      typeof response === 'object' &&
+      response &&
+      'error' in response &&
+      response.error &&
+      typeof response.error === 'object' &&
+      'message' in response.error &&
+      typeof response.error.message === 'string'
+    )
+      message = response.error.message;
+  }
 
   // Prisma's gutter and source path are noise that crowd the actual cause out
   // of the truncation window; drop them so the model still sees the reason.
@@ -295,18 +317,72 @@ export class ToolExecutorService {
               if (toolsReady) await toolsReady;
               if (abortSignal?.aborted) throw abortSignal.reason;
 
-              if (assistantTool.internal || context?.trigger === 'background') {
-                const result = await assistantTool.execute({
-                  userId,
-                  sourceMessageId: inputMessageId,
-                  arguments: assistantTool.parseArguments(
-                    stripCompleteTurn(input),
-                  ),
-                  idempotencyKey: `${inputMessageId}:${options.toolCallId}`,
-                  context,
-                });
+              if (
+                context?.skills?.allowedTools &&
+                !context.skills.allowedTools.has(definition.name)
+              ) {
+                Logger.warn(
+                  'Rejected tool outside the bounded agent authority.',
+                  'ToolExecutorService',
+                );
+                throw new Error('Tool is outside this agent run authority.');
+              }
 
-                return JSON.stringify(result);
+              if (context?.toolBudget) {
+                if (context.toolBudget.remaining <= 0) {
+                  context.toolBudget.exceeded = true;
+                  Logger.warn(
+                    'Bounded agent exhausted its tool-call budget.',
+                    'ToolExecutorService',
+                  );
+                  throw new Error(
+                    'Agent tool-call budget exhausted; unfinished work must remain pending.',
+                  );
+                }
+
+                context.toolBudget.remaining -= 1;
+              }
+
+              if (assistantTool.internal || context?.trigger === 'background') {
+                const tracksFailure =
+                  context?.noteMutationFailures &&
+                  assistantTool.readOnly !== true;
+
+                const operation =
+                  input &&
+                  typeof input === 'object' &&
+                  !Array.isArray(input) &&
+                  'operationId' in input &&
+                  typeof input.operationId === 'string'
+                    ? input.operationId
+                    : options.toolCallId;
+
+                const failureKey = `${definition.name}:${operation}`;
+
+                try {
+                  const result = await assistantTool.execute({
+                    userId,
+                    sourceMessageId: inputMessageId,
+                    arguments: assistantTool.parseArguments(
+                      stripCompleteTurn(input),
+                    ),
+                    idempotencyKey: `${inputMessageId}:${options.toolCallId}`,
+                    context,
+                  });
+
+                  if (tracksFailure)
+                    context.noteMutationFailures!.delete(failureKey);
+
+                  return JSON.stringify(result);
+                } catch (error) {
+                  if (tracksFailure)
+                    context.noteMutationFailures!.add(failureKey);
+                  Logger.warn(
+                    'Background tool failed; unfinished mutations must remain recoverable.',
+                    'ToolExecutorService',
+                  );
+                  throw new Error(toolErrorContent(error), { cause: error });
+                }
               }
 
               const call = {

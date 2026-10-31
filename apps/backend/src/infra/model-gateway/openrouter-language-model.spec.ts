@@ -135,10 +135,12 @@ describe('OpenRouterLanguageModel', () => {
         userId: 'user-1',
         conversationId: 'conversation-1',
         runId: 'run-1',
+        includeCompletionMetadata: true,
         messages: [{ role: 'user', content: 'Halo' }],
       }),
     ).resolves.toEqual({
       text: 'Halo kembali.',
+      finishReason: 'stop',
       usage: { inputTokens: 11, outputTokens: 7 },
     });
 
@@ -548,6 +550,95 @@ describe('OpenRouterLanguageModel', () => {
     expect(JSON.stringify(diagnostic)).not.toContain('secret-key');
     expect(JSON.stringify(diagnostic)).not.toContain('api_key');
     expect(diagnostic?.providerMessage?.length).toBeLessThanOrEqual(12_000);
+  });
+
+  it('retries malformed structured output before returning a valid object', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doGenerate: () => {
+        calls += 1;
+
+        return Promise.resolve({
+          content: [
+            {
+              type: 'text' as const,
+              text: calls === 1 ? 'not a JSON object' : '{"items":[]}',
+            },
+          ],
+          finishReason: { unified: 'stop' as const, raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 2,
+              noCache: 2,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: { total: 4, text: 4, reasoning: undefined },
+          },
+          warnings: [],
+        });
+      },
+    });
+
+    const result = await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Classify this question.' }],
+      outputSchema: {
+        type: 'object',
+        properties: { items: { type: 'array', items: { type: 'string' } } },
+        required: ['items'],
+        additionalProperties: false,
+      },
+    });
+
+    expect(JSON.parse(result.text)).toEqual({ items: [] });
+    expect(calls).toBe(2);
+  });
+
+  it('stops malformed structured-output retries at the configured attempt limit', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doGenerate: () => {
+        calls += 1;
+
+        return Promise.resolve({
+          content: [{ type: 'text' as const, text: 'not a JSON object' }],
+          finishReason: { unified: 'stop' as const, raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 2,
+              noCache: 2,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: { total: 4, text: 4, reasoning: undefined },
+          },
+          warnings: [],
+        });
+      },
+    });
+
+    const gateway = model({
+      BACKEND_MODEL_API_KEY: 'test-key',
+      BACKEND_MODEL_MAX_ATTEMPTS: '2',
+    });
+
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+    await expect(
+      gateway.generate({
+        messages: [{ role: 'user', content: 'Classify this question.' }],
+        outputSchema: {
+          type: 'object',
+          properties: { items: { type: 'array', items: { type: 'string' } } },
+          required: ['items'],
+          additionalProperties: false,
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: 'ModelGatewayError',
+      diagnostics: { errorName: 'AI_NoObjectGeneratedError', attempts: 2 },
+    });
+    expect(calls).toBe(2);
   });
 
   it('does not retry a non-retryable API error', async () => {

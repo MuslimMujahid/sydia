@@ -31,6 +31,8 @@ export type ConversationSummaryJob = {
 export type MemoryDeliveryJob =
   { kind: 'recover' } | { kind: 'bank'; bankId: string };
 export type MemoryIngestionJob = { kind: 'recover' };
+export type NoteOrganizationJob =
+  { kind: 'recover' } | { kind: 'user'; userId: string };
 export type NotificationChannel = 'telegram' | 'whatsapp';
 export type NotificationJob = {
   userId: string;
@@ -59,6 +61,8 @@ export type CalendarSyncJob =
   | { kind: 'recover' };
 @Injectable()
 export class QueueService implements OnModuleDestroy {
+  readonly noteOrganizations: Queue<NoteOrganizationJob>;
+
   readonly billing: Queue<{ kind: 'recover' }>;
   readonly reminders: Queue<ReminderJob>;
   readonly documents: Queue<DocumentJob>;
@@ -85,6 +89,10 @@ export class QueueService implements OnModuleDestroy {
       removeOnFail: 1000,
     };
 
+    this.noteOrganizations = new Queue('note-organizations', {
+      connection,
+      defaultJobOptions,
+    });
     this.billing = new Queue('billing', { connection, defaultJobOptions });
 
     this.reminders = new Queue<ReminderJob>('reminders', {
@@ -151,6 +159,7 @@ export class QueueService implements OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     await this.billing.close();
     await Promise.all([
+      this.noteOrganizations.close(),
       this.reminders.close(),
       this.documents.close(),
       this.memoryDreams.close(),

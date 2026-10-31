@@ -26,6 +26,20 @@ function tool(
 }
 
 describe("confirmed note references", () => {
+  it("does not report a missing reference for a deferred note write", () => {
+    const result = collectChatEntities([
+      tool("write_daily_note", {
+        status: "deferred",
+        reason: "note_open",
+        workId: "pending-1",
+        saved: false,
+      }),
+    ]);
+
+    assert.deepEqual(result.entities, []);
+    assert.deepEqual(result.diagnostics, []);
+  });
+
   it("turns the previously plain custom-note title into a confirmed mention", () => {
     const { entities } = collectChatEntities([
       tool("search_notes", {

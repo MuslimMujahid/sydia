@@ -103,7 +103,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
     range?: DailyNoteRange,
   ): Promise<DailyNoteSummary[]> {
     const date = dateFilter(range);
-    const rows = await this.prisma.dailyNote.findMany({
+    const rows = await this.prisma.client.dailyNote.findMany({
       where: { userId, ...(date ? { date } : {}) },
       orderBy: { date: 'desc' },
       select: { date: true, text: true, updatedAt: true },
@@ -117,7 +117,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
   }
 
   async findByDate(userId: string, date: string): Promise<DailyNote | null> {
-    const row = await this.prisma.dailyNote.findUnique({
+    const row = await this.prisma.client.dailyNote.findUnique({
       where: { userId_date: { userId, date } },
       select: noteSelect,
     });
@@ -130,7 +130,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
       const expectedUpdatedAt = input.expectedUpdatedAt;
 
       try {
-        return await this.prisma.$transaction(async (tx) => {
+        return await this.prisma.inTransaction(async (tx) => {
           const data = {
             timezone: input.timezone,
             content: input.content,
@@ -184,7 +184,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
       }
     }
 
-    const row = await this.prisma.dailyNote.upsert({
+    const row = await this.prisma.client.dailyNote.upsert({
       where: { userId_date: { userId, date: input.date } },
       create: {
         userId,
@@ -214,7 +214,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
     expectedUpdatedAt?: Date | null,
   ): Promise<boolean> {
     if (expectedUpdatedAt === null) {
-      const existing = await this.prisma.dailyNote.findUnique({
+      const existing = await this.prisma.client.dailyNote.findUnique({
         where: { userId_date: { userId, date } },
         select: { id: true },
       });
@@ -224,7 +224,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
       return false;
     }
 
-    const deleted = await this.prisma.dailyNote.deleteMany({
+    const deleted = await this.prisma.client.dailyNote.deleteMany({
       where: {
         userId,
         date,
@@ -248,7 +248,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
     date: string,
     input: { signature: string; chunks: string[] },
   ): Promise<DailyNoteChunk[]> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.inTransaction(async (tx) => {
       const note = await tx.dailyNote.findUnique({
         where: { userId_date: { userId, date } },
         select: { id: true, text: true },
@@ -293,14 +293,14 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
   }
 
   async markIndexPending(userId: string, date: string): Promise<void> {
-    await this.prisma.$executeRaw(Prisma.sql`
+    await this.prisma.client.$executeRaw(Prisma.sql`
       UPDATE daily_note SET "indexPending" = true
       WHERE "userId" = ${userId} AND date = ${date}
     `);
   }
 
   async indexState(userId: string, date: string) {
-    const note = await this.prisma.dailyNote.findUnique({
+    const note = await this.prisma.client.dailyNote.findUnique({
       where: { userId_date: { userId, date } },
       select: { id: true, indexPending: true, indexSignature: true },
     });
@@ -308,8 +308,10 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
     if (!note) return null;
 
     const [chunkCount, embeddedCount] = await Promise.all([
-      this.prisma.dailyNoteChunk.count({ where: { dailyNoteId: note.id } }),
-      this.prisma.$queryRaw<Array<{ count: number }>>(
+      this.prisma.client.dailyNoteChunk.count({
+        where: { dailyNoteId: note.id },
+      }),
+      this.prisma.client.$queryRaw<Array<{ count: number }>>(
         Prisma.sql`SELECT COUNT(*)::int AS "count" FROM daily_note_chunk WHERE "dailyNoteId" = ${note.id} AND "embedding" IS NOT NULL`,
       ),
     ]);
@@ -330,7 +332,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
   ): Promise<void> {
     const vector = vectorLiteral(embedding);
 
-    await this.prisma.$executeRaw(
+    await this.prisma.client.$executeRaw(
       Prisma.sql`UPDATE daily_note_chunk SET "embedding" = ${vector}::vector, "embeddingModel" = ${model}, "embeddingVersion" = ${version} WHERE "id" = ${id}`,
     );
   }
@@ -343,7 +345,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
   ): Promise<DailyNoteChunkMatch[]> {
     const date = dateFilter(range);
 
-    return this.prisma.dailyNoteChunk.findMany({
+    return this.prisma.client.dailyNoteChunk.findMany({
       where: {
         userId,
         content: { contains: query, mode: 'insensitive' },
@@ -366,7 +368,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
     // No distance ceiling: the ranking itself is the filter. A fixed cutoff
     // silently drops a note whose wording merely differs from the question, and
     // the consumer is a model that can judge a weak passage for itself.
-    return this.prisma.$queryRaw<DailyNoteChunkMatch[]>(
+    return this.prisma.client.$queryRaw<DailyNoteChunkMatch[]>(
       Prisma.sql`SELECT "date", "chunkIndex", "content" FROM daily_note_chunk WHERE "userId" = ${userId} AND "embedding" IS NOT NULL ${dateClause(range)} ORDER BY "embedding" <=> ${vector}::vector LIMIT ${limit}`,
     );
   }
@@ -374,7 +376,7 @@ export class PrismaDailyNoteRepository implements IDailyNoteRepository {
   async listPendingIndex(
     limit: number,
   ): Promise<Array<{ userId: string; date: string }>> {
-    const rows = await this.prisma.dailyNote.findMany({
+    const rows = await this.prisma.client.dailyNote.findMany({
       where: { indexPending: true, text: { not: '' } },
       orderBy: { updatedAt: 'asc' },
       take: limit,

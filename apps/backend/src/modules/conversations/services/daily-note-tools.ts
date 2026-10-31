@@ -1,12 +1,9 @@
+import { prepareDailyNoteWrite } from './daily-note-write';
 import { withNoteReferenceGuidance } from './note-tool-references';
 import type { JSONSchema7 } from 'ai';
 import type { Prisma } from '../../../generated/prisma/client';
 import { isDayKey } from '../../../database/entities';
-import {
-  plainTextToRichText,
-  richTextToMarkedText,
-  parseRichTextDocument,
-} from '../../../shared/rich-text';
+import { richTextToMarkedText } from '../../../shared/rich-text';
 import {
   DailyNoteService,
   dayKeyOffset,
@@ -85,17 +82,17 @@ export function createDailyNoteTools(deps: {
       label: 'Write daily note',
       description: `Use this tool to write in the user's daily note (catatan harian) — the day-by-day journal.
 
-Use it whenever the user asks to note, record, journal, or "catat" something for a day, including attendance, what happened, or what they studied. The diary is the right place for a dated record of events, observations, and activities.
+Use it for a requested daily destination or when the daily note is the useful home for a capture, including dated events, observations, attendance, or study activities. Use note-capture skill guidance to choose the home; an established dedicated record can receive a capture directly through custom-note tools.
 
-Do not use it for a durable fact or preference with no date (use save_memory), for something to be reminded about (use create_reminder), or for an action item with a deadline (use create_task).
+Memory eligibility for personal context is independent of whether information needs a maintained note. Use create_reminder for scheduled notifications and create_task for actionable work when the request calls for those capabilities.
 
 date defaults to today in the owner's timezone; pass an explicit date only when the user names a different day.
 
 The note is addressed as a whole. text is the complete resulting note for that day, not a fragment to add — whatever you send replaces the day's content in its entirety. So read_daily_note for that date first, fold the new information into the text you read, and send the full note back. When the day has no note yet, the text you send is the new note and there is nothing to read.
 
-For an existing note, also send document (the complete Tiptap JSON from read_daily_note with only the requested changes) and expectedUpdatedAt (the exact updatedAt you read). Preserve unchanged nodes, formatting marks, and noteLink targets. A stale version is rejected; reread and resolve the user's request instead of blindly retrying an old document. A capture without a custom note or folder destination still belongs in this daily note. Named custom notes and folders use the custom-note tools.
+For an existing note, also send document (the complete Tiptap JSON from read_daily_note with only the requested changes) and expectedUpdatedAt (the exact updatedAt you read). Preserve unchanged nodes, formatting marks, and noteLink targets. A stale version is rejected; reread and resolve the user's request instead of blindly retrying an old document. Without an explicit destination, the daily note is a useful default when no better home is established. Use custom-note tools for a suitable maintained home or a named custom destination.
 
-Place and format the information where it belongs in that note. You may insert a line into an existing group, start a new group with its own heading, reorder groups, reword, or restructure the whole note when that makes it easier to scan — the result, not the edit history, is what the user keeps. Keep everything the user already recorded unless they asked for it to be changed or removed.
+Place and format the information where it belongs in that note. You may insert a line into an existing group, start a new group with its own heading, reorder groups, reword, or restructure the whole note when that makes it easier to scan — the result, not the edit history, is what the user keeps. Preserve unrelated records and genuine separate events. Apply corrections and superseding reports: a newer aggregate for the same period updates the prior aggregate, even without an explicit correction verb. Do not preserve outdated totals as additional transactions.
 
 How to write the note. A note is a record to be scanned and retrieved later, not prose to be read once, so preserve what the user actually said and add nothing.
 
@@ -132,43 +129,12 @@ How to write the note. A note is a record to be scanned and retrieved later, not
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, sourceMessageId, arguments: raw, context }) => {
       const a = object(raw);
-      const content = text(a, 'text')!;
       const requested = text(a, 'date', false);
-
-      if (requested && !isDayKey(requested))
-        throw new Error(
-          'date must be a local calendar date in YYYY-MM-DD form.',
-        );
-
       const date = requested ?? (await deps.dailyNotes.today(userId));
       const existing = await deps.dailyNotes.findByDate(userId, date);
-      const expected = a.expectedUpdatedAt;
-      if (
-        existing &&
-        (typeof expected !== 'string' || a.document === undefined)
-      )
-        throw new Error(
-          'Read the current daily note first, then send document and expectedUpdatedAt to preserve its content and revision.',
-        );
-      if (
-        expected !== undefined &&
-        expected !== null &&
-        (typeof expected !== 'string' ||
-          Number.isNaN(new Date(expected).getTime()))
-      )
-        throw new Error(
-          'expectedUpdatedAt must be the exact timestamp returned by read_daily_note.',
-        );
-      const document =
-        a.document === undefined
-          ? plainTextToRichText(content)
-          : parseRichTextDocument(a.document);
+      const prepared = prepareDailyNoteWrite(a, date, existing);
+      const { document, expectedUpdatedAt } = prepared;
 
-      if (!document) throw new Error('Invalid Tiptap document.');
-
-      // `text()` rejects blank content, so the day always keeps the text the
-      // model wrote; the guard below only documents that saving the complete
-      // note can never silently turn a write into a deletion.
       const note = await deps.dailyNotes.save(userId, {
         date,
         document,
@@ -177,8 +143,7 @@ How to write the note. A note is a record to be scanned and retrieved later, not
             ? context.channel
             : 'chat',
         sourceMessageId,
-        expectedUpdatedAt:
-          typeof expected === 'string' ? new Date(expected) : null,
+        expectedUpdatedAt,
       });
 
       if (!note)
@@ -188,7 +153,7 @@ How to write the note. A note is a record to be scanned and retrieved later, not
 
       return {
         date: note.date,
-        written: content,
+        written: prepared.text,
         noteId: note.id,
       };
     },

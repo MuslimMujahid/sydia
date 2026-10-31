@@ -194,3 +194,17 @@ export function searchWorkspaceNotes(
 export function getNoteBacklinks(target: string) {
   return request<NoteEntry[]>("get", "/notes/backlinks", undefined, { target });
 }
+
+export function acquireNotePresence(ref: string, sessionId: string) {
+  return request<{ expiresAt: string }>("post", "/notes/presence/acquire", {
+    ref,
+    sessionId,
+  });
+}
+
+export function releaseNotePresence(ref: string, sessionId: string) {
+  return request<{ released: true }>("post", "/notes/presence/release", {
+    ref,
+    sessionId,
+  });
+}

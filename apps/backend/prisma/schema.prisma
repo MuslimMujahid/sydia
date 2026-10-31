@@ -21,6 +21,8 @@ enum AssistantPersona {
 }
 
 model User {
+  noteWork NoteWork[]
+  noteEditorPresences NoteEditorPresence[]
   id                       String                    @id
   name                     String
   email                    String                    @unique
@@ -1621,4 +1623,53 @@ model AssistancePreference {
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("assistance_preference")
+}
+
+/// Live owner-scoped editor leases; note refs include empty daily-note dates.
+model NoteEditorPresence {
+  userId String
+  ref String
+  sessionId String
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, ref, sessionId])
+  @@index([userId, ref, expiresAt])
+  @@map("note_editor_presence")
+}
+
+/// Independent durable ledger for capture, organization, and linking.
+model NoteWork {
+  clarificationMessageId String?
+  id String @id @default(cuid())
+  userId String
+  key String
+  sourceKind String
+  sourceRef String
+  sourceVersion String
+  sourceAt DateTime
+  timezone String
+  sourceContent String
+  destinationRef String?
+  stage String
+  status String @default("pending")
+  payload Json
+  result Json?
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  lastErrorCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, key])
+  @@index([status, nextAttemptAt])
+  @@index([userId, sourceKind, sourceRef])
+  @@map("note_work")
+}
+
+/// Feature activation boundary prevents accidental historical backfills.
+model NoteOrganizationState {
+  id String @id
+  activatedAt DateTime @default(now())
+  @@map("note_organization_state")
 }

@@ -68,6 +68,50 @@ function headingOf(level: number, line: string): Prisma.InputJsonValue {
 export function parseRichTextDocument(value: unknown): RichTextDocument | null {
   if (!isNode(value) || value.type !== 'doc') return null;
   if (value.content !== undefined && !Array.isArray(value.content)) return null;
+  const pending: Array<{ value: unknown; depth: number }> = [
+    { value, depth: 0 },
+  ];
+
+  let count = 0;
+
+  while (pending.length) {
+    const entry = pending.pop()!;
+    const node = entry.value;
+    if (
+      ++count > MAX_NODES ||
+      entry.depth > MAX_DEPTH ||
+      !isNode(node) ||
+      typeof node.type !== 'string' ||
+      !node.type.trim()
+    )
+      return null;
+    if (node.type === 'text' && typeof node.text !== 'string') return null;
+    if (node.text !== undefined && node.type !== 'text') return null;
+    if (node.attrs !== undefined && node.attrs !== null && !isNode(node.attrs))
+      return null;
+
+    if (node.marks !== undefined) {
+      if (
+        !Array.isArray(node.marks) ||
+        node.marks.some(
+          (mark: unknown) =>
+            !isNode(mark) ||
+            typeof mark.type !== 'string' ||
+            !mark.type.trim() ||
+            (mark.attrs !== undefined &&
+              mark.attrs !== null &&
+              !isNode(mark.attrs)),
+        )
+      )
+        return null;
+    }
+
+    if (node.content !== undefined) {
+      if (!Array.isArray(node.content)) return null;
+      for (const child of node.content)
+        pending.push({ value: child, depth: entry.depth + 1 });
+    }
+  }
 
   return {
     type: 'doc',

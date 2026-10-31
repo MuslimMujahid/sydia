@@ -25,6 +25,8 @@ import {
 import { ChatPreviewService } from './services/chat-preview.service';
 import { ActiveNoteService } from './services/active-note.service';
 import { ConversationsController } from './conversations.controller';
+import { NoteAgentCoordinatorService } from './services/note-agent-coordinator.service';
+import { NoteOrganizationController } from './note-organization.controller';
 import {
   ASSISTANT_TOOLS,
   AssistantOrchestratorService,
@@ -49,7 +51,7 @@ import {
     SecretsModule,
     SecretaryModule,
   ],
-  controllers: [ConversationsController],
+  controllers: [ConversationsController, NoteOrganizationController],
   providers: [
     ChatPreviewService,
     ActiveNoteService,
@@ -70,8 +72,10 @@ import {
     TurnDecisionService,
     ConversationSummarizerService,
     ToolExecutorService,
+    NoteAgentCoordinatorService,
   ],
   exports: [
+    NoteAgentCoordinatorService,
     AssistantOrchestratorService,
     CONVERSATION_REPOSITORY,
     ToolExecutorService,

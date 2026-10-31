@@ -1,3 +1,8 @@
+import { NoteMutationService } from '../../src/modules/notes/note-mutation.service';
+import {
+  PrismaNotePresenceRepository,
+  PrismaNoteWorkRepository,
+} from '../../src/database/repositories';
 import {
   billingTestAccess,
   billingTestStorage,
@@ -334,6 +339,11 @@ type Turn = {
             queues,
           ),
         ),
+        new NoteMutationService(
+          new PrismaNotePresenceRepository(prisma),
+          new PrismaNoteWorkRepository(prisma),
+        ),
+        new PrismaNoteWorkRepository(prisma),
       );
 
       let calls: Turn['tools'] = [];

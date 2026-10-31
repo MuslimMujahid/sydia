@@ -3,6 +3,7 @@ import { createDomainTools } from '../../src/modules/conversations/services/doma
 import { createPhaseTools } from '../../src/modules/conversations/services/phase-tools';
 import { createDailyNoteTools } from '../../src/modules/conversations/services/daily-note-tools';
 import { createNotesWorkspaceTools } from '../../src/modules/conversations/services/notes-workspace-tools';
+import { createNoteQuestionResponseTools } from '../../src/modules/conversations/services/note-question-tools';
 import { terminalToolInputSchema } from '../../src/modules/conversations/services/terminal-tool-response';
 import { validateToolGroups } from '../../src/modules/conversations/services/tool-groups';
 
@@ -41,6 +42,7 @@ export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
     }),
     ...createDailyNoteTools({ dailyNotes: unavailable() }),
     ...createNotesWorkspaceTools(unavailable()),
+    ...createNoteQuestionResponseTools(unavailable()),
   ].map(({ definition }) => definition);
 
   validateToolGroups(

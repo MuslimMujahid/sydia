@@ -22,6 +22,7 @@ import type {
 import { cn } from "@/lib/utils/cn";
 import { NoteLink, NoteLinksContext, type LinkRequest } from "./note-link";
 import { NoteLinkPicker } from "./note-link-picker";
+import { useNotePresence } from "./use-note-presence";
 import { useNoteAutosave } from "./use-note-autosave";
 import { NoteBacklinks } from "./note-backlinks";
 import { NoteVersionComparison } from "./note-version-comparison";
@@ -47,6 +48,7 @@ type WorkspaceEditorProps = {
   guarded?: boolean;
   available?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  beforeSave?: () => Promise<void>;
 };
 
 function asDocument(content: JSONContent): TiptapDoc {
@@ -80,7 +82,49 @@ function readableText(value: unknown): string {
   return "";
 }
 
-export function WorkspaceEditor({
+export function WorkspaceEditor(props: WorkspaceEditorProps) {
+  return <ProtectedWorkspaceEditor key={props.note.ref} {...props} />;
+}
+
+function ProtectedWorkspaceEditor(props: WorkspaceEditorProps) {
+  const presence = useNotePresence(props.note);
+  if (!presence.note)
+    return (
+      <div className="p-6" aria-busy={!presence.error}>
+        {presence.error ? (
+          <div role="alert">
+            <p>{presence.error}</p>
+            <Button variant="ghost" onClick={presence.retry}>
+              Hubungkan kembali
+            </Button>
+          </div>
+        ) : (
+          <p role="status">Menyiapkan editor…</p>
+        )}
+      </div>
+    );
+
+  return (
+    <>
+      {presence.error ? (
+        <div role="alert" className="px-6 py-3 text-sm">
+          <p>{presence.error}</p>
+          <Button variant="ghost" size="sm" onClick={presence.retry}>
+            Hubungkan kembali
+          </Button>
+        </div>
+      ) : null}
+      <WorkspaceEditorContent
+        {...props}
+        note={presence.note}
+        available={props.available !== false && presence.ready}
+        beforeSave={presence.ensure}
+      />
+    </>
+  );
+}
+
+function WorkspaceEditorContent({
   note,
   entries,
   today,
@@ -95,6 +139,7 @@ export function WorkspaceEditor({
   guarded = false,
   available = true,
   onDirtyChange,
+  beforeSave,
 }: WorkspaceEditorProps) {
   const daily = note.ref.startsWith("daily:");
   const [title, setTitle] = useState(note.title);
@@ -103,6 +148,7 @@ export function WorkspaceEditor({
   const [comparisonDraft, setComparisonDraft] = useState(note.content);
   const [resolving, setResolving] = useState(false);
   const editor = useEditor({
+    editable: available,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -145,6 +191,7 @@ export function WorkspaceEditor({
     note,
     available,
     onDirtyChange,
+    beforeSave,
     onSaved,
     onRemote: (remote) => {
       setTitle(remote.title);

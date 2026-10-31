@@ -1,3 +1,7 @@
+import { withNoteSkillInventory } from './note-skill-inventory';
+import { NoteMutationService } from '../../notes/note-mutation.service';
+import { protectNoteTools } from './protected-note-tools';
+import { createNoteQuestionResponseTools } from './note-question-tools';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   CALENDAR_REPOSITORY,
@@ -7,6 +11,8 @@ import {
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
+  NOTE_WORK_REPOSITORY,
+  type INoteWorkRepository,
   type ICategoryRepository,
   type IContactGroupRepository,
   type IReminderRepository,
@@ -60,44 +66,53 @@ export class DomainToolsProvider {
     secrets: SecretsService,
     dailyNotes: DailyNoteService,
     notes: NotesService,
+    mutations: NoteMutationService,
+    @Inject(NOTE_WORK_REPOSITORY) noteWork: INoteWorkRepository,
     @Optional() skills?: SkillCatalogService,
     @Optional() workContext?: WorkContextService,
     @Optional() availability?: AvailabilityService,
     @Optional() actions?: AssistantActionService,
     @Optional() policy?: AssistancePolicyService,
   ) {
-    this.tools = [
-      ...createDomainTools({
-        tasks,
-        categories,
-        reminders,
-        memoryService,
-        scheduler,
-        users,
-        secrets,
-      }),
-      ...createPhaseTools({
-        contacts,
-        contactGroups,
-        documents,
-        calendars,
-        calendarService,
-        calendarRead,
-        calendarSync,
-        users,
-      }),
-      ...createDailyNoteTools({ dailyNotes }),
-      ...createNotesWorkspaceTools(notes),
-      ...(skills && workContext && availability && actions && policy
-        ? createSecretaryTools({
-            skills: skills.skills,
-            context: workContext,
-            availability,
-            actions,
-            policy,
-          })
-        : []),
-    ];
+    this.tools = withNoteSkillInventory(
+      protectNoteTools(
+        [
+          ...createDomainTools({
+            tasks,
+            categories,
+            reminders,
+            memoryService,
+            scheduler,
+            users,
+            secrets,
+          }),
+          ...createPhaseTools({
+            contacts,
+            contactGroups,
+            documents,
+            calendars,
+            calendarService,
+            calendarRead,
+            calendarSync,
+            users,
+          }),
+          ...createDailyNoteTools({ dailyNotes }),
+          ...createNotesWorkspaceTools(notes),
+          ...createNoteQuestionResponseTools(noteWork),
+          ...(skills && workContext && availability && actions && policy
+            ? createSecretaryTools({
+                skills: skills.skills,
+                context: workContext,
+                availability,
+                actions,
+                policy,
+              })
+            : []),
+        ],
+        { mutations, notes, daily: dailyNotes },
+      ),
+      notes,
+    );
     const names = this.tools.map(({ definition }) => definition.name);
     // Harnesses without the secretary module register only domain tools.
     validateToolGroups(names, skills ? [] : ['assistance']);

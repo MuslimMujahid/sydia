@@ -1,3 +1,5 @@
+import { activeTurnTools } from './turn-tool-discovery';
+import { NoteOrganizationSchedulerService } from '../../notes/note-organization-scheduler.service';
 import {
   ChatSourceUnavailableError,
   ChatSourceConflictError,
@@ -182,6 +184,8 @@ export class AssistantOrchestratorService {
     private readonly auditEvents?: IAuditEventRepository,
     @Optional() private readonly activeNotes?: ActiveNoteService,
     @Optional() private readonly assistantActions?: AssistantActionService,
+    @Optional()
+    private readonly noteOrganization?: NoteOrganizationSchedulerService,
   ) {}
 
   async sendQueued(
@@ -509,6 +513,13 @@ export class AssistantOrchestratorService {
           'Pesan ini sudah dikirim dengan konteks catatan berbeda. Kirim sebagai pesan baru.',
       });
     }
+
+    if (this.noteOrganization)
+      await this.noteOrganization.schedule(
+        user.id,
+        write.conversation.id,
+        write.userMessage.id,
+      );
 
     const existingRun = await this.conversations.findLatestRunForMessage(
       user.id,
@@ -853,11 +864,8 @@ export class AssistantOrchestratorService {
             abortSignal,
             tools,
             retrySafeTools: this.toolExecutor.retrySafeTools(),
-            ...(selected
-              ? {
-                  activeTools: () => [...selected, ...skills.activeTools],
-                }
-              : {}),
+            activeTools: () =>
+              activeTurnTools(selected ?? Object.keys(tools), skills),
             onTextDelta: (delta: string) => observer?.onTextDelta(delta),
             onToolCall: (toolName: string) => {
               const label = this.toolExecutor.activityLabel(

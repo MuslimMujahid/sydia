@@ -23,7 +23,7 @@ export class PrismaWorkspaceRepository implements IWorkspaceRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(userId: string) {
-    const rows = await this.prisma.workspaceItem.findMany({
+    const rows = await this.prisma.client.workspaceItem.findMany({
       where: { userId },
     });
 
@@ -31,7 +31,7 @@ export class PrismaWorkspaceRepository implements IWorkspaceRepository {
   }
 
   async dailyDocuments(userId: string) {
-    const rows = await this.prisma.dailyNote.findMany({
+    const rows = await this.prisma.client.dailyNote.findMany({
       where: { userId },
       select: {
         id: true,
@@ -51,7 +51,7 @@ export class PrismaWorkspaceRepository implements IWorkspaceRepository {
   }
 
   pendingIndex(limit: number) {
-    return this.prisma.workspaceItem.findMany({
+    return this.prisma.client.workspaceItem.findMany({
       where: { kind: 'note', trashedAt: null, indexPending: true },
       take: limit,
       orderBy: { updatedAt: 'asc' },
@@ -86,7 +86,7 @@ export class PrismaWorkspaceRepository implements IWorkspaceRepository {
       throw new Error('Every note chunk must have an embedding.');
     const vectors = input.embeddings.map((embedding) => this.vector(embedding));
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.inTransaction(async (tx) => {
       await tx.$queryRaw(
         Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`notes:${userId}`}, 0))::text`,
       );
@@ -150,7 +150,7 @@ export class PrismaWorkspaceRepository implements IWorkspaceRepository {
   ) {
     const vector = this.vector(embedding);
 
-    return this.prisma.$queryRaw<
+    return this.prisma.client.$queryRaw<
       Array<{ id: string; passage: string }>
     >(Prisma.sql`
       SELECT item.id, chunk.content AS passage FROM workspace_note_chunk chunk
@@ -167,7 +167,7 @@ export class PrismaWorkspaceRepository implements IWorkspaceRepository {
     change: (items: WorkspaceItem[]) => WorkspaceCommit<T>,
   ): Promise<T> {
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.inTransaction(async (tx) => {
         // The lock is held by PostgreSQL until commit/rollback. All custom-note
         // mutations use it, including folder validation and subtree operations.
         await tx.$queryRaw(

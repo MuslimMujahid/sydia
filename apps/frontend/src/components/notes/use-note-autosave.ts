@@ -12,6 +12,7 @@ export type NoteSaveStatus =
 type UseNoteAutosaveOptions = {
   note: WorkspaceNote;
   available?: boolean;
+  beforeSave?: () => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
   onSaved: (note: WorkspaceNote) => void;
   onRemote: (note: WorkspaceNote) => void;
@@ -21,6 +22,7 @@ export function useNoteAutosave({
   note,
   available = true,
   onDirtyChange,
+  beforeSave,
   onSaved,
   onRemote,
 }: UseNoteAutosaveOptions) {
@@ -62,6 +64,7 @@ export function useNoteAutosave({
 
       const work = async () => {
         try {
+          await beforeSave?.();
           const saved = await saveWorkspaceNote(baseline.current, captured);
           baseline.current = saved;
           dirty.current = draft.current !== captured;
@@ -114,7 +117,7 @@ export function useNoteAutosave({
 
       return succeeded;
     },
-    [available, note.ref]
+    [available, note.ref, beforeSave]
   );
 
   const change = useCallback(

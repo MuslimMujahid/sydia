@@ -1,3 +1,10 @@
+import { Logger } from '@nestjs/common';
+import { withNoteSkillInventory } from '../conversations/services/note-skill-inventory';
+import { createSecretaryTools } from '../secretary/secretary-tools';
+import {
+  defaultSkillDirectory,
+  loadSkillCatalog,
+} from '../secretary/skill-catalog';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import type { WorkspaceItem } from '../../database/entities';
@@ -76,15 +83,21 @@ function setup(
 ) {
   const daily = options.daily ?? [];
   const prisma = {
-    workspaceItem: {
-      findMany: ({ where }: { where: { userId: string } }) =>
-        Promise.resolve(items.filter((entry) => entry.userId === where.userId)),
+    client: {
+      workspaceItem: {
+        findMany: ({ where }: { where: { userId: string } }) =>
+          Promise.resolve(
+            items.filter((entry) => entry.userId === where.userId),
+          ),
+      },
+      dailyNote: {
+        findMany: ({ where }: { where: { userId: string } }) =>
+          Promise.resolve(
+            daily.filter((entry) => entry.userId === where.userId),
+          ),
+      },
+      $queryRaw: () => Promise.resolve(options.matches ?? []),
     },
-    dailyNote: {
-      findMany: ({ where }: { where: { userId: string } }) =>
-        Promise.resolve(daily.filter((entry) => entry.userId === where.userId)),
-    },
-    $queryRaw: () => Promise.resolve(options.matches ?? []),
   } as unknown as PrismaService;
 
   const repository = new PrismaWorkspaceRepository(prisma);
@@ -261,4 +274,53 @@ describe('Notes retrieval and references', () => {
     expect(result.retrievalMode).toBe('keyword');
     expect(result.notes.map((entry) => entry.id)).toEqual(['research']);
   });
+});
+
+test('note inventory failure stays visible instead of returning an empty workspace', async () => {
+  const prisma = {
+    client: {
+      workspaceItem: {
+        findMany: () =>
+          Promise.reject(new Error('Inventory database unavailable')),
+      },
+      dailyNote: { findMany: () => Promise.resolve([]) },
+    },
+  } as unknown as PrismaService;
+
+  const notes = new NotesService(
+    new PrismaWorkspaceRepository(prisma),
+    new EmbeddingsService(new ConfigService({ BACKEND_MODEL_API_KEY: '' })),
+    {} as QueueService,
+    {} as DailyNoteService,
+  );
+
+  const registry = withNoteSkillInventory(
+    createSecretaryTools({
+      skills: loadSkillCatalog(defaultSkillDirectory()),
+      context: {} as never,
+      availability: {} as never,
+      actions: {} as never,
+      policy: {} as never,
+    }),
+    notes,
+  );
+
+  const loader = registry.find((tool) => tool.definition.name === 'load_skill');
+  if (!loader) throw new Error('Skill loader missing');
+  const warning = jest
+    .spyOn(Logger, 'warn')
+    .mockImplementation(() => undefined);
+
+  await expect(
+    loader.execute({
+      userId: 'owner',
+      sourceMessageId: 'message',
+      idempotencyKey: 'load-inventory',
+      arguments: loader.parseArguments({ name: 'note-capture' }),
+    }),
+  ).rejects.toThrow('Inventory database unavailable');
+  expect(warning).toHaveBeenCalledWith(
+    'Note skill inventory could not be loaded; do not assume no maintained homes exist.',
+    'NoteSkillInventory',
+  );
 });
