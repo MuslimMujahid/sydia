@@ -36,6 +36,7 @@ function item(id: string, changes: Partial<WorkspaceItem> = {}): WorkspaceItem {
     id,
     userId: 'owner',
     kind: 'note',
+    format: 'rich-text',
     title: id,
     parentId: null,
     content,

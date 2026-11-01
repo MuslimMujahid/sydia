@@ -1,3 +1,5 @@
+import { RecordNotesService } from '../../record-notes';
+import { createRecordNoteTools } from './record-note-tools';
 import { withNoteSkillInventory } from './note-skill-inventory';
 import { NoteMutationService } from '../../notes/note-mutation.service';
 import { protectNoteTools } from './protected-note-tools';
@@ -66,6 +68,7 @@ export class DomainToolsProvider {
     secrets: SecretsService,
     dailyNotes: DailyNoteService,
     notes: NotesService,
+    records: RecordNotesService,
     mutations: NoteMutationService,
     @Inject(NOTE_WORK_REPOSITORY) noteWork: INoteWorkRepository,
     @Optional() skills?: SkillCatalogService,
@@ -98,6 +101,7 @@ export class DomainToolsProvider {
           }),
           ...createDailyNoteTools({ dailyNotes }),
           ...createNotesWorkspaceTools(notes),
+          ...createRecordNoteTools(records),
           ...createNoteQuestionResponseTools(noteWork),
           ...(skills && workContext && availability && actions && policy
             ? createSecretaryTools({

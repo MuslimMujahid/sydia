@@ -14,7 +14,10 @@ function present(row: Row): WorkspaceItem {
       `Corrupt workspace item ${row.id}; content was not replaced.`,
     );
 
-  return { ...row, kind: row.kind, content };
+  if (row.format !== 'rich-text' && row.format !== 'record')
+    throw new Error('Unknown note format.');
+
+  return { ...row, kind: row.kind, content, format: row.format };
 }
 
 @Injectable()
@@ -182,6 +185,7 @@ export class PrismaWorkspaceRepository implements IWorkspaceRepository {
             throw new Error('Workspace commit attempted a cross-owner write.');
           const data = {
             kind: item.kind,
+            format: item.format ?? 'rich-text',
             title: item.title,
             parentId: item.parentId,
             content: item.content,

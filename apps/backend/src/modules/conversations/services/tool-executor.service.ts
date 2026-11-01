@@ -45,6 +45,7 @@ export type AssistantSkillState = {
 
 export type AssistantToolExecutionContext = {
   sourceDocumentIds?: string[];
+  sourceNoteRefs?: string[];
   channel?: MessageProvider;
   sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>;
   conversationId?: string;
@@ -161,6 +162,27 @@ type LocalizedToolLabel = Record<SupportedLocale, string>;
  * descriptions and canonical labels sent to the model remain English.
  */
 const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
+  get_record_note_metadata: {
+    en: 'View table structure',
+    id: 'Melihat struktur tabel',
+  },
+  read_record_note_content: {
+    en: 'Read table rows',
+    id: 'Membaca baris tabel',
+  },
+  create_record_note: { en: 'Create record note', id: 'Membuat catatan tabel' },
+  change_record_schema: {
+    en: 'Change table columns',
+    id: 'Mengubah kolom tabel',
+  },
+  add_record_rows: { en: 'Add table rows', id: 'Menambah baris tabel' },
+  update_record_rows: { en: 'Edit table rows', id: 'Mengubah baris tabel' },
+  delete_record_rows: { en: 'Delete table rows', id: 'Menghapus baris tabel' },
+  query_record_notes: {
+    en: 'Analyze saved records',
+    id: 'Menganalisis catatan tersimpan',
+  },
+  export_record_note_csv: { en: 'Export table CSV', id: 'Mengunduh CSV tabel' },
   get_current_datetime: {
     en: 'View current time',
     id: 'Melihat waktu saat ini',
@@ -532,7 +554,14 @@ export class ToolExecutorService {
         : null;
 
       const scopedContext = scope
-        ? { ...context, sourceDocumentIds: scope.documentIds }
+        ? {
+            ...context,
+            sourceDocumentIds: scope.documentIds,
+            sourceNoteRefs: [
+              ...scope.noteRefs,
+              ...(scope.activeNoteRef ? [scope.activeNoteRef] : []),
+            ],
+          }
         : context;
 
       if (scope && call.name === 'read_document') {

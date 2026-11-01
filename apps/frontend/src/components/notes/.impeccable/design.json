@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-18T07:41:37.465Z",
+  "generatedAt": "2026-11-01T09:29:35.723Z",
   "title": "Design System: Sydia Notes workspace",
   "extensions": {
     "breakpoints": [
@@ -18,6 +18,29 @@
       "calendarWidth": "248px",
       "placement": "Below trigger with viewport collision handling; may flip above on short screens.",
       "keyboard": "Arrows cross month boundaries; Escape closes the picker and restores trigger focus while preserving the mobile sheet. Selecting a day navigates and closes picker and sheet."
+    },
+    "recordNotes": {
+      "scope": "Record-note editor in Notes workspace and chat drawer; root Aurora Haze tokens and incumbent rich-text/daily-note rules remain authoritative.",
+      "layout": {
+        "insetBelowSm": "16px",
+        "insetFromSm": "32px",
+        "rowHeight": "36px",
+        "minimumGridWidth": "480px",
+        "rowGutter": "44px",
+        "addColumnRail": "46px",
+        "columnWidths": {
+          "text": "192px",
+          "boolean": "76px",
+          "number": "92px",
+          "numberWithUnit": "132px",
+          "other": "120px"
+        }
+      },
+      "responsive": "One contained grid overflow scroller with sticky header, row gutter and first data column. Below 640px, tapping a cell opens the entire row in a sheet; inputs use 16px text. The mismatch description remains positioned within the editor.",
+      "interaction": "Explicit record creation through Buat baru and folder menus; Catatan baru retains immediate rich-text creation. Selectable cells support arrow navigation, rectangular selection, inline editing, native input undo and chronological saved-edit undo/redo. Column menus highlight their target; confirmed column removal shows a toast with Undo and restores original values across pages.",
+      "recovery": "Preserve raw mismatched values and local failed-save drafts. CSV failures have a separate download retry; authenticated transfer completes before Blob download. Export includes the full saved table.",
+      "schemaHistory": "Cell changes, range clears, pastes into existing rows, affected column definitions and column removals share chronological undo/redo for the open editor session. Removal receipts restore stable identities, order and original raw values across saved pages. Unrelated later values survive; failed history mutations retain recovery state. Undo/redo has no success toast.",
+      "loadingRecovery": "Initial-load failures say Tabel tidak dapat dimuat. Successful recovery clears Query error state. Metadata/content reads reconcile at most three times to establish a coherent revision, then fail visibly if changes continue."
     }
   },
   "components": [

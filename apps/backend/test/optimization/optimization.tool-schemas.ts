@@ -1,3 +1,4 @@
+import { createRecordNoteTools } from '../../src/modules/conversations/services/record-note-tools';
 import { jsonSchema, tool, type ToolSet } from 'ai';
 import { createDomainTools } from '../../src/modules/conversations/services/domain-tools';
 import { createPhaseTools } from '../../src/modules/conversations/services/phase-tools';
@@ -42,6 +43,7 @@ export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
     }),
     ...createDailyNoteTools({ dailyNotes: unavailable() }),
     ...createNotesWorkspaceTools(unavailable()),
+    ...createRecordNoteTools(unavailable()),
     ...createNoteQuestionResponseTools(unavailable()),
   ].map(({ definition }) => definition);
 

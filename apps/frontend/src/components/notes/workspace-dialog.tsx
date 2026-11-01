@@ -18,7 +18,7 @@ import { MoveDestinationPicker } from "./move-destination-picker";
 import type { ItemAction } from "./workspace-tree";
 
 export type WorkspaceDialogTarget = {
-  action: Exclude<ItemAction, "trash" | "copy-link">;
+  action: Exclude<ItemAction, "trash" | "copy-link" | "create-record">;
   item: WorkspaceItem;
 };
 type WorkspaceDialogProps = {

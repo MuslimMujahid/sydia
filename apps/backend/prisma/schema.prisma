@@ -73,6 +73,7 @@ model User {
   secretVaultUnlocks       SecretVaultUnlock[]
   dailyNotes               DailyNote[]
   workspaceItems           WorkspaceItem[]
+  recordReceipts           RecordReceipt[]
   billingAccount           BillingAccount?
   billingMembers           BillingMember[]
   billingOrders            BillingOrder[]
@@ -553,6 +554,8 @@ model WorkspaceItem {
   parent       WorkspaceItem?   @relation("WorkspaceHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, map: "workspace_item_parent_owner_fkey")
   children     WorkspaceItem[]  @relation("WorkspaceHierarchy")
   chunks       WorkspaceNoteChunk[]
+  recordTable  RecordTable?
+  format       String @default("rich-text")
 
   @@index([userId, trashedAt, parentId])
   @@index([userId, trashBatchId])
@@ -1672,4 +1675,36 @@ model NoteOrganizationState {
   id String @id
   activatedAt DateTime @default(now())
   @@map("note_organization_state")
+}
+
+/// Typed record data is separate from rich text. Workspace revision is authoritative.
+model RecordTable {
+  noteId String @id
+  description String @default("")
+  columns Json
+  stats Json
+  nextPosition Int @default(1)
+  item WorkspaceItem @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  rows RecordRow[]
+  @@map("record_table")
+}
+model RecordRow {
+  id String @id
+  noteId String
+  position Int
+  cells Json
+  sources Json
+  table RecordTable @relation(fields: [noteId], references: [noteId], onDelete: Cascade)
+  @@unique([noteId, position], map: "record_row_note_position")
+  @@map("record_row")
+}
+model RecordReceipt {
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "record_receipt_owner_fkey")
+  userId String
+  key String
+  fingerprint String
+  result Json
+  createdAt DateTime @default(now())
+  @@id([userId, key])
+  @@map("record_receipt")
 }

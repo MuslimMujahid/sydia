@@ -6,6 +6,7 @@ import { getDailyNote, type TiptapDoc } from "../daily-notes/daily-notes.api";
 export type WorkspaceItem = {
   id: string;
   kind: "note" | "folder";
+  format?: "rich-text" | "record";
   title: string;
   parentId: string | null;
   revision: number;
@@ -27,6 +28,7 @@ export type NoteEntry = {
 };
 export type NotesWorkspace = { items: WorkspaceItem[]; notes: NoteEntry[] };
 export type WorkspaceNote = {
+  format?: "rich-text" | "record";
   ref: string;
   title: string;
   parentId: string | null;
@@ -113,6 +115,7 @@ export async function getWorkspaceNote(ref: string): Promise<WorkspaceNote> {
 
   return {
     ref,
+    format: item.format,
     title: item.title,
     parentId: item.parentId,
     content: item.content,

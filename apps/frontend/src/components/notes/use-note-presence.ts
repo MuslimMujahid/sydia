@@ -15,6 +15,7 @@ export function useNotePresence(note: WorkspaceNote) {
   const [error, setError] = useState<string>();
   const [ready, setReady] = useState(false);
   const connection = useRef<{
+    sessionId: string;
     renew: () => Promise<void>;
     expiresAt: number;
   } | null>(null);
@@ -75,7 +76,7 @@ export function useNotePresence(note: WorkspaceNote) {
       return pending;
     };
 
-    connection.current = { renew, expiresAt: 0 };
+    connection.current = { renew, expiresAt: 0, sessionId };
 
     // renew surfaces failures in the UI and logs; event handlers must settle them.
     const reconnect = () => {
@@ -153,5 +154,12 @@ export function useNotePresence(note: WorkspaceNote) {
     });
   }, []);
 
-  return { note: current, ready, error, ensure, retry };
+  return {
+    note: current,
+    ready,
+    error,
+    ensure,
+    retry,
+    getSessionId: () => connection.current?.sessionId,
+  };
 }

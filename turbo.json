@@ -20,7 +20,10 @@
     "MAYAR_ENVIRONMENT",
     "MAYAR_API_KEY",
     "MAYAR_WEBHOOK_TOKEN",
-    "MAYAR_MERCHANT_ID"
+    "MAYAR_MERCHANT_ID",
+    "RECORDS_EMAIL",
+    "RECORDS_PASSWORD",
+    "RECORD_NOTES_DB_TEST"
   ],
   "tasks": {
     "build": {

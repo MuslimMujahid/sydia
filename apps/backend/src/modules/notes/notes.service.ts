@@ -25,6 +25,7 @@ export type WorkspaceEntry = {
   ref: string;
   id: string;
   kind: 'note' | 'daily';
+  format?: 'rich-text' | 'record';
   title: string;
   path: string;
   parentId: string | null;
@@ -37,6 +38,7 @@ function entryMetadata(entry: WorkspaceEntry): Omit<WorkspaceEntry, 'text'> {
     ref: entry.ref,
     id: entry.id,
     kind: entry.kind,
+    format: entry.format,
     title: entry.title,
     path: entry.path,
     parentId: entry.parentId,
@@ -76,6 +78,7 @@ export class NotesService {
           ref: `custom:${item.id}`,
           id: item.id,
           kind: 'note' as const,
+          format: item.format,
           title: item.title,
           path: workspacePath(item, items),
           parentId: item.parentId,
@@ -102,6 +105,7 @@ export class NotesService {
       items: snapshot.items.map((item) => ({
         id: item.id,
         kind: item.kind,
+        format: item.format,
         title: item.title,
         parentId: item.parentId,
         revision: item.revision,
@@ -169,7 +173,8 @@ export class NotesService {
           (!folders ||
             (item.parentId !== null && folders.has(item.parentId))) &&
           (item.title.toLocaleLowerCase().includes(term) ||
-            item.text.toLocaleLowerCase().includes(term)),
+            item.text.toLocaleLowerCase().includes(term) ||
+            item.path.toLocaleLowerCase().includes(term)),
       )
       .sort(
         (a, b) =>

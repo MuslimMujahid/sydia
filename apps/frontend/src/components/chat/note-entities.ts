@@ -29,6 +29,12 @@ function record(value: unknown): Record<string, unknown> | undefined {
 }
 
 const tools = new Set([
+  "get_record_note_metadata",
+  "create_record_note",
+  "change_record_schema",
+  "add_record_rows",
+  "update_record_rows",
+  "delete_record_rows",
   "list_notes_workspace",
   "search_notes",
   "read_custom_note",
@@ -67,6 +73,11 @@ export function collectNoteEntities(invocation: ToolInvocation): {
   if (output.status === "deferred" && output.saved === false) return result;
 
   const mutation = [
+    "create_record_note",
+    "change_record_schema",
+    "add_record_rows",
+    "update_record_rows",
+    "delete_record_rows",
     "create_custom_note",
     "update_custom_note",
     "write_daily_note",

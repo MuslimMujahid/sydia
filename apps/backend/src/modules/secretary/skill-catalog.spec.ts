@@ -37,6 +37,7 @@ describe('skill catalog', () => {
       'commitment-capture',
       'meeting-preparation',
       'note-capture',
+      'record-notes',
       'scheduling',
       'work-resumption',
     ]);

@@ -7,6 +7,9 @@ import {
 } from './tool-executor.service';
 
 const NOTE_READ_TOOLS = [
+  'get_record_note_metadata',
+  'read_record_note_content',
+  'query_record_notes',
   'load_skill',
   'get_current_datetime',
   'list_notes_workspace',
@@ -18,6 +21,11 @@ const NOTE_READ_TOOLS = [
 
 /** The integration supplies already protected mutations; no unrelated capability is exposed. */
 const NOTE_WRITE_TOOLS = [
+  'create_record_note',
+  'change_record_schema',
+  'add_record_rows',
+  'update_record_rows',
+  'delete_record_rows',
   'write_daily_note',
   'create_custom_note',
   'update_custom_note',

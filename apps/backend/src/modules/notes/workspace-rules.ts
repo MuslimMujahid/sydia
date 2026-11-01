@@ -12,6 +12,7 @@ export type WorkspaceCommand =
       action: 'create';
       id: string;
       kind: 'note' | 'folder';
+      format?: 'rich-text' | 'record';
       title?: string;
       parentId: string | null;
       content?: RichTextDocument;
@@ -173,6 +174,7 @@ export function applyWorkspaceCommand(
       id: command.id,
       userId,
       kind: command.kind,
+      format: command.format ?? 'rich-text',
       title,
       parentId: command.parentId,
       content,
@@ -219,6 +221,8 @@ export function applyWorkspaceCommand(
     if (command.parentId !== undefined) changed.parentId = command.parentId;
 
     if (command.content !== undefined) {
+      if (before.format === 'record')
+        reject('Gunakan editor tabel untuk mengubah isi catatan ini.');
       if (before.kind !== 'note')
         reject('Folder tidak dapat memiliki isi catatan.');
       changed.content = command.content;

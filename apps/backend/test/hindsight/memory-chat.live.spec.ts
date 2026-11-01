@@ -1,3 +1,5 @@
+import { RecordNotesService } from '../../src/modules/record-notes';
+import { PrismaRecordNotesRepository } from '../../src/database/repositories';
 import { NoteMutationService } from '../../src/modules/notes/note-mutation.service';
 import {
   PrismaNotePresenceRepository,
@@ -338,6 +340,11 @@ type Turn = {
             embeddings,
             queues,
           ),
+        ),
+        new RecordNotesService(
+          new PrismaRecordNotesRepository(prisma),
+          new PrismaWorkspaceRepository(prisma),
+          config,
         ),
         new NoteMutationService(
           new PrismaNotePresenceRepository(prisma),

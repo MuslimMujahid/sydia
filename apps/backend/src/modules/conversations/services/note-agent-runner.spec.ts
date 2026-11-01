@@ -152,7 +152,7 @@ test('a proposal agent loads the existing skill and chooses repeated searches wi
   expect(result).toMatchObject({
     text: 'Proposed destination after inspecting both searches.',
     calls: 3,
-    loadedSkills: { 'note-capture': '1.5.0' },
+    loadedSkills: { 'note-capture': '1.6.2' },
   });
   expect(f.inspect).toHaveBeenCalledTimes(2);
   expect(f.mutate).not.toHaveBeenCalled();

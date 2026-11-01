@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  Table2,
   Folder,
   FolderPlus,
   MoreHorizontal,
@@ -23,7 +24,13 @@ import { cn } from "@/lib/utils/cn";
 import { InlineFolderForm, type FolderCreation } from "./inline-folder-form";
 
 export type ItemAction =
-  "rename" | "move" | "trash" | "restore" | "delete" | "copy-link";
+  | "create-record"
+  | "rename"
+  | "move"
+  | "trash"
+  | "restore"
+  | "delete"
+  | "copy-link";
 type ItemMenuProps = {
   item: WorkspaceItem;
   className?: string;
@@ -75,6 +82,11 @@ export function ItemMenu({
           >
             <FolderPlus />
             Tambah folder
+          </DropdownMenuItem>
+        ) : null}
+        {item.kind === "folder" ? (
+          <DropdownMenuItem onClick={() => onAction("create-record", item)}>
+            Buat catatan tabel
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={() => onAction("rename", item)}>
@@ -241,7 +253,8 @@ export function WorkspaceTree({
                   {folder ? (
                     <Folder className="size-4 shrink-0 text-ink-muted" />
                   ) : (
-                    <FileText
+                    <ItemNoteIcon
+                      format={item.format}
                       className={cn(
                         "size-4 shrink-0 text-ink-muted",
                         selected && "text-brand"
@@ -308,4 +321,16 @@ export function WorkspaceTree({
       </div>
     </div>
   );
+}
+
+function ItemNoteIcon({
+  format,
+  className,
+}: {
+  format?: string;
+  className?: string;
+}) {
+  const Icon = format === "record" ? Table2 : FileText;
+
+  return <Icon className={className} />;
 }

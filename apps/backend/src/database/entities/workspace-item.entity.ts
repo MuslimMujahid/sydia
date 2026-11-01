@@ -1,8 +1,12 @@
 import type { WorkspaceItem as PrismaWorkspaceItem } from '../../generated/prisma/client';
 import type { RichTextDocument } from '../../shared/rich-text';
 
-export type WorkspaceItem = Omit<PrismaWorkspaceItem, 'kind' | 'content'> & {
+export type WorkspaceItem = Omit<
+  PrismaWorkspaceItem,
+  'kind' | 'content' | 'format'
+> & {
   kind: 'note' | 'folder';
+  format?: 'rich-text' | 'record';
   content: RichTextDocument;
 };
 

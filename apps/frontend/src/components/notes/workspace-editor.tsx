@@ -1,3 +1,4 @@
+import { RecordNoteEditor } from "./record-note-editor";
 import { useEffect, useImperativeHandle, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -83,6 +84,9 @@ function readableText(value: unknown): string {
 }
 
 export function WorkspaceEditor(props: WorkspaceEditorProps) {
+  if (props.note.format === "record")
+    return <RecordNoteEditor key={props.note.ref} {...props} />;
+
   return <ProtectedWorkspaceEditor key={props.note.ref} {...props} />;
 }
 

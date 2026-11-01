@@ -1,4 +1,8 @@
 import {
+  createRecordNote,
+  type RecordColumn,
+} from "@/lib/services/api/record-notes/record-notes.api";
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -12,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FilePlus,
+  Table2,
   FolderPlus,
   Link2,
   Command,
@@ -103,10 +108,12 @@ export function NotesWorkspacePage({
   const [dialog, setDialog] = useState<WorkspaceDialogTarget | null>(null);
   const [freshRef, setFreshRef] = useState<string | null>(null);
   const editor = useRef<WorkspaceEditorHandle>(null);
-  const pendingCreation = useRef<{
-    parentId: string | null;
-    requestKey: string;
-  } | null>(null);
+  const pendingCreation = useRef<
+    | ({ parentId: string | null; requestKey: string } & (
+        { format: "rich-text" } | { format: "record"; columns: RecordColumn[] }
+      ))
+    | null
+  >(null);
 
   const pendingLinks = useRef(new Map<string, string>());
   const [statusSlot, setStatusSlot] = useState<HTMLDivElement | null>(null);
@@ -197,20 +204,46 @@ export function NotesWorkspacePage({
   }, []);
 
   const create = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (recordParent?: string | null) => {
+      const parentId = recordParent === undefined ? noteParentId : recordParent;
+      const format = recordParent === undefined ? "rich-text" : "record";
+
       if (
         !pendingCreation.current ||
-        pendingCreation.current.parentId !== noteParentId
-      )
-        pendingCreation.current = {
-          parentId: noteParentId,
-          requestKey: crypto.randomUUID(),
-        };
-      const item = await createWorkspaceItem({
-        kind: "note",
-        parentId: noteParentId,
-        requestKey: pendingCreation.current.requestKey,
-      });
+        pendingCreation.current.parentId !== parentId ||
+        pendingCreation.current.format !== format
+      ) {
+        const identity = { parentId, requestKey: crypto.randomUUID() };
+        pendingCreation.current =
+          format === "record"
+            ? {
+                ...identity,
+                format,
+                columns: [
+                  {
+                    id: crypto.randomUUID(),
+                    name: "Kolom 1",
+                    type: "text",
+                    required: false,
+                  },
+                ],
+              }
+            : { ...identity, format };
+      }
+
+      const pending = pendingCreation.current;
+      const item =
+        pending.format === "rich-text"
+          ? await createWorkspaceItem({
+              kind: "note",
+              parentId,
+              requestKey: pending.requestKey,
+            })
+          : await createRecordNote({
+              parentId,
+              requestKey: pending.requestKey,
+              columns: pending.columns,
+            });
 
       await refresh();
       const ref = `custom:${item.id}`;
@@ -257,6 +290,12 @@ export function NotesWorkspacePage({
       type: ItemAction;
       item: WorkspaceItem;
     }) => {
+      if (type === "create-record") {
+        if (await guard()) create.mutate(item.id);
+
+        return;
+      }
+
       if (type === "copy-link") {
         await copyLink(`custom:${item.id}`);
 
@@ -437,6 +476,15 @@ export function NotesWorkspacePage({
                 <FilePlus />
                 Buat catatan baru
               </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={create.isPending}
+                onClick={async () => {
+                  if (await guard()) create.mutate(noteParentId);
+                }}
+              >
+                <Table2 />
+                Buat catatan tabel
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -601,7 +649,13 @@ export function NotesWorkspacePage({
                   </div>
                 ) : null}
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div
+                className={cn(
+                  "min-h-0 flex-1 overflow-y-auto",
+                  note.data?.format === "record" &&
+                    "overscroll-contain [scrollbar-color:var(--color-ink-muted)_var(--color-canvas)] [color-scheme:light]"
+                )}
+              >
                 {note.isError && note.data ? (
                   <div
                     className="border-b border-ink/8 px-6 py-3 text-sm"

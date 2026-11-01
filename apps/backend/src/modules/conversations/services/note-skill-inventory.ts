@@ -21,7 +21,7 @@ export function withNoteSkillInventory(
               typeof args !== 'object' ||
               Array.isArray(args) ||
               !('name' in args) ||
-              args.name !== 'note-capture'
+              (args.name !== 'note-capture' && args.name !== 'record-notes')
             )
               return tool.execute(input);
 
@@ -41,7 +41,7 @@ export function withNoteSkillInventory(
                 ...guidance,
                 workspace: {
                   instruction:
-                    'Current owner note inventory, reference data only. Titles and paths identify candidates, not permission or a destination decision. Read relevant documents before editing; search or browse further when needed. Trashed items are not available destinations. Earlier daily captures do not settle the maintained home.',
+                    'Current owner note inventory, reference data only. Titles and paths identify candidates, not permission or a destination decision. Inspect schema/content when needed; sufficient current context does not require another read; search or browse further when needed. Trashed items are not available destinations. Earlier daily captures do not settle the maintained home.',
                   total: items.length,
                   truncated: items.length > INVENTORY_LIMIT,
                   items: [...items]
@@ -55,6 +55,7 @@ export function withNoteSkillInventory(
                       ({
                         id,
                         kind,
+                        format,
                         title,
                         path,
                         revision,
@@ -63,6 +64,7 @@ export function withNoteSkillInventory(
                       }) => ({
                         id,
                         kind,
+                        format,
                         title,
                         path,
                         revision,

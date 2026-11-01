@@ -1,3 +1,4 @@
+import { RecordNotesModule } from './modules/record-notes';
 import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AllExceptionsFilter } from './shared/errors';
@@ -420,6 +421,7 @@ export function validateEnvironment(
 
 @Module({
   imports: [
+    RecordNotesModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,

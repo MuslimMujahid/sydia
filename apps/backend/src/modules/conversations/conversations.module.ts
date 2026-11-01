@@ -1,3 +1,4 @@
+import { RecordNotesModule } from '../record-notes';
 import { Module } from '@nestjs/common';
 import { ModelGatewayModule } from '../../infra/model-gateway';
 import { DecisionGatewayModule } from '../../infra/decision-gateway';
@@ -38,6 +39,7 @@ import {
 
 @Module({
   imports: [
+    RecordNotesModule,
     ModelGatewayModule,
     DecisionGatewayModule,
     TasksModule,

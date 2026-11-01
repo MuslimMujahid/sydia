@@ -8,6 +8,11 @@ import type {
 import type { AssistantTool } from './tool-executor.service';
 
 const MUTATIONS = new Set([
+  'create_record_note',
+  'change_record_schema',
+  'add_record_rows',
+  'update_record_rows',
+  'delete_record_rows',
   'write_daily_note',
   'create_custom_note',
   'update_custom_note',

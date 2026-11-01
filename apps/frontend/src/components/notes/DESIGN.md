@@ -144,6 +144,42 @@ Header and footer save messages each use their own valid inline polite status re
 
 Navigation remembers the last-opened note in user-scoped browser storage; a direct destination takes priority. Missing stored custom notes return to today with a visible notice. Storage failure produces a visible warning and keeps navigation in memory for the current session.
 
+### Record-note extension
+
+Record notes extend the same Aurora Haze shell, warm navigation, white editor and Inter typography with an editable typed table. This section applies to `record-note-editor.tsx`, `record-column-menu.tsx`, `record-row-sheet.tsx` and `use-record-editor.ts`, dispatched by `workspace-editor.tsx` in the workspace and chat drawer. The [record-notes behavior reference](../../../../../docs/RECORD_NOTES.md) owns data and API semantics.
+
+#### Colors and typography
+
+The editor scopes its brand accent to darker berry (`#BE2F6D`) for selected cells, focus outlines and checked controls. The surrounding Notes navigation and Aurora primary action keep their existing palette. Selected rows use a faint berry tint; mismatches use a pale amber background with a warning icon and explanatory text. Color alone never carries mismatch state.
+
+The record title is bold Inter (24 px below 640 px; 30 px above), with a 1.2 line height and −0.03em tracking. Grid values use 13 px Inter with tabular numerals; column labels are semibold 12 px. Supporting description and timestamp stay muted. Numbers align right; dates use Indonesian display formatting; editing retains original input. Row-sheet inputs use 16 px text. These are record-specific density choices, not replacements for rich-text document typography.
+
+#### Layout, depth and shapes
+
+The record editor uses 16 px horizontal insets below 640 px and 32 px above. Desktop title/context and compact undo/export actions share a top row; narrow layouts stack them. One flat, hairline-bordered grid follows, with small shared corners, warm headers and white cells. Headers and rows are 36 px high. No enclosing card, new shadow system or raster decoration is introduced.
+
+Column widths reflect content type: text 192 px, boolean 76 px, number 92 px (132 px with a unit), and other types 120 px. A 44 px row gutter and 46 px add-column rail frame a table with a minimum width of 480 px. The grid has one contained overflow scroller; its header, row gutter and first data column remain sticky. On mobile, horizontal scrolling preserves the first data column beside the gutter while the surrounding editor retains readable note identity and actions. Keep the screen-reader mismatch description positioned within the editor so it does not create a second mobile overflow region. Pagination sits directly below the grid, showing the current range and total with named first/previous/next/last controls.
+
+**The Contained Grid Rule.** Keep overflow inside the table region and retain first-column context; mobile editing opens the row sheet rather than compressing every field into the viewport.
+
+#### Creation and editing controls
+
+**Catatan baru** continues to create an ordinary rich-text note immediately. Record creation is an explicit choice in the Notes **Buat baru** menu and folder menus; it opens the table directly, without a schema wizard.
+
+Column headers combine a type icon, name and optional unit. Double-click or **Ganti nama** starts inline renaming; Enter or blur commits and Escape cancels. The header menu offers sorting, six column types, number-unit or choice-option configuration, insertion and movement. Rename/type changes apply directly and expose schema undo/redo. History retains only the affected column definitions: undo/redo preserves columns and cell values added afterward. If a rename/type undo target has been deleted, recovery fails visibly rather than replacing the schema. Column removal uses an inline confirmation inside the menu, naming the column and explaining deletion and undo. Removal undo restores stable column identities and original values across all saved pages; redo removes them again.
+
+Rows and columns retain stable IDs through renaming, reordering and sorting. Type changes reinterpret original input without deleting values that no longer match. Mismatched cells keep their raw text, expose invalid state and an associated explanation, and remain visibly editable. Boolean controls distinguish absence, true and false. Choice values use compact tinted labels while arbitrary unmatched text remains visible.
+
+Desktop cells support double-click, Enter or F2 to edit, arrow-key movement and Delete/Backspace to clear. Row menus provide editing, insertion above/below, duplication, clearing and deletion. Selection reveals batch clear/duplicate/delete actions. Tab-separated paste updates existing rows and appends additional rows atomically, with explicit feedback for the 200-row limit or excess columns.
+
+Below 640 px, tapping a cell opens the shared sheet variant for the entire row. Named fields retain type icons, units, original values and associated mismatch feedback. **Selesai** saves before closing; previous/next navigate within the loaded page after saving. The sheet also exposes row deletion. Preserve shared dialog focus, dismissal and scroll behavior.
+
+#### Saved state and recovery
+
+Quiet save feedback remains in the workspace status area. Failed saves keep drafts and expose retry; conflicts expose explicit merge or discard actions. Saved cell edits, range clears, pastes into existing rows, column renames/type changes and column removals share chronological undo/redo history for the open editor session. Undo/redo does not show a success toast; committing a column removal shows a toast with an Undo action. Inside text inputs, keyboard undo remains native text undo. Initial-load failures say **Tabel tidak dapat dimuat**, and successful recovery clears the Query error state. Separate metadata/content reads reconcile at most three times to establish one coherent saved revision; a table that keeps changing produces a visible failure.
+
+**The Separate Recovery Rule.** CSV download errors get their own **CSV belum dapat diunduh** alert and **Unduh ulang CSV** action, separate from unsaved-edit recovery. Export serializes the full saved table, not only the visible page or pending drafts. The authenticated file transfer must succeed before a Blob download is initiated; a failed transfer must remain visible as a download failure.
+
 ## Do's and Don'ts
 
 ### Do

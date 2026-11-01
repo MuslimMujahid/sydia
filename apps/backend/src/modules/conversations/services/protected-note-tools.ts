@@ -8,6 +8,11 @@ import type { DailyNoteService } from '../../daily-notes/daily-note.service';
 import type { AssistantTool } from './tool-executor.service';
 
 const MUTATIONS = new Set([
+  'create_record_note',
+  'change_record_schema',
+  'add_record_rows',
+  'update_record_rows',
+  'delete_record_rows',
   'write_daily_note',
   'create_custom_note',
   'update_custom_note',
@@ -60,6 +65,7 @@ export function protectNoteTools(
               if (dailyDate) return [`daily:${dailyDate}`];
               if (
                 name === 'create_custom_note' ||
+                name === 'create_record_note' ||
                 (name === 'manage_notes_item' &&
                   args.action === 'create_folder')
               )
