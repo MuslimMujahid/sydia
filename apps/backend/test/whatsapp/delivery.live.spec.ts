@@ -822,57 +822,72 @@ const originallyVerifiedAt = new Date('2026-10-21T03:00:00Z');
       expect(sent).not.toHaveBeenCalled();
     });
 
-    test('default-enabled briefing preferences are not explicit WhatsApp opt-in', async () => {
-      await records.createDelivery({
-        userId: owner,
-        kind: 'daily_briefing',
-        content: 'Briefing',
-        idempotencyKey: 'briefing',
-        channel: 'whatsapp',
-        proactive: true,
-      });
-      expect(
-        (
-          await service.deliverNotification({
-            userId: owner,
-            kind: 'daily_briefing',
-            content: 'Briefing',
-            idempotencyKey: 'briefing',
-            proactive: true,
-          })
-        ).status,
-      ).toBe('skipped_not_opted_in');
-      expect(sent).not.toHaveBeenCalled();
-    });
+    test.each(['daily_briefing', 'weekly_briefing', 'follow_up'])(
+      '%s delivers with default settings and no separate consent',
+      async (kind) => {
+        const input = {
+          userId: owner,
+          kind,
+          content: 'Scheduled notification',
+          idempotencyKey: 'default-settings',
+          proactive: true,
+        };
 
-    test('saving a relevant existing preference opts into the corresponding briefing', async () => {
-      await records.savePreferences(owner, { briefingEnabled: true });
-      await records.createDelivery({
-        userId: owner,
-        kind: 'daily_briefing',
-        content: 'Briefing',
-        idempotencyKey: 'briefing',
-        channel: 'whatsapp',
-        proactive: true,
-      });
-      expect(
-        (
-          await service.deliverNotification({
-            userId: owner,
-            kind: 'daily_briefing',
-            content: 'Briefing',
-            idempotencyKey: 'briefing',
-            proactive: true,
-          })
-        ).status,
-      ).toBe('delivered');
-    });
+        await records.createDelivery({ ...input, channel: 'whatsapp' });
 
-    test('saving an unrelated preference does not authorize proactive WhatsApp messages', async () => {
-      await records.savePreferences(owner, { webNotificationsEnabled: true });
-      expect(await repository.hasConsent(owner, 'daily_briefing')).toBe(false);
-      expect(await repository.hasConsent(owner, 'follow_up')).toBe(false);
-    });
+        expect((await service.deliverNotification(input)).status).toBe(
+          'delivered',
+        );
+        expect(sent).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    test.each(['daily_briefing', 'weekly_briefing', 'follow_up'])(
+      'disabled WhatsApp notifications suppress %s without separate consent',
+      async (kind) => {
+        await records.savePreferences(owner, {
+          whatsappNotificationsEnabled: false,
+        });
+        const input = {
+          userId: owner,
+          kind,
+          content: 'Disabled notification',
+          idempotencyKey: 'disabled-channel',
+          proactive: true,
+        };
+
+        await records.createDelivery({ ...input, channel: 'whatsapp' });
+
+        expect((await service.deliverNotification(input)).status).toBe(
+          'skipped_disabled',
+        );
+        expect(sent).not.toHaveBeenCalled();
+      },
+    );
+
+    test.each(['daily_briefing', 'weekly_briefing'])(
+      'disabled briefing settings suppress a queued %s',
+      async (kind) => {
+        const input = {
+          userId: owner,
+          kind,
+          content: 'Queued briefing',
+          idempotencyKey: 'disabled-briefing',
+          proactive: true,
+        };
+
+        await records.createDelivery({ ...input, channel: 'whatsapp' });
+        await records.savePreferences(owner, {
+          briefingEnabled: false,
+          weeklyBriefingEnabled: false,
+        });
+
+        expect((await service.deliverNotification(input)).status).toBe(
+          'skipped_disabled',
+        );
+        expect(sent).not.toHaveBeenCalled();
+      },
+    );
 
     test('uncertain provider acceptance is recorded as unknown and never replayed blindly', async () => {
       const input = await reminder();

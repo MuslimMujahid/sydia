@@ -693,10 +693,12 @@ export class WhatsAppService implements OnModuleInit {
     }
 
     if (
-      !requested &&
-      !(await this.connections.hasConsent(input.userId, existing.kind))
+      (existing.kind === 'daily_briefing' &&
+        preferences?.briefingEnabled === false) ||
+      (existing.kind === 'weekly_briefing' &&
+        preferences?.weeklyBriefingEnabled === false)
     )
-      return outcome('skipped_not_opted_in');
+      return outcome('skipped_disabled');
     if (
       input.kind === 'event_reminder' &&
       !(await this.notifications.eventReminderIsCurrent(input))

@@ -43,7 +43,6 @@ export interface IWhatsAppConnectionRepository {
   claimReconnect(scope: WhatsAppConnectionScope, now: Date): Promise<boolean>;
   cleanupResult(id: string, error: string | null): Promise<void>;
   deliveryScope(deliveryId: string): Promise<WhatsAppDeliveryScope | null>;
-  hasConsent(userId: string, kind: string): Promise<boolean>;
   recordMissed(
     deliveryId: string,
     outageId: string,

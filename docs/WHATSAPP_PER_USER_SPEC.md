@@ -26,8 +26,8 @@ Fix the connection model and the agreed delivery restrictions. Reuse existing se
 | Ordinary replies               | Send as soon as ready, in order through a separate queue per assistant.                                                                                                     |
 | Removed reply restrictions     | Remove the one-message-per-minute limit, 30-per-hour cap, and artificial pre-reply/typing delays.                                                                           |
 | Reminder eligibility           | Requested reminders continue regardless of conversation volume or replies to previous reminders.                                                                            |
-| Additional proactive messages  | Require explicit opt-in through existing settings; pairing alone does not enable check-ins, suggestions, or briefings.                                                      |
-| Removed proactive restrictions | Remove the proactive/inbound ratio, latest-proactive reply requirement, and unanswered-message cutoff for requested reminders and opted-in check-ins/briefings.             |
+| Additional proactive messages  | Use existing notification preferences and feature settings; no separate WhatsApp consent record is required.                                                                |
+| Removed proactive restrictions | Remove the proactive/inbound ratio, latest-proactive reply requirement, and unanswered-message cutoff for requested reminders and enabled check-ins/briefings.              |
 | Quiet hours                    | Remove the fixed 22:00–08:00 WhatsApp gate entirely. Existing scheduler timing determines delivery, including overnight.                                                    |
 | Notification controls          | Dashboard settings only. No reserved STOP/START commands, hard-coded opt-out interception, canned command instructions, or natural-language changes to channel preferences. |
 | Disconnection recovery         | One catch-up summary of missed reminders after reconnection, then normal future delivery. Do not replay each missed reminder.                                               |
@@ -49,7 +49,7 @@ These are checkout observations, not production verification.
 | Pairing API      | `POST /whatsapp/companion/pair-code` is admin-only. Users currently create a code for linking their sender identity to the shared account.                                                     |
 | Deduplication    | `WhatsAppInboundMessage` is unique on provider/message ID. Multi-account receipt and message processing need connection scope.                                                                 |
 | Policies         | `whatsapp.policy.ts` contains shared-number ceilings, engagement checks, artificial delays, quiet hours, and opt-out command matching.                                                         |
-| Preferences      | Existing preferences include WhatsApp notifications, briefing enablement/time, and follow-up interval. Several default to enabled; a default is not evidence of explicit opt-in.               |
+| Preferences      | Existing preferences include WhatsApp notifications, briefing enablement/time, and follow-up interval. Defaults apply to WhatsApp just as they do to Telegram.                                 |
 | UI               | `apps/frontend/src/components/settings/whatsapp-page.tsx` separates admin pairing from user linking and shows shared-operator recovery and STOP copy. Adapt this existing surface.             |
 | Runtime          | The GoWA build helper defaults to v9.3.0. Verify the installed binary and device-scoped payloads; a configured build tag alone is not runtime evidence.                                        |
 
@@ -145,7 +145,7 @@ The owner already knows which assistant they paired. Replace the shared first-co
 
 Apply the existing WhatsApp notification preference consistently to notification delivery, including reminders, briefings, check-ins, and recovery summaries. Disabling it suppresses WhatsApp notifications without canceling reminder definitions or changing other channels. Owner-initiated conversations remain available.
 
-Use existing settings actions to express additional proactive opt-in. Explicitly enabling/saving the relevant existing notification settings counts; pairing, reading default-enabled values, or saving unrelated preferences does not. Preserve evidence of a deliberate selection internally where necessary. If no existing setting can express an additional category's opt-in, keep that category inactive on WhatsApp rather than introducing a new configuration control.
+Use existing notification preferences to control WhatsApp delivery. Daily and weekly briefings and task follow-ups work with enabled defaults after owner verification, without a separate consent record or settings toggle. Disabling the WhatsApp channel suppresses all notifications; disabling a briefing suppresses that briefing, including queued deliveries.
 
 Do not change the shared scheduler, recurrence rules, global preferences, or other-channel delivery to implement the WhatsApp fix. Preserve existing selected schedules and frequencies. Remove WhatsApp's traffic-ratio, acknowledgment, unanswered-message, and quiet-hours eligibility checks.
 
@@ -234,8 +234,8 @@ Behavior changes must ship with discriminating regression tests. Reproduce the e
 | Long reply                                               | No artificial pre-reply or typing wait; existing shared batching remains intact.                                                  |
 | Recurring reminders without replies or inbound chat      | Later occurrences remain eligible; no ratio, acknowledgment, or unanswered-message block.                                         |
 | Notification due overnight                               | Existing scheduler timing is honored; no WhatsApp quiet-hours gate.                                                               |
-| Default-enabled preferences after pairing                | No additional proactive opt-in inferred merely from defaults or pairing.                                                          |
-| Explicit existing-setting opt-in                         | The eligible feature uses its existing schedule/frequency, regardless of chat volume.                                             |
+| Default-enabled preferences after pairing                | Enabled default preferences permit notifications after owner verification; no settings toggle is required.                        |
+| Existing notification settings                           | The eligible feature uses its existing schedule/frequency, regardless of chat volume.                                             |
 | Notification preference disabled                         | No WhatsApp notifications or summaries; ordinary conversation and other enabled channels still work.                              |
 | STOP/START or equivalent message text                    | No reserved notification command or preference mutation; no canned command instruction appears.                                   |
 | Text, image, document, voice, and outbound file          | Existing behavior works through the correct connection; size/error handling remains observable.                                   |
@@ -273,7 +273,7 @@ This specification change itself requires Markdown formatting and consistency ch
 1. Connection persistence, uniqueness, generation fencing, and migration contracts.
 2. Per-device GoWA runtime/webhook routing and durable per-assistant send isolation.
 3. Authenticated setup/status/revoke APIs and the existing integration UI.
-4. Policy removal, existing-setting consent/preferences, and bounded recovery summaries.
+4. Policy removal, existing notification preferences, and bounded recovery summaries.
 5. Regression checks, real-provider smoke, and direct cutover with legacy work retired.
 
 No further product configuration is part of this spec.

@@ -377,12 +377,6 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
     });
   }
 
-  async hasConsent(userId: string, kind: string) {
-    return (
-      (await this.prisma.whatsAppConsent.count({ where: { userId, kind } })) > 0
-    );
-  }
-
   async recordMissed(
     deliveryId: string,
     outageId: string,

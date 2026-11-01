@@ -362,36 +362,11 @@ export class PrismaNotificationRepository implements INotificationRepository {
     userId: string,
     input: Parameters<INotificationRepository['savePreferences']>[1],
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const result = await tx.userPreference.upsert({
-        where: { userId },
-        create: { userId, ...input },
-        update: input,
-        select: preferenceSelect,
-      });
-
-      const grants = [
-        ...(input.briefingEnabled === true ? ['daily_briefing'] : []),
-        ...(input.weeklyBriefingEnabled === true ? ['weekly_briefing'] : []),
-        ...(input.followUpIntervalMinutes !== undefined ? ['follow_up'] : []),
-      ];
-
-      for (const kind of grants)
-        await tx.whatsAppConsent.upsert({
-          where: { userId_kind: { userId, kind } },
-          create: { userId, kind, grantedAt: new Date() },
-          update: { grantedAt: new Date() },
-        });
-      if (input.briefingEnabled === false)
-        await tx.whatsAppConsent.deleteMany({
-          where: { userId, kind: 'daily_briefing' },
-        });
-      if (input.weeklyBriefingEnabled === false)
-        await tx.whatsAppConsent.deleteMany({
-          where: { userId, kind: 'weekly_briefing' },
-        });
-
-      return result;
+    return this.prisma.userPreference.upsert({
+      where: { userId },
+      create: { userId, ...input },
+      update: input,
+      select: preferenceSelect,
     });
   }
 }
