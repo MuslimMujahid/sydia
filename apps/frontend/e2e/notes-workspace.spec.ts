@@ -114,6 +114,53 @@ test.describe("Notes workspace with the real backend", () => {
     await account(page, baseURL);
   });
 
+  test("the creation menu opens without creating and Escape returns focus", async ({
+    page,
+  }) => {
+    const note = await create(page.request, "Catatan awal");
+    await open(page, note.id);
+    const trigger = page.getByRole("button", {
+      name: "Buat baru",
+      exact: true,
+    });
+
+    await trigger.focus();
+    await trigger.press("ArrowDown");
+    await expect(
+      page.getByRole("menuitem", { name: "Buat folder baru", exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: "Buat catatan baru", exact: true })
+    ).toBeVisible();
+    expect((await workspace(page.request)).items).toHaveLength(1);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
+  test("the creation menu creates a note inside the open note’s parent", async ({
+    page,
+  }) => {
+    const folder = await create(page.request, "Kerja", null, "folder");
+    const note = await create(page.request, "Catatan kerja", folder.id);
+    await open(page, note.id);
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
+      .click();
+    await expect(
+      page.getByRole("textbox", { name: "Judul catatan", exact: true })
+    ).toHaveValue("Untitled");
+    await expect
+      .poll(
+        async () =>
+          (await workspace(page.request)).items.find(
+            (item) => item.title === "Untitled"
+          )?.parentId
+      )
+      .toBe(folder.id);
+  });
+
   test("an empty new note survives reload and becomes the stored resume target", async ({
     page,
   }) => {
@@ -621,8 +668,9 @@ test.describe("Notes workspace with the real backend", () => {
     const project = await create(page.request, "Proyek", work.id, "folder");
     const note = await create(page.request, "Rencana peluncuran", project.id);
     await open(page, note.id);
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
     await page
-      .getByRole("button", { name: "Folder baru", exact: true })
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
     const form = page.getByRole("form", { name: "Folder baru", exact: true });
     const input = form.getByRole("textbox", {
@@ -664,8 +712,9 @@ test.describe("Notes workspace with the real backend", () => {
     const note = await create(page.request, "Catatan proyek", project.id);
     await open(page, note.id);
     await page.getByRole("button", { name: "Kerja", exact: true }).click();
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
     await page
-      .getByRole("button", { name: "Folder baru", exact: true })
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
     const input = page.getByRole("textbox", {
       name: "Nama folder",
@@ -688,8 +737,9 @@ test.describe("Notes workspace with the real backend", () => {
   }) => {
     const note = await create(page.request, "Catatan di root");
     await open(page, note.id);
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
     await page
-      .getByRole("button", { name: "Folder baru", exact: true })
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
     const input = page.getByRole("textbox", {
       name: "Nama folder",
@@ -723,11 +773,14 @@ test.describe("Notes workspace with the real backend", () => {
     const note = await create(page.request, "Catatan tetap terbuka");
     await open(page, note.id);
     const trigger = page.getByRole("button", {
-      name: "Folder baru",
+      name: "Buat baru",
       exact: true,
     });
 
     await trigger.click();
+    await page
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
+      .click();
     const input = page.getByRole("textbox", {
       name: "Nama folder",
       exact: true,
@@ -746,8 +799,9 @@ test.describe("Notes workspace with the real backend", () => {
   }) => {
     const note = await create(page.request, "Catatan tetap terbuka");
     await open(page, note.id);
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
     await page
-      .getByRole("button", { name: "Folder baru", exact: true })
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
     const input = page.getByRole("textbox", {
       name: "Nama folder",
@@ -770,8 +824,9 @@ test.describe("Notes workspace with the real backend", () => {
     await create(page.request, "Riset", folder.id, "folder");
     const note = await create(page.request, "Catatan kerja", folder.id);
     await open(page, note.id);
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
     await page
-      .getByRole("button", { name: "Folder baru", exact: true })
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
     const form = page.getByRole("form", { name: "Folder baru", exact: true });
     const input = form.getByRole("textbox", {
@@ -812,8 +867,9 @@ test.describe("Notes workspace with the real backend", () => {
       },
       { times: 1 }
     );
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
     await page
-      .getByRole("button", { name: "Folder baru", exact: true })
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
     const form = page.getByRole("form", { name: "Folder baru", exact: true });
     const input = form.getByRole("textbox", {
@@ -855,8 +911,9 @@ test.describe("Notes workspace with the real backend", () => {
       await gate;
       await route.continue();
     });
+    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
     await page
-      .getByRole("button", { name: "Folder baru", exact: true })
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
     const form = page.getByRole("form", { name: "Folder baru", exact: true });
     const input = form.getByRole("textbox", {
@@ -898,11 +955,14 @@ test.describe("Notes workspace with the real backend", () => {
       .click();
     const drawer = page.getByRole("dialog");
     const trigger = drawer.getByRole("button", {
-      name: "Folder baru",
+      name: "Buat baru",
       exact: true,
     });
 
     await trigger.click();
+    await page
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
+      .click();
     const input = drawer.getByRole("textbox", {
       name: "Nama folder",
       exact: true,
@@ -913,6 +973,9 @@ test.describe("Notes workspace with the real backend", () => {
     await expect(drawer).toBeVisible();
     await expect(trigger).toBeFocused();
     await trigger.click();
+    await page
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
+      .click();
     await input.fill("Riset mobile");
     await expect(input).toHaveAttribute("enterkeyhint", "done");
     await input.press("Enter");

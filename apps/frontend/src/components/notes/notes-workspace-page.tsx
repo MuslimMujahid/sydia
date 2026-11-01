@@ -11,6 +11,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  FilePlus,
+  FolderPlus,
   Link2,
   Command,
   Menu,
@@ -24,6 +26,12 @@ import { WorkspaceDailyNavigation } from "./workspace-daily-navigation";
 import { shiftDayKey } from "@/components/daily-notes/daily-note-date";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   createWorkspaceItem,
@@ -104,6 +112,8 @@ export function NotesWorkspacePage({
   const [statusSlot, setStatusSlot] = useState<HTMLDivElement | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const navigationHeading = useRef<HTMLHeadingElement>(null);
+  const creationTrigger = useRef<HTMLButtonElement>(null);
+  const creatingFolder = useRef(false);
   const workspace = useQuery({ ...workspaceQueryOptions(), enabled: mounted });
   const requestedRef = selectedRef ?? stored.ref;
   const note = useQuery({
@@ -383,22 +393,52 @@ export function NotesWorkspacePage({
         />
         <div className="mt-7 mb-2 flex items-center justify-between">
           <h2 className="px-2 text-xs font-semibold text-ink-muted">Folder</h2>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
-            aria-label="Folder baru"
-            disabled={
-              workspace.isPending ||
-              workspace.isError ||
-              Boolean(folderCreation.draft)
-            }
-            onClick={(event) =>
-              folderCreation.start(noteParentId, event.currentTarget)
-            }
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (open) creatingFolder.current = false;
+            }}
           >
-            <Plus />
-          </Button>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  ref={creationTrigger}
+                  variant="ghost"
+                  size="icon-sm"
+                  className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Buat baru"
+                  disabled={workspace.isPending || workspace.isError}
+                />
+              }
+            >
+              <Plus />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              finalFocus={() => !creatingFolder.current}
+            >
+              <DropdownMenuItem
+                disabled={Boolean(folderCreation.draft)}
+                onClick={() => {
+                  if (creationTrigger.current) {
+                    creatingFolder.current = true;
+                    folderCreation.start(noteParentId, creationTrigger.current);
+                  }
+                }}
+              >
+                <FolderPlus />
+                Buat folder baru
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={create.isPending}
+                onClick={async () => {
+                  if (await guard()) create.mutate();
+                }}
+              >
+                <FilePlus />
+                Buat catatan baru
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       <div className="-mr-4 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
