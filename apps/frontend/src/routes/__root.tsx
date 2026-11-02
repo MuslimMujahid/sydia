@@ -10,6 +10,7 @@ import { useEffect, type ReactNode } from "react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AppNotFound } from "@/components/app-states";
 import { registerServiceWorker } from "@/lib/pwa/register-service-worker";
+import { captureAttribution } from "@/lib/attribution";
 import "@/styles/globals.css";
 
 const SITE_ORIGIN = "https://sydia.muslimmujahid.com";
@@ -85,6 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootComponent() {
   useEffect(() => {
+    captureAttribution();
     registerServiceWorker();
   }, []);
 

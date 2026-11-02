@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAppForm } from "@/lib/hooks/forms";
 import { redirectAuthenticatedUser } from "@/lib/auth";
+import { sendAttribution } from "@/lib/attribution";
 import { useSignUp } from "@/lib/services/api/auth/auth.queries";
 import { GoogleButton, AuthDivider } from "@/components/auth/google-button";
 import { PasswordField } from "@/components/auth/password-field";
@@ -51,6 +52,7 @@ function SignUpPage() {
         email: value.email,
         password: value.password,
       });
+      void sendAttribution();
       await navigate({
         to: "/verify-email",
         search: { reason: "signup" },

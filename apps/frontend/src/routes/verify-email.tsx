@@ -21,6 +21,7 @@ import {
   ReturnToSignIn,
 } from "@/components/auth/email-code-step";
 import { redirectAuthenticatedUser } from "@/lib/auth";
+import { sendAttribution } from "@/lib/attribution";
 import { AuthRecoveryScreen } from "@/components/auth/auth-recovery-screen";
 import { Button } from "@/components/ui/button";
 
@@ -97,6 +98,7 @@ function VerifyEmailPage() {
       sendCode={() => sendVerificationCode(user.email)}
       verifyCode={async (code) => {
         await verifyEmailCode(user.email, code);
+        await sendAttribution();
         await queryClient.invalidateQueries({ queryKey: authQueryKeys.all });
         await queryClient.invalidateQueries({ queryKey: userQueryKeys.all });
         const account = await queryClient.fetchQuery({

@@ -1,8 +1,10 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ErrorState, LoadingState } from "@/components/app-states";
 import { requireCompletedOnboarding } from "@/lib/auth";
 import { DevToolbar } from "@/components/dev/dev-toolbar";
+import { sendAttribution } from "@/lib/attribution";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: ({ context, location }) =>
@@ -18,6 +20,10 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const user = Route.useRouteContext();
+
+  useEffect(() => {
+    void sendAttribution();
+  }, []);
 
   return (
     <DashboardShell user={user}>
