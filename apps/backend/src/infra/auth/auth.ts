@@ -11,6 +11,7 @@ import { hashAuthOTP, registrationPolicy } from './registration-policy';
 import { passwordRecoveryPlugin } from './password-recovery.plugin';
 import { registrationPlugin } from './registration.plugin';
 import { googleIdentityProvider } from './google-identity.provider';
+import { recordAuthEvent } from './auth.telemetry';
 
 export type AuthOptions = {
   /** Dependency override for deterministic auth contract tests; production uses the plugin's secure generator. */
@@ -184,6 +185,7 @@ export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
       user: {
         create: {
           after: async (user) => {
+            recordAuthEvent('account.created');
             await options.provisionDefaultCategories(user.id);
             await recordAuditEvent('account.created', user.id);
           },

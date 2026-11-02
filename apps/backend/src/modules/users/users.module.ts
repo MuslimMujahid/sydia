@@ -6,11 +6,13 @@ import { RemindersModule } from '../reminders/reminders.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { MemoriesModule } from '../memories/memories.module';
 import {
+  ATTRIBUTION_REPOSITORY,
   EXTERNAL_IDENTITY_REPOSITORY,
   USER_PRIVACY_REPOSITORY,
   USER_REPOSITORY,
 } from '../../database/interfaces';
 import {
+  PrismaAttributionRepository,
   PrismaExternalIdentityRepository,
   PrismaUserPrivacyRepository,
   PrismaUserRepository,
@@ -18,6 +20,7 @@ import {
 import { UsersController } from './users.controller';
 import {
   GetUserService,
+  RecordAttributionService,
   UpdateUserProfileService,
   UserPreferencesService,
   UserPrivacyService,
@@ -41,9 +44,11 @@ import {
       useClass: PrismaExternalIdentityRepository,
     },
     { provide: USER_PRIVACY_REPOSITORY, useClass: PrismaUserPrivacyRepository },
+    { provide: ATTRIBUTION_REPOSITORY, useClass: PrismaAttributionRepository },
     UpdateUserProfileService,
     UserPreferencesService,
     UserPrivacyService,
+    RecordAttributionService,
   ],
   exports: [UserPrivacyService],
 })

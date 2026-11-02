@@ -6,6 +6,7 @@ import {
   Get,
   HttpStatus,
   Patch,
+  Put,
   Res,
   StreamableFile,
 } from '@nestjs/common';
@@ -14,11 +15,16 @@ import type { Response } from 'express';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import {
   GetUserService,
+  RecordAttributionService,
   UpdateUserProfileService,
   UserPreferencesService,
   UserPrivacyService,
 } from './services';
-import { UpdateUserPreferencesDto, UpdateUserProfileDto } from './dto';
+import {
+  RecordAttributionDto,
+  UpdateUserPreferencesDto,
+  UpdateUserProfileDto,
+} from './dto';
 
 @AllowInactiveBilling()
 @Controller('users')
@@ -28,6 +34,7 @@ export class UsersController {
     private readonly updateUserProfile: UpdateUserProfileService,
     private readonly userPreferences: UserPreferencesService,
     private readonly privacy: UserPrivacyService,
+    private readonly attribution: RecordAttributionService,
   ) {}
 
   @Get('me')
@@ -60,6 +67,14 @@ export class UsersController {
     if (!updated) throw this.notFound();
 
     return updated;
+  }
+
+  @Put('me/attribution')
+  recordAttribution(
+    @Session() session: UserSession,
+    @Body() input: RecordAttributionDto,
+  ) {
+    return this.attribution.execute(session.user.id, input);
   }
 
   @Get('me/export')

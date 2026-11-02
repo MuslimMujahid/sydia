@@ -2,6 +2,7 @@ export * from './get-user.service';
 export * from './update-user-profile.service';
 export * from './user-preferences.service';
 export * from './user-privacy.service';
+export * from './record-attribution.service';
 export {
   DailyBriefingService,
   FollowUpService,

@@ -33,6 +33,19 @@ export const USER_EXPORT_SELECT = {
       appliedAt: true,
     },
   },
+  userAttribution: {
+    select: {
+      visitorId: true,
+      utmSource: true,
+      utmMedium: true,
+      utmCampaign: true,
+      utmContent: true,
+      utmTerm: true,
+      referrer: true,
+      landingPath: true,
+      createdAt: true,
+    },
+  },
   userPreference: {
     select: {
       briefingEnabled: true,

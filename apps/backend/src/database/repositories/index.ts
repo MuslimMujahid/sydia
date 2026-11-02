@@ -32,3 +32,4 @@ export * from './prisma-note-presence.repository';
 export * from './prisma-note-work.repository';
 export * from './prisma-note-agent-run.repository';
 export * from './prisma-record-notes.repository';
+export * from './prisma-attribution.repository';

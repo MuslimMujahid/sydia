@@ -77,6 +77,7 @@ model User {
   billingAccount           BillingAccount?
   billingMembers           BillingMember[]
   billingOrders            BillingOrder[]
+  userAttribution          UserAttribution?
   storageReservations      StorageReservation[]
   assistantActions         AssistantAction[]
   assistancePreference     AssistancePreference?
@@ -96,6 +97,26 @@ model BillingAccount {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("billing_account")
+}
+
+/// First-touch acquisition data captured when a visitor becomes a user.
+/// The landing page owns the visitor identifier; the app forwards it once.
+model UserAttribution {
+  userId      String   @id
+  visitorId   String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  referrer    String?
+  landingPath String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([visitorId])
+  @@index([createdAt])
+  @@map("user_attribution")
 }
 
 model BillingMember {

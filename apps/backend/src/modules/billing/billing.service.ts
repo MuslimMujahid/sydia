@@ -127,6 +127,8 @@ export class BillingService {
 
     if (!created) return presentBillingOrder(order);
 
+    recordBillingEvent('checkout_created');
+
     try {
       let memberId = await this.repository.findMember(userId, this.environment);
 

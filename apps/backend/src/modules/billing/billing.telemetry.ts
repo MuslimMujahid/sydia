@@ -10,6 +10,7 @@ const events = metrics
 export function recordBillingEvent(
   event:
     | 'payment_applied'
+    | 'checkout_created'
     | 'checkout_failed'
     | 'verification_mismatch'
     | 'recovery_failed'
