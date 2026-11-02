@@ -97,8 +97,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       BACKEND_DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/sydia_e2e
+      BACKEND_REDIS_URL: redis://127.0.0.1:6379
       BACKEND_AUTH_SECRET: ci-e2e-secret-that-is-at-least-32-characters
       BACKEND_SECRET_ENCRYPTION_KEY: ci-e2e-encryption-key-that-is-at-least-32-characters
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
