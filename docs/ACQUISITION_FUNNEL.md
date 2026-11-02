@@ -75,8 +75,10 @@ OpenTelemetry counters feed the existing Prometheus/Grafana stack:
 
 ## 4. Cohort reports
 
-Apply `ops/observability/sql/funnel.sql` to the application database, then point
-Grafana (or any SQL client) at these views:
+The views ship as a Prisma migration
+(`apps/backend/prisma/migrations/20261102090100_analytics_views`), so
+`prisma migrate deploy` creates them with the rest of the schema — no separate
+SQL step. Point Grafana (or any SQL client) at:
 
 - `analytics_signup_cohort` — weekly signups, attribution coverage, paid within
   30 days, and the conversion rate.

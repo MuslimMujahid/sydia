@@ -1,7 +1,10 @@
 -- Acquisition, signup, checkout, and payment funnel views.
--- Run against the application database after migrations:
---   psql "$BACKEND_DB_URL" -f ops/observability/sql/funnel.sql
--- All cohorts use the Asia/Jakarta calendar week that a user signed up in.
+--
+-- Applied by `prisma migrate deploy` with the rest of the schema. Change a view
+-- with a new migration: `CREATE OR REPLACE VIEW` handles additive changes,
+-- while renaming or reordering columns needs `DROP VIEW` first.
+--
+-- All cohorts use the Asia/Jakarta calendar week a user signed up in.
 -- Visitors are not stored here: read them from the landing analytics tool and
 -- divide attributed signups by that tool's unique visitors for the same week.
 
