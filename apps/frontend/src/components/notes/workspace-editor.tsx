@@ -451,29 +451,6 @@ function WorkspaceEditorContent({
             {saveNotices}
           </div>
         ) : null}
-        <footer
-          className={cn(
-            "flex min-h-11 items-center gap-2 border-t border-ink/8 px-6 text-xs text-ink-muted",
-            presentation === "drawer" && "hidden"
-          )}
-        >
-          <span
-            role="status"
-            aria-live="polite"
-            className="inline-flex items-center gap-2"
-          >
-            {autosave.status === "saved" ? (
-              <Check className="size-3.5" />
-            ) : null}
-            {autosave.status === "conflict"
-              ? "Penyimpanan dijeda · draf Anda dipertahankan"
-              : autosave.status === "error"
-                ? "Perubahan belum tersimpan"
-                : autosave.status === "saved"
-                  ? "Tersimpan otomatis"
-                  : "Menyimpan…"}
-          </span>
-        </footer>
       </div>
       {linkRequest ? (
         <NoteLinkPicker

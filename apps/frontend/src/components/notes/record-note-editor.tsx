@@ -84,7 +84,6 @@ export function RecordNoteEditor({
   statusSlot,
   onSaved,
   fresh = false,
-  presentation = "workspace",
   onDirtyChange,
 }: RecordNoteEditorProps) {
   const editor = useRecordEditor(note, onSaved, onDirtyChange);
@@ -1532,17 +1531,6 @@ export function RecordNoteEditor({
             <X className="size-3.5" />
           </button>
         </div>
-      ) : null}
-      {presentation === "workspace" ? (
-        <footer className="mt-auto flex min-h-11 shrink-0 items-center border-t border-ink/8 px-4 text-xs text-ink-muted sm:px-8">
-          <span className="hidden sm:inline">
-            Tersimpan otomatis · Enter untuk mengubah · Tab ke sel berikutnya ·
-            Ctrl+Z untuk urungkan
-          </span>
-          <span className="sm:hidden">
-            Ketuk sel untuk mengubah · Geser untuk kolom lain
-          </span>
-        </footer>
       ) : null}
     </div>
   );
