@@ -86,7 +86,7 @@ export function ItemMenu({
         ) : null}
         {item.kind === "folder" ? (
           <DropdownMenuItem onClick={() => onAction("create-record", item)}>
-            Buat catatan tabel
+            Buat tabel baru
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={() => onAction("rename", item)}>

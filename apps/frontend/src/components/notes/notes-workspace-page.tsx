@@ -483,7 +483,7 @@ export function NotesWorkspacePage({
                 }}
               >
                 <Table2 />
-                Buat catatan tabel
+                Buat tabel baru
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -603,12 +603,13 @@ export function NotesWorkspacePage({
           {mode === "note" ? (
             <>
               <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-ink/8 px-6 text-xs text-ink-muted">
-                <span className="truncate">
-                  {activeRef?.startsWith("daily:")
-                    ? "Catatan harian"
-                    : (items.find((item) => item.id === currentItem?.parentId)
-                        ?.path ?? "Semua catatan")}
-                </span>
+                {activeRef?.startsWith("daily:") ? (
+                  <span className="truncate">Catatan harian</span>
+                ) : noteParentId ? (
+                  <span className="truncate">
+                    {items.find((item) => item.id === noteParentId)?.path}
+                  </span>
+                ) : null}
                 <div ref={setStatusSlot} className="ml-auto shrink-0" />
                 {currentItem ? (
                   <ItemMenu

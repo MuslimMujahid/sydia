@@ -472,7 +472,7 @@ test("retrying a committed creation preserves column identities and creates one 
   });
   await page.getByRole("button", { name: "Buat baru", exact: true }).click();
   await page
-    .getByRole("menuitem", { name: "Buat catatan tabel", exact: true })
+    .getByRole("menuitem", { name: "Buat tabel baru", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("Coba lagi");
   await page.unroute(`${backend}/record-notes`);
@@ -480,7 +480,7 @@ test("retrying a committed creation preserves column identities and creates one 
   const original = committed;
   await page.getByRole("button", { name: "Buat baru", exact: true }).click();
   await page
-    .getByRole("menuitem", { name: "Buat catatan tabel", exact: true })
+    .getByRole("menuitem", { name: "Buat tabel baru", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Tambah kolom", exact: true })

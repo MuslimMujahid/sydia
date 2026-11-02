@@ -397,13 +397,11 @@ function WorkspaceEditorContent({
               />
             </>
           )}
-          <p className="mt-3 text-xs text-ink-muted">
-            {daily && presentation === "drawer"
-              ? `${note.title.slice(0, 4)} · Catatan harian`
-              : note.updatedAt
-                ? `Diperbarui ${new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(new Date(note.updatedAt))}`
-                : "Satu catatan untuk hari ini"}
-          </p>
+          {daily && presentation === "drawer" ? (
+            <p className="mt-3 text-xs text-ink-muted">
+              {note.title.slice(0, 4)} · Catatan harian
+            </p>
+          ) : null}
           <div className="sticky top-0 z-10 mt-7 rounded-md bg-background [&_button]:min-h-11 [&_button]:min-w-11 sm:[&_button]:min-h-8 sm:[&_button]:min-w-8">
             <DailyNoteToolbar
               editor={editor}

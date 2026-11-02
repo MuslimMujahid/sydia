@@ -662,15 +662,6 @@ export function RecordNoteEditor({
                   }}
                   onBlur={() => void editor.flush()}
                 />
-                <p className="mt-1 text-xs leading-4 text-ink-muted">
-                  Diperbarui{" "}
-                  {new Intl.DateTimeFormat("id-ID", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }).format(new Date(meta.updatedAt))}
-                </p>
               </div>
               <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
                 <Button
