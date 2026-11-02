@@ -129,6 +129,7 @@ jobs:
       - name: Apply database migrations
         run: bun run --cwd apps/backend db:migrate:deploy
       - name: Install Chromium
+        working-directory: apps/frontend
         run: bunx playwright install --with-deps chromium
       - name: Run browser tests
         run: bun run --cwd apps/frontend test:e2e
