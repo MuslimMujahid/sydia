@@ -119,10 +119,12 @@ test.describe("Notes workspace with the real backend", () => {
   }) => {
     const note = await create(page.request, "Catatan awal");
     await open(page, note.id);
-    const trigger = page.getByRole("button", {
-      name: "Buat baru",
-      exact: true,
-    });
+    const trigger = page
+      .getByRole("button", {
+        name: "Buat baru",
+        exact: true,
+      })
+      .last();
 
     await trigger.focus();
     await trigger.press("ArrowDown");
@@ -144,7 +146,10 @@ test.describe("Notes workspace with the real backend", () => {
     const folder = await create(page.request, "Kerja", null, "folder");
     const note = await create(page.request, "Catatan kerja", folder.id);
     await open(page, note.id);
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
       .click();
@@ -166,10 +171,14 @@ test.describe("Notes workspace with the real backend", () => {
   }) => {
     await page.goto("/notes");
     await expect(
-      page.getByRole("button", { name: "Catatan baru", exact: true })
+      page.getByRole("button", { name: "Buat baru", exact: true }).first()
     ).toBeEnabled({ timeout: 15_000 });
     await page
-      .getByRole("button", { name: "Catatan baru", exact: true })
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
       .click();
     const title = page.getByRole("textbox", {
       name: "Judul catatan",
@@ -182,7 +191,11 @@ test.describe("Notes workspace with the real backend", () => {
     await expect(title).toBeVisible({ timeout: 15_000 });
     await expect(title).toHaveValue("Untitled");
     await page
-      .getByRole("button", { name: "Catatan baru", exact: true })
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
       .click();
     await expect(title).toHaveValue("Untitled 2");
     await page.goto("/notes");
@@ -275,10 +288,12 @@ test.describe("Notes workspace with the real backend", () => {
     page,
   }) => {
     await page.goto("/notes");
-    const createButton = page.getByRole("button", {
-      name: "Catatan baru",
-      exact: true,
-    });
+    const createButton = page
+      .getByRole("button", {
+        name: "Buat baru",
+        exact: true,
+      })
+      .first();
 
     await expect(createButton).toBeEnabled({ timeout: 15_000 });
     await page.route(
@@ -290,8 +305,14 @@ test.describe("Notes workspace with the real backend", () => {
       { times: 1 }
     );
     await createButton.click();
+    await page
+      .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
+      .click();
     await expect(page.getByRole("alert")).toBeVisible();
     await createButton.click();
+    await page
+      .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
+      .click();
     await expect(
       page.getByRole("textbox", { name: "Judul catatan", exact: true })
     ).toHaveValue("Untitled");
@@ -307,7 +328,11 @@ test.describe("Notes workspace with the real backend", () => {
     await open(page, source.id);
     await page.getByRole("button", { name: "Proyek", exact: true }).click();
     await page
-      .getByRole("button", { name: "Catatan baru", exact: true })
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
       .click();
     await expect(
       page.getByRole("textbox", { name: "Judul catatan" })
@@ -668,7 +693,10 @@ test.describe("Notes workspace with the real backend", () => {
     const project = await create(page.request, "Proyek", work.id, "folder");
     const note = await create(page.request, "Rencana peluncuran", project.id);
     await open(page, note.id);
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
@@ -712,7 +740,10 @@ test.describe("Notes workspace with the real backend", () => {
     const note = await create(page.request, "Catatan proyek", project.id);
     await open(page, note.id);
     await page.getByRole("button", { name: "Kerja", exact: true }).click();
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
@@ -737,7 +768,10 @@ test.describe("Notes workspace with the real backend", () => {
   }) => {
     const note = await create(page.request, "Catatan di root");
     await open(page, note.id);
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
@@ -772,10 +806,12 @@ test.describe("Notes workspace with the real backend", () => {
   }) => {
     const note = await create(page.request, "Catatan tetap terbuka");
     await open(page, note.id);
-    const trigger = page.getByRole("button", {
-      name: "Buat baru",
-      exact: true,
-    });
+    const trigger = page
+      .getByRole("button", {
+        name: "Buat baru",
+        exact: true,
+      })
+      .last();
 
     await trigger.click();
     await page
@@ -799,7 +835,10 @@ test.describe("Notes workspace with the real backend", () => {
   }) => {
     const note = await create(page.request, "Catatan tetap terbuka");
     await open(page, note.id);
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
@@ -824,7 +863,10 @@ test.describe("Notes workspace with the real backend", () => {
     await create(page.request, "Riset", folder.id, "folder");
     const note = await create(page.request, "Catatan kerja", folder.id);
     await open(page, note.id);
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
@@ -867,7 +909,10 @@ test.describe("Notes workspace with the real backend", () => {
       },
       { times: 1 }
     );
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
@@ -911,7 +956,10 @@ test.describe("Notes workspace with the real backend", () => {
       await gate;
       await route.continue();
     });
-    await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .last()
+      .click();
     await page
       .getByRole("menuitem", { name: "Buat folder baru", exact: true })
       .click();
@@ -1187,7 +1235,7 @@ test.describe("Notes workspace with the real backend", () => {
     await page.setViewportSize({ width: 390, height: 660 });
     await page.goto("/notes?date=2026-10-18");
     await expect(
-      page.getByRole("button", { name: "Catatan baru", exact: true })
+      page.getByRole("button", { name: "Buat baru", exact: true }).first()
     ).toBeEnabled();
     await page
       .getByRole("button", { name: "Buka navigasi catatan", exact: true })

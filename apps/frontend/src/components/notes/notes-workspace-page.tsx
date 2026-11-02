@@ -12,7 +12,6 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   FilePlus,
@@ -120,6 +119,7 @@ export function NotesWorkspacePage({
   const searchInput = useRef<HTMLInputElement>(null);
   const navigationHeading = useRef<HTMLHeadingElement>(null);
   const creationTrigger = useRef<HTMLButtonElement>(null);
+  const primaryCreationTrigger = useRef<HTMLButtonElement>(null);
   const creatingFolder = useRef(false);
   const workspace = useQuery({ ...workspaceQueryOptions(), enabled: mounted });
   const requestedRef = selectedRef ?? stored.ref;
@@ -392,6 +392,75 @@ export function NotesWorkspacePage({
       )
   );
 
+  function renderCreationMenu(primary: boolean) {
+    const trigger = primary ? primaryCreationTrigger : creationTrigger;
+
+    return (
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) creatingFolder.current = false;
+        }}
+      >
+        <DropdownMenuTrigger
+          render={
+            <Button
+              ref={trigger}
+              variant={primary ? "primary" : "ghost"}
+              size={primary ? "default" : "icon-sm"}
+              className={
+                primary ? undefined : "min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+              }
+              aria-label="Buat baru"
+              disabled={
+                create.isPending || workspace.isPending || workspace.isError
+              }
+            />
+          }
+        >
+          <Plus />
+          {primary ? "Buat baru" : null}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          finalFocus={() => !creatingFolder.current}
+        >
+          <DropdownMenuItem
+            disabled={Boolean(folderCreation.draft)}
+            onClick={() => {
+              if (trigger.current) {
+                creatingFolder.current = true;
+                folderCreation.start(noteParentId, trigger.current);
+                if (primary && window.matchMedia("(max-width: 1023px)").matches)
+                  setNavOpen(true);
+              }
+            }}
+          >
+            <FolderPlus />
+            Buat folder baru
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={create.isPending}
+            onClick={async () => {
+              if (await guard()) create.mutate();
+            }}
+          >
+            <FilePlus />
+            Buat catatan baru
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={create.isPending}
+            onClick={async () => {
+              if (await guard()) create.mutate(noteParentId);
+            }}
+          >
+            <Table2 />
+            Buat tabel baru
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
   const sidebar = (
     <div className="flex h-full min-h-0 flex-col px-4 pt-4 pb-3">
       <div className="relative">
@@ -432,61 +501,7 @@ export function NotesWorkspacePage({
         />
         <div className="mt-7 mb-2 flex items-center justify-between">
           <h2 className="px-2 text-xs font-semibold text-ink-muted">Folder</h2>
-          <DropdownMenu
-            onOpenChange={(open) => {
-              if (open) creatingFolder.current = false;
-            }}
-          >
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  ref={creationTrigger}
-                  variant="ghost"
-                  size="icon-sm"
-                  className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
-                  aria-label="Buat baru"
-                  disabled={workspace.isPending || workspace.isError}
-                />
-              }
-            >
-              <Plus />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              finalFocus={() => !creatingFolder.current}
-            >
-              <DropdownMenuItem
-                disabled={Boolean(folderCreation.draft)}
-                onClick={() => {
-                  if (creationTrigger.current) {
-                    creatingFolder.current = true;
-                    folderCreation.start(noteParentId, creationTrigger.current);
-                  }
-                }}
-              >
-                <FolderPlus />
-                Buat folder baru
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={create.isPending}
-                onClick={async () => {
-                  if (await guard()) create.mutate();
-                }}
-              >
-                <FilePlus />
-                Buat catatan baru
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={create.isPending}
-                onClick={async () => {
-                  if (await guard()) create.mutate(noteParentId);
-                }}
-              >
-                <Table2 />
-                Buat tabel baru
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {renderCreationMenu(false)}
         </div>
       </div>
       <div className="-mr-4 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -548,24 +563,7 @@ export function NotesWorkspacePage({
           Catatan
         </p>
         <div className="ml-auto flex items-center gap-2 sm:gap-4">
-          <Button
-            variant="dark-outline"
-            onClick={() => void open(`daily:${today}`)}
-          >
-            <CalendarDays />
-            <span>Hari ini</span>
-          </Button>
-          <Button
-            disabled={
-              create.isPending || workspace.isPending || workspace.isError
-            }
-            onClick={async () => {
-              if (await guard()) create.mutate();
-            }}
-          >
-            <Plus />
-            {create.isPending ? "Membuat…" : "Catatan baru"}
-          </Button>
+          {renderCreationMenu(true)}
         </div>
       </header>
       {notice || stored.warning || error ? (
@@ -787,7 +785,7 @@ export function NotesWorkspacePage({
       >
         <DialogContent
           variant="sheet"
-          initialFocus={navigationHeading}
+          initialFocus={folderCreation.draft ? false : navigationHeading}
           className="flex h-[90dvh] max-h-[90dvh] flex-col overflow-hidden p-0"
         >
           <DialogTitle

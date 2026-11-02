@@ -152,9 +152,15 @@ test.beforeEach(async ({ page }) => {
 });
 test.afterEach(async ({ page }) => {
   for (const id of created.get(page) ?? []) {
-    const note = await data<{ revision: number }>(
-      await page.request.get(`${backend}/notes/items/${id}`)
+    const workspace = await data<{ items: { id: string; revision: number }[] }>(
+      await page.request.get(`${backend}/notes`)
     );
+
+    const note = workspace.items.find((item) => item.id === id);
+    if (!note)
+      throw new Error(
+        `Created workspace item ${id} is missing during cleanup.`
+      );
 
     const trashed = await data<{ revision: number }>(
       await page.request.post(`${backend}/notes/items/${id}/trash`, {
@@ -470,7 +476,10 @@ test("retrying a committed creation preserves column identities and creates one 
     created.get(page)!.push(committed.id);
     await route.abort("failed");
   });
-  await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Buat baru", exact: true })
+    .last()
+    .click();
   await page
     .getByRole("menuitem", { name: "Buat tabel baru", exact: true })
     .click();
@@ -478,7 +487,10 @@ test("retrying a committed creation preserves column identities and creates one 
   await page.unroute(`${backend}/record-notes`);
   if (!committed) throw new Error("The first creation did not commit.");
   const original = committed;
-  await page.getByRole("button", { name: "Buat baru", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Buat baru", exact: true })
+    .last()
+    .click();
   await page
     .getByRole("menuitem", { name: "Buat tabel baru", exact: true })
     .click();
@@ -494,11 +506,111 @@ test("retrying a committed creation preserves column identities and creates one 
   expect(saved.revision).toBe(1);
 });
 
-test("the primary new-note action still opens the rich-text editor immediately", async ({
+test("the header creation menu offers all three actions without the Today shortcut", async ({
+  page,
+}) => {
+  await page.goto("/notes?date=2026-11-02");
+  const trigger = page
+    .getByRole("button", { name: "Buat baru", exact: true })
+    .first();
+
+  await expect(
+    page.getByRole("button", { name: "Hari ini", exact: true })
+  ).toHaveCount(0);
+  await expect(trigger).toBeEnabled();
+  await expect(trigger).toHaveCSS("background-image", /linear-gradient/);
+  await trigger.focus();
+  await trigger.press("ArrowDown");
+  await expect(page.getByRole("menuitem")).toHaveText([
+    "Buat folder baru",
+    "Buat catatan baru",
+    "Buat tabel baru",
+  ]);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+});
+
+for (const width of [1280, 390]) {
+  test(`the header creates a folder with the name field focused at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/notes?date=2026-11-02");
+    await page
+      .getByRole("button", { name: "Buat baru", exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Buat folder baru", exact: true })
+      .click();
+    const input = page.getByRole("textbox", {
+      name: "Nama folder",
+      exact: true,
+    });
+
+    await expect(input).toBeFocused();
+    const title = `Header folder ${randomUUID()}`;
+    await input.fill(title);
+    const saved = page.waitForResponse(
+      (response) =>
+        response.url() === `${backend}/notes/items` &&
+        response.request().method() === "POST"
+    );
+
+    await input.press("Enter");
+    const folder = await data<{
+      id: string;
+      kind: string;
+      title: string;
+      parentId: string | null;
+    }>(await saved);
+
+    created.get(page)!.push(folder.id);
+    expect(folder).toMatchObject({ kind: "folder", title, parentId: null });
+    await expect(input).toBeHidden();
+  });
+}
+
+test("the header table action creates a record note", async ({ page }) => {
+  await page.goto("/notes?date=2026-11-02");
+  await page
+    .getByRole("button", { name: "Buat baru", exact: true })
+    .first()
+    .click();
+  const saved = page.waitForResponse(
+    (response) =>
+      response.url() === `${backend}/record-notes` &&
+      response.request().method() === "POST"
+  );
+
+  await page
+    .getByRole("menuitem", { name: "Buat tabel baru", exact: true })
+    .click();
+  const table = await data<{
+    id: string;
+    format: string;
+    parentId: string | null;
+  }>(await saved);
+
+  created.get(page)!.push(table.id);
+  expect(table).toMatchObject({ format: "record", parentId: null });
+  await expect(
+    page.getByRole("button", { name: "Tambah kolom", exact: true })
+  ).toBeEnabled();
+  await expect(page).toHaveURL(new RegExp(`note=${table.id}`));
+});
+
+test("the primary creation menu opens the rich-text editor after choosing a note", async ({
   page,
 }) => {
   await page.goto("/notes");
-  await page.getByRole("button", { name: "Catatan baru", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Buat baru", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
+    .click();
   await expect(
     page.getByRole("textbox", { name: "Isi catatan", exact: true })
   ).toBeVisible();
