@@ -345,7 +345,7 @@ function WorkspaceEditorContent({
       >
         <div
           className={cn(
-            "mx-auto w-full max-w-[824px] flex-1 px-6 pt-8 pb-10 sm:px-12 sm:pt-11",
+            "mx-auto w-full max-w-[824px] flex-1 px-6 pt-6 pb-10 sm:px-12",
             presentation === "drawer" && "!pt-6 sm:!px-10 sm:!pt-8"
           )}
         >
@@ -393,7 +393,12 @@ function WorkspaceEditorContent({
               {note.title.slice(0, 4)} · Catatan harian
             </p>
           ) : null}
-          <div className="sticky top-0 z-10 mt-7 rounded-md bg-background [&_button]:min-h-11 [&_button]:min-w-11 sm:[&_button]:min-h-8 sm:[&_button]:min-w-8">
+          <div
+            className={cn(
+              "sticky top-0 z-10 mt-5 rounded-md bg-background [&_button]:min-h-11 [&_button]:min-w-11 sm:[&_button]:min-h-8 sm:[&_button]:min-w-8",
+              presentation === "drawer" && "mt-7"
+            )}
+          >
             <DailyNoteToolbar
               editor={editor}
               compact={presentation === "drawer"}

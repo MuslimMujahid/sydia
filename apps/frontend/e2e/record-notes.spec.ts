@@ -108,9 +108,12 @@ async function fixture(page: Page, count = 25) {
     page.getByRole("button", { name: "Tambah kolom", exact: true })
   ).toBeEnabled();
   await expect(
-    page.getByText(`Baris ${count ? "1–12" : "0–0"} dari ${count}`, {
-      exact: true,
-    })
+    page.getByText(
+      `Baris ${count ? `1–${Math.min(12, count)}` : "0–0"} dari ${count}`,
+      {
+        exact: true,
+      }
+    )
   ).toBeVisible();
 
   return meta;
@@ -177,6 +180,102 @@ test.afterEach(async ({ page }) => {
 
   created.delete(page);
 });
+test("empty tables start with the first data column and gain row actions after adding a record", async ({
+  page,
+}) => {
+  const table = await fixture(page, 0);
+  const grid = page.getByRole("grid");
+
+  await expect(grid.getByRole("columnheader")).toHaveCount(7);
+  await expect(
+    grid.getByRole("columnheader").first().getByRole("button", {
+      name: "Menu kolom Tanggal",
+      exact: true,
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Pilih semua baris halaman ini",
+      exact: true,
+    })
+  ).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Baris baru", exact: true }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Tindakan baris 1", exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Pilih semua baris halaman ini",
+      exact: true,
+    })
+  ).toBeVisible();
+  expect((await content(page, table.id)).rows).toHaveLength(1);
+});
+
+test("table creation controls stay compact across wide and narrow layouts", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await fixture(page, 0);
+  const addColumn = page.getByRole("button", {
+    name: "Tambah kolom",
+    exact: true,
+  });
+
+  const addRow = page.getByRole("button", { name: "Baris baru", exact: true });
+
+  await expect(addColumn.locator("..")).toHaveCSS("width", "36px");
+  await expect(addRow).toHaveText("");
+  await expect(addRow).toHaveCSS("height", "28px");
+  const rowBounds = await addRow.boundingBox();
+  const iconBounds = await addRow.locator("svg").boundingBox();
+  if (!rowBounds || !iconBounds)
+    throw new Error("Add-row control must be visible.");
+
+  expect(
+    Math.abs(
+      iconBounds.x + iconBounds.width / 2 - rowBounds.x - rowBounds.width / 2
+    )
+  ).toBeLessThan(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await expect(addColumn.locator("..")).toHaveCSS("width", "36px");
+  await expect(addRow).toHaveCSS("height", "32px");
+});
+
+test("tables hide the scrollbar while narrow layouts remain keyboard scrollable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await fixture(page, 1);
+  const scroller = page.getByLabel("Tabel catatan", { exact: true });
+
+  expect(
+    await scroller.evaluate(
+      (element) => element.scrollWidth - element.clientWidth
+    )
+  ).toBe(0);
+  await expect(scroller).toHaveCSS("scrollbar-width", "none", {
+    timeout: 1000,
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  expect(
+    await scroller.evaluate(
+      (element) => element.scrollWidth > element.clientWidth
+    )
+  ).toBe(true);
+  await scroller.focus();
+  await scroller.press("ArrowRight");
+  await expect
+    .poll(() => scroller.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+});
+
 test("typed cells preserve mismatches and clearing while keyboard edits reach saved data", async ({
   page,
 }) => {

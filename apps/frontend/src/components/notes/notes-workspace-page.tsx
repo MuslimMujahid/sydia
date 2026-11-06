@@ -416,7 +416,9 @@ export function NotesWorkspacePage({
               variant={primary ? "primary" : "ghost"}
               size={primary ? "default" : "icon-sm"}
               className={
-                primary ? undefined : "min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                primary
+                  ? undefined
+                  : "min-h-11 min-w-11 sm:size-8 sm:min-h-8 sm:min-w-8"
               }
               aria-label="Buat baru"
               disabled={
@@ -499,7 +501,7 @@ export function NotesWorkspacePage({
           <Command className="size-3" /> K
         </span>
       </div>
-      <div className="mt-8 shrink-0">
+      <div className="mt-6 shrink-0">
         <WorkspaceDailyNavigation
           today={today}
           selectedDate={
@@ -509,7 +511,7 @@ export function NotesWorkspacePage({
           loading={workspace.isPending}
           onSelectDate={(date) => void open(`daily:${date}`)}
         />
-        <div className="mt-7 mb-2 flex items-center justify-between">
+        <div className="mt-4 mb-1 flex items-center justify-between">
           <h2 className="px-2 text-xs font-semibold text-ink-muted">Folder</h2>
           {renderCreationMenu(false)}
         </div>
@@ -610,11 +612,11 @@ export function NotesWorkspacePage({
         <section className="flex min-w-0 flex-1 flex-col bg-canvas">
           {mode === "note" ? (
             <>
-              <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-ink/8 px-6 text-xs text-ink-muted">
+              <div className="flex h-12 shrink-0 items-center gap-2 border-b border-ink/8 px-4 text-xs text-ink-muted sm:h-11 sm:px-6">
                 {activeRef?.startsWith("daily:") ? (
-                  <span className="truncate">Catatan harian</span>
+                  <span className="min-w-0 truncate">Catatan harian</span>
                 ) : noteParentId ? (
-                  <span className="truncate">
+                  <span className="min-w-0 truncate">
                     {items.find((item) => item.id === noteParentId)?.path}
                   </span>
                 ) : null}
@@ -625,10 +627,11 @@ export function NotesWorkspacePage({
                     onAction={(type, item) => action.mutate({ type, item })}
                   />
                 ) : activeRef.startsWith("daily:") ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="sm:size-8"
                       aria-label="Hari sebelumnya"
                       onClick={() =>
                         void open(`daily:${shiftDayKey(dailyDate, -1)}`)
@@ -639,6 +642,7 @@ export function NotesWorkspacePage({
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="sm:size-8"
                       aria-label="Hari berikutnya"
                       onClick={() =>
                         void open(`daily:${shiftDayKey(dailyDate, 1)}`)
@@ -649,6 +653,7 @@ export function NotesWorkspacePage({
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="sm:size-8"
                       aria-label="Salin tautan catatan"
                       disabled={copy.isPending}
                       onClick={() => copy.mutate(activeRef)}

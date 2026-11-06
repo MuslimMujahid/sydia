@@ -188,8 +188,8 @@ export function WorkspaceTree({
     return (
       <ul
         className={cn(
-          "space-y-1",
-          parentId !== null && "mt-1 ml-4 border-l border-ink/6 pl-1"
+          "space-y-0.5",
+          parentId !== null && "mt-0.5 ml-3 border-l border-ink/6 pl-1"
         )}
       >
         {folderCreation.draft?.parentId === parentId ? (
@@ -229,13 +229,13 @@ export function WorkspaceTree({
                 onDragLeave={() => setOver(null)}
                 onDrop={folder ? (event) => drop(event, item.id) : undefined}
                 className={cn(
-                  "group flex min-h-10 min-w-0 items-center rounded-sm hover:bg-surface-1",
+                  "group flex min-h-11 min-w-0 items-center rounded-sm hover:bg-surface-1 sm:min-h-8",
                   selected && "bg-brand/10",
                   over === item.id && "outline-2 outline-brand"
                 )}
               >
                 <button
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-10"
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8"
                   aria-current={selected ? "page" : undefined}
                   aria-expanded={folder ? expanded : undefined}
                   onClick={() => {
@@ -288,6 +288,7 @@ export function WorkspaceTree({
                   >
                     <ItemMenu
                       item={item}
+                      className="sm:size-8"
                       onAction={onAction}
                       folderCreation={folderCreation}
                     />

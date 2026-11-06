@@ -13,7 +13,7 @@ export function WorkspaceEditorSkeleton({
       aria-label="Memuat catatan"
       aria-busy="true"
       className={cn(
-        "mx-auto w-full max-w-[824px] px-6 pt-8 pb-10 sm:px-12 sm:pt-11",
+        "mx-auto w-full max-w-[824px] px-6 pt-6 pb-10 sm:px-12",
         presentation === "drawer" && "!pt-6 sm:!px-10 sm:!pt-8"
       )}
     >
@@ -23,7 +23,12 @@ export function WorkspaceEditorSkeleton({
         className="animate-pulse motion-reduce:animate-none"
       >
         <div className="h-9 w-3/5 max-w-80 rounded-sm bg-surface-1 sm:h-10" />
-        <div className="mt-7 flex h-14 items-center gap-3 overflow-hidden border-b border-ink/8 sm:h-12">
+        <div
+          className={cn(
+            "mt-5 flex h-14 items-center gap-3 overflow-hidden border-b border-ink/8 sm:h-12",
+            presentation === "drawer" && "mt-7"
+          )}
+        >
           <div className="h-7 w-20 shrink-0 rounded-sm bg-surface-1" />
           <div className="h-5 w-px shrink-0 bg-ink/8" />
           <div className="size-6 shrink-0 rounded-sm bg-surface-1" />

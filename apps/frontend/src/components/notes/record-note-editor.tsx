@@ -152,6 +152,7 @@ export function RecordNoteEditor({
     return () => clearTimeout(timer);
   }, [toast, toastPaused, setToast]);
   const rows = page?.rows ?? [];
+  const hasRows = rows.length > 0;
   const currentRow = rows.find((row) => row.id === sheetRow);
 
   function draftValue(row: RecordRow, column: RecordColumn) {
@@ -630,13 +631,13 @@ export function RecordNoteEditor({
       ) : (
         <>
           <div className="min-w-0 flex-1 px-4 pt-6 pb-10 sm:px-8">
-            <div className="mb-4 flex flex-col items-start gap-3 sm:mb-5 sm:flex-row">
-              <div className="w-full min-w-0 sm:flex-1">
+            <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row">
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-1">
                 <input
                   id="note-title"
                   ref={titleInput}
                   aria-label="Judul catatan"
-                  className="w-full min-w-0 rounded-sm bg-transparent text-2xl leading-[1.2] font-bold tracking-[-0.03em] outline-none placeholder:text-ink-muted focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-[30px]"
+                  className="block w-full min-w-0 rounded-sm bg-transparent p-0 text-2xl leading-[1.2] font-bold tracking-[-0.03em] outline-none placeholder:text-ink-muted focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-[30px]"
                   value={title}
                   onChange={(e) => {
                     setTitle(e.target.value);
@@ -654,7 +655,7 @@ export function RecordNoteEditor({
                   aria-label="Deskripsi catatan"
                   rows={1}
                   placeholder="Tambahkan deskripsi…"
-                  className="mt-1.5 block max-h-28 w-full resize-none [field-sizing:content] rounded-sm bg-transparent text-sm leading-4 text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-[13px]"
+                  className="block max-h-28 w-full resize-none [field-sizing:content] rounded-none border-b-2 border-transparent bg-transparent px-0 pt-0 pb-1 text-sm leading-5 text-ink-muted outline-none focus:border-ink-muted focus:text-ink sm:text-[13px]"
                   value={description ?? meta.description}
                   onChange={(e) => {
                     setDescription(e.target.value);
@@ -746,7 +747,7 @@ export function RecordNoteEditor({
               </div>
             ) : null}
             <div
-              className="max-w-full overflow-auto rounded-sm border border-ink/10 [scrollbar-color:var(--color-ink-muted)_transparent]"
+              className="max-w-full overflow-auto rounded-sm border border-ink/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               aria-label="Tabel catatan"
               tabIndex={0}
             >
@@ -760,7 +761,7 @@ export function RecordNoteEditor({
                 style={{
                   minWidth: Math.max(
                     480,
-                    44 +
+                    (hasRows ? 44 : 0) +
                       meta.columns.reduce(
                         (sum, c) =>
                           sum +
@@ -775,46 +776,50 @@ export function RecordNoteEditor({
                                 : 120),
                         0
                       ) +
-                      46
+                      36
                   ),
                 }}
               >
                 <colgroup>
-                  <col style={{ width: 44 }} />
-                  {meta.columns.map((c) => (
+                  {hasRows ? <col style={{ width: 44 }} /> : null}
+                  {meta.columns.map((c, index) => (
                     <col
                       key={c.id}
                       style={{
                         width:
-                          c.type === "text"
-                            ? 192
-                            : c.type === "boolean"
-                              ? 76
-                              : c.type === "number"
-                                ? c.unit
-                                  ? 132
-                                  : 92
-                                : 120,
+                          index === 0
+                            ? undefined
+                            : c.type === "text"
+                              ? 192
+                              : c.type === "boolean"
+                                ? 76
+                                : c.type === "number"
+                                  ? c.unit
+                                    ? 132
+                                    : 92
+                                  : 120,
                       }}
                     />
                   ))}
-                  <col style={{ width: 46 }} />
+                  <col style={{ width: 36 }} />
                 </colgroup>
                 <thead className="sticky top-0 z-20 bg-background">
                   <tr className="h-9">
-                    <th className="sticky left-0 z-30 border-r border-b border-ink/8 bg-background">
-                      <button
-                        aria-label="Pilih semua baris halaman ini"
-                        className="block h-[35px] w-full outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                        onClick={() =>
-                          setSelected(
-                            selected.length === rows.length
-                              ? []
-                              : rows.map((r) => r.id)
-                          )
-                        }
-                      />
-                    </th>
+                    {hasRows ? (
+                      <th className="sticky left-0 z-30 border-r border-b border-ink/8 bg-background">
+                        <button
+                          aria-label="Pilih semua baris halaman ini"
+                          className="block h-[35px] w-full outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          onClick={() =>
+                            setSelected(
+                              selected.length === rows.length
+                                ? []
+                                : rows.map((r) => r.id)
+                            )
+                          }
+                        />
+                      </th>
+                    ) : null}
                     {meta.columns.map((column, index) => (
                       <th
                         key={column.id}
@@ -830,7 +835,8 @@ export function RecordNoteEditor({
                         }
                         className={cn(
                           "relative h-9 border-r border-b border-ink/8 p-0 text-left font-semibold",
-                          index === 0 && "sticky left-11 z-20 bg-background",
+                          index === 0 && "sticky z-20 bg-background",
+                          index === 0 && (hasRows ? "left-11" : "left-0"),
                           (active?.columnId === column.id ||
                             columnMenu?.id === column.id) &&
                             "bg-brand/10 text-brand [&_svg]:text-brand"
@@ -917,7 +923,7 @@ export function RecordNoteEditor({
                         )}
                       </th>
                     ))}
-                    <th className="h-9 border-b border-ink/8">
+                    <th className="h-9 border-b border-ink/8 p-0">
                       <button
                         aria-label="Tambah kolom"
                         disabled={disabled || meta.columns.length >= 64}
@@ -1382,14 +1388,17 @@ export function RecordNoteEditor({
                     </tr>
                   ))}
                   <tr>
-                    <td colSpan={meta.columns.length + 2} className="p-0">
+                    <td
+                      colSpan={meta.columns.length + (hasRows ? 2 : 1)}
+                      className="p-0"
+                    >
                       <button
+                        aria-label="Baris baru"
                         disabled={disabled}
-                        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[13px] text-ink-muted outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-brand"
+                        className="grid h-8 w-full place-items-center text-ink-muted outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-brand sm:h-7"
                         onClick={() => void addRow()}
                       >
-                        <Plus className="size-4" />
-                        Baris baru
+                        <Plus aria-hidden="true" className="size-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -1400,7 +1409,7 @@ export function RecordNoteEditor({
               Nilai tidak cocok dengan tipe kolom. Input asli tetap disimpan dan
               tidak ikut dihitung.
             </p>
-            <div className="mt-3 flex items-center justify-between gap-2 text-xs text-ink-muted">
+            <div className="mt-4 flex items-center justify-between gap-2 text-xs text-ink-muted">
               <span>
                 Baris {page.page.from}–{page.page.to} dari {meta.rowCount}
               </span>

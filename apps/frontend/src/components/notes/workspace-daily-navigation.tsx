@@ -48,10 +48,10 @@ export function WorkspaceDailyNavigation({
 
   return (
     <section aria-label="Catatan harian">
-      <h2 className="mb-3 px-2 text-xs font-semibold text-ink-muted">
+      <h2 className="mb-2 px-2 text-xs font-semibold text-ink-muted">
         Catatan harian
       </h2>
-      <ul className="space-y-1" aria-busy={loading || undefined}>
+      <ul className="space-y-0.5" aria-busy={loading || undefined}>
         {dates.map((date) => (
           <li key={date}>
             <button
@@ -59,7 +59,7 @@ export function WorkspaceDailyNavigation({
               aria-current={selectedDate === date ? "page" : undefined}
               onClick={() => onSelectDate(date)}
               className={cn(
-                "flex min-h-11 w-full items-center gap-3 rounded-sm px-3 text-left text-[13px] outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-10",
+                "flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-[13px] outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8",
                 selectedDate === date &&
                   "bg-brand/10 font-semibold text-brand hover:bg-brand/10"
               )}
@@ -84,9 +84,9 @@ export function WorkspaceDailyNavigation({
           </li>
         ))}
         {loading ? (
-          <li aria-label="Memuat catatan harian" className="space-y-1">
-            <div className="h-10 animate-pulse rounded-sm bg-surface-1" />
-            <div className="h-10 animate-pulse rounded-sm bg-surface-1" />
+          <li aria-label="Memuat catatan harian" className="space-y-0.5">
+            <div className="h-11 animate-pulse rounded-sm bg-surface-1 sm:h-8" />
+            <div className="h-11 animate-pulse rounded-sm bg-surface-1 sm:h-8" />
           </li>
         ) : null}
       </ul>
@@ -97,7 +97,7 @@ export function WorkspaceDailyNavigation({
           setPickerOpen(open);
         }}
       >
-        <PopoverTrigger className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-sm px-3 text-left text-[13px] text-ink-muted outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-10">
+        <PopoverTrigger className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-[13px] text-ink-muted outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8">
           <CalendarDays className="size-4 shrink-0" />
           Pilih tanggal…
           <ChevronDown className="ml-auto size-3.5" />
