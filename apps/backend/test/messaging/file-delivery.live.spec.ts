@@ -14,10 +14,8 @@ import { ObservabilityService } from '../../src/infra/observability';
 import { ContextBuilderService } from '../../src/modules/conversations/services/context-builder.service';
 import { TurnDecisionService } from '../../src/modules/conversations/services/turn-decision.service';
 import { createPhaseTools } from '../../src/modules/conversations/services/phase-tools';
-import {
-  buildTerminalToolResponse,
-  terminalToolInputSchema,
-} from '../../src/modules/conversations/services/terminal-tool-response';
+import { buildTerminalToolResponse } from '../../src/modules/conversations/services/terminal-tool-response';
+import { advertisedInputSchema } from '../../src/modules/conversations/services/advertised-tool-schema';
 import type { AssistantFile } from '../../src/modules/conversations/services/tool-executor.service';
 
 // Live classifier and assistant, synthetic documents and attachment transport.
@@ -163,7 +161,7 @@ const saved: DocumentMetadata = {
               tool({
                 description: domain.definition.description,
                 inputSchema: jsonSchema(
-                  terminalToolInputSchema(domain.definition),
+                  advertisedInputSchema(domain.definition),
                 ),
                 execute: async (raw, { toolCallId }) => {
                   const args = { ...(raw as Record<string, unknown>) };

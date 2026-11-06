@@ -18,7 +18,7 @@ import type {
 } from '../../../database/entities';
 import type { MessageProvider } from '../../../shared/messaging';
 import type { NoteWork } from '../../../database/entities';
-import { terminalToolInputSchema } from './terminal-tool-response';
+import { advertisedInputSchema } from './advertised-tool-schema';
 
 export type AssistantToolDefinition = {
   name: string;
@@ -331,7 +331,7 @@ export class ToolExecutorService {
           const { definition } = assistantTool;
           const wrapped = tool({
             description: definition.description,
-            inputSchema: jsonSchema(terminalToolInputSchema(definition)),
+            inputSchema: jsonSchema(advertisedInputSchema(definition)),
             execute: async (
               input: unknown,
               options: ToolExecutionOptions<Record<string, unknown>>,

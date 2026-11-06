@@ -5,7 +5,7 @@ import { createPhaseTools } from '../../src/modules/conversations/services/phase
 import { createDailyNoteTools } from '../../src/modules/conversations/services/daily-note-tools';
 import { createNotesWorkspaceTools } from '../../src/modules/conversations/services/notes-workspace-tools';
 import { createNoteQuestionResponseTools } from '../../src/modules/conversations/services/note-question-tools';
-import { terminalToolInputSchema } from '../../src/modules/conversations/services/terminal-tool-response';
+import { advertisedInputSchema } from '../../src/modules/conversations/services/advertised-tool-schema';
 import { validateToolGroups } from '../../src/modules/conversations/services/tool-groups';
 
 /** No live repository/client can be reached, even if a factory changes. */
@@ -59,7 +59,7 @@ export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
         definition.name,
         tool({
           description: definition.description,
-          inputSchema: jsonSchema(terminalToolInputSchema(definition)),
+          inputSchema: jsonSchema(advertisedInputSchema(definition)),
         }),
       ]),
   );

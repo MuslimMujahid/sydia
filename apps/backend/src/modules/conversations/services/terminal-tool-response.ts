@@ -62,8 +62,13 @@ export type TerminalToolExecution = {
   result: unknown;
 };
 
+/**
+ * Repeated on every eligible tool's schema, so it is kept short: stating it once
+ * in the system policy instead made short Indonesian chats drift into English
+ * replies in the prompt evaluation.
+ */
 const COMPLETE_TURN_DESCRIPTION =
-  'Set to false only when another tool call must still run after this one, because this call alone cannot finish the user request — a reminder split (update a recurring reminder, then create the remaining schedules, or vice versa), creating a contact group before assigning contacts, or a save/process/send chain (save files, then send one, or save a file, then read it). Leave it unset otherwise: a short confirmation is generated for you from the result, so do not set false merely to add commentary, restate the result, or offer follow-up suggestions. Several independent calls that together finish the request all keep the default.';
+  'Set false only when another tool call must still run after this one to finish the request: update a recurring reminder then create the rest, create a group then assign contacts, or save a file then send or read it. Otherwise leave unset; a confirmation is generated from the result.';
 
 /**
  * Model-facing input schema for one tool. Eligible tools gain the optional
