@@ -390,7 +390,12 @@ export class ContextBuilderService {
         : null;
 
     const sourceContext = sourceScope
-      ? `\nSelected sources for this message (reference data): ${JSON.stringify(sourceScope.segments.flatMap((s) => (s.type === 'source' ? [{ ...s.source, ...(s.source.kind === 'note' ? { webCitation: `[${s.source.label}](#note/${encodeURIComponent(s.source.id)})` } : {}) }] : [])))}. The selected folders contain ${sourceScope.documentIds.length} distinct files in a fixed acceptance-time set. search_documents retrieves only this set; read_document pages through individual files returned by it. Prioritize these sources and read selected notes by their exact canonical references with read_custom_note/read_daily_note. Current saved content is used. Selection is read context, never authorization to edit. If several notes could be an edit target, ask which one. If the user says sources only, use no outside evidence, memory, or historical conversation facts. Cite only evidence actually read and used. When using note content on Web, copy its provided webCitation string exactly, including the encoded custom: or daily: prefix. Do not replace it with an unlinked title or a bare note id. A custom:ID reference is passed to read_custom_note as the bare ID, without the custom: prefix. A daily:YYYY-MM-DD reference is passed to read_daily_note as its date. Cite contributing files from search_documents/read_document using the existing source footer, never cite folders. Empty folders contribute no evidence. Processing files may be unavailable; explain incomplete evidence rather than inventing content.`
+      ? `\nSelected sources for this message (reference data): ${JSON.stringify(sourceScope.segments.flatMap((s) => (s.type === 'source' ? [{ ...s.source, ...(s.source.kind === 'note' ? { webCitation: `[${s.source.label}](#note/${encodeURIComponent(s.source.id)})` } : {}) }] : [])))}.
+- Answer from these sources first. The selected folders hold ${sourceScope.documentIds.length} files: search_documents searches only those, and read_document reads a file it returned. Read each selected note by its reference with read_custom_note or read_daily_note.
+- If the user asks for these sources only, use nothing else: no memories and no facts from earlier conversations.
+- Selecting a source lets you read it, not edit it. If several notes could be the edit target, ask which one.
+- Cite only what you actually read and used. On web, cite a note by copying its webCitation exactly, never a bare title or ID. Cite files through the usual source footer, never folders.
+- Files still processing may be unreadable: say the evidence is incomplete rather than guessing.`
       : '';
 
     const assistanceState = await this.assistanceState(

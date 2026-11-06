@@ -163,7 +163,7 @@ How to write the note. A note is a record to be scanned and retrieved later, not
     definition: {
       name: 'read_daily_note',
       label: 'Read daily note',
-      description: `Use this tool to read the user's daily note for one specific day.
+      description: `Use this tool to read the user's daily note for one specific day. For a daily:YYYY-MM-DD reference, pass that date.
 
 Use it when the user asks what was written on a known day — "apa yang saya catat kemarin?", "catatan hari Senin" — or before editing a note whose current text is needed.
 

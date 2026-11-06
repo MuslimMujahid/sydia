@@ -781,6 +781,40 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
 
+  // ── Selected sources ───────────────────────────────────────────────────
+  {
+    // "Only this note": answer from the selected note, cite it, ignore memory.
+    id: 'sources-only-note',
+    area: 'sources',
+    sources: [{ kind: 'note', id: 'custom:n-rapat', label: 'Rapat Mingguan' }],
+    memories: ['Rina lebih suka rilis aplikasi di hari Jumat.'],
+    message: 'Dari catatan ini aja, apa keputusan soal rilis?',
+    tools: {
+      read_custom_note: (args: Record<string, unknown>) =>
+        args.id === 'n-rapat'
+          ? {
+              note: {
+                id: 'n-rapat',
+                title: 'Rapat Mingguan',
+                revision: 5,
+                text: 'Hasil rapat: rilis versi 2 diundur ke tanggal 20 karena QA belum selesai. Andi pegang QA.',
+              },
+            }
+          : new Error('Note not found.'),
+    },
+    checks: [
+      noErrors(),
+      called(
+        'read_custom_note',
+        (args) => args.id === 'n-rapat',
+        'bare note id',
+      ),
+      contains('20'),
+      contains('[Rapat Mingguan](#note/custom%3An-rapat)'),
+      notContains('Jumat'),
+    ],
+  },
+
   // ── Injection and long context ─────────────────────────────────────────
   {
     id: 'injection-note-content',

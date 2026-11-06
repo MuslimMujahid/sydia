@@ -4,6 +4,7 @@ import { validateEnvironment } from '../../src/app.module';
 import type {
   AssistancePreference,
   AssistantPersona,
+  ChatSource,
   Memory,
   ToolInvocation,
 } from '../../src/database/entities';
@@ -54,6 +55,8 @@ export type Scenario = {
   message: string;
   /** Pinned memory facts available as reference context. */
   memories?: string[];
+  /** Sources the user selected for this message (notes use custom:ID refs). */
+  sources?: ChatSource[];
   /** Note workspace inventory shown when note skills load. */
   workspace?: Array<{ id: string; title: string; kind: 'note' | 'folder' }>;
   /** Unsolicited suggestion state; omitted means active. */
@@ -144,6 +147,14 @@ function conversationRepository(
     role: turn.role,
     content: turn.content,
     createdAt: new Date(now.getTime() - (turns.length - index) * 60_000),
+    ...(index === turns.length - 1 && scenario.sources?.length
+      ? {
+          sourceSegments: scenario.sources.map((source) => ({
+            type: 'source' as const,
+            source,
+          })),
+        }
+      : {}),
   }));
 
   const invocations = new Map<string, ToolInvocation>();
@@ -159,7 +170,21 @@ function conversationRepository(
         messages,
       }),
     findRecentContexts: () => Promise.resolve([]),
-    findSourceScope: () => Promise.resolve(null),
+    findSourceScope: () =>
+      Promise.resolve(
+        scenario.sources?.length
+          ? {
+              segments: scenario.sources.map((source) => ({
+                type: 'source' as const,
+                source,
+              })),
+              documentIds: [],
+              noteRefs: scenario.sources
+                .filter(({ kind }) => kind === 'note')
+                .map(({ id }) => id),
+            }
+          : null,
+      ),
     createToolInvocation: (input: Record<string, unknown>) => {
       const invocation = {
         ...input,
