@@ -4,12 +4,14 @@ import type {
   Document,
   Memory,
   Message,
+  NoteWork,
   RecentConversationContext,
 } from '../../../database/entities';
 import type {
   IConversationRepository,
   IDocumentRepository,
   IMemoryRepository,
+  INoteWorkRepository,
 } from '../../../database/interfaces';
 import type { ModelMessage } from '../../../infra/model-gateway';
 import { createPhaseTools } from './phase-tools';
@@ -93,6 +95,7 @@ type RepositoryOptions = {
   memoryAccess?: MemoryAccessService;
   turnDecisions?: TurnDecisionService;
   activeNotes?: ActiveNoteService;
+  noteWork?: INoteWorkRepository;
 };
 
 function createBuilder(
@@ -133,6 +136,10 @@ function createBuilder(
     options.memoryEngine,
     options.turnDecisions,
     options.activeNotes,
+    undefined,
+    undefined,
+    undefined,
+    options.noteWork,
   );
 }
 
@@ -195,14 +202,40 @@ function attachmentMessageContent(context: ModelMessage[]): string {
 }
 
 describe('ContextBuilderService active notes', () => {
+  it('offers every tool for a pending note question the gate saw no tools for', async () => {
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false, toolNames: [] });
+
+    const questionsForMessage = jest
+      .fn<INoteWorkRepository['questionsForMessage']>()
+      .mockResolvedValue([
+        {
+          id: 'work-1',
+          sourceContent: 'Catat pengeluaran',
+          payload: { question: 'Catatan yang mana?' },
+        } as unknown as NoteWork,
+      ]);
+
+    const result = await createBuilder(10_000, {
+      messages: [message('current', 'user', 'Yang Pengeluaran')],
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+      noteWork: { questionsForMessage } as unknown as INoteWorkRepository,
+    }).build(user, 'conversation-1', 'current');
+
+    expect(questionsForMessage).toHaveBeenCalledWith(user.id, 'current');
+    expect(result.decision?.toolNames).toBeUndefined();
+  });
+
   it('validates only the current message target and keeps note tools available', async () => {
     const validate = jest
       .fn<ActiveNoteService['validate']>()
       .mockResolvedValue(undefined);
 
+    // The gate saw no need for tools, but an open note needs note tools.
     const decide = jest
       .fn<TurnDecisionService['decide']>()
-      .mockResolvedValue({ recall: false, toolNames: ['list_tasks'] });
+      .mockResolvedValue({ recall: false, toolNames: [] });
 
     const result = await createBuilder(10_000, {
       messages: [
@@ -217,8 +250,8 @@ describe('ContextBuilderService active notes', () => {
 
     expect(validate).toHaveBeenCalledWith(user.id, 'custom:design');
     expect(JSON.stringify(result.messages)).toContain('custom:design');
-    expect(result.decision?.toolNames).toContain('read_custom_note');
-    expect(result.decision?.toolNames).toContain('update_custom_note');
+    // The full list, not a third variant with its own cold prompt cache.
+    expect(result.decision?.toolNames).toBeUndefined();
     expect(result.messages.at(-1)?.content).toBe('Ringkas catatan ini');
   });
 

@@ -5,11 +5,7 @@ import {
   type DecisionGateway,
   type DecisionResult,
 } from '../../../infra/decision-gateway';
-import {
-  TOOL_GROUPS,
-  toolNamesForGroups,
-  validateToolGroups,
-} from './tool-groups';
+import { TOOL_GROUPS, validateToolGroups } from './tool-groups';
 import {
   TurnDecisionService,
   type TurnDecisionInput,
@@ -58,13 +54,10 @@ function setup(settings: Record<string, unknown> = {}) {
   return { service, decide };
 }
 
-test('shares one decision and includes task prerequisites', async () => {
+test('shares one decision and offers every tool when any group is needed', async () => {
   const { service, decide } = setup();
-  const result = await service.decide('user', input);
-  expect(result.recall).toBe(false);
-  expect(result.toolNames).toEqual(toolNamesForGroups(['tasks']));
-  expect(result.toolNames).toContain('list_categories');
-  expect(result.toolNames).toContain('get_current_datetime');
+  // No toolNames means every registered tool is offered.
+  expect(await service.decide('user', input)).toEqual({ recall: false });
   expect(decide).toHaveBeenCalledTimes(1);
 });
 test('sends only four preceding messages and the latest message to the classifier', async () => {
@@ -195,11 +188,7 @@ test('keeps context but does not force memory recall or attached-file groups', a
     attachments: [{ name: 'note.pdf', mimeType: 'application/pdf' }],
   };
 
-  const result = await service.decide('user', contextual);
-  expect(result.recall).toBe(false);
-  expect(result.toolNames).toEqual(toolNamesForGroups(['tasks']));
-  expect(result.toolNames).not.toContain('forget_memory');
-  expect(result.toolNames).not.toContain('read_document');
+  expect(await service.decide('user', contextual)).toEqual({ recall: false });
   expect(decide.mock.calls[0]?.[0].state).toContain('I moved');
   expect(decide.mock.calls[0]?.[0].state).not.toContain(
     'Earlier city reference',
@@ -213,10 +202,10 @@ test('does not send credential-bearing context to Jev', async () => {
       ...input,
       latest: 'My password is synthetic-secret',
     }),
-  ).toEqual({ recall: false, toolNames: [] });
+  ).toEqual({ recall: false });
   expect(decide).not.toHaveBeenCalled();
 });
-test('uncertain groups stay available; independent groups can both be selected', async () => {
+test('an uncertain group counts as needing tools', async () => {
   const { service, decide } = setup();
   decide.mockImplementationOnce((request): Promise<DecisionResult> =>
     Promise.resolve({
@@ -234,10 +223,7 @@ test('uncertain groups stay available; independent groups can both be selected',
       costUsd: null,
     }),
   );
-  expect(await service.decide('user', input)).toEqual({
-    recall: false,
-    toolNames: toolNamesForGroups(['tasks']),
-  });
+  expect(await service.decide('user', input)).toEqual({ recall: false });
   decide.mockImplementationOnce((request): Promise<DecisionResult> =>
     Promise.resolve({
       status: 'ok',
@@ -261,9 +247,7 @@ test('uncertain groups stay available; independent groups can both be selected',
       costUsd: null,
     }),
   );
-  expect((await service.decide('user', input)).toolNames).toEqual(
-    toolNamesForGroups(['tasks', 'documents', 'calendar']),
-  );
+  expect((await service.decide('user', input)).toolNames).toBeUndefined();
 });
 
 function scores(
@@ -289,15 +273,9 @@ function scores(
 test('the default confidence boundary preserves recall behavior and uncertain tools', async () => {
   const { service, decide } = setup();
   scores(decide, { recall: 0.6, group_tasks: 0.6, group_memory: 0.5999 });
-  expect(await service.decide('user', input)).toEqual({
-    recall: true,
-    toolNames: toolNamesForGroups(['tasks', 'memory']),
-  });
+  expect(await service.decide('user', input)).toEqual({ recall: true });
   scores(decide, { recall: 0.5999, group_tasks: 0.5999 });
-  expect(await service.decide('user', input)).toEqual({
-    recall: false,
-    toolNames: toolNamesForGroups(['tasks']),
-  });
+  expect(await service.decide('user', input)).toEqual({ recall: false });
 });
 
 test('keeps file sending available for the observed uncertain first request', async () => {
@@ -310,11 +288,10 @@ test('keeps file sending available for the observed uncertain first request', as
     recallEligible: false,
   });
 
-  expect(result.toolNames).toEqual(toolNamesForGroups(['documents']));
-  expect(result.toolNames).toContain('send_file');
+  expect(result.toolNames).toBeUndefined();
 });
 
-test('prunes confidently irrelevant groups while retaining uncertain ones', async () => {
+test('one uncertain group among irrelevant ones still offers every tool', async () => {
   const { service, decide } = setup();
   scores(decide, {
     group_documents: 0.41,
@@ -322,11 +299,14 @@ test('prunes confidently irrelevant groups while retaining uncertain ones', asyn
     group_calendar: 0.01,
   });
 
-  const result = await service.decide('user', input);
+  expect((await service.decide('user', input)).toolNames).toBeUndefined();
+});
 
-  expect(result.toolNames).toEqual(toolNamesForGroups(['documents']));
-  expect(result.toolNames).not.toContain('create_task');
-  expect(result.toolNames).not.toContain('create_calendar_event');
+test('offers no domain tools only when every group is confidently irrelevant', async () => {
+  const { service, decide } = setup();
+  scores(decide, { group_documents: 0.01, group_tasks: 0.02, group_notes: 0 });
+
+  expect((await service.decide('user', input)).toolNames).toEqual([]);
 });
 
 test('keeps uncertain groups at custom confidence thresholds without changing recall', async () => {
@@ -341,15 +321,9 @@ test('keeps uncertain groups at custom confidence thresholds without changing re
     group_documents: 0.5,
     group_calendar: 0.2,
   });
-  expect(await service.decide('user', input)).toEqual({
-    recall: true,
-    toolNames: toolNamesForGroups(['tasks', 'memory', 'documents']),
-  });
+  expect(await service.decide('user', input)).toEqual({ recall: true });
   scores(decide, { recall: 0.6999, group_memory: 0.7999 });
-  expect(await service.decide('user', input)).toEqual({
-    recall: false,
-    toolNames: toolNamesForGroups(['memory']),
-  });
+  expect(await service.decide('user', input)).toEqual({ recall: false });
   scores(decide, {});
   expect(await service.decide('user', input)).toEqual({
     recall: false,
@@ -358,14 +332,11 @@ test('keeps uncertain groups at custom confidence thresholds without changing re
 });
 
 test.each(Object.keys(TOOL_GROUPS) as Array<keyof typeof TOOL_GROUPS>)(
-  'selects %s independently and adds only its dependencies',
+  'treats %s alone as needing every tool',
   async (group) => {
     const { service, decide } = setup();
     scores(decide, { [`group_${group}`]: 0.99, recall: 0.5 });
-    expect(await service.decide('user', input)).toEqual({
-      recall: false,
-      toolNames: toolNamesForGroups([group]),
-    });
+    expect(await service.decide('user', input)).toEqual({ recall: false });
   },
 );
 
@@ -379,18 +350,14 @@ test('recall and tool selection operate independently', async () => {
   scores(decide, { recall: 1, group_memory: 1 });
   expect(
     await service.decide('user', { ...input, recallEligible: false }),
-  ).toEqual({
-    recall: false,
-    toolNames: toolNamesForGroups(['memory']),
-  });
+  ).toEqual({ recall: false });
   expect(decide.mock.calls[1]?.[0].questions).not.toHaveProperty('recall');
 });
 
-test('empty requests select nothing without calling the provider', async () => {
+test('empty requests keep every tool without calling the provider', async () => {
   const { service, decide } = setup();
   expect(await service.decide('user', { ...input, latest: ' ' })).toEqual({
     recall: false,
-    toolNames: [],
   });
   expect(decide).not.toHaveBeenCalled();
 });

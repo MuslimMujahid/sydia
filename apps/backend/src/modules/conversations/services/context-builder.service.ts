@@ -7,7 +7,6 @@ import {
   AssistantActionService,
   SkillCatalogService,
 } from '../../secretary';
-import { TOOL_GROUPS } from './tool-groups';
 import { ConfigService } from '@nestjs/config';
 import {
   CONVERSATION_REPOSITORY,
@@ -615,21 +614,11 @@ export class ContextBuilderService {
       ]);
 
     const decision = await decisionPromise;
-    if (noteQuestions.length && decision.toolNames)
-      decision.toolNames = [
-        ...new Set([
-          ...decision.toolNames,
-          'load_skill',
-          'list_note_questions',
-          'respond_to_note_question',
-        ]),
-      ];
-
-    if (activeRef && decision.toolNames) {
-      decision.toolNames = [
-        ...new Set([...decision.toolNames, ...TOOL_GROUPS.notes]),
-      ];
-    }
+    // Pending note questions and an open note need note tools even when the
+    // gate saw no need; they get the full list rather than a third variant,
+    // which would have its own cold prompt cache.
+    if ((noteQuestions.length || activeRef) && decision.toolNames)
+      delete decision.toolNames;
 
     const contextualMessages: ModelMessage[] = [];
     let remainingBudget = optionalBudget;

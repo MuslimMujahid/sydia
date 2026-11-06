@@ -7,7 +7,7 @@ import {
   type DecisionQuestion,
 } from '../../../infra/decision-gateway';
 import { containsDecisionCredential } from '../../../shared/decision-privacy';
-import { TOOL_GROUPS, toolNamesForGroups, type ToolGroup } from './tool-groups';
+import { TOOL_GROUPS, type ToolGroup } from './tool-groups';
 
 export const TURN_DECISION_HISTORY_LIMIT = 4;
 type TurnAttachment = { name: string; mimeType: string };
@@ -46,9 +46,10 @@ export class TurnDecisionService implements OnModuleDestroy {
 
     const toolMode = this.settings.mode('tools', userId);
     if (recallMode === 'off' && toolMode === 'off') return baseline;
+    // Without a decision the turn keeps every tool, like a failed selector:
+    // an attachment-only or credential-bearing message may still need them.
     const initial: TurnDecision = {
       recall: recallMode === 'enabled' ? false : baseline.recall,
-      ...(toolMode === 'enabled' ? { toolNames: [] } : {}),
     };
 
     const state = JSON.stringify({
@@ -150,10 +151,15 @@ export class TurnDecisionService implements OnModuleDestroy {
         },
       );
 
-      const toolNames = toolNamesForGroups(selected);
+      // The groups only gate the turn: a turn confidently needing no group
+      // gets no domain tools, and any other turn gets every tool. Offering a
+      // per-turn subset would change the tool list between turns, and any
+      // change to it drops the provider's prompt cache to zero; two fixed
+      // lists each keep a warm cache.
+      const needsTools = selected.length > 0;
 
       this.logger.debug(
-        `version=${this.settings.version} recallMode=${recallMode} toolsMode=${toolMode} candidateRecall=${candidateRecall} selectedTools=${toolNames.length}`,
+        `version=${this.settings.version} recallMode=${recallMode} toolsMode=${toolMode} candidateRecall=${candidateRecall} needsTools=${needsTools} groups=${selected.join(',')}`,
       );
 
       return {
@@ -161,7 +167,7 @@ export class TurnDecisionService implements OnModuleDestroy {
           recallMode === 'enabled'
             ? input.recallEligible && candidateRecall
             : baseline.recall,
-        ...(toolMode === 'enabled' ? { toolNames } : {}),
+        ...(toolMode === 'enabled' && !needsTools ? { toolNames: [] } : {}),
       };
     };
 

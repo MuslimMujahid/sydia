@@ -222,7 +222,9 @@ cd apps/backend
 FILE_DELIVERY_LIVE_ENABLED=true node --env-file=../../.env --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --runInBand test/messaging/file-delivery.live.spec.ts
 ```
 
-Tool selection prunes confidently irrelevant groups, retaining uncertain groups
-for the assistant to resolve. At the default `toolInclude=0.6`, scores above 0.4
-remain available, including the observed 0.59 first-request file score. This may
-increase tool-schema tokens; it does not execute tools or bypass tool permissions.
+Tool selection is a gate, not a subset. A turn whose every tool group is
+confidently irrelevant gets only the always-available tools; any other turn gets
+every tool. At the default `toolInclude=0.6`, a group scoring above 0.4 counts as
+needed, including the observed 0.59 first-request file score. Keeping just two
+fixed tool lists lets each keep a warm provider prompt cache, which any change to
+the list drops to zero. It does not execute tools or bypass tool permissions.

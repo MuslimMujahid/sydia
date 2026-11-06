@@ -870,4 +870,206 @@ export const SCENARIOS: Scenario[] = [
     message: 'Jadi tadi aku bilang mau berangkat jam berapa?',
     checks: [noErrors(), matches(/\b(jam )?6\b|06[.:]00/, 'recalls 6 am')],
   },
+  {
+    id: 'smalltalk-thanks',
+    area: 'tool-choice',
+    history: [
+      { role: 'user', content: 'Tambahin tugas beli kado buat Dina' },
+      {
+        role: 'assistant',
+        content: 'Sudah aku tambahkan tugas "Beli kado buat Dina".',
+      },
+    ],
+    message: 'Makasih ya!',
+    checks: [
+      noErrors(),
+      {
+        name: 'calls no tools',
+        test: (run) =>
+          run.calls.length === 0 ||
+          `called ${run.calls.map(({ name }) => name).join(', ')}`,
+      },
+      maxChars(300),
+      inIndonesian(),
+    ],
+  },
+  {
+    id: 'category-rename',
+    area: 'tool-choice',
+    message: 'Ganti nama kategori Kantor jadi Kerja',
+    tools: {
+      list_categories: {
+        categories: [
+          {
+            id: 'c-kantor',
+            name: 'Kantor',
+            color: 'blue',
+            iconKey: 'briefcase',
+            taskCount: 4,
+          },
+        ],
+      },
+      update_category: (args: Record<string, unknown>) => ({
+        category: {
+          id: 'c-kantor',
+          name: typeof args.newName === 'string' ? args.newName : 'Kerja',
+          color: 'blue',
+          iconKey: 'briefcase',
+          taskCount: 4,
+        },
+      }),
+    },
+    checks: [
+      noErrors(),
+      called(
+        'update_category',
+        (args) =>
+          /kantor/i.test(String(args.categoryName)) &&
+          /^kerja$/i.test(String(args.newName)),
+        'Kantor → Kerja',
+      ),
+      notCalled('create_category', 'delete_category'),
+    ],
+  },
+  {
+    id: 'contact-group-assign',
+    area: 'tool-choice',
+    message: 'Masukin Budi ke grup Keluarga',
+    tools: {
+      resolve_contact: {
+        contacts: [
+          {
+            id: 'ct-budi',
+            name: 'Budi Santoso',
+            aliases: ['budi'],
+            email: null,
+            phone: '+628123456789',
+            notes: null,
+            groups: [],
+          },
+        ],
+      },
+      list_contact_groups: {
+        groups: [{ id: 'g-keluarga', name: 'Keluarga', contactCount: 3 }],
+      },
+      assign_contact_groups: {
+        contact: {
+          id: 'ct-budi',
+          name: 'Budi Santoso',
+          groups: [{ id: 'g-keluarga', name: 'Keluarga' }],
+        },
+      },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'assign_contact_groups',
+        (args) =>
+          /budi/i.test(String(args.contactName)) &&
+          /keluarga/i.test(JSON.stringify(args.groupNames)),
+        'Budi into Keluarga',
+      ),
+      notCalled('create_contact_group', 'save_contact'),
+    ],
+  },
+  {
+    id: 'calendar-reschedule',
+    area: 'tool-choice',
+    message: 'Rapat tim desain besok pindahin jadi jam 3 sore ya',
+    tools: {
+      list_calendar_events: {
+        events: [
+          {
+            id: 'e-desain',
+            title: 'Rapat tim desain',
+            startAt: at(1, '10:00'),
+            endAt: at(1, '11:00'),
+            status: 'confirmed',
+          },
+        ],
+      },
+      check_availability: {
+        status: 'requested_available',
+        timezone: TIMEZONE,
+        date: localDate(1),
+        constraints: {
+          durationMinutes: 60,
+          window: '15:00–16:00',
+          bufferMinutes: 0,
+          deadline: null,
+          preferredBefore: null,
+        },
+        requested: { interval: '15:00–16:00', available: true, conflicts: [] },
+        slots: [],
+      },
+      update_calendar_event: {
+        event: {
+          id: 'e-desain',
+          title: 'Rapat tim desain',
+          startAt: at(1, '15:00'),
+          endAt: at(1, '16:00'),
+          status: 'confirmed',
+        },
+      },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'update_calendar_event',
+        (args) =>
+          args.id === 'e-desain' && /T08:00|15:00/.test(String(args.startAt)),
+        'moves e-desain to 15:00',
+      ),
+      notCalled('create_calendar_event', 'cancel_calendar_event'),
+    ],
+  },
+  {
+    id: 'secret-store',
+    area: 'tool-choice',
+    message: 'Simpan password wifi rumah: kucing123',
+    tools: {
+      store_secret: (args: Record<string, unknown>) => ({
+        secret: {
+          id: 's-wifi',
+          label:
+            typeof args.label === 'string' ? args.label : 'Password wifi rumah',
+        },
+      }),
+    },
+    checks: [
+      noErrors(),
+      called(
+        'store_secret',
+        (args) => args.value === 'kucing123',
+        'stores the value',
+      ),
+      notCalled('save_memory', 'create_custom_note', 'write_daily_note'),
+      notContains('kucing123'),
+    ],
+  },
+  {
+    id: 'daily-note-recall',
+    area: 'tool-choice',
+    message: 'Kemarin aku nulis apa di catatan harian?',
+    tools: {
+      read_daily_note: (args: Record<string, unknown>) =>
+        args.date === localDate(-1)
+          ? {
+              exists: true,
+              date: localDate(-1),
+              text: 'Ketemu Dina di kafe dekat kantor, bahas proyek website.',
+            }
+          : { exists: false },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'read_daily_note',
+        (args) => args.date === localDate(-1),
+        'yesterday',
+      ),
+      contains('Dina'),
+      notCalled('write_daily_note'),
+    ],
+  },
 ];
