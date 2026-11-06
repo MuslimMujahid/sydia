@@ -110,6 +110,99 @@ describe('MemoryDreamService', () => {
     expect(completeMemoryDream).toHaveBeenCalledWith('dream-1', segment, 1, 1);
   });
 
+  test.each([
+    ['cut off mid-JSON', '{"candidates":[{"content":"Pengguna lebih suka rap'],
+    ['not JSON', 'Tidak ada fakta.'],
+    ['no candidates list', '{"facts":[]}'],
+  ])(
+    'fails without advancing the checkpoint when extraction output is %s',
+    async (_case, text) => {
+      const completeMemoryDream =
+        jest.fn<IConversationRepository['completeMemoryDream']>();
+
+      const failMemoryDream = jest
+        .fn<IConversationRepository['failMemoryDream']>()
+        .mockResolvedValue(undefined);
+
+      const conversations = {
+        findMemoryDreamSegment: jest
+          .fn<IConversationRepository['findMemoryDreamSegment']>()
+          .mockResolvedValue(segment),
+        beginMemoryDream: jest
+          .fn<IConversationRepository['beginMemoryDream']>()
+          .mockResolvedValue({ id: 'dream-1' } as MemoryDreamRun),
+        completeMemoryDream,
+        failMemoryDream,
+      } as unknown as IConversationRepository;
+
+      const service = new MemoryDreamService(
+        conversations,
+        {
+          findById: jest
+            .fn<IUserRepository['findById']>()
+            .mockResolvedValue(enabledUser()),
+        } as unknown as IUserRepository,
+        {
+          provider: 'openrouter',
+          model: 'test',
+          generate: jest
+            .fn<LanguageModelGateway['generate']>()
+            .mockResolvedValue({ text, usage: {} }),
+        },
+        {} as MemoryService,
+        new ConfigService(),
+      );
+
+      // Returning no candidates here used to complete the run, so the
+      // segment's facts were never extracted again.
+      await expect(
+        service.run('user-1', 'conversation-1', 'message-4'),
+      ).rejects.toThrow('Memory dream extraction output');
+      expect(completeMemoryDream).not.toHaveBeenCalled();
+      expect(failMemoryDream).toHaveBeenCalledWith(
+        'dream-1',
+        expect.stringContaining('Memory dream extraction output'),
+      );
+    },
+  );
+
+  test('requests schema-enforced candidates with room for a full list', async () => {
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({ text: '{"candidates":[]}', usage: {} });
+
+    const service = new MemoryDreamService(
+      {
+        findMemoryDreamSegment: jest
+          .fn<IConversationRepository['findMemoryDreamSegment']>()
+          .mockResolvedValue(segment),
+        beginMemoryDream: jest
+          .fn<IConversationRepository['beginMemoryDream']>()
+          .mockResolvedValue({ id: 'dream-1' } as MemoryDreamRun),
+        completeMemoryDream: jest
+          .fn<IConversationRepository['completeMemoryDream']>()
+          .mockResolvedValue(true),
+      } as unknown as IConversationRepository,
+      {
+        findById: jest
+          .fn<IUserRepository['findById']>()
+          .mockResolvedValue(enabledUser()),
+      } as unknown as IUserRepository,
+      { provider: 'openrouter', model: 'test', generate },
+      {} as MemoryService,
+      new ConfigService(),
+    );
+
+    await expect(
+      service.run('user-1', 'conversation-1', 'message-4'),
+    ).resolves.toMatchObject({ status: 'completed', candidateCount: 0 });
+
+    const request = generate.mock.calls[0]?.[0];
+    expect(request?.outputSchema?.required).toEqual(['candidates']);
+    // The 1200-token default cut long candidate lists off mid-JSON.
+    expect(request?.maxOutputTokens).toBeGreaterThan(1200);
+  });
+
   test('defers a short segment without opening a dream run', async () => {
     const shortSegment = { ...segment, messages: segment.messages.slice(0, 1) };
     const beginMemoryDream =
