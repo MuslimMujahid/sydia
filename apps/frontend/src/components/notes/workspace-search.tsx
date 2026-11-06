@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,11 +20,25 @@ export function WorkspaceSearch({
 }: WorkspaceSearchProps) {
   const [kind, setKind] = useState("");
   const [folderId, setFolderId] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const searchTerm = query.trim();
+  const isDebouncing = searchTerm !== debouncedQuery;
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(searchTerm), 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchTerm]);
+
   const search = useQuery({
-    queryKey: ["notes", "search", query, kind, folderId],
+    queryKey: ["notes", "search", debouncedQuery, kind, folderId],
     queryFn: () =>
-      searchWorkspaceNotes(query, kind || undefined, folderId || undefined),
-    enabled: Boolean(query.trim()),
+      searchWorkspaceNotes(
+        debouncedQuery,
+        kind || undefined,
+        folderId || undefined
+      ),
+    enabled: Boolean(searchTerm) && !isDebouncing,
     retry: false,
   });
 
@@ -64,12 +78,12 @@ export function WorkspaceSearch({
           </select>
         </label>
       </div>
-      {!query.trim() ? (
+      {!searchTerm ? (
         <p className="mt-10 flex items-center gap-2 text-sm text-ink-muted">
           <Search className="size-4" />
           Cari judul atau teks di dalam catatan.
         </p>
-      ) : search.isPending ? (
+      ) : isDebouncing || search.isPending ? (
         <div
           className="mt-8 space-y-4"
           aria-busy="true"

@@ -12,6 +12,7 @@ export default defineConfig({
     "note-drawer.spec.ts",
     "chat-sources.spec.ts",
     "notes-move.spec.ts",
+    "notes-search.spec.ts",
     "entity-renderer.spec.ts",
     "chat-previews.spec.ts",
     "dev-toolbar.spec.ts",
