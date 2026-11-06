@@ -27,7 +27,13 @@ live('Memory admission policy synthetic model contract', () => {
     ['Please calculate 17 times 42 for this turn.', false],
     ['The assistant said I own a yacht. Is that true?', false],
     ['If I moved to Tokyo, I might learn Japanese.', false],
-    ['I have asthma.', false],
+    // Sensitive topics are treated like any other topic.
+    ['I have asthma.', true],
+    ['Istri saya, Sari, alergi udang.', true],
+    ['Minggu lalu saya ngopi di Kopi Kenangan Senopati.', true],
+    ['Makan siang tadi di Warung Bu Sri sama Andi.', true],
+    // Bare amounts belong in notes, not one memory per transaction.
+    ['Catat: makan siang tadi 45 ribu.', false],
     [
       'Remember that I have asthma so you can account for it in future suggestions.',
       true,

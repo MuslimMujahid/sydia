@@ -93,7 +93,6 @@ function setup(
         spans: [
           {
             quote: 'I prefer short replies.',
-            sensitive: false,
             permissionQuote: null,
           },
         ],
@@ -126,6 +125,26 @@ function setup(
 }
 
 describe('HindsightIngestionService', () => {
+  test('a single-message chat waits while recent and is reviewed once idle long enough', async () => {
+    const single = { ...segment, messages: [segment.messages[0]!] };
+    const { service, ledger, policy } = setup();
+    ledger.ingestionSegment.mockResolvedValue(single);
+
+    await expect(
+      service.run('user', 'conversation', 'boundary'),
+    ).resolves.toEqual({ status: 'deferred' });
+    expect(policy.approveEvidence).not.toHaveBeenCalled();
+
+    // allowShortSegment is set once the chat has been idle past the short
+    // segment age; one message used to stay deferred forever.
+    await service.run('user', 'conversation', 'boundary', true);
+    expect(policy.approveEvidence).toHaveBeenCalledWith(
+      'user',
+      'I prefer short replies.',
+    );
+    expect(ledger.stageCheckpoint).toHaveBeenCalled();
+  });
+
   test('a negative eligibility decision skips review but stages the original checkpoint', async () => {
     const shouldReview = jest
       .fn<MemoryEligibilityService['shouldReview']>()

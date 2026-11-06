@@ -130,15 +130,42 @@ export const MEMORY_ELIGIBILITY_FIXTURES = [
     content: 'Thanks! By the way I always drink tea instead of coffee.',
     eligible: true,
   },
+  // Sensitive topics are treated like any other topic.
   {
     id: 'sensitive-no-permission',
     content: 'I have a chronic health condition.',
-    eligible: false,
+    eligible: true,
   },
   {
     id: 'sensitive-permission',
     content: 'Please remember that I have a chronic health condition.',
     eligible: true,
+  },
+  {
+    id: 'person-in-life-id',
+    content: 'Istri saya, Sari, alergi udang.',
+    eligible: true,
+  },
+  {
+    id: 'weeks-relevant-id',
+    content: 'Bulan depan saya ke Bali untuk konferensi tanggal 12–15.',
+    eligible: true,
+  },
+  {
+    id: 'past-visit-id',
+    content: 'Minggu lalu saya ngopi di Kopi Kenangan Senopati.',
+    eligible: true,
+  },
+  {
+    id: 'detailed-record-id',
+    content: 'Makan siang tadi di Warung Bu Sri sama Andi.',
+    eligible: true,
+  },
+  // Bare amounts belong in notes, not one memory per transaction.
+  {
+    id: 'bare-expense-id',
+    content: 'Catat: makan siang tadi 45 ribu.',
+    eligible: false,
   },
 ] as const;
 export const EXTRACTOR_FIXTURES = [

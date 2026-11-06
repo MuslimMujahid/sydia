@@ -629,7 +629,7 @@ Filters combine. Omitted status means inbox (unfinished); use done, cancelled, o
 
 Use it when the user asks to be reminded at a specific date or time, optionally recurring.
 
-Do not use it for a task without a notification schedule or to take a note; use 'create_task' or 'save_memory' instead.
+Do not use it for a task without a notification schedule or to take a note; use 'create_task' or the note tools instead.
 
 title is required and schedules holds one entry per distinct notification time. Each entry takes the user's local date and time plus an optional recurrence.
 
@@ -875,7 +875,7 @@ Each reminder reports its id, title, its local date and time with the weekday, a
       label: 'Save memory',
       description: `Use this tool to save a long-term memory for the user.
 
-Use it when the user explicitly asks you to remember a durable fact, preference, or note. Ordinary personal statements and preferences should receive a conversational reply; automatic memory extraction handles them in the background.
+Use it when the user explicitly asks you to remember something ("ingat", "remember this"). A request to write something down in notes ("catat", "note this") is a notes request, not a memory request; use the note tools. Ordinary statements worth remembering need only a conversational reply; automatic memory extraction handles them in the background.
 
 Do not use it for a transient task, scheduled reminder, or information that should not be retained.
 

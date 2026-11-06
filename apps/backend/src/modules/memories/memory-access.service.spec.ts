@@ -398,7 +398,7 @@ describe('MemoryAccessService', () => {
       .fn<LanguageModelGateway['generate']>()
       .mockResolvedValueOnce({
         text: JSON.stringify({
-          spans: [{ quote, sensitive: false, permissionQuote: null }],
+          spans: [{ quote, permissionQuote: null }],
         }),
         usage: {},
       })
@@ -409,7 +409,6 @@ describe('MemoryAccessService', () => {
               id: 'requested',
               grounded: true,
               durable: true,
-              sensitive: false,
               permissionQuote: null,
               evidenceQuotes: [quote],
             },
@@ -431,7 +430,6 @@ describe('MemoryAccessService', () => {
                   id: 'requested',
                   grounded: true,
                   durable: true,
-                  sensitive: false,
                   permissionQuote: null,
                   evidenceQuotes: [quote],
                 },
@@ -493,7 +491,7 @@ describe('MemoryAccessService', () => {
         .fn<LanguageModelGateway['generate']>()
         .mockResolvedValue({
           text: JSON.stringify({
-            spans: [{ quote, sensitive: false, permissionQuote: null }],
+            spans: [{ quote, permissionQuote: null }],
           }),
           usage: {},
         });

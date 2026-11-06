@@ -33,7 +33,7 @@ function setup(extra: Record<string, unknown> = {}) {
         answers: Object.fromEntries(
           Object.keys(request.questions).map((key) => [
             key,
-            { type: 'noul', noul: key.startsWith('sensitive_') ? 0 : 1 },
+            { type: 'noul', noul: 1 },
           ]),
         ),
         inputTokens: 100,
@@ -139,8 +139,6 @@ test('fact allows preserve full exact spans and recheck coverage after renewing 
         id: 'f1',
         grounded: true,
         durable: true,
-        sensitive: false,
-        permissionQuote: null,
         evidenceQuotes: ['I prefer short replies.'],
       },
     ],
@@ -158,7 +156,7 @@ test('compound facts with incomplete selected-evidence coverage are rejected', a
       answers: Object.fromEntries(
         Object.keys(request.questions).map((key) => [
           key,
-          { type: 'noul', noul: key.startsWith('sensitive_') ? 0 : 1 },
+          { type: 'noul', noul: 1 },
         ]),
       ),
       inputTokens: 1,
@@ -204,11 +202,7 @@ test.each([
             key,
             {
               type: 'noul',
-              noul: key.startsWith('sensitive_')
-                ? 0
-                : question === 'all' || key === question
-                  ? probability
-                  : 0.85,
+              noul: question === 'all' || key === question ? probability : 0.85,
             },
           ]),
         ),
@@ -228,33 +222,23 @@ test.each([
     ).toMatchObject({ status });
   },
 );
-test('sensitive facts without specific permission are rejected by Jev', async () => {
+test('sensitive facts are reviewed like any other fact, with no consent questions', async () => {
   const { facts, decide } = setup();
-  decide.mockImplementationOnce((request): Promise<DecisionResult> =>
-    Promise.resolve({
-      status: 'ok',
-      model: 'typesafe/jev-1.13-20260917',
-      answers: Object.fromEntries(
-        Object.keys(request.questions).map((key) => [
-          key,
-          { type: 'noul', noul: key.startsWith('sensitive_') ? 0.7 : 1 },
-        ]),
-      ),
-      inputTokens: 1,
-      outputTokens: 1,
-      latencyMs: 1,
-      costUsd: null,
-    }),
-  );
   expect(
     await facts.review(
       'user',
-      [{ id: 'f1', text: 'The user has a health condition.' }],
-      ['Remember my condition.'],
+      [{ id: 'f1', text: 'The user has asthma.' }],
+      ['I have asthma.'],
       [],
     ),
-  ).toEqual({ status: 'reject' });
-  expect(decide).toHaveBeenCalledTimes(1);
+  ).toMatchObject({ status: 'allow', facts: [{ id: 'f1' }] });
+  // Sensitive topics used to need a separate remember request; they no longer
+  // ask Jev about sensitivity or permission at all.
+  expect(
+    Object.keys(decide.mock.calls[0]?.[0].questions ?? {}).filter((key) =>
+      /^(sensitive|permission)_/.test(key),
+    ),
+  ).toEqual([]);
 });
 test('reject-only never allows facts or makes an evidence allow request', async () => {
   const { facts, decide } = setup({
@@ -291,76 +275,6 @@ test('credentials and oversized evidence collections never enter Jev fact reques
   ).toEqual({ status: 'reject' });
   expect(decide).not.toHaveBeenCalled();
 });
-
-test.each([0.85, 0.849])(
-  'Jev requires specific permission at the approval threshold for sensitive facts (%s)',
-  async (permissionScore) => {
-    const { facts, decide } = setup();
-    decide.mockImplementation((request): Promise<DecisionResult> =>
-      Promise.resolve({
-        status: 'ok',
-        model: 'typesafe/jev-1.13-20260917',
-        answers: Object.fromEntries(
-          Object.keys(request.questions).map((key) => [
-            key,
-            {
-              type: 'noul',
-              noul: key.startsWith('sensitive_')
-                ? 0.7
-                : key.startsWith('permission_')
-                  ? permissionScore
-                  : 1,
-            },
-          ]),
-        ),
-        inputTokens: 1,
-        outputTokens: 1,
-        latencyMs: 1,
-        costUsd: null,
-      }),
-    );
-    const permission = 'Remember that I have asthma.';
-    const result = await facts.review(
-      'user',
-      [{ id: 'f1', text: 'The user has asthma.' }],
-      [permission],
-      [permission],
-    );
-
-    if (permissionScore === 0.85)
-      expect(result).toMatchObject({
-        status: 'allow',
-        facts: [{ sensitive: true, permissionQuote: permission }],
-      });
-    else expect(result).toEqual({ status: 'reject' });
-  },
-);
-
-test.each([
-  [0.25, 'allow'],
-  [0.251, 'reject'],
-] as const)(
-  'sensitivity boundary without consent: %s yields %s',
-  async (sensitivity, status) => {
-    const { facts, decide } = setup();
-    const normal = decide.getMockImplementation()!;
-    decide.mockImplementationOnce(async (request) => {
-      const result = await normal(request);
-      if (result.status === 'ok')
-        result.answers.sensitive_0 = { type: 'noul', noul: sensitivity };
-
-      return result;
-    });
-    expect(
-      await facts.review(
-        'user',
-        [{ id: 'f1', text: 'The user prefers tea.' }],
-        ['I prefer tea.'],
-        [],
-      ),
-    ).toMatchObject({ status });
-  },
-);
 
 test.each(['review', 'coverage'])(
   'provider failure during %s remains unavailable rather than rejecting a source',

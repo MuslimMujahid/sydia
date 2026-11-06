@@ -54,9 +54,7 @@ function setup() {
     approveEvidence: jest
       .fn<MemoryPolicyService['approveEvidence']>()
       .mockResolvedValue({
-        spans: [
-          { quote: 'I prefer tea.', sensitive: false, permissionQuote: null },
-        ],
+        spans: [{ quote: 'I prefer tea.', permissionQuote: null }],
       }),
   };
 

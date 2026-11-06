@@ -44,28 +44,46 @@ function setup(output: unknown) {
 }
 
 describe('MemoryPolicyService', () => {
-  test('requires exact source spans and specific permission for sensitive evidence', async () => {
+  test('requires exact source spans and admits sensitive evidence without a remember request', async () => {
     const { policy } = setup({
       spans: [
-        {
-          quote: 'I prefer Indonesian replies.',
-          sensitive: false,
-          permissionQuote: null,
-        },
-        { quote: 'invented evidence', sensitive: false, permissionQuote: null },
-        { quote: 'asthma diagnosis', sensitive: true, permissionQuote: null },
+        { quote: 'I prefer Indonesian replies.', permissionQuote: null },
+        { quote: 'invented evidence', permissionQuote: null },
+        { quote: 'asthma diagnosis', permissionQuote: null },
         {
           quote: 'asthma diagnosis',
-          sensitive: true,
           permissionQuote: 'Remember my asthma diagnosis.',
         },
       ],
     });
 
-    const result = await policy.approveEvidence('owner', input);
-    expect(result.spans.map(({ quote }) => quote)).toEqual([
-      'I prefer Indonesian replies.',
-      'asthma diagnosis',
+    // Sensitive topics used to be dropped without a specific remember request.
+    expect((await policy.approveEvidence('owner', input)).spans).toEqual([
+      { quote: 'I prefer Indonesian replies.', permissionQuote: null },
+      { quote: 'asthma diagnosis', permissionQuote: null },
+    ]);
+  });
+
+  test('keeps only a verbatim remember request, never dropping the fact for it', async () => {
+    const { policy } = setup({
+      spans: [
+        {
+          quote: 'asthma diagnosis',
+          permissionQuote: 'Remember my asthma diagnosis.',
+        },
+        {
+          quote: 'I prefer Indonesian replies.',
+          permissionQuote: 'Please remember this forever.',
+        },
+      ],
+    });
+
+    expect((await policy.approveEvidence('owner', input)).spans).toEqual([
+      {
+        quote: 'asthma diagnosis',
+        permissionQuote: 'Remember my asthma diagnosis.',
+      },
+      { quote: 'I prefer Indonesian replies.', permissionQuote: null },
     ]);
   });
 
@@ -75,7 +93,6 @@ describe('MemoryPolicyService', () => {
       spans: [
         {
           quote: messages.join('\n\n'),
-          sensitive: false,
           permissionQuote: null,
         },
       ],
@@ -102,8 +119,6 @@ describe('MemoryPolicyService', () => {
       id: 'fact',
       grounded: true,
       durable: true,
-      sensitive: false,
-      permissionQuote: null,
       evidenceQuotes: ['I prefer Indonesian replies.'],
     };
 
@@ -127,11 +142,6 @@ describe('MemoryPolicyService', () => {
     expect(
       await setup({
         facts: [{ ...verdict, grounded: false }],
-      }).policy.approveFacts('owner', source, [fact]),
-    ).toBe(false);
-    expect(
-      await setup({
-        facts: [{ ...verdict, sensitive: true }],
       }).policy.approveFacts('owner', source, [fact]),
     ).toBe(false);
     await expect(
@@ -161,7 +171,6 @@ describe('MemoryPolicyService', () => {
           id: 'fact',
           grounded: true,
           durable: true,
-          sensitive: false,
           evidenceQuotes: ['The user lives in Makassar.'],
           permissionQuote: null,
         },
@@ -189,7 +198,6 @@ describe('MemoryPolicyService', () => {
           id,
           grounded: true,
           durable: true,
-          sensitive: false,
           permissionQuote: null,
           evidenceQuotes: ['I prefer Indonesian replies.'],
         })),
@@ -227,7 +235,6 @@ describe('MemoryPolicyService', () => {
                 id,
                 grounded: true,
                 durable: true,
-                sensitive: false,
                 permissionQuote: null,
                 evidenceQuotes: ['I prefer Indonesian replies.'],
               })),
@@ -309,7 +316,6 @@ test('passes the persisted source message anchor to Jev for conversation context
         id: fact.id,
         grounded: true,
         durable: true,
-        sensitive: false,
         permissionQuote: null,
         evidenceQuotes: [input],
       },

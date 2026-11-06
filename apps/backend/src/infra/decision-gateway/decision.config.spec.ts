@@ -15,11 +15,25 @@ describe('decision configuration', () => {
       recallInclude: 0.6,
       toolInclude: 0.6,
       factAllow: 0.85,
-      sensitiveNo: 0.25,
     });
     expect(
       new DecisionSettings(new ConfigService()).mode('tools', 'user'),
     ).toBe('off');
+  });
+  test('accepts the retired sensitiveNo threshold so existing environments still start', () => {
+    expect(() =>
+      validateDecisionEnvironment({
+        BACKEND_DECISION_THRESHOLDS_JSON: JSON.stringify({
+          factAllow: 0.85,
+          sensitiveNo: 0.25,
+        }),
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateDecisionEnvironment({
+        BACKEND_DECISION_THRESHOLDS_JSON: JSON.stringify({ madeUp: 0.5 }),
+      }),
+    ).toThrow('unknown threshold');
   });
   test('enabled modes require a reviewed calibration and an explicit user cohort', () => {
     expect(() =>

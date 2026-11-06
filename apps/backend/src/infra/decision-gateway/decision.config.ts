@@ -16,8 +16,13 @@ export const DEFAULT_DECISION_THRESHOLDS = {
   recallInclude: 0.6,
   toolInclude: 0.6,
   factAllow: 0.85,
-  sensitiveNo: 0.25,
 } as const;
+/**
+ * Thresholds that no longer apply but may still be set in deployed
+ * environments; they are accepted and ignored so those environments start.
+ * sensitiveNo gated sensitive memories, which are now treated like any other.
+ */
+const RETIRED_DECISION_THRESHOLDS = new Set(['sensitiveNo']);
 export type DecisionThresholds = {
   -readonly [K in keyof typeof DEFAULT_DECISION_THRESHOLDS]: number;
 };
@@ -143,7 +148,9 @@ export function validateDecisionEnvironment(
   const supplied = thresholds as Record<string, unknown>;
   if (
     Object.keys(supplied).some(
-      (key) => !Object.hasOwn(DEFAULT_DECISION_THRESHOLDS, key),
+      (key) =>
+        !Object.hasOwn(DEFAULT_DECISION_THRESHOLDS, key) &&
+        !RETIRED_DECISION_THRESHOLDS.has(key),
     )
   )
     throw new Error(

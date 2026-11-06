@@ -95,7 +95,7 @@ export class HindsightIngestionService {
     if (
       segment.messages.length < this.minUserMessages &&
       estimatedTokens < this.minTokens &&
-      !(allowShortSegment && segment.messages.length >= 2)
+      !(allowShortSegment && segment.messages.length >= 1)
     )
       return { status: 'deferred' };
     const bank = await this.ledger.ensureBank(

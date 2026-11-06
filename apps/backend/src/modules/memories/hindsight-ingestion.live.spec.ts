@@ -162,10 +162,9 @@ live('Direct Hindsight ingestion live contract', () => {
       expect(retained.items.map(({ text }) => text)).toEqual(
         expect.arrayContaining([expect.stringMatching(/Indonesian/i)]),
       );
+      // Sensitive topics such as health are retained like any other fact.
       expect(
-        retained.items.some(({ text }) =>
-          /asthma|password|Tokyo|yacht/i.test(text),
-        ),
+        retained.items.some(({ text }) => /password|Tokyo|yacht/i.test(text)),
       ).toBe(false);
       const second = await prisma.message.create({
         data: {

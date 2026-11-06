@@ -210,11 +210,6 @@ if (enabled && (!isAbsolute(reportPath) || !reportRelative.startsWith('..')))
               true,
             );
           if (mode === 'reject-only') expect(verdicts).not.toContain('allow');
-          if (
-            (fixture.category === 'sensitive' && !fixture.permissions.length) ||
-            fixture.category === 'permission-mismatch'
-          )
-            expect(verdicts).not.toContain('allow');
 
           if (fixture.category === 'credential') {
             expect(admitted).toBe(false);

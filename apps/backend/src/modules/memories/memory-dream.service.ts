@@ -15,6 +15,11 @@ import {
   type LanguageModelGateway,
 } from '../../infra/model-gateway';
 import { MemoryService } from './memory.service';
+import {
+  MEMORY_EXCLUSIONS,
+  MEMORY_REQUEST_RULE,
+  MEMORY_SCOPE,
+} from './memory-retention-policy';
 
 const DREAMER_VERSION = 'incremental-dream-v1';
 const DEFAULT_MIN_USER_MESSAGES = 4;
@@ -48,12 +53,14 @@ const CANDIDATES_SCHEMA: JSONSchema7 = {
   },
 };
 
-const EXTRACTION_PROMPT = `Extract durable, useful facts about the user that carry across conversations: preferences, decisions, goals, routines, constraints, and stable personal facts. Return at most ${MAX_CANDIDATES} candidates, most useful first, or an empty list.
+const EXTRACTION_PROMPT = `Extract what is worth remembering from these messages. Return at most ${MAX_CANDIDATES} candidates, most useful first, or an empty list.
+
+${MEMORY_SCOPE}
+${MEMORY_EXCLUSIONS}
+${MEMORY_REQUEST_RULE}
 
 - Evidence must come from user messages; list their IDs in sourceMessageIds. Assistant messages are context only: something the assistant said counts only when a user message confirms it, and that user message is the evidence.
-- Ignore temporary tasks, short-lived debugging, and general knowledge.
-- Never extract secrets or credentials (passwords, PINs, API keys, card or account numbers). Other sensitive personal data only when a user message explicitly asks to remember that fact.
-- Write each fact as one standalone sentence in the language the user wrote it in.
+- Write each fact as one standalone sentence in the language the user wrote it in, naming who it is about.
 - confidence is your certainty that the fact is both durable and correct. Candidates below ${MIN_CANDIDATE_CONFIDENCE} are discarded, so omit them.
 - category is a short lowercase label such as preference, routine, goal, constraint, or personal.
 
@@ -145,7 +152,7 @@ export class MemoryDreamService {
     const eligible =
       userMessages.length >= this.minUserMessages ||
       estimatedTokens >= this.minTokens ||
-      (allowShortSegment && userMessages.length >= 2);
+      (allowShortSegment && userMessages.length >= 1);
 
     if (!eligible) return { status: 'deferred' };
 

@@ -235,6 +235,45 @@ describe('MemoryDreamService', () => {
     expect(beginMemoryDream).not.toHaveBeenCalled();
   });
 
+  test('reviews a single-message segment once it is allowed as short', async () => {
+    const shortSegment = { ...segment, messages: segment.messages.slice(3) };
+    const beginMemoryDream = jest
+      .fn<IConversationRepository['beginMemoryDream']>()
+      .mockResolvedValue({ id: 'dream-1' } as MemoryDreamRun);
+
+    const service = new MemoryDreamService(
+      {
+        findMemoryDreamSegment: jest
+          .fn<IConversationRepository['findMemoryDreamSegment']>()
+          .mockResolvedValue(shortSegment),
+        beginMemoryDream,
+        completeMemoryDream: jest
+          .fn<IConversationRepository['completeMemoryDream']>()
+          .mockResolvedValue(true),
+      } as unknown as IConversationRepository,
+      {
+        findById: jest
+          .fn<IUserRepository['findById']>()
+          .mockResolvedValue(enabledUser()),
+      } as unknown as IUserRepository,
+      {
+        provider: 'openrouter',
+        model: 'test',
+        generate: jest
+          .fn<LanguageModelGateway['generate']>()
+          .mockResolvedValue({ text: '{"candidates":[]}', usage: {} }),
+      },
+      {} as MemoryService,
+      new ConfigService(),
+    );
+
+    // One message used to stay deferred forever, even after the idle window.
+    await expect(
+      service.run('user-1', 'conversation-1', 'message-4', true),
+    ).resolves.toMatchObject({ status: 'completed' });
+    expect(beginMemoryDream).toHaveBeenCalled();
+  });
+
   test('rejects candidates sourced only from assistant messages', async () => {
     const mixedSegment: MemoryDreamSegment = {
       ...segment,
