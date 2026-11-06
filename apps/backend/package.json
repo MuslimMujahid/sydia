@@ -28,6 +28,7 @@
     "db:migrate:reset": "prisma migrate reset",
     "test:e2e": "bash ../../scripts/test-lock.sh node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.config.mjs",
     "test:parser": "node test/document-parser/smoke.cjs",
+    "eval:prompts": "PROMPT_EVAL_ENABLED=true node --env-file=.env --experimental-vm-modules node_modules/jest/bin/jest.js --config ./jest.config.mjs --runInBand --testPathPatterns=test/prompt-eval",
     "documents:reprocess": "node dist/src/scripts/document-reprocess.js",
     "documents:queue": "node dist/src/scripts/document-queue.js",
     "calendar:credentials:migrate": "node dist/src/scripts/calendar-credential-migration.js",
