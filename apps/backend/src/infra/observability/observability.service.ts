@@ -42,8 +42,11 @@ export type GenerationTraceUpdate = {
   model?: string;
   metadata?: Record<string, string>;
   output?: string;
+  /** Provider prompt-token count, including any cache reads and writes. */
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   costUsd?: number;
   error?: GenerationTraceError;
 };
@@ -224,10 +227,26 @@ export class ObservabilityService
               update.inputTokens !== undefined ||
               update.outputTokens !== undefined
             ) {
+              // Langfuse usage keys are exclusive buckets, but the provider's
+              // input count includes cached tokens, so split them out.
+              const cacheRead = update.cacheReadTokens ?? 0;
+              const cacheWrite = update.cacheWriteTokens ?? 0;
+
               attributes.usageDetails = {
                 ...(update.inputTokens === undefined
                   ? {}
-                  : { input: update.inputTokens }),
+                  : {
+                      input: Math.max(
+                        0,
+                        update.inputTokens - cacheRead - cacheWrite,
+                      ),
+                    }),
+                ...(update.inputTokens !== undefined && cacheRead > 0
+                  ? { input_cached_tokens: cacheRead }
+                  : {}),
+                ...(update.inputTokens !== undefined && cacheWrite > 0
+                  ? { input_cache_write_tokens: cacheWrite }
+                  : {}),
                 ...(update.outputTokens === undefined
                   ? {}
                   : { output: update.outputTokens }),

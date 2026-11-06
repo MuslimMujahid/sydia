@@ -163,4 +163,47 @@ describe('ObservabilityService', () => {
       Reflect.set(ObservabilityService, 'started', false);
     }
   });
+
+  it('records cached prompt tokens as a bucket separate from input', async () => {
+    const service = new ObservabilityService(
+      new ConfigService({
+        BACKEND_LANGFUSE_PUBLIC_KEY: 'public',
+        BACKEND_LANGFUSE_SECRET_KEY: 'secret',
+      }),
+    );
+
+    Reflect.set(ObservabilityService, 'started', true);
+
+    try {
+      await service.traceGeneration(
+        {
+          provider: 'openrouter',
+          model: 'test-model',
+          messages: [],
+          attempt: 1,
+        },
+        (trace) => {
+          trace.update({
+            inputTokens: 100,
+            outputTokens: 5,
+            cacheReadTokens: 80,
+            cacheWriteTokens: 15,
+          });
+
+          return Promise.resolve();
+        },
+      );
+
+      expect(generation.update).toHaveBeenCalledWith({
+        usageDetails: {
+          input: 5,
+          input_cached_tokens: 80,
+          input_cache_write_tokens: 15,
+          output: 5,
+        },
+      });
+    } finally {
+      Reflect.set(ObservabilityService, 'started', false);
+    }
+  });
 });

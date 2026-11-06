@@ -152,6 +152,26 @@ function cacheUsage(value: unknown): CacheUsage {
   };
 }
 
+/**
+ * Tool names offered to and called by the model this generation, for measuring
+ * which tool definitions a turn pays for and which ones it actually uses.
+ * Empty when the request offered no tools.
+ */
+function toolUsageMetadata(
+  offered: ReadonlySet<string>,
+  called: ReadonlySet<string>,
+): { metadata?: Record<string, string> } {
+  if (offered.size === 0 && called.size === 0) return {};
+
+  return {
+    metadata: {
+      toolsOfferedCount: String(offered.size),
+      toolsOffered: [...offered].sort().join(','),
+      toolsCalled: [...called].join(','),
+    },
+  };
+}
+
 function errorObject(value: unknown): Error {
   return value instanceof Error
     ? value
@@ -550,7 +570,10 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     // restate what the tools already confirmed. The decision is made inside the
     // SDK's own stop condition, which runs once every sibling call of the
     // finished step has settled; the text is stashed for the result below.
-    const options = (terminal: { text: string | null }) => ({
+    const options = (
+      terminal: { text: string | null },
+      offered: Set<string>,
+    ) => ({
       model: this.languageModel,
       messages: request.messages,
       allowSystemInMessages: true as const,
@@ -559,12 +582,13 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
         ? {
             prepareStep: () => {
               const names = new Set(request.activeTools!());
+              const activeTools = Object.keys(request.tools!).filter((name) =>
+                names.has(name),
+              );
 
-              return {
-                activeTools: Object.keys(request.tools!).filter((name) =>
-                  names.has(name),
-                ),
-              };
+              for (const name of activeTools) offered.add(name);
+
+              return { activeTools };
             },
           }
         : {}),
@@ -619,6 +643,10 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             try {
               // Resolved inside the SDK stop condition when a step is terminal.
               const terminalText: { text: string | null } = { text: null };
+              // Every tool offered on any step; prepareStep adds the routed set.
+              const offered = new Set<string>(
+                request.activeTools ? [] : Object.keys(request.tools ?? {}),
+              );
 
               if (streaming) {
                 let streamError: unknown;
@@ -627,7 +655,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
 
                 let providerMetadata: unknown;
                 const result = streamText({
-                  ...options(terminalText),
+                  ...options(terminalText, offered),
                   onError: ({ error }) => {
                     streamError = error;
                   },
@@ -738,7 +766,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                     request.traceContent === false ? undefined : finalText,
                   inputTokens: normalizedUsage.inputTokens,
                   outputTokens: normalizedUsage.outputTokens,
+                  ...cache,
                   costUsd: normalizedUsage.costUsd,
+                  ...toolUsageMetadata(offered, executedToolNames),
                 });
 
                 if (attempt > 1) {
@@ -761,7 +791,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 };
               }
 
-              const result = await generateText(options(terminalText));
+              const result = await generateText(options(terminalText, offered));
+
+              for (const step of result.steps)
+                for (const call of step.toolCalls)
+                  executedToolNames.add(call.toolName);
               let finalText = (
                 terminalText.text ??
                 (request.outputSchema
@@ -785,13 +819,17 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 costUsd: openRouterCost(result.providerMetadata),
               };
 
-              this.logCacheUsage(request, cacheUsage(result.usage));
+              const cache = cacheUsage(result.usage);
+
+              this.logCacheUsage(request, cache);
 
               trace.update({
                 output: request.traceContent === false ? undefined : finalText,
                 inputTokens: normalizedUsage.inputTokens,
                 outputTokens: normalizedUsage.outputTokens,
+                ...cache,
                 costUsd: normalizedUsage.costUsd,
+                ...toolUsageMetadata(offered, executedToolNames),
               });
 
               return {

@@ -158,6 +158,7 @@ describe('OpenRouterLanguageModel', () => {
       output: 'Halo kembali.',
       inputTokens: 11,
       outputTokens: 7,
+      cacheReadTokens: 0,
       costUsd: undefined,
     });
   });
@@ -234,6 +235,7 @@ describe('OpenRouterLanguageModel', () => {
       output: undefined,
       inputTokens: 10,
       outputTokens: 5,
+      cacheReadTokens: 0,
       costUsd: undefined,
     });
     const body = fetch.mock.calls[0]![1]?.body;
@@ -939,6 +941,83 @@ describe('OpenRouterLanguageModel', () => {
       }),
     ).resolves.toMatchObject({ text: 'Ada filenya.' });
     expect(tracing.calls.map(({ attempt }) => attempt)).toEqual([1, 2]);
+  });
+
+  it('traces the routed tools offered, the tools called, and cache reads', async () => {
+    const cachedUsage = {
+      inputTokens: {
+        total: 10,
+        noCache: 2,
+        cacheRead: 8,
+        cacheWrite: undefined,
+      },
+      outputTokens: { total: 4, text: 4, reasoning: undefined },
+    };
+
+    const finish = (unified: 'tool-calls' | 'stop') => ({
+      type: 'finish' as const,
+      finishReason: { unified, raw: undefined },
+      logprobs: undefined,
+      usage: cachedUsage,
+    });
+
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+        if (calls === 1)
+          return Promise.resolve({
+            stream: simulateReadableStream({
+              chunks: [
+                {
+                  type: 'tool-call' as const,
+                  toolCallId: 'call-1',
+                  toolName: 'search_documents',
+                  input: '{}',
+                },
+                finish('tool-calls'),
+              ],
+            }),
+          });
+
+        return Promise.resolve({
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'text-start' as const, id: 'text-1' },
+              { type: 'text-delta' as const, id: 'text-1', delta: 'Ada.' },
+              { type: 'text-end' as const, id: 'text-1' },
+              finish('stop'),
+            ],
+          }),
+        });
+      },
+    });
+
+    const tracing = tracingSpy();
+    const gateway = model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    );
+
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+    await gateway.generate({
+      messages: [{ role: 'user', content: 'Ada file?' }],
+      tools: fakeTools(),
+      activeTools: () => ['search_documents'],
+      onTextDelta: jest.fn(),
+      onToolCall: jest.fn(),
+    });
+
+    expect(tracing.updates.at(-1)).toMatchObject({
+      inputTokens: 20,
+      cacheReadTokens: 16,
+      metadata: {
+        toolsOfferedCount: '1',
+        toolsOffered: 'search_documents',
+        toolsCalled: 'search_documents',
+      },
+    });
   });
 
   it('drops planning narration emitted in a step that calls a tool', async () => {
