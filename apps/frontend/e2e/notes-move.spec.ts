@@ -90,7 +90,7 @@ test("an unmatched search explains the empty result and keeps root selectable", 
   ).toBeChecked();
 });
 
-test("Tambah folder creates a child inside a collapsed folder", async ({
+test("Buat folder baru creates a child inside a collapsed folder", async ({
   page,
 }) => {
   await page.route("**/notes/items", (route) =>
@@ -103,7 +103,7 @@ test("Tambah folder creates a child inside a collapsed folder", async ({
     .getByRole("button", { name: "Tindakan Kerja", exact: true })
     .click();
   await page
-    .getByRole("menuitem", { name: "Tambah folder", exact: true })
+    .getByRole("menuitem", { name: "Buat folder baru", exact: true })
     .click();
   const name = page.getByRole("textbox", { name: "Nama folder", exact: true });
   await expect(folder).toHaveAttribute("aria-expanded", "true");
@@ -136,7 +136,7 @@ test("cancelling a child folder returns focus to its folder menu", async ({
 
   await trigger.click();
   await page
-    .getByRole("menuitem", { name: "Tambah folder", exact: true })
+    .getByRole("menuitem", { name: "Buat folder baru", exact: true })
     .click();
   const name = page.getByRole("textbox", { name: "Nama folder", exact: true });
   await expect(name).toBeFocused();
@@ -165,7 +165,7 @@ test("duplicate folder names open an error popup and retain the draft for correc
     .getByRole("button", { name: "Tindakan Kerja", exact: true })
     .click();
   await page
-    .getByRole("menuitem", { name: "Tambah folder", exact: true })
+    .getByRole("menuitem", { name: "Buat folder baru", exact: true })
     .click();
   const name = page.getByRole("textbox", { name: "Nama folder", exact: true });
   await name.fill("Proyek");
@@ -218,7 +218,7 @@ test("folder error bubbles hide when their field scrolls out of view", async ({
     .getByRole("button", { name: "Tindakan Folder 8", exact: true })
     .click();
   await page
-    .getByRole("menuitem", { name: "Tambah folder", exact: true })
+    .getByRole("menuitem", { name: "Buat folder baru", exact: true })
     .click();
   const name = page.getByRole("textbox", { name: "Nama folder", exact: true });
   await name.press("Enter");
@@ -241,14 +241,14 @@ test("folder error bubbles hide when their field scrolls out of view", async ({
   await expect(name).toHaveValue("Folder baru");
 });
 
-test("note menus do not offer Tambah folder", async ({ page }) => {
+test("note menus do not offer Buat folder baru", async ({ page }) => {
   await page.goto("/e2e/notes-move.html#tree");
   await page
     .getByRole("button", { name: "Tindakan Rencana peluncuran", exact: true })
     .click();
   await expect(page.getByRole("menuitem", { name: "Ubah nama" })).toBeVisible();
   await expect(
-    page.getByRole("menuitem", { name: "Tambah folder", exact: true })
+    page.getByRole("menuitem", { name: "Buat folder baru", exact: true })
   ).toHaveCount(0);
 });
 

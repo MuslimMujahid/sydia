@@ -204,10 +204,13 @@ export function NotesWorkspacePage({
   }, []);
 
   const create = useMutation({
-    mutationFn: async (recordParent?: string | null) => {
-      const parentId = recordParent === undefined ? noteParentId : recordParent;
-      const format = recordParent === undefined ? "rich-text" : "record";
-
+    mutationFn: async ({
+      parentId,
+      format,
+    }: {
+      parentId: string | null;
+      format: "rich-text" | "record";
+    }) => {
       if (
         !pendingCreation.current ||
         pendingCreation.current.parentId !== parentId ||
@@ -290,8 +293,12 @@ export function NotesWorkspacePage({
       type: ItemAction;
       item: WorkspaceItem;
     }) => {
-      if (type === "create-record") {
-        if (await guard()) create.mutate(item.id);
+      if (type === "create-note" || type === "create-record") {
+        if (await guard())
+          create.mutate({
+            parentId: item.id,
+            format: type === "create-record" ? "record" : "rich-text",
+          });
 
         return;
       }
@@ -441,7 +448,8 @@ export function NotesWorkspacePage({
           <DropdownMenuItem
             disabled={create.isPending}
             onClick={async () => {
-              if (await guard()) create.mutate();
+              if (await guard())
+                create.mutate({ parentId: noteParentId, format: "rich-text" });
             }}
           >
             <FilePlus />
@@ -450,7 +458,8 @@ export function NotesWorkspacePage({
           <DropdownMenuItem
             disabled={create.isPending}
             onClick={async () => {
-              if (await guard()) create.mutate(noteParentId);
+              if (await guard())
+                create.mutate({ parentId: noteParentId, format: "record" });
             }}
           >
             <Table2 />

@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  FilePlus,
   Table2,
   Folder,
   FolderPlus,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils/cn";
 import { InlineFolderForm, type FolderCreation } from "./inline-folder-form";
 
 export type ItemAction =
+  | "create-note"
   | "create-record"
   | "rename"
   | "move"
@@ -81,13 +83,20 @@ export function ItemMenu({
             }}
           >
             <FolderPlus />
-            Tambah folder
+            Buat folder baru
           </DropdownMenuItem>
         ) : null}
         {item.kind === "folder" ? (
-          <DropdownMenuItem onClick={() => onAction("create-record", item)}>
-            Buat tabel baru
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem onClick={() => onAction("create-note", item)}>
+              <FilePlus />
+              Buat catatan baru
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAction("create-record", item)}>
+              <Table2 />
+              Buat tabel baru
+            </DropdownMenuItem>
+          </>
         ) : null}
         <DropdownMenuItem onClick={() => onAction("rename", item)}>
           <Pencil />

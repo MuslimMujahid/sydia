@@ -166,6 +166,40 @@ test.describe("Notes workspace with the real backend", () => {
       .toBe(folder.id);
   });
 
+  test("the folder menu creates a note in that folder while another folder is open", async ({
+    page,
+  }) => {
+    const destination = await create(page.request, "Tujuan", null, "folder");
+    const other = await create(page.request, "Folder lain", null, "folder");
+    const note = await create(page.request, "Catatan lain", other.id);
+    await open(page, note.id);
+    await page
+      .getByRole("button", { name: "Tindakan Tujuan", exact: true })
+      .click();
+
+    await expect(page.getByRole("menuitem")).toHaveText([
+      "Buat folder baru",
+      "Buat catatan baru",
+      "Buat tabel baru",
+      "Ubah nama",
+      "Pindahkan ke…",
+      "Pindahkan ke Sampah",
+    ]);
+    await page
+      .getByRole("menuitem", { name: "Buat catatan baru", exact: true })
+      .click();
+
+    await expect(
+      page.getByRole("textbox", { name: "Judul catatan", exact: true })
+    ).toHaveValue("Untitled");
+    const created = (await workspace(page.request)).items.find(
+      (item) => item.title === "Untitled"
+    );
+
+    expect(created?.parentId).toBe(destination.id);
+    expect(created?.format).toBe("rich-text");
+  });
+
   test("an empty new note survives reload and becomes the stored resume target", async ({
     page,
   }) => {
