@@ -212,7 +212,7 @@
   width: min(720px, 62%);
 }
 .chat-note-header {
-  height: 80px;
+  height: 48px;
 }
 .chat-note-back {
   display: none;
@@ -233,7 +233,7 @@
     border: 0;
   }
   .chat-note-header {
-    height: 64px;
+    height: 56px;
     padding-inline: 12px;
   }
   .chat-note-back {
