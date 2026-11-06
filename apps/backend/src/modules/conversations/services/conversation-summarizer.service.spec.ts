@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import type { Message } from '../../../database/entities';
 import type { IConversationRepository } from '../../../database/interfaces';
 import type { LanguageModelGateway } from '../../../infra/model-gateway';
-import { ContextBuilderService } from './context-builder.service';
+import {
+  ContextBuilderService,
+  estimateTokens,
+} from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 
 function resolved<T>(value: T) {
@@ -140,6 +143,45 @@ describe('conversation context lifecycle', () => {
       expect.stringContaining('currentObjective'),
       'message-5',
       null,
+    );
+  });
+
+  it('requests schema-enforced JSON with room for a summary at the character limit', async () => {
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({ text: 'not-json', usage: {} });
+
+    const summarizer = new ConversationSummarizerService(
+      {
+        findContext: resolved({
+          conversation: {
+            id: 'conversation-1',
+            rollingSummary: null,
+            summaryThroughMessageId: null,
+          },
+          messages,
+        }),
+      } as unknown as IConversationRepository,
+      { provider: 'openrouter', model: 'test-model', generate },
+      new ConfigService({
+        BACKEND_SUMMARY_TRIGGER_TOKENS: 1,
+        BACKEND_SUMMARY_RETAIN_MESSAGES: 4,
+      }),
+    );
+
+    await summarizer
+      .summarizeIfNeeded('user-1', 'conversation-1')
+      .catch(() => undefined);
+
+    const request = generate.mock.calls[0]?.[0];
+    expect(request?.outputSchema?.type).toBe('object');
+    expect(request?.outputSchema?.required).toEqual(
+      expect.arrayContaining<string>(['pendingActions', 'relevantEntities']),
+    );
+    // The parser accepts up to 6000 characters; the default output cap (1200
+    // tokens) truncated such summaries mid-JSON, so every later job failed.
+    expect(request?.maxOutputTokens).toBeGreaterThanOrEqual(
+      estimateTokens('x'.repeat(6000)),
     );
   });
 

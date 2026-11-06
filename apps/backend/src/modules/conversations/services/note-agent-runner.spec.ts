@@ -380,3 +380,51 @@ test('a confirmed retry of the same durable mutation clears its earlier failure'
     }),
   ).toMatchObject({ text: 'Confirmed write.' });
 });
+
+async function systemPromptFor(mode: 'proposal' | 'apply'): Promise<string> {
+  const f = fixture();
+  let prompt = '';
+  const model: LanguageModelGateway = {
+    provider: 'openrouter',
+    model: 'prompt-capture',
+    generate: (request) => {
+      const system = request.messages.find(({ role }) => role === 'system');
+      prompt = typeof system?.content === 'string' ? system.content : '';
+
+      return Promise.resolve({
+        text: 'DONE: no change',
+        usage: {},
+        finishReason: 'stop',
+      });
+    },
+  };
+
+  await runNoteAgent({
+    model,
+    executor: f.executor,
+    catalog: f.catalog,
+    userId: 'owner',
+    runId: 'run',
+    sourceRef: 'message',
+    evidence: {},
+    mode,
+  });
+
+  return prompt;
+}
+
+test.each(['proposal', 'apply'] as const)(
+  '%s-mode instructions require a final status line, because an empty ending fails the run',
+  async (mode) => {
+    expect(await systemPromptFor(mode)).toContain('end with exactly one line');
+  },
+);
+
+test('apply-mode instructions do not carry proposal-only write restrictions', async () => {
+  const apply = await systemPromptFor('apply');
+  const proposal = await systemPromptFor('proposal');
+
+  expect(apply).not.toContain('no product-note write tools are authorized');
+  expect(apply).not.toContain('propose_note_change');
+  expect(proposal).toContain('no product-note write tools are authorized');
+});
