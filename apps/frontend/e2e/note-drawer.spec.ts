@@ -134,6 +134,16 @@ async function setup(page: Page, includeUserSources = false) {
   await page.route("**/notes/backlinks?**", (r) =>
     r.fulfill({ json: { data: [] } })
   );
+  await page.route("**/notes/presence/acquire", (r) =>
+    r.fulfill({
+      json: {
+        data: { expiresAt: new Date(Date.now() + 300_000).toISOString() },
+      },
+    })
+  );
+  await page.route("**/notes/presence/release", (r) =>
+    r.fulfill({ json: { data: { released: true } } })
+  );
   await page.route("**/notes/items/design", async (r) => {
     if (state.missing)
       return r.fulfill({
@@ -220,9 +230,18 @@ const custom = (page: Page) =>
 const body = (page: Page) =>
   page.getByRole("textbox", { name: "Isi catatan", exact: true });
 
+const daily = (page: Page) =>
+  page.getByRole("button", { name: "Catatan: 18 Oktober 2026", exact: true });
+
+const customTab = (page: Page) =>
+  page.getByRole("tab", { name: "Keputusan desain", exact: true });
+
+const dailyTab = (page: Page) =>
+  page.getByRole("tab", { name: "18 Oktober 2026", exact: true });
+
 async function close(page: Page) {
   const desktop = page.getByRole("button", {
-    name: "Tutup catatan",
+    name: "Tutup panel catatan",
     exact: true,
   });
 
@@ -521,4 +540,144 @@ test("a user message daily-note badge opens the daily note editor", async ({
   await expect(
     page.getByRole("textbox", { name: "Judul catatan" })
   ).toHaveCount(0);
+});
+
+test("keeps multiple notes in tabs and reuses an existing tab with saved edits", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await setup(page);
+  await custom(page).click();
+  await body(page).fill("Keputusan untuk tab pertama");
+  await daily(page).click();
+
+  const tabs = page.getByRole("tablist", { name: "Catatan terbuka" });
+  await expect(tabs.getByRole("tab")).toHaveCount(2);
+  await expect(dailyTab(page)).toHaveAttribute("aria-selected", "true");
+  await customTab(page).click();
+  await expect(body(page)).toContainText("Keputusan untuk tab pertama");
+  await page
+    .getByRole("textbox", { name: "Judul catatan", exact: true })
+    .fill("Keputusan terbaru");
+  await dailyTab(page).click();
+  await expect(
+    tabs.getByRole("tab", { name: "Keputusan terbaru", exact: true })
+  ).toBeVisible();
+  await custom(page).click();
+  await expect(tabs.getByRole("tab")).toHaveCount(2);
+  await expect(
+    page.getByRole("textbox", { name: "Judul catatan", exact: true })
+  ).toHaveValue("Keputusan terbaru");
+  await expect(page.getByRole("tabpanel")).toContainText(
+    "Keputusan untuk tab pertama"
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("note-tabs-desktop.png"),
+  });
+});
+
+test("closing an inactive tab keeps the selection and closing the last restores chat focus", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await setup(page);
+  await custom(page).click();
+  await daily(page).click();
+  await customTab(page).hover();
+  await page
+    .getByRole("button", { name: "Tutup Keputusan desain", exact: true })
+    .click();
+  await expect(page.getByRole("tab")).toHaveCount(1);
+  await expect(dailyTab(page)).toHaveAttribute("aria-selected", "true");
+  await expect(body(page)).toBeVisible();
+  await dailyTab(page).hover();
+  await page
+    .getByRole("button", { name: "Tutup 18 Oktober 2026", exact: true })
+    .click();
+  await expect(page.getByRole("tablist")).toHaveCount(0);
+  await expect(daily(page)).toBeFocused();
+});
+
+test("supports manual keyboard selection and focuses the neighboring tab after deletion", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await setup(page);
+  await custom(page).click();
+  await daily(page).click();
+  await dailyTab(page).focus();
+  await dailyTab(page).press("ArrowLeft");
+  await expect(customTab(page)).toBeFocused();
+  await expect(dailyTab(page)).toHaveAttribute("aria-selected", "true");
+  await customTab(page).press("Enter");
+  await expect(customTab(page)).toHaveAttribute("aria-selected", "true");
+  await expect(customTab(page)).toBeFocused();
+  await customTab(page).press("Delete");
+  await expect(customTab(page)).toHaveCount(0);
+  await expect(dailyTab(page)).toHaveAttribute("aria-selected", "true");
+  await expect(dailyTab(page)).toBeFocused();
+});
+
+test("a failed save blocks tab switching until the draft is explicitly kept or retried", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  const state = await setup(page);
+  await daily(page).click();
+  await custom(page).click();
+  state.fail = true;
+  await body(page).fill("Draf yang harus tetap terbuka");
+  await dailyTab(page).click();
+  await expect(
+    page.getByRole("button", { name: "Lanjut mengedit", exact: true })
+  ).toBeVisible();
+  await expect(customTab(page)).toHaveAttribute("aria-selected", "true");
+  await page
+    .getByRole("button", { name: "Lanjut mengedit", exact: true })
+    .click();
+  await expect(body(page)).toContainText("Draf yang harus tetap terbuka");
+  await dailyTab(page).click();
+  await expect(
+    page.getByRole("button", { name: "Buang perubahan", exact: true })
+  ).toBeVisible();
+  state.fail = false;
+  await page
+    .getByRole("button", { name: "Coba lagi", exact: true })
+    .first()
+    .click();
+  await expect(dailyTab(page)).toHaveAttribute("aria-selected", "true");
+  await customTab(page).click();
+  await expect(body(page)).toContainText("Draf yang harus tetap terbuka");
+});
+
+test("mobile keeps open tabs when returning to chat and supports switching and closing them", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setup(page);
+  await custom(page).click();
+  await page.getByRole("button", { name: "Chat", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Editor catatan" })
+  ).toHaveCount(0);
+  await daily(page).click();
+  await expect(page.getByRole("tab")).toHaveCount(2);
+  await customTab(page).click();
+  await expect(body(page)).toContainText("Keputusan awal");
+  await page.screenshot({
+    path: testInfo.outputPath("note-tabs-mobile.png"),
+  });
+  await customTab(page).hover();
+  await page
+    .getByRole("button", { name: "Tutup Keputusan desain", exact: true })
+    .click();
+  await expect(dailyTab(page)).toHaveAttribute("aria-selected", "true");
+  await dailyTab(page).hover();
+  await page
+    .getByRole("button", { name: "Tutup 18 Oktober 2026", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Editor catatan" })
+  ).toHaveCount(0);
+  await expect(daily(page)).toBeFocused();
 });

@@ -207,9 +207,91 @@
 /* Chat Notes: split editor follows the approved Penpot layout. */
 .chat-notes-layout {
   container-type: inline-size;
+  overflow-x: clip;
 }
 .chat-note-panel {
   width: min(720px, 62%);
+}
+@keyframes chat-note-panel-enter {
+  from {
+    opacity: 0;
+    translate: 24px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes chat-note-panel-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chat-note-panel {
+    animation: chat-note-panel-enter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-note-panel {
+    animation: chat-note-panel-fade 100ms linear;
+  }
+}
+.chat-note-tab:not([data-selected="true"])::after {
+  content: "";
+  position: absolute;
+  inset-block: 14px;
+  right: 0;
+  width: 1px;
+  background: var(--color-hairline);
+  pointer-events: none;
+}
+.chat-note-tab:has(+ [data-selected="true"])::after {
+  display: none;
+}
+.chat-note-tab[data-selected="true"] {
+  z-index: 1;
+}
+/* Outward bottom corners join the active browser-style tab to the editor. */
+.chat-note-tab[data-selected="true"]::before,
+.chat-note-tab[data-selected="true"]::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  bottom: 0;
+  width: var(--radius-sm);
+  height: var(--radius-sm);
+  pointer-events: none;
+}
+.chat-note-tab[data-selected="true"]::before {
+  left: calc(-1 * var(--radius-sm));
+  background: radial-gradient(
+    circle at top left,
+    transparent var(--radius-sm),
+    var(--color-canvas) calc(var(--radius-sm) + 0.5px)
+  );
+}
+.chat-note-tab[data-selected="true"]::after {
+  right: calc(-1 * var(--radius-sm));
+  background: radial-gradient(
+    circle at top right,
+    transparent var(--radius-sm),
+    var(--color-canvas) calc(var(--radius-sm) + 0.5px)
+  );
+}
+@media (hover: hover) and (pointer: fine) {
+  .chat-note-tab-close {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .chat-note-tab:hover .chat-note-tab-close,
+  .chat-note-tab:focus-within .chat-note-tab-close {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 .chat-note-header {
   height: 48px;
