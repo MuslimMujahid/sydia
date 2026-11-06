@@ -94,7 +94,10 @@ function ToolbarButton({
       aria-label={label}
       aria-pressed={active}
       aria-expanded={expanded}
-      className={cn(active && "bg-brand text-canvas hover:text-canvas")}
+      className={cn(
+        "sm:size-8",
+        active && "bg-brand text-canvas hover:text-canvas"
+      )}
       onMouseDown={keepEditorFocus}
       onClick={onClick}
     >
@@ -105,10 +108,7 @@ function ToolbarButton({
 
 function ToolbarSeparator() {
   return (
-    <span
-      className="mx-0.5 h-6 w-px shrink-0 bg-hairline sm:mx-1"
-      aria-hidden="true"
-    />
+    <span className="mx-0.5 h-5 w-px shrink-0 bg-hairline" aria-hidden="true" />
   );
 }
 
@@ -217,7 +217,7 @@ export function DailyNoteToolbar({
     <div>
       <div
         className={cn(
-          "flex items-center gap-1 px-2 py-2 sm:px-3",
+          "flex items-center gap-1 px-1.5 py-1",
           compact && "!px-2 !py-1.5"
         )}
       >
@@ -225,7 +225,7 @@ export function DailyNoteToolbar({
         <div
           role="toolbar"
           aria-label="Pemformatan catatan"
-          className="-m-1 flex min-w-0 flex-1 items-center overflow-x-auto p-1 [scrollbar-width:none] sm:gap-0.5 [&::-webkit-scrollbar]:hidden"
+          className="-m-1 flex min-w-0 flex-1 items-center overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -235,7 +235,7 @@ export function DailyNoteToolbar({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "gap-0.5 px-2",
+                    "gap-0.5 px-2 sm:h-8 sm:min-h-8 sm:py-1",
                     toolbarState.blockStyle !== "paragraph" && "text-ink"
                   )}
                   aria-label={`Gaya teks: ${activeBlockStyle.label}`}

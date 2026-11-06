@@ -639,7 +639,7 @@ export function RecordNoteEditor({
                   id="note-title"
                   ref={titleInput}
                   aria-label="Judul catatan"
-                  className="block w-full min-w-0 rounded-sm bg-transparent p-0 text-2xl leading-[1.2] font-bold tracking-[-0.03em] outline-none placeholder:text-ink-muted focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-[30px]"
+                  className="block w-full min-w-0 rounded-sm bg-transparent p-0 font-display text-[26px] leading-tight font-normal tracking-[-0.03em] outline-none placeholder:text-ink-muted focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-[28px]"
                   value={title}
                   onChange={(e) => {
                     setTitle(e.target.value);

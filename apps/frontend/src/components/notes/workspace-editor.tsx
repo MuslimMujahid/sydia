@@ -350,7 +350,7 @@ function WorkspaceEditorContent({
           )}
         >
           {daily ? (
-            <h1 className="font-display text-[30px] leading-tight font-bold tracking-[-0.03em] sm:text-[34px]">
+            <h1 className="font-display text-[26px] leading-tight font-normal tracking-[-0.03em] sm:text-[28px]">
               {presentation === "drawer"
                 ? new Intl.DateTimeFormat("id-ID", {
                     day: "numeric",
@@ -369,7 +369,7 @@ function WorkspaceEditorContent({
                 aria-label="Judul catatan"
                 value={title}
                 readOnly={!available}
-                className="w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent [field-sizing:content] font-display text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink outline-none placeholder:text-ink-muted focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-brand/40 sm:text-[34px]"
+                className="w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent [field-sizing:content] font-display text-[26px] leading-tight font-normal tracking-[-0.03em] text-ink outline-none placeholder:text-ink-muted focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-brand/40 sm:text-[28px]"
                 onChange={(event) => {
                   const nextTitle = event.target.value.replace(/[\r\n]/g, " ");
                   setTitle(nextTitle);
@@ -406,6 +406,7 @@ function WorkspaceEditorContent({
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="sm:size-8"
                   aria-label="Tautkan catatan"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => setLinkRequest({ label: "" })}
@@ -422,7 +423,7 @@ function WorkspaceEditorContent({
             {(empty ?? editor.isEmpty) ? (
               <p
                 aria-hidden="true"
-                className="pointer-events-none absolute top-2 left-0 text-[17px] leading-[1.6] text-ink-muted group-focus-within/editor:hidden sm:top-3"
+                className="pointer-events-none absolute top-2 left-0 text-[17px] leading-[1.6] text-ink-muted/60 group-focus-within/editor:hidden sm:top-3"
               >
                 Mulai dari hal yang ingin Anda ingat.
               </p>
