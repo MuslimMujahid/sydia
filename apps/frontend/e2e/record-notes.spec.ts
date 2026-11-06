@@ -308,6 +308,200 @@ test("typed cells preserve mismatches and clearing while keyboard edits reach sa
   ).toHaveAttribute("aria-checked", "mixed");
   expect((await content(page, table.id)).rows[0]!.cells.paid).toBeUndefined();
 });
+test("date cells open a calendar on click and save the selected day", async ({
+  page,
+}) => {
+  const table = await fixture(page, 1);
+  const cell = page.getByRole("gridcell", {
+    name: "Tanggal, baris 1",
+    exact: true,
+  });
+
+  await cell.click();
+  const picker = page.getByRole("dialog", {
+    name: "Pilih tanggal: Tanggal, baris 1",
+    exact: true,
+  });
+
+  await expect(
+    picker.getByRole("gridcell", { name: "Kamis, 1 Oktober", exact: true })
+  ).toHaveAttribute("aria-selected", "true");
+  await page.screenshot({
+    path: test.info().outputPath("date-picker-desktop.png"),
+    animations: "disabled",
+  });
+  await picker
+    .getByRole("gridcell", { name: "Selasa, 6 Oktober", exact: true })
+    .click();
+
+  await expect(picker).toBeHidden();
+  await expect(cell).toHaveText("6 Okt 2026");
+  await expect(page.getByText("Tersimpan", { exact: true })).toBeVisible();
+  expect((await content(page, table.id)).rows[0]!.cells.date).toEqual({
+    raw: "2026-10-06",
+    status: "typed",
+    value: "2026-10-06",
+  });
+});
+
+test("date cells open from the keyboard and Escape keeps the saved date", async ({
+  page,
+}) => {
+  const table = await fixture(page, 1);
+  const cell = page.getByRole("gridcell", {
+    name: "Tanggal, baris 1",
+    exact: true,
+  });
+
+  await cell.focus();
+  await cell.press("Enter");
+  const picker = page.getByRole("dialog", {
+    name: "Pilih tanggal: Tanggal, baris 1",
+    exact: true,
+  });
+
+  await expect(picker).toBeVisible();
+  await expect(
+    picker.getByRole("gridcell", { name: "Kamis, 1 Oktober", exact: true })
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+
+  await expect(picker).toBeHidden();
+  await expect(cell).toBeFocused();
+  expect((await content(page, table.id)).rows[0]!.cells.date!.raw).toBe(
+    "2026-10-01"
+  );
+});
+
+test("date cells can be cleared and empty cells still open a calendar", async ({
+  page,
+}) => {
+  const table = await fixture(page, 1);
+  const cell = page.getByRole("gridcell", {
+    name: "Tanggal, baris 1",
+    exact: true,
+  });
+
+  await cell.click();
+  const picker = page.getByRole("dialog", {
+    name: "Pilih tanggal: Tanggal, baris 1",
+    exact: true,
+  });
+
+  await picker
+    .getByRole("button", { name: "Hapus tanggal", exact: true })
+    .click();
+  await expect(cell).toHaveText("");
+  await expect(page.getByText("Tersimpan", { exact: true })).toBeVisible();
+  expect((await content(page, table.id)).rows[0]!.cells.date).toBeUndefined();
+
+  await cell.click();
+  await expect(picker.getByRole("grid")).toBeVisible();
+  await expect(picker.getByRole("gridcell", { selected: true })).toHaveCount(0);
+});
+
+test("mobile row date fields use a calendar and persist the selected date", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const table = await fixture(page, 1);
+  await page
+    .getByRole("gridcell", { name: "Tanggal, baris 1", exact: true })
+    .click();
+  const sheet = page.getByRole("dialog", { name: "Baris 1", exact: true });
+  await sheet.getByRole("button", { name: "Tanggal", exact: true }).click();
+  const picker = page.getByRole("dialog", {
+    name: "Pilih tanggal: Tanggal",
+    exact: true,
+  });
+
+  await expect(picker).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("date-picker-mobile.png"),
+    animations: "disabled",
+  });
+  await picker
+    .getByRole("gridcell", { name: "Selasa, 6 Oktober", exact: true })
+    .click();
+  await sheet.getByRole("button", { name: "Selesai", exact: true }).click();
+
+  await expect(sheet).toBeHidden();
+  expect((await content(page, table.id)).rows[0]!.cells.date!.raw).toBe(
+    "2026-10-06"
+  );
+});
+
+test("mismatched date cells keep their raw value until a calendar date replaces it", async ({
+  page,
+}) => {
+  const table = await fixture(page, 1);
+  const cell = page.getByRole("gridcell", {
+    name: "Tanggal, baris 1",
+    exact: true,
+  });
+
+  await cell.evaluate((element) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text", "bukan tanggal");
+    element.dispatchEvent(
+      new ClipboardEvent("paste", { clipboardData, bubbles: true })
+    );
+  });
+  await expect(cell).toHaveAttribute("aria-invalid", "true");
+  await cell.click();
+  const picker = page.getByRole("dialog", {
+    name: "Pilih tanggal: Tanggal, baris 1",
+    exact: true,
+  });
+
+  await expect(picker.getByRole("gridcell", { selected: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(cell).toHaveText("bukan tanggal");
+  expect((await content(page, table.id)).rows[0]!.cells.date).toEqual({
+    raw: "bukan tanggal",
+    status: "mismatched",
+  });
+
+  await cell.click();
+  const today = picker.locator('[role="gridcell"][aria-current="date"]');
+  const todayKey = await today.getAttribute("data-day");
+  await today.click();
+  await expect(page.getByText("Tersimpan", { exact: true })).toBeVisible();
+  expect((await content(page, table.id)).rows[0]!.cells.date!.raw).toBe(
+    todayKey
+  );
+});
+
+test("dragging from a date cell selects a range without opening the calendar", async ({
+  page,
+}) => {
+  await fixture(page, 3);
+  const start = page.getByRole("gridcell", {
+    name: "Tanggal, baris 1",
+    exact: true,
+  });
+
+  const end = page.getByRole("gridcell", {
+    name: "Jumlah, baris 3",
+    exact: true,
+  });
+
+  const startBounds = await start.boundingBox();
+  const endBounds = await end.boundingBox();
+  if (!startBounds || !endBounds)
+    throw new Error("Range endpoints must be visible.");
+
+  await page.mouse.move(startBounds.x + 10, startBounds.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(endBounds.x + 10, endBounds.y + 10, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(
+    page.locator('[data-record-cell][aria-selected="true"]')
+  ).toHaveCount(9);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
 test("inline rename cancels with Escape and saves with Enter without a modal", async ({
   page,
 }) => {
@@ -1008,7 +1202,7 @@ test("grid boundaries allow keyboard exit and new pages retain a keyboard entry 
   await fixture(page);
   await page
     .getByRole("gridcell", { name: "Tanggal, baris 1", exact: true })
-    .click();
+    .focus();
   await page.keyboard.press("Shift+Tab");
   await expect(
     page.getByRole("button", {

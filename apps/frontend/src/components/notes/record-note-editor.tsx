@@ -1,4 +1,5 @@
 import { RecordRowSheet } from "./record-row-sheet";
+import { RecordDatePicker } from "./record-date-picker";
 import {
   useEffect,
   useImperativeHandle,
@@ -177,7 +178,8 @@ export function RecordNoteEditor({
     );
     canceling.current = false;
     setAnchor({ rowId: row.id, columnId: column.id });
-    if (seed !== undefined) editor.changeCell(row.id, column.id, seed);
+    if (seed !== undefined && column.type !== "date")
+      editor.changeCell(row.id, column.id, seed);
     setEditing({ rowId: row.id, columnId: column.id });
   }
 
@@ -1109,8 +1111,12 @@ export function RecordNoteEditor({
                                 event.button !== 0 ||
                                 editing ||
                                 (event.target as HTMLElement).closest(
-                                  "button,input"
-                                )
+                                  "input"
+                                ) ||
+                                (column.type !== "date" &&
+                                  (event.target as HTMLElement).closest(
+                                    "button"
+                                  ))
                               )
                                 return;
                               event.preventDefault();
@@ -1228,7 +1234,35 @@ export function RecordNoteEditor({
                               }
                             }}
                           >
-                            {isEditing ? (
+                            {column.type === "date" ? (
+                              <RecordDatePicker
+                                label={label}
+                                value={raw}
+                                open={isEditing}
+                                disabled={disabled}
+                                cell
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    if (
+                                      anchor &&
+                                      active &&
+                                      (anchor.rowId !== active.rowId ||
+                                        anchor.columnId !== active.columnId)
+                                    )
+                                      return;
+                                    startEdit(row, column);
+                                  } else setEditing(undefined);
+                                }}
+                                onChange={(date) => {
+                                  editor.changeCell(
+                                    row.id,
+                                    column.id,
+                                    date || null
+                                  );
+                                  void finishEdit();
+                                }}
+                              />
+                            ) : isEditing ? (
                               <input
                                 aria-label={label}
                                 autoFocus

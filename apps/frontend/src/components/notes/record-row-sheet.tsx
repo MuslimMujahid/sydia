@@ -1,4 +1,5 @@
 import { AlertTriangle, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +13,7 @@ import type {
   RecordRow,
 } from "@/lib/services/api/record-notes/record-notes.api";
 import { RecordTypeIcon, RECORD_TYPES } from "./record-column-menu";
+import { RecordDatePicker } from "./record-date-picker";
 
 interface RecordRowSheetProps {
   row: RecordRow | undefined;
@@ -45,6 +47,8 @@ export function RecordRowSheet({
   onPrevious,
   onNext,
 }: RecordRowSheetProps) {
+  const [dateColumn, setDateColumn] = useState<string>();
+
   return (
     <Dialog
       open={!!row}
@@ -91,32 +95,49 @@ export function RecordRowSheet({
                     </span>
                   ) : null}
                 </label>
-                <Input
-                  id={`row-editor-${column.id}`}
-                  className="text-base"
-                  value={String(value(column) ?? "")}
-                  list={
-                    column.type === "choice"
-                      ? `options-${column.id}`
-                      : undefined
-                  }
-                  placeholder={
-                    column.type === "boolean"
-                      ? "true / false"
-                      : column.type === "date"
-                        ? "YYYY-MM-DD"
-                        : ""
-                  }
-                  onChange={(event) => onChange(column.id, event.target.value)}
-                  aria-invalid={
-                    row.cells[column.id]?.status === "mismatched" || undefined
-                  }
-                  aria-describedby={
-                    row.cells[column.id]?.status === "mismatched"
-                      ? `sheet-mismatch-${column.id}`
-                      : undefined
-                  }
-                />
+                {column.type === "date" ? (
+                  <RecordDatePicker
+                    id={`row-editor-${column.id}`}
+                    label={column.name}
+                    value={String(value(column) ?? "")}
+                    open={dateColumn === column.id}
+                    disabled={busy}
+                    describedBy={
+                      row.cells[column.id]?.status === "mismatched"
+                        ? `sheet-mismatch-${column.id}`
+                        : undefined
+                    }
+                    onOpenChange={(open) =>
+                      setDateColumn(open ? column.id : undefined)
+                    }
+                    onChange={(date) => onChange(column.id, date)}
+                  />
+                ) : (
+                  <Input
+                    id={`row-editor-${column.id}`}
+                    className="text-base"
+                    value={String(value(column) ?? "")}
+                    list={
+                      column.type === "choice"
+                        ? `options-${column.id}`
+                        : undefined
+                    }
+                    placeholder={
+                      column.type === "boolean" ? "true / false" : ""
+                    }
+                    onChange={(event) =>
+                      onChange(column.id, event.target.value)
+                    }
+                    aria-invalid={
+                      row.cells[column.id]?.status === "mismatched" || undefined
+                    }
+                    aria-describedby={
+                      row.cells[column.id]?.status === "mismatched"
+                        ? `sheet-mismatch-${column.id}`
+                        : undefined
+                    }
+                  />
+                )}
                 {row.cells[column.id]?.status === "mismatched" ? (
                   <p
                     id={`sheet-mismatch-${column.id}`}
