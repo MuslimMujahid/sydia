@@ -60,15 +60,23 @@ If `FRONTEND_PORT` changes, update the `--port` flag in `apps/frontend/package.j
 
 Environment symlinks require a Unix-like shell. On Windows, enable Developer Mode or use an elevated terminal.
 
-## Development database
+## Development services
 
-`docker/docker-compose.dev.yml` provides a PostgreSQL service for local development. It interpolates the `BACKEND_DB_PORT`, `BACKEND_DB_USER`, `BACKEND_DB_PASSWORD`, and `BACKEND_DB_NAME` component values from the root `.env` to provision the container, so keep them in sync with `BACKEND_DB_URL`. Pass `--env-file` when running it from the repository root:
+`docker/docker-compose.dev.yml` provides PostgreSQL with pgvector and Redis for local development. It interpolates the `BACKEND_DB_PORT`, `BACKEND_DB_USER`, `BACKEND_DB_PASSWORD`, and `BACKEND_DB_NAME` component values from the root `.env` to provision the database, so keep them in sync with `BACKEND_DB_URL`. Keep `BACKEND_REDIS_PORT` in sync with `BACKEND_REDIS_URL` as well. Pass `--env-file` when running it from the repository root:
 
 ```sh
 docker compose --env-file .env -f docker/docker-compose.dev.yml up -d
 ```
 
-Data persists in the `postgres-data` volume. Stop it with the same file arguments: `docker compose --env-file .env -f docker/docker-compose.dev.yml down`.
+Data persists in the `postgres-data` and `redis-data` volumes. Stop the services with the same file arguments: `docker compose --env-file .env -f docker/docker-compose.dev.yml down`.
+
+If your `.env` enables Hindsight, configure its provider keys and start its optional profile too:
+
+```sh
+docker compose --env-file .env -f docker/docker-compose.dev.yml --profile hindsight up -d --wait
+```
+
+Hindsight uses its own PostgreSQL volume and exposes its API on the loopback port set by `HINDSIGHT_API_HOST_PORT` (default `8888`). Keep `BACKEND_HINDSIGHT_URL` in sync with that port. The frontend, backend, and worker run on the host with `bun run dev`.
 
 ## Production images
 
