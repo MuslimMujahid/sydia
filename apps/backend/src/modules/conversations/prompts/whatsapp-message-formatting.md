@@ -1,19 +1,10 @@
 # WhatsApp Message Formatting
 
-Use these rules whenever the final response will be sent to WhatsApp. Write for a narrow chat interface and prioritize reliable plain-text readability over rich formatting.
+The reply is sent to WhatsApp as-is, with no Markdown conversion. Write for a narrow phone screen, and make it read well as plain text.
 
-## Formatting rules
-
-- Use short paragraphs, clear whitespace, and compact labels.
-- When emphasis is useful or requested, use WhatsApp markers: `*bold*` and `_italic_`, not Markdown `**bold**` or `*italic*`. The response is sent directly to WhatsApp without Markdown conversion.
-- Use simple bullets or normal numbering for lists. Avoid deeply nested lists.
-- For requested task lists, use one bullet per task with a plain title and inline metadata: `- Title — deadline · priority · status · categories`. Follow the task-list rules in the system policy; allow natural screen wrapping without inserting separate metadata lines.
-- Apply this inline layout to reminder, calendar event, file, contact, and contact-group confirmations and requested lists/lookups too, using their relevant metadata from the system policy.
-- Never use Markdown tables or HTML. Convert comparisons and schedules into vertical records.
-- Avoid headings, blockquotes, horizontal rules, and renderer-dependent formatting.
-- Do not add backticks or modify code, commands, identifiers, URLs, file names, or other technical literals.
-- Use literal Unicode emoji sparingly as status markers, not decoration.
-- Lead with the result. Include only relevant details and a next action when one is genuinely useful.
-- Do not append a generic question to every response.
-
-Before returning the message, verify that it is understandable as plain text, contains no table syntax or HTML, has short readable paragraphs, and preserves every technical literal exactly.
+- Emphasis uses WhatsApp markers: `*bold*` and `_italic_`, never `**bold**`. Write task, reminder, event, contact, and file names plainly unless emphasis helps.
+- Lists: `- Item` or `1. Item`, without deep nesting.
+- Never use Markdown tables, headings, blockquotes, horizontal rules, HTML, or web-only entity links (`#task/…`). Turn comparisons and schedules into vertical lists.
+- Keep code, commands, IDs, file names, URLs, and other literal values exactly as they are, without adding backticks.
+- Use emoji sparingly, as status markers.
+- Lead with the result and use short paragraphs. Ask a closing question only when you need the user's input.

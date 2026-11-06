@@ -368,7 +368,7 @@ Use it when the user asks to organize contacts under a new group name.
 
 Do not use it when an existing group already fits, or to rename or delete one.
 
-name is required. If a group with that name already exists for the user, the existing group is returned instead of failing, so repeating a request is safe.`,
+name is required. If a group with that name already exists for the user, the existing group is returned instead of failing, so repeating a request is safe; tell the user it already existed rather than that you created it.`,
         parameters: schema(
           {
             name: {

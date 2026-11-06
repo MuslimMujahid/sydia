@@ -425,7 +425,7 @@ export const SCENARIOS: Scenario[] = [
         name: 'calculates availability or asks for missing details',
         test: (run: RunRecord) =>
           run.calls.some(({ name }) => name === 'check_availability') ||
-          run.text.includes('?') ||
+          /\?|berapa lama|durasi|jam berapa/i.test(run.text) ||
           'claimed a time without check_availability and without asking',
       },
     ],

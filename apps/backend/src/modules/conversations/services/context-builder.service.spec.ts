@@ -12,6 +12,7 @@ import type {
   IMemoryRepository,
 } from '../../../database/interfaces';
 import type { ModelMessage } from '../../../infra/model-gateway';
+import { createPhaseTools } from './phase-tools';
 import {
   CURRENT_MESSAGE_RESERVE_TOKENS,
   ContextBuilderService,
@@ -263,7 +264,6 @@ describe('ContextBuilderService task-list formatting', () => {
       expect(policy?.content).toContain(
         'title — deadline · priority · status · categories',
       );
-      expect(policy?.content).toContain('bold on Telegram, plain on WhatsApp');
       expect(policy?.content).toContain('If no tasks match, say so briefly');
       expect(policy?.content).toContain(
         'reminders, calendar events, documents/files, contacts, and contact groups',
@@ -273,31 +273,32 @@ describe('ContextBuilderService task-list formatting', () => {
       );
       expect(policy?.content).toContain('Respect partial list counts');
       expect(policy?.content).toContain(
-        'not task lookups used to perform another action or requests for analysis',
+        'not to task lookups used for another action or to requests for analysis',
       );
 
-      if (channel) {
-        const channelPrompt = messages.find(
-          (entry) =>
-            entry.role === 'system' &&
-            typeof entry.content === 'string' &&
-            entry.content.startsWith(
-              channel === 'whatsapp'
-                ? '# WhatsApp Message Formatting'
-                : '# Telegram Message Formatting',
-            ),
-        );
+      // The layout is stated once in the policy; each channel prompt only
+      // says how titles render there.
+      const channelPrompt = messages.find(
+        (entry) =>
+          entry.role === 'system' &&
+          typeof entry.content === 'string' &&
+          entry.content.startsWith(
+            channel === 'whatsapp'
+              ? '# WhatsApp Message Formatting'
+              : channel === 'telegram'
+                ? '# Telegram Message Formatting'
+                : '# Web Chat Formatting',
+          ),
+      );
 
-        expect(channelPrompt?.content).toContain(
-          '- Title — deadline · priority · status · categories',
-        );
-        expect(channelPrompt?.content).toContain(
-          'without inserting separate metadata lines',
-        );
-        expect(channelPrompt?.content).toContain(
-          'contact-group confirmations and requested lists/lookups',
-        );
-      }
+      expect(channelPrompt?.content).toContain(
+        channel === 'whatsapp'
+          ? 'names plainly'
+          : channel === 'telegram'
+            ? '`**name**`'
+            : '[exact title](#task/ID)',
+      );
+      expect(channelPrompt?.content).not.toContain('deadline · priority');
     },
   );
 });
@@ -329,8 +330,15 @@ describe('ContextBuilderService recent conversations', () => {
     expect(messages[0]?.content).toContain(
       'Historical task lists never substitute for that lookup',
     );
-    expect(messages[0]?.content).toContain('[exact title](#task/ID)');
-    expect(messages[0]?.content).toContain('due=tomorrow');
+    expect(
+      messages.some(
+        (entry) =>
+          typeof entry.content === 'string' &&
+          entry.content.startsWith('# Web Chat Formatting') &&
+          entry.content.includes('[exact title](#task/ID)'),
+      ),
+    ).toBe(true);
+    // The due=tomorrow rule lives in the list_tasks description, not the policy.
     expect(messages.at(-1)?.content).toBe('Ada tugas apa aja besok?');
   });
 
@@ -540,28 +548,27 @@ describe('ContextBuilderService recent conversations', () => {
 });
 
 describe('ContextBuilderService system policy', () => {
-  it.each(['whatsapp', 'telegram'] as const)(
-    'instructs the assistant to deliver saved files through %s',
-    async (channel) => {
-      const builder = createBuilder(12000);
-      const { messages } = await builder.build(
-        user,
-        'conversation-1',
-        undefined,
-        channel,
-      );
+  it('leaves file delivery rules to the send_file description', async () => {
+    const { messages } = await createBuilder(12000).build(
+      user,
+      'conversation-1',
+      undefined,
+      'telegram',
+    );
 
-      expect(messages[0]?.content).toContain(
-        'Use send_file to deliver a saved file',
-      );
-      expect(messages[0]?.content).toContain(
-        'WhatsApp and Telegram support file attachments',
-      );
-      expect(messages[0]?.content).toContain(
-        'Ask the user to choose only when multiple files match',
-      );
-    },
-  );
+    const sendFile = createPhaseTools(
+      {} as Parameters<typeof createPhaseTools>[0],
+    ).find(({ definition }) => definition.name === 'send_file');
+
+    // The policy used to repeat these; the tool description is the one source.
+    expect(messages[0]?.content).not.toContain('send_file');
+    expect(sendFile?.definition.description).toContain(
+      'On WhatsApp and Telegram the file is sent as an attachment',
+    );
+    expect(sendFile?.definition.description).toContain(
+      'you must ask the user to choose',
+    );
+  });
 
   it('keeps referenced item scope narrower than additional lookup results', async () => {
     const { messages } = await createBuilder(10_000).build(
@@ -604,9 +611,6 @@ describe('ContextBuilderService system policy', () => {
     );
     expect(systemPolicy).toContain(
       "Always search the user's saved documents before answering a question that depends on their files; a document list is metadata, not content, and never answers such a question by itself.",
-    );
-    expect(systemPolicy).toContain(
-      'Use send_file to deliver a saved file by its resolved documentId.',
     );
     expect(systemPolicy).toContain(
       'Your capabilities are limited to the tools provided in this session.',
@@ -852,9 +856,7 @@ describe('ContextBuilderService channel formatting', () => {
     );
 
     expect(channelPrompt?.content).toContain('`*bold*` and `_italic_`');
-    expect(channelPrompt?.content).toContain(
-      'not Markdown `**bold**` or `*italic*`',
-    );
+    expect(channelPrompt?.content).toContain('never `**bold**`');
   });
 
   it('injects Telegram formatting guidance and accounts for its tokens', async () => {
@@ -873,7 +875,7 @@ describe('ContextBuilderService channel formatting', () => {
     );
 
     expect(channelPrompt?.content).toContain(
-      'Telegram delivery uses sendRichMessage with Rich Markdown',
+      'sent to Telegram as Rich Markdown',
     );
     expect(tokenUsage.channelPrompt).toBe(
       estimateTokens(channelPrompt?.content as string),
@@ -900,14 +902,38 @@ describe('ContextBuilderService channel formatting', () => {
     expect(tokenUsage.channelPrompt).toBeGreaterThan(0);
   });
 
-  it('omits channel guidance when the channel is omitted', async () => {
-    const { tokenUsage } = await createBuilder(10_000).build(
+  it('uses web chat guidance with entity links when the channel is omitted', async () => {
+    const { messages, tokenUsage } = await createBuilder(10_000).build(
       user,
       'conversation-1',
       'message-1',
     );
 
-    expect(tokenUsage.channelPrompt).toBe(0);
+    // Web used to have no channel prompt, so its link rules lived in the
+    // shared policy and every channel paid for them.
+    expect(tokenUsage.channelPrompt).toBeGreaterThan(0);
+    expect(
+      messages.some(
+        (entry) =>
+          entry.role === 'system' &&
+          typeof entry.content === 'string' &&
+          entry.content.startsWith('# Web Chat Formatting') &&
+          entry.content.includes('](#task/'),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps channel rendering rules out of the shared policy', async () => {
+    const { messages } = await createBuilder(10_000).build(
+      user,
+      'conversation-1',
+    );
+
+    const policy = messages[0]?.content;
+
+    expect(typeof policy === 'string' && policy).not.toMatch(
+      /#task\/ID|on telegram|on whatsapp/i,
+    );
   });
 
   it('keeps Telegram context and token accounting within the configured budget', async () => {
@@ -1263,11 +1289,17 @@ describe('ContextBuilderService mixed entity references', () => {
     );
 
     const policy = messages[0]?.content;
-    expect(policy).toContain('[exact title](#event/ID)');
-    expect(policy).toContain('[exact title](#reminder/ID)');
-    expect(policy).toContain('reference every mention');
+    const web = messages.find(
+      (entry) =>
+        typeof entry.content === 'string' &&
+        entry.content.startsWith('# Web Chat Formatting'),
+    )?.content;
+
+    expect(web).toContain('[exact title](#event/ID)');
+    expect(web).toContain('[exact title](#reminder/ID)');
+    expect(web).toContain('Link every task, calendar event, and reminder');
     expect(policy).toContain(
-      'keep dates, times, and relevant statuses visible inline',
+      'Keep dates, times, and relevant statuses visible inline',
     );
   });
 });
