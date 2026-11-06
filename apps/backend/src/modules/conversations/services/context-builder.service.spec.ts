@@ -18,6 +18,12 @@ import {
   estimateTokens,
 } from './context-builder.service';
 import { MemoryEngineService } from '../../memories/memory-engine.service';
+import {
+  AssistancePolicyService,
+  defaultSkillDirectory,
+  loadSkillCatalog,
+  renderSkillCatalog,
+} from '../../secretary';
 import type { MemoryAccessService } from '../../memories/memory-access.service';
 import type { MemorySearchHit } from '../../memories/memory-access.types';
 import type { TurnDecisionService } from './turn-decision.service';
@@ -147,6 +153,28 @@ function expectWithinBudget(messages: ModelMessage[], tokenBudget: number) {
   expect(total - current).toBeLessThanOrEqual(tokenBudget);
   expect(total - tokenBudget).toBeLessThanOrEqual(
     Math.min(current, CURRENT_MESSAGE_RESERVE_TOKENS),
+  );
+}
+
+/**
+ * Tokens of the always-emitted blocks except the persona, measured so budget
+ * tests sit just above them without hardcoding the current prompt size.
+ */
+async function fixedBlockTokens(
+  channel?: Parameters<ContextBuilderService['build']>[3],
+): Promise<number> {
+  const { tokenUsage } = await createBuilder(100_000).build(
+    user,
+    'conversation-1',
+    undefined,
+    channel,
+  );
+
+  return (
+    tokenUsage.systemPolicy +
+    tokenUsage.profile +
+    tokenUsage.channelPrompt +
+    tokenUsage.turnContext
   );
 }
 
@@ -887,7 +915,7 @@ describe('ContextBuilderService channel formatting', () => {
     // whole Telegram prompt) already consumes almost this budget, so it must
     // clear it with room to spare; otherwise this asserts nothing about the
     // trimming it is meant to exercise.
-    const tokenBudget = 3_500;
+    const tokenBudget = (await fixedBlockTokens('telegram')) + 150;
     const { messages, tokenUsage } = await createBuilder(tokenBudget, {
       documents: [document('x'.repeat(100_000))],
       messages: [
@@ -996,7 +1024,7 @@ describe('ContextBuilderService attachments', () => {
   });
 
   it('keeps the complete context within the configured token budget', async () => {
-    const tokenBudget = 2_100;
+    const tokenBudget = (await fixedBlockTokens()) + 150;
     const { messages, tokenUsage } = await createBuilder(tokenBudget, {
       documents: [document('x'.repeat(100_000))],
       messages: [
@@ -1148,7 +1176,7 @@ describe('ContextBuilderService current request reservation', () => {
 
 describe('ContextBuilderService prioritization and trust', () => {
   it('retains a bounded current user message under context pressure', async () => {
-    const tokenBudget = 2_100;
+    const tokenBudget = (await fixedBlockTokens()) + 150;
     const { messages, tokenUsage } = await createBuilder(tokenBudget, {
       rollingSummary: 'Ringkasan lama '.repeat(500),
       documents: [document('x'.repeat(100_000))],
@@ -1241,5 +1269,32 @@ describe('ContextBuilderService mixed entity references', () => {
     expect(policy).toContain(
       'keep dates, times, and relevant statuses visible inline',
     );
+  });
+});
+
+describe('ContextBuilderService suggestion rule', () => {
+  it('states the unsolicited suggestion limit once across policy, catalog, and assistance state', async () => {
+    const { messages } = await createBuilder(100_000).build(
+      user,
+      'conversation-1',
+    );
+
+    const first = messages[0]?.content;
+    const policy = typeof first === 'string' ? first : '';
+    const catalog = renderSkillCatalog(
+      loadSkillCatalog(defaultSkillDirectory()),
+    );
+
+    const state = new AssistancePolicyService({} as never, {} as never, {
+      now: () => new Date(0),
+    }).describe(null, 'Asia/Jakarta');
+
+    // The rule used to appear in all three with conflicting scope, and the
+    // catalog claimed to override the policy.
+    const blocks = [policy, catalog, state].join('\n');
+    expect(blocks.match(/at most one/gi)).toHaveLength(1);
+    expect(policy).toMatch(/at most one per reply/i);
+    expect(catalog).not.toMatch(/overrides/i);
+    expect(state).toBe('Unsolicited suggestions (assistance-v1): active.');
   });
 });

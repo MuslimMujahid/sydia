@@ -174,6 +174,7 @@ export class AssistancePolicyService {
       ? `; user opted out of: ${preference.pausedBehaviors.join(', ')}`
       : '';
 
-    return `Unsolicited suggestions (${ASSISTANCE_POLICY.version}): ${paused}${behaviors}. At most one unsolicited suggestion per reply. Explicitly requested help always continues. Any change the user asks for (pause, resume, stop or allow a category, quiet hours) takes effect only through set_assistance_preference; never say it changed unless that tool succeeded this turn.`;
+    // State only: the suggestion rule itself lives once in the system policy.
+    return `Unsolicited suggestions (${ASSISTANCE_POLICY.version}): ${paused}${behaviors}.`;
   }
 }
