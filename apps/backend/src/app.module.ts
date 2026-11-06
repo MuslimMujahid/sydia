@@ -336,7 +336,7 @@ export function validateEnvironment(
     BACKEND_ASSISTANT_CONTEXT_TOKENS: parsePositiveInteger(
       config,
       'BACKEND_ASSISTANT_CONTEXT_TOKENS',
-      6000,
+      12000,
     ),
     BACKEND_SUMMARY_TRIGGER_TOKENS: parsePositiveInteger(
       config,

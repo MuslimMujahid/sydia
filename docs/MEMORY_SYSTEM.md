@@ -193,7 +193,7 @@ API and worker share validation through `AppModule` and `validateHindsightEnviro
 | `BACKEND_MEMORY_DREAM_MIN_USER_MESSAGES`                             | `4`                                         | Segment eligibility                                                               |
 | `BACKEND_MEMORY_DREAM_MIN_TOKENS`                                    | `800`                                       | Alternative eligibility threshold                                                 |
 | `BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS`                          | `21600000`                                  | Short-segment recovery                                                            |
-| `BACKEND_ASSISTANT_CONTEXT_TOKENS`                                   | `6000`                                      | Total context budget                                                              |
+| `BACKEND_ASSISTANT_CONTEXT_TOKENS`                                   | `12000`                                     | Total context budget                                                              |
 | `BACKEND_SUMMARY_TRIGGER_TOKENS` / `BACKEND_SUMMARY_RETAIN_MESSAGES` | `4500` / `8`                                | Conversation compaction                                                           |
 | `BACKEND_EMBEDDING_MODEL` / `BACKEND_EMBEDDING_CONCURRENCY`          | `openai/text-embedding-3-small` / `8`       | Notes/documents and legacy indexing                                               |
 | `BACKEND_MEMORY_MAX_COSINE_DISTANCE`                                 | `0.3`                                       | Legacy memory vector search only                                                  |

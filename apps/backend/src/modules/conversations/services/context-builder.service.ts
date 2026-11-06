@@ -312,7 +312,7 @@ export class ContextBuilderService {
   ) {
     this.tokenBudget = config.get<number>(
       'BACKEND_ASSISTANT_CONTEXT_TOKENS',
-      6000,
+      12000,
     );
     this.personaPrompts = loadPromptMap('personas', PERSONA_FILES) as Record<
       AssistantPersona,
