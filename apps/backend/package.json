@@ -26,7 +26,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:reset": "prisma migrate reset",
-    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.config.mjs",
+    "test:e2e": "bash ../../scripts/test-lock.sh node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.config.mjs",
     "test:parser": "node test/document-parser/smoke.cjs",
     "documents:reprocess": "node dist/src/scripts/document-reprocess.js",
     "documents:queue": "node dist/src/scripts/document-queue.js",
