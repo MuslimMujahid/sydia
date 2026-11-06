@@ -478,8 +478,28 @@ export class ContextBuilderService {
         ? record.messages
         : record.messages.slice(summaryIndex + 1);
 
-    const recent: ModelMessage[] = [];
+    const currentInput = record.messages.find(
+      ({ id, role }) => id === inputMessageId && role === 'user',
+    );
+
+    // The current request is reserved before history: it may use everything
+    // the fixed blocks left, and keeps at least the reserve even when they
+    // already exhaust the budget, so it is never displaced or silently dropped.
     let currentRequest: ModelMessage | undefined;
+
+    if (currentInput?.content) {
+      const content = truncateToTokens(
+        currentInput.content,
+        Math.max(CURRENT_MESSAGE_RESERVE_TOKENS, this.tokenBudget - usedTokens),
+      );
+
+      currentRequest = { role: 'user', content };
+      tokenUsage.history += estimateTokens(content);
+    }
+
+    usedTokens += tokenUsage.history;
+
+    const recent: ModelMessage[] = [];
     const totalAvailable = Math.max(0, this.tokenBudget - usedTokens);
     const optionalReserve = Math.floor(totalAvailable * OPTIONAL_CONTEXT_SHARE);
     let historyBudget = totalAvailable - optionalReserve;
@@ -487,23 +507,22 @@ export class ContextBuilderService {
     for (let index = unsummarizedMessages.length - 1; index >= 0; index -= 1) {
       const message = unsummarizedMessages[index];
       if (!message || historyBudget <= 0) break;
+      // The current request is already placed; an empty message (for example
+      // attachment-only) carries no text and must not end the history walk.
+      if (message === currentInput || !message.content) continue;
       const content = truncateToTokens(message.content, historyBudget);
       if (!content) break;
       const tokens = estimateTokens(content);
-      const retainedMessage: ModelMessage = {
+
+      recent.unshift({
         role: message.role === 'assistant' ? 'assistant' : 'user',
         content,
-      };
-
-      if (message.id === inputMessageId && message.role === 'user')
-        currentRequest = retainedMessage;
-      else recent.unshift(retainedMessage);
+      });
       historyBudget -= tokens;
       tokenUsage.history += tokens;
+      usedTokens += tokens;
       if (content !== message.content) break;
     }
-
-    usedTokens += tokenUsage.history;
 
     const optionalBudget = Math.max(0, this.tokenBudget - usedTokens);
 
@@ -511,9 +530,6 @@ export class ContextBuilderService {
     // the current request last so reference metadata does not become the newest
     // user turn the model is asked to answer. Independent lookups run concurrently.
     const hindsight = this.memoryEngine?.modeFor(user.id) === 'hindsight';
-    const currentInput = record.messages.find(
-      ({ id, role }) => id === inputMessageId && role === 'user',
-    );
 
     const recallEligible = Boolean(
       hindsight &&
@@ -796,4 +812,4 @@ export class ContextBuilderService {
   }
 }
 
-export { estimateTokens, truncateToTokens };
+export { CURRENT_MESSAGE_RESERVE_TOKENS, estimateTokens, truncateToTokens };

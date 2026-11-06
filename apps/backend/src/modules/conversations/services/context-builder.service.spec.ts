@@ -13,6 +13,7 @@ import type {
 } from '../../../database/interfaces';
 import type { ModelMessage } from '../../../infra/model-gateway';
 import {
+  CURRENT_MESSAGE_RESERVE_TOKENS,
   ContextBuilderService,
   estimateTokens,
 } from './context-builder.service';
@@ -125,6 +126,27 @@ function createBuilder(
     options.memoryEngine,
     options.turnDecisions,
     options.activeNotes,
+  );
+}
+
+/**
+ * Everything except the current request fits the budget; the current request
+ * may exceed it only by its reserve, when the fixed blocks leave less room.
+ */
+function expectWithinBudget(messages: ModelMessage[], tokenBudget: number) {
+  const total = messages.reduce(
+    (sum, entry) =>
+      sum +
+      (typeof entry.content === 'string' ? estimateTokens(entry.content) : 0),
+    0,
+  );
+
+  const last = messages.at(-1)?.content;
+  const current = typeof last === 'string' ? estimateTokens(last) : 0;
+
+  expect(total - current).toBeLessThanOrEqual(tokenBudget);
+  expect(total - tokenBudget).toBeLessThanOrEqual(
+    Math.min(current, CURRENT_MESSAGE_RESERVE_TOKENS),
   );
 }
 
@@ -881,7 +903,7 @@ describe('ContextBuilderService channel formatting', () => {
       0,
     );
 
-    expect(totalTokens).toBeLessThanOrEqual(tokenBudget);
+    expectWithinBudget(messages, tokenBudget);
     expect(tokenUsage.total).toBe(totalTokens);
     expect(tokenUsage.channelPrompt).toBeGreaterThan(0);
   });
@@ -991,7 +1013,7 @@ describe('ContextBuilderService attachments', () => {
       0,
     );
 
-    expect(totalTokens).toBeLessThanOrEqual(tokenBudget);
+    expectWithinBudget(messages, tokenBudget);
     expect(tokenUsage.total).toBe(totalTokens);
   });
 });
@@ -1062,6 +1084,68 @@ describe('ContextBuilderService known documents', () => {
   });
 });
 
+describe('ContextBuilderService current request reservation', () => {
+  /** Tokens used by the always-emitted blocks, measured rather than hardcoded. */
+  async function fixedTokens(): Promise<number> {
+    const { tokenUsage } = await createBuilder(100_000).build(
+      user,
+      'conversation-1',
+    );
+
+    return tokenUsage.total;
+  }
+
+  it('keeps the current message when the fixed blocks already exhaust the budget', async () => {
+    const { messages } = await createBuilder(500, {
+      messages: [
+        message('earlier', 'user', 'Pesan sebelumnya'),
+        message('current', 'user', 'Tolong buat pengingat besok jam 7'),
+      ],
+    }).build(user, 'conversation-1', 'current');
+
+    expect(messages.at(-1)).toEqual({
+      role: 'user',
+      content: 'Tolong buat pengingat besok jam 7',
+    });
+    expect(messages.some((entry) => entry.content === 'Pesan sebelumnya')).toBe(
+      false,
+    );
+  });
+
+  it('gives a long current message priority over history instead of only the history share', async () => {
+    const pasted =
+      `Ringkas dokumen ini: ${'kalimat panjang '.repeat(200)}`.trim();
+
+    const budget = (await fixedTokens()) + estimateTokens(pasted) + 20;
+
+    const { messages } = await createBuilder(budget, {
+      messages: [
+        message('earlier', 'user', 'Pesan sebelumnya '.repeat(50)),
+        message('current', 'user', pasted),
+      ],
+    }).build(user, 'conversation-1', 'current');
+
+    // Before the reservation, history took only 70% of the remaining budget,
+    // so this message was truncated even though it fit.
+    expect(messages.at(-1)?.content).toBe(pasted);
+  });
+
+  it('keeps walking history past an empty attachment-only message', async () => {
+    const { messages } = await createBuilder(100_000, {
+      messages: [
+        message('older', 'user', 'Konteks lama yang penting'),
+        message('attachment-only', 'user', ''),
+        message('current', 'user', 'Apa isi file tadi?'),
+      ],
+    }).build(user, 'conversation-1', 'current');
+
+    expect(
+      messages.some((entry) => entry.content === 'Konteks lama yang penting'),
+    ).toBe(true);
+    expect(messages.at(-1)?.content).toBe('Apa isi file tadi?');
+  });
+});
+
 describe('ContextBuilderService prioritization and trust', () => {
   it('retains a bounded current user message under context pressure', async () => {
     const tokenBudget = 2_100;
@@ -1086,7 +1170,7 @@ describe('ContextBuilderService prioritization and trust', () => {
       expect.stringContaining('Pertanyaan terbaru'),
     );
     expect(tokenUsage.history).toBeGreaterThan(0);
-    expect(tokenUsage.total).toBeLessThanOrEqual(tokenBudget);
+    expectWithinBudget(messages, tokenBudget);
     // Reference metadata must not displace the user's current request.
     expect(messages.at(-1)).toEqual(currentContext);
   });
