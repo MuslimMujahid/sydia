@@ -51,7 +51,7 @@ describe('PrismaTelegramRepository commitLink', () => {
         }),
       },
       externalIdentity: {
-        findUnique: jest.fn(() => Promise.resolve(null)),
+        findFirst: jest.fn(() => Promise.resolve(null)),
         create: jest.fn(() => {
           order.push('create');
 
@@ -86,7 +86,7 @@ describe('PrismaTelegramRepository commitLink', () => {
         updateMany: jest.fn(() => Promise.resolve({ count: 0 })),
       },
       externalIdentity: {
-        findUnique: jest.fn(() => Promise.resolve(null)),
+        findFirst: jest.fn(() => Promise.resolve(null)),
         create: jest.fn(),
         deleteMany: jest.fn(),
       },
@@ -107,7 +107,7 @@ describe('PrismaTelegramRepository commitLink', () => {
         updateMany: jest.fn(),
       },
       externalIdentity: {
-        findUnique: jest.fn(() =>
+        findFirst: jest.fn(() =>
           Promise.resolve({ ...identity, userId: 'user-2' }),
         ),
         create: jest.fn(),
@@ -130,7 +130,7 @@ describe('PrismaTelegramRepository commitLink', () => {
         updateMany: jest.fn(),
       },
       externalIdentity: {
-        findUnique: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         deleteMany: jest.fn(),
       },
@@ -140,7 +140,7 @@ describe('PrismaTelegramRepository commitLink', () => {
       repositoryWith(transaction).commitLink(input),
     ).resolves.toEqual({ status: 'token_unavailable' });
 
-    expect(transaction.externalIdentity.findUnique).not.toHaveBeenCalled();
+    expect(transaction.externalIdentity.findFirst).not.toHaveBeenCalled();
     expect(transaction.externalIdentity.create).not.toHaveBeenCalled();
   });
 
@@ -152,7 +152,7 @@ describe('PrismaTelegramRepository commitLink', () => {
         updateMany: jest.fn(() => Promise.resolve({ count: 1 })),
       },
       externalIdentity: {
-        findUnique: jest.fn(() => Promise.resolve(existing)),
+        findFirst: jest.fn(() => Promise.resolve(existing)),
         create: jest.fn(),
         deleteMany: jest.fn(() => Promise.resolve({ count: 0 })),
       },

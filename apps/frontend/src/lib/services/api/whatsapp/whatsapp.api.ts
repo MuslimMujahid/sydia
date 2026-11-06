@@ -12,6 +12,7 @@ export type WhatsAppStatus = {
     | "qr_error"
     | "qr_expired"
     | "owner_verification"
+    | "owner_conflict"
     | "ready"
     | "conflict"
     | "revoked";

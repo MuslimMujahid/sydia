@@ -207,6 +207,7 @@ model ExternalIdentity {
   provider             String
   externalId           String
   verifiedAt           DateTime?
+  releasedAt           DateTime?
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @default(now()) @updatedAt
   user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -216,7 +217,8 @@ model ExternalIdentity {
   inboundMessages      WhatsAppInboundMessage[]
   channelConversations ChannelConversation[]
 
-  @@unique([provider, externalId])
+  // Only unreleased identities claim a provider number (partial unique index).
+  @@index([provider, externalId])
   @@index([userId])
   @@map("external_identity")
 }

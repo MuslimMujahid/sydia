@@ -18,7 +18,7 @@ export const whatsappStatusQueryOptions = () =>
     queryFn: getWhatsAppStatus,
     staleTime: 5_000,
     refetchInterval: (query) =>
-      ["pairing", "owner_verification"].includes(
+      ["pairing", "owner_verification", "owner_conflict"].includes(
         query.state.data?.setupPhase ?? ""
       )
         ? 3_000

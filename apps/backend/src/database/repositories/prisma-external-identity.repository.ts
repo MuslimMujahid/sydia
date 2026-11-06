@@ -21,8 +21,8 @@ export class PrismaExternalIdentityRepository implements IExternalIdentityReposi
     provider: string,
     externalId: string,
   ): Promise<ExternalIdentity | null> {
-    return this.prisma.externalIdentity.findUnique({
-      where: { provider_externalId: { provider, externalId } },
+    return this.prisma.externalIdentity.findFirst({
+      where: { provider, externalId, releasedAt: null },
       select: externalIdentitySelect,
     });
   }

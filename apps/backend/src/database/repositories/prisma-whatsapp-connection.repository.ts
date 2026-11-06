@@ -552,14 +552,33 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
     );
   }
 
-  async resetOwner(userId: string) {
+  async recordOwnerConflict(
+    scope: WhatsAppConnectionScope,
+    expectedCodeHash: string,
+    reason: string,
+  ) {
     return this.prisma.$transaction(async (tx) => {
-      const connection = await tx.whatsAppConnection.findFirst({
-        where: { userId, active: true },
+      const connection = await this.current(tx, scope);
+      if (
+        !connection ||
+        connection.ownerVerifiedAt ||
+        connection.ownerCodeHash !== expectedCodeHash
+      )
+        return false;
+      await tx.whatsAppConnection.update({
+        where: { id: scope.id },
+        data: { setupPhase: 'owner_conflict', reason },
       });
 
+      return true;
+    });
+  }
+
+  async resetOwner(userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const connection = await this.lockActiveUser(tx, userId);
       if (!connection) return null;
-      await this.lock(tx, connection.id);
+      await this.releaseOwnerIdentity(tx, connection, new Date());
 
       return tx.whatsAppConnection.update({
         where: { id: connection.id },
@@ -571,6 +590,7 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
           ownerCodeHash: null,
           ownerCodeExpiresAt: null,
           setupPhase: 'owner_verification',
+          reason: null,
           outageId: null,
         },
         select: connectionSelect,
@@ -723,6 +743,40 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
     await tx.$queryRaw`SELECT id FROM whatsapp_connection WHERE id = ${id} FOR UPDATE`;
   }
 
+  private async lockActiveUser(tx: Transaction, userId: string) {
+    await tx.$queryRaw`SELECT id FROM "user" WHERE id = ${userId} FOR UPDATE`;
+    const connection = await tx.whatsAppConnection.findFirst({
+      where: { userId, active: true },
+      select: connectionSelect,
+    });
+
+    if (!connection) return null;
+    await this.lock(tx, connection.id);
+
+    // Verification may have completed while acquiring the connection lock.
+    return tx.whatsAppConnection.findFirst({
+      where: { id: connection.id, active: true },
+      select: connectionSelect,
+    });
+  }
+
+  private async releaseOwnerIdentity(
+    tx: Transaction,
+    connection: WhatsAppConnection,
+    now: Date,
+  ) {
+    if (!connection.ownerIdentityId) return;
+    await tx.externalIdentity.updateMany({
+      where: {
+        id: connection.ownerIdentityId,
+        userId: connection.userId,
+        provider: 'whatsapp',
+        releasedAt: null,
+      },
+      data: { releasedAt: now },
+    });
+  }
+
   private async current(tx: Transaction, scope: WhatsAppConnectionScope) {
     await this.lock(tx, scope.id);
 
@@ -777,7 +831,9 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
             status: 'connected',
             setupPhase: connection.ownerVerifiedAt
               ? 'ready'
-              : 'owner_verification',
+              : connection.setupPhase === 'owner_conflict'
+                ? 'owner_conflict'
+                : 'owner_verification',
             qrImage: null,
             qrAttemptId: null,
             qrExpiresAt: null,
@@ -787,7 +843,10 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
               connection.lastConnectedAt
                 ? connection.lastConnectedAt
                 : now,
-            reason: null,
+            reason:
+              connection.setupPhase === 'owner_conflict'
+                ? connection.reason
+                : null,
           },
           select: connectionSelect,
         });
@@ -816,7 +875,12 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
         return false;
       await tx.whatsAppConnection.update({
         where: { id: scope.id },
-        data: { ownerCodeHash: hash, ownerCodeExpiresAt: expiresAt },
+        data: {
+          ownerCodeHash: hash,
+          ownerCodeExpiresAt: expiresAt,
+          setupPhase: 'owner_verification',
+          reason: null,
+        },
       });
 
       return true;
@@ -843,24 +907,44 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
           connection.assistantExternalId === sender
         )
           return null;
-        const priorIdentity = await tx.externalIdentity.findUnique({
+        const priorIdentity = await tx.externalIdentity.findFirst({
           where: {
-            provider_externalId: { provider: 'whatsapp', externalId: sender },
+            provider: 'whatsapp',
+            externalId: sender,
+            releasedAt: null,
           },
         });
 
         if (priorIdentity && priorIdentity.userId !== connection.userId)
           throw new WhatsAppConnectionConflict();
+        // A returning account can reuse only its own history. A different
+        // account gets a separate identity even when the number is the same.
+        const historicalIdentity = priorIdentity
+          ? null
+          : await tx.externalIdentity.findFirst({
+              where: {
+                provider: 'whatsapp',
+                externalId: sender,
+                userId: connection.userId,
+              },
+              orderBy: { createdAt: 'desc' },
+            });
+
         const identity =
           priorIdentity ??
-          (await tx.externalIdentity.create({
-            data: {
-              provider: 'whatsapp',
-              externalId: sender,
-              userId: connection.userId,
-              verifiedAt: now,
-            },
-          }));
+          (historicalIdentity
+            ? await tx.externalIdentity.update({
+                where: { id: historicalIdentity.id },
+                data: { releasedAt: null, verifiedAt: now },
+              })
+            : await tx.externalIdentity.create({
+                data: {
+                  provider: 'whatsapp',
+                  externalId: sender,
+                  userId: connection.userId,
+                  verifiedAt: now,
+                },
+              }));
 
         return tx.whatsAppConnection.update({
           where: { id: scope.id },
@@ -869,6 +953,7 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
             ownerIdentityId: identity.id,
             ownerVerifiedAt: now,
             setupPhase: 'ready',
+            reason: null,
             ownerCodeHash: null,
             ownerCodeExpiresAt: null,
           },
@@ -883,15 +968,9 @@ export class PrismaWhatsAppConnectionRepository implements IWhatsAppConnectionRe
 
   async revoke(userId: string, now: Date) {
     return this.prisma.$transaction(async (tx) => {
-      // User lock also serializes revocation when a login request races with disconnect.
-      await tx.$queryRaw`SELECT id FROM "user" WHERE id = ${userId} FOR UPDATE`;
-      const connection = await tx.whatsAppConnection.findFirst({
-        where: { userId, active: true },
-        select: connectionSelect,
-      });
-
+      const connection = await this.lockActiveUser(tx, userId);
       if (!connection) return null;
-      await this.lock(tx, connection.id);
+      await this.releaseOwnerIdentity(tx, connection, now);
 
       return tx.whatsAppConnection.update({
         where: { id: connection.id },

@@ -57,8 +57,8 @@ export class PrismaTelegramRepository implements ITelegramRepository {
   }
 
   findIdentityByExternalId(externalId: string) {
-    return this.prisma.externalIdentity.findUnique({
-      where: { provider_externalId: { provider: 'telegram', externalId } },
+    return this.prisma.externalIdentity.findFirst({
+      where: { provider: 'telegram', externalId, releasedAt: null },
       select: identitySelect,
     });
   }
@@ -104,12 +104,11 @@ export class PrismaTelegramRepository implements ITelegramRepository {
 
       if (!token) return { status: 'token_unavailable' };
 
-      const existing = await transaction.externalIdentity.findUnique({
+      const existing = await transaction.externalIdentity.findFirst({
         where: {
-          provider_externalId: {
-            provider: 'telegram',
-            externalId: input.externalId,
-          },
+          provider: 'telegram',
+          externalId: input.externalId,
+          releasedAt: null,
         },
         select: identitySelect,
       });

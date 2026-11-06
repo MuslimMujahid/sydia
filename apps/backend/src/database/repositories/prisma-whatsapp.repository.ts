@@ -122,14 +122,14 @@ export class PrismaWhatsAppRepository implements IWhatsAppRepository {
 
   findIdentity(userId: string) {
     return this.prisma.externalIdentity.findFirst({
-      where: { userId, provider: 'whatsapp' },
+      where: { userId, provider: 'whatsapp', releasedAt: null },
       select: identitySelect,
     });
   }
 
   findIdentityByExternalId(externalId: string) {
-    return this.prisma.externalIdentity.findUnique({
-      where: { provider_externalId: { provider: 'whatsapp', externalId } },
+    return this.prisma.externalIdentity.findFirst({
+      where: { provider: 'whatsapp', externalId, releasedAt: null },
       select: identitySelect,
     });
   }
@@ -146,8 +146,9 @@ export class PrismaWhatsAppRepository implements IWhatsAppRepository {
   }
 
   async revokeIdentity(userId: string) {
-    const result = await this.prisma.externalIdentity.deleteMany({
-      where: { userId, provider: 'whatsapp' },
+    const result = await this.prisma.externalIdentity.updateMany({
+      where: { userId, provider: 'whatsapp', releasedAt: null },
+      data: { releasedAt: new Date() },
     });
 
     return result.count === 1;

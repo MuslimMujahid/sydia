@@ -71,6 +71,11 @@ export interface IWhatsAppConnectionRepository {
   reminderDueAt(userId: string, deliveryId: string): Promise<Date | null>;
   reminderIsCurrent(userId: string, deliveryId: string): Promise<boolean>;
   resetOwner(userId: string): Promise<WhatsAppConnection | null>;
+  recordOwnerConflict(
+    scope: WhatsAppConnectionScope,
+    expectedCodeHash: string,
+    reason: string,
+  ): Promise<boolean>;
   create(userId: string, deviceId: string): Promise<WhatsAppConnection>;
   findLatest(userId: string): Promise<WhatsAppConnection | null>;
   findActive(userId: string): Promise<WhatsAppConnection | null>;

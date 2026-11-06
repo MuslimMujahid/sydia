@@ -289,7 +289,10 @@ export function WhatsAppIntegrationCard() {
       status?.setupPhase === "qr_error" ||
       status?.setupPhase === "pairing");
 
-  const ownerVerification = status?.setupPhase === "owner_verification";
+  const ownerConflict = status?.setupPhase === "owner_conflict";
+  const ownerVerification =
+    status?.setupPhase === "owner_verification" || ownerConflict;
+
   const stateLabel = status?.connected
     ? "Terhubung"
     : status?.status === "enforced"
@@ -298,13 +301,15 @@ export function WhatsAppIntegrationCard() {
         ? "Sesi berakhir"
         : status?.linked
           ? "Koneksi terputus"
-          : ownerVerification
-            ? expiredCode
-              ? `Verifikasi kedaluwarsa · +${status.assistantNumber}`
-              : "Akun asisten tertaut · Verifikasi nomor pribadi"
-            : isPairing
-              ? "Menunggu pemindaian QR"
-              : "Mengobrol dan menerima pengingat melalui WhatsApp.";
+          : ownerConflict
+            ? "Nomor pribadi masih tertaut ke akun lain"
+            : ownerVerification
+              ? expiredCode
+                ? `Verifikasi kedaluwarsa · +${status.assistantNumber}`
+                : "Akun asisten tertaut · Verifikasi nomor pribadi"
+              : isPairing
+                ? "Menunggu pemindaian QR"
+                : "Mengobrol dan menerima pengingat melalui WhatsApp.";
 
   return (
     <IntegrationRow
@@ -314,7 +319,7 @@ export function WhatsAppIntegrationCard() {
       checked={Boolean(status?.linked)}
       disabled={statusQuery.isPending || statusQuery.isError || busy}
       onCheckedChange={(checked) => {
-        if (checked) beginQr();
+        if (checked && !status?.assistantNumber) beginQr();
         else setConfirmation("disconnect");
       }}
       description={
@@ -421,7 +426,19 @@ export function WhatsAppIntegrationCard() {
             )}
           </div>
         ) : null}
-        {ownerVerification && expiredCode ? (
+        {ownerConflict ? (
+          <div className="space-y-1 pt-1">
+            <FormError
+              message={
+                status.reason ??
+                "Nomor pribadi masih tertaut ke akun lain. Putuskan koneksi di akun lama, lalu coba lagi."
+              }
+            />
+            <RecoveryAction disabled={busy} onClick={makeCode}>
+              Coba verifikasi lagi
+            </RecoveryAction>
+          </div>
+        ) : ownerVerification && expiredCode ? (
           <div className="space-y-1 pt-1">
             <p className="text-[13px] leading-5 text-ink-muted">
               Nomor pribadi belum terverifikasi. Buat pesan baru, lalu kirim
@@ -485,6 +502,14 @@ export function WhatsAppIntegrationCard() {
               </>
             )}
           </div>
+        ) : null}
+        {ownerVerification ? (
+          <RecoveryAction
+            disabled={busy}
+            onClick={() => setConfirmation("disconnect")}
+          >
+            Batalkan penautan
+          </RecoveryAction>
         ) : null}
         {status?.connected && status.assistantNumber && status.ownerNumber ? (
           <div className="space-y-3 pb-2">

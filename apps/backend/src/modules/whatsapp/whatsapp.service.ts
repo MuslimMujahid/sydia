@@ -18,6 +18,7 @@ import {
   type INotificationRepository,
 } from '../../database/interfaces';
 import {
+  WhatsAppConnectionConflict,
   WhatsAppConnectionRevoked,
   type WhatsAppConnection,
   type WhatsAppConnectionScope,
@@ -270,7 +271,11 @@ export class WhatsAppService implements OnModuleInit {
       const now = this.clock();
       const existingExpiry = connection.ownerCodeExpiresAt;
 
-      if (existingExpiry && existingExpiry > now) {
+      if (
+        connection.setupPhase !== 'owner_conflict' &&
+        existingExpiry &&
+        existingExpiry > now
+      ) {
         const code = this.ownerCode(connection, existingExpiry);
         if (hash(code) === connection.ownerCodeHash)
           return { code, expiresAt: existingExpiry };
@@ -385,12 +390,31 @@ export class WhatsAppService implements OnModuleInit {
       const candidate = message.text.trim().toUpperCase();
       if (!/^SYDIA-[A-Z0-9]{8}$/.test(candidate)) return;
       await this.requireUser(connection.userId);
-      const verified = await this.connections.verifyOwner(
-        connection,
-        hash(candidate),
-        message.senderExternalId,
-        this.clock(),
-      );
+      let verified: WhatsAppConnection | null;
+
+      try {
+        verified = await this.connections.verifyOwner(
+          connection,
+          hash(candidate),
+          message.senderExternalId,
+          this.clock(),
+        );
+      } catch (error) {
+        this.logger.warn(
+          `WhatsApp owner verification failed for ${connection.id}.`,
+          error,
+        );
+        if (!(error instanceof WhatsAppConnectionConflict)) throw error;
+        // Expected ownership conflict: acknowledge the webhook, retain the
+        // challenge, and expose recovery through the persisted setup status.
+        await this.connections.recordOwnerConflict(
+          connection,
+          hash(candidate),
+          'Nomor pribadi ini masih tertaut ke akun Sydia lain. Putuskan WhatsApp atau ganti nomor pribadi di akun lama, lalu coba verifikasi lagi.',
+        );
+
+        return;
+      }
 
       if (!verified) {
         this.logger.warn(

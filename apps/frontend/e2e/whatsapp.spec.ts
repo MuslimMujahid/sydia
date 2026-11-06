@@ -74,6 +74,14 @@ async function provider(page: Page, initial: WhatsAppStatus = idle) {
   await page.route("**/whatsapp/link-code", async (route) => {
     state.codeCount++;
 
+    if (state.status.setupPhase === "owner_conflict") {
+      state.status = {
+        ...state.status,
+        setupPhase: "owner_verification",
+        reason: null,
+      };
+    }
+
     return route.fulfill({
       json: {
         data: {
@@ -126,6 +134,47 @@ const connection = (page: Page) =>
     exact: true,
     includeHidden: true,
   });
+
+test("WhatsApp paired setup can be cancelled before owner verification", async ({
+  page,
+}) => {
+  await provider(page, {
+    ...ready,
+    connected: false,
+    linked: false,
+    ownerNumber: null,
+    setupPhase: "owner_verification",
+  });
+  await open(page);
+  await page.getByRole("button", { name: "Batalkan penautan" }).click();
+  await page
+    .getByRole("button", { name: "Putuskan WhatsApp", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Verifikasi nomor pribadi Anda" })
+  ).toHaveCount(0);
+  await expect(connection(page)).not.toBeChecked();
+});
+
+test("WhatsApp owner conflict explains how to release the number and offers retry", async ({
+  page,
+}) => {
+  const reason =
+    "Nomor pribadi ini masih tertaut ke akun Sydia lain. Putuskan WhatsApp atau ganti nomor pribadi di akun lama, lalu coba verifikasi lagi.";
+
+  await provider(page, {
+    ...ready,
+    connected: false,
+    linked: false,
+    ownerNumber: null,
+    setupPhase: "owner_conflict",
+    reason,
+  });
+  await open(page);
+  await expect(page.getByRole("alert")).toContainText(reason);
+  await page.getByRole("button", { name: "Coba verifikasi lagi" }).click();
+  await expect(page.getByText("SYDIA-7A2C9F10", { exact: true })).toBeVisible();
+});
 
 test("WhatsApp QR setup waits for provider login and separate owner verification", async ({
   page,

@@ -505,7 +505,9 @@ export class WhatsAppConnectionsGateway
     if (
       !event.payload ||
       connection.status === 'enforced' ||
-      !['ready', 'owner_verification'].includes(connection.setupPhase)
+      !['ready', 'owner_verification', 'owner_conflict'].includes(
+        connection.setupPhase,
+      )
     )
       return;
 

@@ -21,6 +21,28 @@ Final targeted command: `bun run test:e2e --config playwright.entities.config.ts
 - Production/startup configuration now rejects a missing or empty webhook secret outside development/test. It reuses the existing configuration key.
 - Applied three additive migrations to the local development database, including legacy queue retirement and delivery bindings. Historical product records remain intact.
 
+## Number reuse and setup recovery (6 November 2026)
+
+Deploy `20261106090000_release_whatsapp_identity_claims` before starting the updated backend. It adds `ExternalIdentity.releasedAt`, replaces permanent provider-number uniqueness with uniqueness among unreleased identities, and releases historical WhatsApp identities without an active owner connection. Telegram claims retain their uniqueness.
+
+Disconnect and owner replacement release the current number in the same transaction that revokes its authority. Historical identity IDs, user ownership, and conversations stay intact. A different account must pair its assistant and prove control of the released personal number; it gets a separate identity. Returning to the original account can reuse only that account's historical identity.
+
+Owner conflicts are logged and persisted as `owner_conflict`, survive provider status polling, and offer an explicit verification retry after the number is released. Late conflict reports cannot overwrite a completed or superseded verification. The owner-verification screen also offers cancellation before setup is complete.
+
+Targeted verification commands (database contracts and browser checks require the shared test lock):
+
+```bash
+# From apps/backend
+../../scripts/test-lock.sh env WHATSAPP_CONTRACT_ENABLED=true BACKEND_BILLING_ROLLOUT_AT= bun run test --runInBand --testPathPatterns='connections.live.spec.ts|delivery.live.spec.ts|whatsapp.service.spec.ts|prisma-telegram.repository.spec.ts|telegram.service.spec.ts' --testTimeout=30000
+bun run check-types
+
+# From apps/frontend
+bun run test:e2e -- --config playwright.entities.config.ts whatsapp.spec.ts --workers=1
+bun run check-types
+```
+
+Verification: 139 selected backend tests passed against a disposable PostgreSQL database with all migrations applied; three opt-in tests were skipped. All 24 WhatsApp browser cases passed on desktop/mobile with the provider boundary mocked. The disconnect/replacement ownership regressions failed before the fix. This does not establish real-provider pairing or production deployment.
+
 ## Verified evidence
 
 ### Backend

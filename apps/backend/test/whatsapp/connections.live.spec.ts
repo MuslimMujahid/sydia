@@ -7,10 +7,17 @@ import {
 import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../src/infra/prisma';
-import { PrismaWhatsAppConnectionRepository } from '../../src/database/repositories';
+import {
+  PrismaWhatsAppConnectionRepository,
+  PrismaUserRepository,
+  PrismaAuditEventRepository,
+  PrismaExternalIdentityRepository,
+} from '../../src/database/repositories';
+import { WhatsAppService } from '../../src/modules/whatsapp/whatsapp.service';
 import {
   WhatsAppConnectionConflict,
   WhatsAppConnectionRevoked,
+  type WhatsAppConnection,
 } from '../../src/database/entities';
 
 const enabled = process.env.WHATSAPP_CONTRACT_ENABLED === 'true';
@@ -264,6 +271,261 @@ const expiresAt = new Date('2026-10-22T06:10:00Z');
       const replacement = await independent.create(owner, randomUUID());
       expect(replacement.id).not.toBe(old.id);
       expect(await repository.update(old, { status: 'connected' })).toBeNull();
+    });
+
+    test('disconnect releases the owner number for another account without moving historical identities', async () => {
+      const first = await paired(owner, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(first, 'first-proof', expiresAt);
+      const original = await repository.verifyOwner(
+        first,
+        'first-proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+
+      if (!original?.ownerIdentityId)
+        throw new Error('Owner fixture was not verified.');
+      await repository.revoke(owner, now);
+      const second = await paired(other, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(second, 'second-proof', expiresAt);
+
+      const verified = await independent.verifyOwner(
+        second,
+        'second-proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+
+      expect(verified).toMatchObject({ userId: other, setupPhase: 'ready' });
+      expect(verified?.ownerIdentityId).not.toBe(original.ownerIdentityId);
+      expect(
+        await prisma.externalIdentity.findUnique({
+          where: { id: original.ownerIdentityId },
+        }),
+      ).toMatchObject({ userId: owner, externalId: 'owner@s.whatsapp.net' });
+    });
+
+    test('replacing the owner releases the previous number for another account', async () => {
+      const first = await paired(owner, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(first, 'first-proof', expiresAt);
+      await repository.verifyOwner(
+        first,
+        'first-proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+      await repository.resetOwner(owner);
+      const second = await paired(other, 'other-assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(second, 'second-proof', expiresAt);
+
+      expect(
+        await independent.verifyOwner(
+          second,
+          'second-proof',
+          'owner@s.whatsapp.net',
+          now,
+        ),
+      ).toMatchObject({ userId: other, setupPhase: 'ready' });
+    });
+
+    test('released identities cannot select the former account through sender lookup', async () => {
+      const connection = await paired(owner, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(connection, 'owner-proof', expiresAt);
+      await repository.verifyOwner(
+        connection,
+        'owner-proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+      await repository.revoke(owner, now);
+
+      expect(
+        await new PrismaExternalIdentityRepository(
+          prisma,
+        ).findByProviderExternalId('whatsapp', 'owner@s.whatsapp.net'),
+      ).toBeNull();
+    });
+
+    test('reconnecting on the same account reuses only that accounts historical identity', async () => {
+      const first = await paired(owner, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(first, 'first-proof', expiresAt);
+      const original = await repository.verifyOwner(
+        first,
+        'first-proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+
+      if (!original?.ownerIdentityId)
+        throw new Error('Owner fixture was not verified.');
+      await repository.revoke(owner, now);
+      const second = await paired(owner, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(second, 'second-proof', expiresAt);
+
+      expect(
+        await repository.verifyOwner(
+          second,
+          'second-proof',
+          'owner@s.whatsapp.net',
+          now,
+        ),
+      ).toMatchObject({
+        ownerIdentityId: original.ownerIdentityId,
+        setupPhase: 'ready',
+      });
+    });
+
+    test('concurrent claims for a released number authorize only one account', async () => {
+      const first = await paired(owner, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(first, 'first-proof', expiresAt);
+      await repository.verifyOwner(
+        first,
+        'first-proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+      await repository.revoke(owner, now);
+      const returning = await paired(owner, 'assistant@s.whatsapp.net');
+      const second = await paired(other, 'other-assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(returning, 'returning-proof', expiresAt);
+      await repository.issueOwnerCode(second, 'second-proof', expiresAt);
+
+      const claims = await Promise.allSettled([
+        repository.verifyOwner(
+          returning,
+          'returning-proof',
+          'owner@s.whatsapp.net',
+          now,
+        ),
+        independent.verifyOwner(
+          second,
+          'second-proof',
+          'owner@s.whatsapp.net',
+          now,
+        ),
+      ]);
+
+      expect(
+        claims.filter((result) => result.status === 'fulfilled'),
+      ).toHaveLength(1);
+      expect(
+        claims.filter((result) => result.status === 'rejected'),
+      ).toHaveLength(1);
+      expect(
+        claims.find((result) => result.status === 'rejected')
+          ?.reason as unknown,
+      ).toBeInstanceOf(WhatsAppConnectionConflict);
+      expect(
+        await prisma.externalIdentity.count({
+          where: {
+            provider: 'whatsapp',
+            externalId: 'owner@s.whatsapp.net',
+            releasedAt: null,
+          },
+        }),
+      ).toBe(1);
+    });
+
+    async function conflictedOwner() {
+      const first = await paired(other, 'other-assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(first, 'first-proof', expiresAt);
+      await repository.verifyOwner(
+        first,
+        'first-proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+      const pending = await paired(owner, 'assistant@s.whatsapp.net');
+      const client = networkBoundary(pending.deviceId);
+      const gateway = new WhatsAppConnectionsGateway(
+        repository,
+        () => client,
+        new ConfigService(),
+      );
+
+      const service = new WhatsAppService(
+        gateway,
+        repository,
+        new PrismaUserRepository(prisma),
+        {} as never,
+        new PrismaAuditEventRepository(prisma),
+        { registerAdapter: () => Promise.resolve() } as never,
+        {} as never,
+        {} as never,
+        () => now,
+        {} as never,
+        new ConfigService({
+          BACKEND_AUTH_SECRET: 'whatsapp-contract-challenge-secret',
+        }),
+      );
+
+      await service.onModuleInit();
+      const challenge = await service.createLinkCode(owner);
+      await sendOwnerProof(gateway, pending, challenge.code);
+
+      return { pending, gateway, service };
+    }
+
+    function sendOwnerProof(
+      gateway: WhatsAppConnectionsGateway,
+      connection: WhatsAppConnection,
+      code: string,
+    ) {
+      return gateway.handleWebhook({
+        event: 'message',
+        session_id: connection.deviceId,
+        device_id: connection.assistantExternalId!,
+        payload: {
+          id: 'owner-proof',
+          from: 'owner@s.whatsapp.net',
+          chat_id: 'owner@s.whatsapp.net',
+          body: code,
+        },
+      });
+    }
+
+    test('owner conflicts remain actionable after provider status polling', async () => {
+      const { service } = await conflictedOwner();
+
+      expect(await service.status(owner)).toMatchObject({
+        setupPhase: 'owner_conflict',
+        linked: false,
+        reason:
+          'Nomor pribadi ini masih tertaut ke akun Sydia lain. Putuskan WhatsApp atau ganti nomor pribadi di akun lama, lalu coba verifikasi lagi.',
+      });
+    });
+
+    test('owner verification can recover after the former account releases its number', async () => {
+      const { pending, gateway, service } = await conflictedOwner();
+      await repository.revoke(other, now);
+      const challenge = await service.createLinkCode(owner);
+
+      await sendOwnerProof(gateway, pending, challenge.code);
+
+      expect(await service.status(owner)).toMatchObject({
+        setupPhase: 'ready',
+        linked: true,
+        reason: null,
+      });
+    });
+
+    test('late conflict reporting cannot overwrite a successful verification', async () => {
+      const connection = await paired(owner, 'assistant@s.whatsapp.net');
+      await repository.issueOwnerCode(connection, 'proof', expiresAt);
+      await repository.verifyOwner(
+        connection,
+        'proof',
+        'owner@s.whatsapp.net',
+        now,
+      );
+
+      expect(
+        await repository.recordOwnerConflict(connection, 'proof', 'Conflict'),
+      ).toBe(false);
+      expect(await repository.findActive(owner)).toMatchObject({
+        setupPhase: 'ready',
+        reason: null,
+      });
     });
 
     test('a failed inbound operation keeps its error and is not marked processed', async () => {
