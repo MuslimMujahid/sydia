@@ -27,6 +27,7 @@ import { useNotePresence } from "./use-note-presence";
 import { useNoteAutosave } from "./use-note-autosave";
 import { NoteBacklinks } from "./note-backlinks";
 import { NoteVersionComparison } from "./note-version-comparison";
+import { WorkspaceEditorSkeleton } from "./workspace-editor-skeleton";
 
 export type WorkspaceEditorHandle = {
   flush: () => Promise<boolean>;
@@ -94,7 +95,7 @@ function ProtectedWorkspaceEditor(props: WorkspaceEditorProps) {
   const presence = useNotePresence(props.note);
   if (!presence.note)
     return (
-      <div className="p-6" aria-busy={!presence.error}>
+      <div className={cn(presence.error && "p-6")} aria-busy={!presence.error}>
         {presence.error ? (
           <div role="alert">
             <p>{presence.error}</p>
@@ -103,7 +104,7 @@ function ProtectedWorkspaceEditor(props: WorkspaceEditorProps) {
             </Button>
           </div>
         ) : (
-          <p role="status">Menyiapkan editor…</p>
+          <WorkspaceEditorSkeleton presentation={props.presentation} />
         )}
       </div>
     );
@@ -248,17 +249,7 @@ function WorkspaceEditorContent({
     }
   }
 
-  if (!editor)
-    return (
-      <div
-        className="mx-auto w-full max-w-[728px] space-y-6 p-6"
-        aria-busy="true"
-        aria-label="Menyiapkan editor"
-      >
-        <div className="h-10 w-2/3 animate-pulse rounded bg-surface-1" />
-        <div className="h-72 animate-pulse rounded bg-surface-1" />
-      </div>
-    );
+  if (!editor) return <WorkspaceEditorSkeleton presentation={presentation} />;
 
   const saveNotices = (
     <>

@@ -53,6 +53,7 @@ import {
   WorkspaceEditor,
   type WorkspaceEditorHandle,
 } from "./workspace-editor";
+import { WorkspaceEditorSkeleton } from "./workspace-editor-skeleton";
 import { ItemMenu, WorkspaceTree, type ItemAction } from "./workspace-tree";
 import {
   WorkspaceDialog,
@@ -680,14 +681,7 @@ export function NotesWorkspacePage({
                   </div>
                 ) : null}
                 {note.isPending || !activeRef ? (
-                  <div
-                    aria-busy="true"
-                    aria-label="Memuat catatan"
-                    className="mx-auto max-w-[824px] space-y-6 px-6 py-12 sm:px-12"
-                  >
-                    <div className="h-10 w-2/3 animate-pulse rounded-sm bg-surface-1" />
-                    <div className="h-72 animate-pulse rounded-sm bg-surface-1" />
-                  </div>
+                  <WorkspaceEditorSkeleton />
                 ) : note.isError && !note.data ? (
                   <div role="alert" className="p-8">
                     <h2 className="text-xl font-semibold">
