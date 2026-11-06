@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chooseOption, expectOptions } from "./select-field";
 
 const initialPreferences = {
   automaticMemoryEnabled: false,
@@ -36,8 +37,8 @@ test("saves the weekly weekday and retains it after reload", async ({
 }) => {
   const preferences = await openSettings(page);
   const weekday = page.getByLabel("Hari briefing mingguan", { exact: true });
-  await expect(weekday).toHaveValue("1");
-  await expect(weekday.locator("option")).toHaveText([
+  await expect(weekday).toHaveText("Senin");
+  await expectOptions(weekday, [
     "Senin",
     "Selasa",
     "Rabu",
@@ -46,10 +47,10 @@ test("saves the weekly weekday and retains it after reload", async ({
     "Sabtu",
     "Minggu",
   ]);
-  await weekday.selectOption("7");
+  await chooseOption(weekday, "Minggu");
   await expect.poll(() => preferences().weeklyBriefingDay).toBe(7);
   await page.reload();
-  await expect(weekday).toHaveValue("7");
+  await expect(weekday).toHaveText("Minggu");
 });
 
 test("weekly-only briefing keeps the shared time editable", async ({
@@ -110,24 +111,19 @@ test("offers and saves each overdue task follow-up interval", async ({
     exact: true,
   });
 
-  await expect(interval).toHaveValue("60");
-  await expect(interval.locator("option")).toHaveText([
-    "30 Menit",
-    "1 Jam",
-    "2 Jam",
-    "3 Jam",
-  ]);
-  await interval.selectOption("30");
+  await expect(interval).toHaveText("1 Jam");
+  await expectOptions(interval, ["30 Menit", "1 Jam", "2 Jam", "3 Jam"]);
+  await chooseOption(interval, "30 Menit");
   await expect.poll(() => preferences.followUpIntervalMinutes).toBe(30);
   await expect(interval).toBeEnabled();
-  await interval.selectOption("120");
+  await chooseOption(interval, "2 Jam");
   await expect.poll(() => preferences.followUpIntervalMinutes).toBe(120);
   await expect(interval).toBeEnabled();
-  await interval.selectOption("180");
+  await chooseOption(interval, "3 Jam");
   await expect.poll(() => preferences.followUpIntervalMinutes).toBe(180);
   await expect(interval).toBeEnabled();
-  await interval.selectOption("60");
+  await chooseOption(interval, "1 Jam");
   await expect.poll(() => preferences.followUpIntervalMinutes).toBe(60);
   await page.reload();
-  await expect(interval).toHaveValue("60");
+  await expect(interval).toHaveText("1 Jam");
 });

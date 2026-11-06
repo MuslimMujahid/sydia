@@ -260,18 +260,14 @@ function ReminderEditor({
                     value={field.state.value}
                     aria-describedby={describedBy}
                     onBlur={field.handleBlur}
-                    onChange={(event) =>
-                      field.handleChange(
-                        event.target.value as RecurrenceFrequency | "none"
-                      )
-                    }
-                  >
-                    {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </SelectField>
+                    onValueChange={field.handleChange}
+                    options={(
+                      Object.entries(FREQUENCY_LABELS) as [
+                        RecurrenceFrequency | "none",
+                        string,
+                      ][]
+                    ).map(([value, label]) => ({ value, label }))}
+                  />
                 )}
               </FieldShell>
             )}
@@ -680,21 +676,18 @@ export function ReminderPage() {
           onSubmit={() => setSearch(searchDraft.trim())}
           onClear={clearSearch}
         />
-        <label>
-          <span className="sr-only">Waktu pengingat</span>
-          <SelectField
-            value={schedule}
-            onChange={(event) =>
-              setSchedule(event.target.value as ReminderScheduleFilter | "all")
-            }
-          >
-            {Object.entries(SCHEDULE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
-        </label>
+        <SelectField
+          aria-label="Waktu pengingat"
+          className="w-auto"
+          value={schedule}
+          onValueChange={setSchedule}
+          options={(
+            Object.entries(SCHEDULE_LABELS) as [
+              ReminderScheduleFilter | "all",
+              string,
+            ][]
+          ).map(([value, label]) => ({ value, label }))}
+        />
       </section>
       {query.isPending ? (
         <DomainListSkeleton label="Memuat daftar pengingat" />

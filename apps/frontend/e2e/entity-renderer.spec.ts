@@ -590,10 +590,10 @@ test("lists reminders without a status filter or a status query parameter", asyn
     page.getByRole("heading", { name: reminder.title })
   ).toBeVisible();
   await expect(
-    page.getByRole("combobox", { name: "Status pengingat" })
+    page.getByRole("button", { name: "Status pengingat" })
   ).toHaveCount(0);
   await expect(
-    page.getByRole("combobox", { name: "Waktu pengingat" })
+    page.getByRole("button", { name: "Waktu pengingat" })
   ).toBeVisible();
   expect(requestedStatus).toBeNull();
   await expect(page.getByText("Terjadwal", { exact: true })).toHaveCount(0);

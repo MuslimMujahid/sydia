@@ -11,6 +11,7 @@ import {
   FieldShell,
   FormError,
   SelectField,
+  type SelectOption,
 } from "@/components/forms/form-fields";
 import { LoadingState, ErrorState } from "@/components/app-states";
 import { OnboardingPlanStep } from "@/components/onboarding/onboarding-plan-step";
@@ -36,6 +37,11 @@ const onboardingSchema = z.object({
   preferredAddress: z.string().max(50, "Panggilan maksimal 50 karakter."),
   persona: z.enum(ASSISTANT_PERSONAS),
 });
+
+const LOCALE_OPTIONS: SelectOption<"id" | "en">[] = [
+  { value: "id", label: "Bahasa Indonesia" },
+  { value: "en", label: "Bahasa Inggris" },
+];
 
 const TIMEZONES = [
   "Asia/Jakarta",
@@ -298,20 +304,16 @@ function OnboardingPage() {
                             aria-describedby={describedBy}
                             aria-invalid={invalid}
                             onBlur={field.handleBlur}
-                            onChange={(event) =>
-                              field.handleChange(event.target.value)
-                            }
-                          >
-                            {Array.from(
+                            onValueChange={field.handleChange}
+                            options={Array.from(
                               new Set([field.state.value, ...TIMEZONES])
                             )
                               .filter(Boolean)
-                              .map((zone) => (
-                                <option key={zone} value={zone}>
-                                  {zone.replaceAll("_", " ")}
-                                </option>
-                              ))}
-                          </SelectField>
+                              .map((zone) => ({
+                                value: zone,
+                                label: zone.replaceAll("_", " "),
+                              }))}
+                          />
                         )}
                       </FieldShell>
                     )}
@@ -333,15 +335,9 @@ function OnboardingPage() {
                             aria-describedby={describedBy}
                             aria-invalid={invalid}
                             onBlur={field.handleBlur}
-                            onChange={(event) =>
-                              field.handleChange(
-                                event.target.value as "en" | "id"
-                              )
-                            }
-                          >
-                            <option value="id">Bahasa Indonesia</option>
-                            <option value="en">Bahasa Inggris</option>
-                          </SelectField>
+                            onValueChange={field.handleChange}
+                            options={LOCALE_OPTIONS}
+                          />
                         )}
                       </FieldShell>
                     )}

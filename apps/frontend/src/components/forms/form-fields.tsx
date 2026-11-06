@@ -1,5 +1,13 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import type { ComponentProps, InputHTMLAttributes, ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
 type FieldShellProps = {
@@ -75,18 +83,74 @@ export function TextField(props: InputHTMLAttributes<HTMLInputElement>) {
   return <Input {...props} />;
 }
 
-export function SelectField({
+export type SelectOption<T extends string> = {
+  value: T;
+  label: string;
+};
+
+type SelectFieldProps<T extends string> = Omit<
+  ComponentProps<"button">,
+  "value" | "onChange" | "children"
+> & {
+  value: T;
+  options: readonly SelectOption<T>[];
+  onValueChange: (value: T) => void;
+  /** Optional leading icon rendered inside the trigger. */
+  icon?: ReactNode;
+  contentClassName?: string;
+};
+
+/** Single-value picker built on the shared dropdown menu. */
+export function SelectField<T extends string>({
+  value,
+  options,
+  onValueChange,
+  icon,
   className,
+  contentClassName,
   ...props
-}: SelectHTMLAttributes<HTMLSelectElement>) {
+}: SelectFieldProps<T>) {
+  const selected = options.find((option) => option.value === value);
+
   return (
-    <select
-      className={cn(
-        "h-11 w-full rounded-sm border border-ink/16 bg-canvas px-3 text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:bg-ink/4 disabled:opacity-40 aria-invalid:border-destructive",
-        className
-      )}
-      {...props}
-    />
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        type="button"
+        data-slot="select-field"
+        className={cn(
+          "flex h-11 w-full items-center gap-2 rounded-sm border border-ink/16 bg-canvas px-3 text-left text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:cursor-default disabled:bg-ink/4 disabled:opacity-40 aria-invalid:border-destructive data-[popup-open]:border-brand [&_svg]:size-4 [&_svg]:shrink-0",
+          className
+        )}
+        {...props}
+      >
+        {icon}
+        <span className="min-w-0 flex-1 truncate">
+          {selected?.label ?? value}
+        </span>
+        <ChevronDown className="text-ink-muted" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className={cn(
+          "max-h-[min(20rem,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto",
+          contentClassName
+        )}
+      >
+        <DropdownMenuRadioGroup
+          value={value}
+          onValueChange={(next: T) => onValueChange(next)}
+        >
+          {options.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              closeOnClick
+            >
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

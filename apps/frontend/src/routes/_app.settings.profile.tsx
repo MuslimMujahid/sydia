@@ -8,6 +8,7 @@ import {
   FieldShell,
   FormError,
   SelectField,
+  type SelectOption,
   TextField,
 } from "@/components/forms/form-fields";
 import { useAppForm } from "@/lib/hooks/forms";
@@ -20,6 +21,11 @@ const profileSchema = z.object({
   timezone: z.string().min(1, "Pilih zona waktu."),
   locale: z.enum(["en", "id"]),
 });
+
+const LOCALE_OPTIONS: SelectOption<"id" | "en">[] = [
+  { value: "id", label: "Bahasa Indonesia" },
+  { value: "en", label: "Bahasa Inggris" },
+];
 
 const TIMEZONES = [
   "Asia/Jakarta",
@@ -136,14 +142,12 @@ function ProfileSettingsPage() {
                     aria-describedby={describedBy}
                     aria-invalid={invalid}
                     onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                  >
-                    {timezoneOptions.map((zone) => (
-                      <option key={zone} value={zone}>
-                        {zone.replaceAll("_", " ")}
-                      </option>
-                    ))}
-                  </SelectField>
+                    onValueChange={field.handleChange}
+                    options={timezoneOptions.map((zone) => ({
+                      value: zone,
+                      label: zone.replaceAll("_", " "),
+                    }))}
+                  />
                 )}
               </FieldShell>
             )}
@@ -162,13 +166,9 @@ function ProfileSettingsPage() {
                     aria-describedby={describedBy}
                     aria-invalid={invalid}
                     onBlur={field.handleBlur}
-                    onChange={(event) =>
-                      field.handleChange(event.target.value as "en" | "id")
-                    }
-                  >
-                    <option value="id">Bahasa Indonesia</option>
-                    <option value="en">Bahasa Inggris</option>
-                  </SelectField>
+                    onValueChange={field.handleChange}
+                    options={LOCALE_OPTIONS}
+                  />
                 )}
               </FieldShell>
             )}

@@ -17,6 +17,7 @@ import {
   FormError,
   TextField,
   SelectField,
+  type SelectOption,
 } from "@/components/forms/form-fields";
 import { TimePicker } from "@/components/forms/time-picker";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,13 @@ const eventSchema = z
         message: "Waktu selesai harus setelah waktu mulai.",
       });
   });
+
+const EVENT_REMINDER_OPTIONS: SelectOption<"10" | "15" | "30" | "60">[] = [
+  { value: "10", label: "10 menit sebelumnya" },
+  { value: "15", label: "15 menit sebelumnya" },
+  { value: "30", label: "30 menit sebelumnya" },
+  { value: "60", label: "1 jam sebelumnya" },
+];
 
 const EVENT_TIME_FIELDS = [
   { name: "startAt", id: "event-start", label: "Mulai" },
@@ -663,17 +671,9 @@ export function EventEditor({
                       aria-describedby={describedBy}
                       aria-invalid={invalid}
                       onBlur={field.handleBlur}
-                      onChange={(change) =>
-                        field.handleChange(
-                          change.target.value as "10" | "15" | "30" | "60"
-                        )
-                      }
-                    >
-                      <option value="10">10 menit sebelumnya</option>
-                      <option value="15">15 menit sebelumnya</option>
-                      <option value="30">30 menit sebelumnya</option>
-                      <option value="60">1 jam sebelumnya</option>
-                    </SelectField>
+                      onValueChange={field.handleChange}
+                      options={EVENT_REMINDER_OPTIONS}
+                    />
                   )}
                 </FieldShell>
               </EventEditorRow>

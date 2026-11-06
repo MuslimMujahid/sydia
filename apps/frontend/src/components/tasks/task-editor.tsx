@@ -312,16 +312,14 @@ export function TaskEditor({
                         value={field.state.value}
                         aria-describedby={describedBy}
                         onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value as TaskStatus)
-                        }
-                      >
-                        {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </SelectField>
+                        onValueChange={field.handleChange}
+                        options={(
+                          Object.entries(STATUS_LABELS) as [
+                            TaskStatus,
+                            string,
+                          ][]
+                        ).map(([value, label]) => ({ value, label }))}
+                      />
                     )}
                   </FieldShell>
                 )}

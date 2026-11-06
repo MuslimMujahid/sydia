@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chooseOption, expectOptions } from "./select-field";
 import type {
   CalendarEvent,
   CalendarEventWriteInput,
@@ -360,7 +361,7 @@ test("connected Google Settings keeps account switching on the existing toggle",
     page.getByRole("button", { name: "Ganti akun Google" })
   ).toHaveCount(0);
   await expect(
-    page.getByRole("combobox", { name: "Kalender Google" })
+    page.getByRole("button", { name: "Kalender Google" })
   ).toHaveCount(0);
   await expect(
     page.getByText(/Jika Anda mengganti akun atau kalender/)
@@ -776,7 +777,7 @@ test("event fields stay collapsed until their icon row is clicked", async ({
   await expect(page.getByLabel("Judul", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Lokasi", { exact: true })).toBeHidden();
   await expect(
-    page.getByRole("combobox", { name: "Pengulangan", exact: true })
+    page.getByRole("button", { name: "Pengulangan", exact: true })
   ).toBeHidden();
   await expect(page.getByRole("tab")).toHaveCount(0);
   await page.screenshot({
@@ -867,9 +868,10 @@ test("Google destination controls whether Meet is offered and saved", async ({
   await page.getByRole("button", { name: "Ubah Google Meet" }).click();
   await page.getByRole("checkbox", { name: "Tambahkan Google Meet" }).check();
   await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
-  await page
-    .getByRole("combobox", { name: "Pengulangan", exact: true })
-    .selectOption("weekly");
+  await chooseOption(
+    page.getByRole("button", { name: "Pengulangan", exact: true }),
+    "Setiap minggu"
+  );
   await page.getByRole("button", { name: "Simpan acara" }).click();
   await expect
     .poll(() => mocks.createRequest)
@@ -891,13 +893,15 @@ test("all-day recurring events save without hidden timed fields", async ({
   await page.getByLabel("Judul", { exact: true }).fill("Libur tim");
   await page.getByRole("button", { name: "Ubah tanggal dan waktu" }).click();
   await page.getByRole("checkbox", { name: "Sepanjang hari" }).check();
-  await page
-    .getByRole("combobox", { name: "Pengulangan", exact: true })
-    .selectOption("custom");
-  await page.getByLabel("Satuan pengulangan").selectOption("MONTHLY");
-  await page
-    .getByRole("combobox", { name: "Berakhir", exact: true })
-    .selectOption("count");
+  await chooseOption(
+    page.getByRole("button", { name: "Pengulangan", exact: true }),
+    "Kustom…"
+  );
+  await chooseOption(page.getByLabel("Satuan pengulangan"), "bulan");
+  await chooseOption(
+    page.getByRole("button", { name: "Berakhir", exact: true }),
+    "Setelah beberapa kali"
+  );
   await page.getByLabel("Jumlah pengulangan").fill("3");
   await page.screenshot({
     path: `/tmp/sydia-event-${testInfo.project.name}-expanded.png`,
@@ -1224,8 +1228,8 @@ test("new events default to one ten-minute reminder", async ({
   await expect(page.getByLabel("Pengingat sebelum acara")).toBeHidden();
   await reminderRow.click();
   const reminder = page.getByLabel("Pengingat sebelum acara");
-  await expect(reminder).toHaveValue("10");
-  await expect(reminder.locator("option")).toHaveText([
+  await expect(reminder).toHaveText("10 menit sebelumnya");
+  await expectOptions(reminder, [
     "10 menit sebelumnya",
     "15 menit sebelumnya",
     "30 menit sebelumnya",
@@ -1255,16 +1259,20 @@ for (const minutes of [15, 30, 60]) {
     await page.getByRole("button", { name: "Edit acara" }).click();
     const reminderRow = page.getByRole("button", { name: "Ubah pengingat" });
     await reminderRow.click();
-    await page
-      .getByLabel("Pengingat sebelum acara")
-      .selectOption(String(minutes));
+    const reminderLabel =
+      minutes === 60 ? "1 jam sebelumnya" : `${minutes} menit sebelumnya`;
+
+    await chooseOption(
+      page.getByLabel("Pengingat sebelum acara"),
+      reminderLabel
+    );
     await reminderRow.click();
     await expect(reminderRow).toHaveText(
       minutes === 60 ? "1 jam sebelum acara" : `${minutes} menit sebelum acara`
     );
     await reminderRow.click();
-    await expect(page.getByLabel("Pengingat sebelum acara")).toHaveValue(
-      String(minutes)
+    await expect(page.getByLabel("Pengingat sebelum acara")).toHaveText(
+      reminderLabel
     );
     await page.getByRole("button", { name: "Simpan acara" }).click();
     await expect

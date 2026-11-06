@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Search } from "lucide-react";
+import { SelectField, type SelectOption } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import {
   searchWorkspaceNotes,
   type WorkspaceItem,
 } from "@/lib/services/api/notes/notes.api";
+
+const KIND_OPTIONS: SelectOption<string>[] = [
+  { value: "", label: "Semua catatan" },
+  { value: "note", label: "Catatan khusus" },
+  { value: "daily", label: "Catatan harian" },
+];
 
 type WorkspaceSearchProps = {
   query: string;
@@ -42,41 +49,39 @@ export function WorkspaceSearch({
     retry: false,
   });
 
+  const folderOptions: SelectOption<string>[] = [
+    { value: "", label: "Semua folder" },
+    ...items
+      .filter((item) => item.kind === "folder" && !item.trashedAt)
+      .map((folder) => ({ value: folder.id, label: folder.path })),
+  ];
+
   return (
     <section className="mx-auto w-full max-w-4xl px-6 py-8 sm:px-12">
       <h1 className="text-2xl font-semibold tracking-[-0.02em]">
         Cari catatan
       </h1>
       <div className="mt-5 flex flex-wrap gap-3">
-        <label className="text-xs text-ink-muted">
-          Jenis catatan
-          <select
+        <div className="text-xs text-ink-muted">
+          <span id="workspace-search-kind">Jenis catatan</span>
+          <SelectField
+            aria-labelledby="workspace-search-kind"
+            className="mt-1 w-auto max-w-full text-sm"
             value={kind}
-            onChange={(event) => setKind(event.target.value)}
-            className="mt-1 block min-h-11 max-w-full rounded-sm border border-ink/12 bg-canvas px-3 text-sm text-ink"
-          >
-            <option value="">Semua catatan</option>
-            <option value="note">Catatan khusus</option>
-            <option value="daily">Catatan harian</option>
-          </select>
-        </label>
-        <label className="min-w-0 text-xs text-ink-muted">
-          Folder
-          <select
+            options={KIND_OPTIONS}
+            onValueChange={setKind}
+          />
+        </div>
+        <div className="min-w-0 text-xs text-ink-muted">
+          <span id="workspace-search-folder">Folder</span>
+          <SelectField
+            aria-labelledby="workspace-search-folder"
+            className="mt-1 w-auto max-w-full text-sm"
             value={folderId}
-            onChange={(event) => setFolderId(event.target.value)}
-            className="mt-1 block min-h-11 max-w-full rounded-sm border border-ink/12 bg-canvas px-3 text-sm text-ink"
-          >
-            <option value="">Semua folder</option>
-            {items
-              .filter((item) => item.kind === "folder" && !item.trashedAt)
-              .map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.path}
-                </option>
-              ))}
-          </select>
-        </label>
+            options={folderOptions}
+            onValueChange={setFolderId}
+          />
+        </div>
       </div>
       {!searchTerm ? (
         <p className="mt-10 flex items-center gap-2 text-sm text-ink-muted">

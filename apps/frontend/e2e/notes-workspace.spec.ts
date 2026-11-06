@@ -10,6 +10,7 @@ import type {
   NotesWorkspace,
   WorkspaceItem,
 } from "../src/lib/services/api/notes/notes.api";
+import { chooseOption } from "./select-field";
 
 const backendURL =
   process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:5000";
@@ -615,9 +616,10 @@ test.describe("Notes workspace with the real backend", () => {
     await expect(
       page.getByRole("heading", { name: "Cari catatan", exact: true })
     ).toBeVisible();
-    await page
-      .getByRole("combobox", { name: "Folder", exact: true })
-      .selectOption(folder.id);
+    await chooseOption(
+      page.getByRole("button", { name: "Folder", exact: true }),
+      folder.path
+    );
     await expect(
       page.getByRole("button", { name: /Rencana.*Membahas peluncuran/ })
     ).toBeVisible();

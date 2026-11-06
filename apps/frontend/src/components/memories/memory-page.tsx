@@ -423,22 +423,14 @@ export function MemoryPage() {
           onSubmit={() => setSearch(searchDraft.trim())}
           onClear={clearSearch}
         />
-        <label>
-          <span className="sr-only">Status memori</span>
-          <SelectField
-            value={status}
-            disabled={Boolean(search)}
-            onChange={(event) =>
-              setStatus(event.target.value as MemoryStatus | "all")
-            }
-          >
-            {STATUS_FILTERS.map((filter) => (
-              <option key={filter.value} value={filter.value}>
-                {filter.label}
-              </option>
-            ))}
-          </SelectField>
-        </label>
+        <SelectField
+          aria-label="Status memori"
+          className="w-auto"
+          value={status}
+          disabled={Boolean(search)}
+          onValueChange={setStatus}
+          options={STATUS_FILTERS}
+        />
         <Button
           variant="dark-outline"
           className={cn(pinnedOnly && "bg-surface-1 [&_svg]:text-brand")}

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { DomainPageHeader } from "@/components/domain/domain-page";
+import { SelectField, type SelectOption } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +14,23 @@ import {
   useUpdateUserPreferences,
 } from "@/lib/services/api/users/preferences.queries";
 import { WHATSAPP_INTEGRATION_ENABLED } from "@/lib/feature-flags";
+
+const FOLLOW_UP_INTERVAL_OPTIONS: SelectOption<string>[] = [
+  { value: "30", label: "30 Menit" },
+  { value: "60", label: "1 Jam" },
+  { value: "120", label: "2 Jam" },
+  { value: "180", label: "3 Jam" },
+];
+
+const WEEKDAY_OPTIONS: SelectOption<string>[] = [
+  "Senin",
+  "Selasa",
+  "Rabu",
+  "Kamis",
+  "Jumat",
+  "Sabtu",
+  "Minggu",
+].map((label, index) => ({ value: String(index + 1), label }));
 
 function PreferenceSwitch({
   id,
@@ -198,14 +216,15 @@ export function NotificationSettingsPage() {
               Kirim pengingat tugas setiap interval yang dipilih. Tidak ada
               pengiriman antara pukul 22.00–08.00.
             </p>
-            <select
+            <SelectField
               id="follow-up-interval"
               aria-describedby="follow-up-description"
-              className="mt-3 h-11 rounded-sm border border-ink/16 bg-canvas px-3 text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:bg-ink/4 disabled:opacity-40"
-              value={preferences.followUpIntervalMinutes}
+              className="mt-3 w-auto"
+              value={String(preferences.followUpIntervalMinutes)}
               disabled={controlsDisabled}
-              onChange={(event) => {
-                const minutes = Number(event.target.value);
+              options={FOLLOW_UP_INTERVAL_OPTIONS}
+              onValueChange={(value) => {
+                const minutes = Number(value);
 
                 if (
                   minutes === 30 ||
@@ -216,12 +235,7 @@ export function NotificationSettingsPage() {
                   updateMutation.mutate({ followUpIntervalMinutes: minutes });
                 }
               }}
-            >
-              <option value={30}>30 Menit</option>
-              <option value={60}>1 Jam</option>
-              <option value={120}>2 Jam</option>
-              <option value={180}>3 Jam</option>
-            </select>
+            />
           </Card>
           <Card className="p-6 sm:p-8" aria-label="Briefing">
             <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
@@ -255,27 +269,18 @@ export function NotificationSettingsPage() {
                 >
                   Hari briefing mingguan
                 </label>
-                <select
+                <SelectField
                   id="weekly-briefing-day"
-                  className="mt-3 h-11 rounded-sm border border-ink/16 bg-canvas px-3 text-[15px] text-ink outline-none hover:border-brand/50 focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15 disabled:bg-ink/4 disabled:opacity-40"
-                  value={preferences.weeklyBriefingDay}
+                  className="mt-3 w-auto"
+                  value={String(preferences.weeklyBriefingDay)}
                   disabled={
                     controlsDisabled || !preferences.weeklyBriefingEnabled
                   }
-                  onChange={(event) =>
-                    updateMutation.mutate({
-                      weeklyBriefingDay: Number(event.target.value),
-                    })
+                  options={WEEKDAY_OPTIONS}
+                  onValueChange={(value) =>
+                    updateMutation.mutate({ weeklyBriefingDay: Number(value) })
                   }
-                >
-                  <option value={1}>Senin</option>
-                  <option value={2}>Selasa</option>
-                  <option value={3}>Rabu</option>
-                  <option value={4}>Kamis</option>
-                  <option value={5}>Jumat</option>
-                  <option value={6}>Sabtu</option>
-                  <option value={7}>Minggu</option>
-                </select>
+                />
               </div>
               <div className="py-5 last:pb-0">
                 <label

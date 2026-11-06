@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { SelectField, TextField } from "@/components/forms/form-fields";
+import {
+  SelectField,
+  TextField,
+  type SelectOption,
+} from "@/components/forms/form-fields";
 import {
   REPEAT_DAYS,
   REPEAT_LABELS,
@@ -11,6 +15,19 @@ import {
   type RepeatFrequency,
   type RepeatPreset,
 } from "./event-recurrence";
+
+const REPEAT_FREQUENCY_OPTIONS: SelectOption<RepeatFrequency>[] = [
+  { value: "DAILY", label: "hari" },
+  { value: "WEEKLY", label: "minggu" },
+  { value: "MONTHLY", label: "bulan" },
+  { value: "YEARLY", label: "tahun" },
+];
+
+const REPEAT_END_OPTIONS: SelectOption<CustomRepeat["end"]>[] = [
+  { value: "never", label: "Tidak pernah" },
+  { value: "date", label: "Pada tanggal" },
+  { value: "count", label: "Setelah beberapa kali" },
+];
 
 type EventRecurrenceFieldProps = {
   value: string[];
@@ -57,24 +74,18 @@ export function EventRecurrenceField({
 
   return (
     <fieldset disabled={disabled} className="space-y-3">
-      <label className="block space-y-1 text-sm">
-        <span className="sr-only">Pengulangan</span>
-        <SelectField
-          value={editingCustom ? "custom" : preset}
-          onChange={(event) => {
-            const next = event.target.value as RepeatPreset;
-            setEditingCustom(next === "custom");
-            if (next !== "custom") onChange(presetRecurrence(next));
-            else if (preset !== "custom") update(custom);
-          }}
-        >
-          {Object.entries(REPEAT_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </SelectField>
-      </label>
+      <SelectField
+        aria-label="Pengulangan"
+        value={editingCustom ? "custom" : preset}
+        onValueChange={(next) => {
+          setEditingCustom(next === "custom");
+          if (next !== "custom") onChange(presetRecurrence(next));
+          else if (preset !== "custom") update(custom);
+        }}
+        options={(
+          Object.entries(REPEAT_LABELS) as [RepeatPreset, string][]
+        ).map(([value, label]) => ({ value, label }))}
+      />
       {preset === "custom" && !editingCustom ? (
         <button
           type="button"
@@ -114,19 +125,11 @@ export function EventRecurrenceField({
             </label>
             <SelectField
               aria-label="Satuan pengulangan"
+              className="w-auto"
               value={custom.frequency}
-              onChange={(event) =>
-                update({
-                  ...custom,
-                  frequency: event.target.value as RepeatFrequency,
-                })
-              }
-            >
-              <option value="DAILY">hari</option>
-              <option value="WEEKLY">minggu</option>
-              <option value="MONTHLY">bulan</option>
-              <option value="YEARLY">tahun</option>
-            </SelectField>
+              onValueChange={(frequency) => update({ ...custom, frequency })}
+              options={REPEAT_FREQUENCY_OPTIONS}
+            />
           </div>
           {custom.frequency === "WEEKLY" ? (
             <fieldset>
@@ -171,22 +174,15 @@ export function EventRecurrenceField({
               </div>
             </fieldset>
           ) : null}
-          <label className="block space-y-1 text-sm">
-            Berakhir
+          <div className="space-y-1 text-sm">
+            <span id="repeat-end-label">Berakhir</span>
             <SelectField
+              aria-labelledby="repeat-end-label"
               value={custom.end}
-              onChange={(event) =>
-                update({
-                  ...custom,
-                  end: event.target.value as CustomRepeat["end"],
-                })
-              }
-            >
-              <option value="never">Tidak pernah</option>
-              <option value="date">Pada tanggal</option>
-              <option value="count">Setelah beberapa kali</option>
-            </SelectField>
-          </label>
+              onValueChange={(end) => update({ ...custom, end })}
+              options={REPEAT_END_OPTIONS}
+            />
+          </div>
           {custom.end === "date" ? (
             <TextField
               aria-label="Tanggal akhir pengulangan"

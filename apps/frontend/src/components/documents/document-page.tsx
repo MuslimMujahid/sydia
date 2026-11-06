@@ -29,6 +29,7 @@ import {
   DomainInlineError,
   DomainListSkeleton,
 } from "@/components/domain/domain-page";
+import { SelectField, type SelectOption } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { TopbarTitle } from "@/components/dashboard/topbar-slots";
 import "./file-library.css";
@@ -89,6 +90,13 @@ function FileEditor({ id, onClose }: FileEditorProps) {
 
   return <DocumentEditDialog document={query.data} onClose={onClose} />;
 }
+
+const SORT_OPTIONS: SelectOption<string>[] = [
+  { value: "name:asc", label: "Nama: A–Z" },
+  { value: "name:desc", label: "Nama: Z–A" },
+  { value: "createdAt:desc", label: "Terbaru ditambahkan" },
+  { value: "createdAt:asc", label: "Terlama ditambahkan" },
+];
 
 export function DocumentPage() {
   const hydrated = useHydrated();
@@ -441,32 +449,24 @@ export function DocumentPage() {
             ) : null}
           </form>
           <div className="files-controls">
-            <label className="files-sort">
-              <ListFilter aria-hidden="true" />
-              <span className="sr-only">Urutkan</span>
-              <select
-                aria-label="Urutkan"
-                className="files-sort-select"
-                value={`${search.sort ?? "name"}:${search.direction ?? "asc"}`}
-                onChange={(event) => {
-                  const [sort, direction] = event.target.value.split(":");
-                  void navigate({
-                    search: (previous) => ({
-                      ...previous,
-                      sort: sort as "name" | "createdAt",
-                      direction: direction as "asc" | "desc",
-                      offset: undefined,
-                    }),
-                  });
-                }}
-              >
-                <option value="name:asc">Nama: A–Z</option>
-                <option value="name:desc">Nama: Z–A</option>
-                <option value="createdAt:desc">Terbaru ditambahkan</option>
-                <option value="createdAt:asc">Terlama ditambahkan</option>
-              </select>
-              <ChevronDown aria-hidden="true" />
-            </label>
+            <SelectField
+              aria-label="Urutkan"
+              className="files-sort"
+              icon={<ListFilter aria-hidden="true" />}
+              value={`${search.sort ?? "name"}:${search.direction ?? "asc"}`}
+              options={SORT_OPTIONS}
+              onValueChange={(value) => {
+                const [sort, direction] = value.split(":");
+                void navigate({
+                  search: (previous) => ({
+                    ...previous,
+                    sort: sort as "name" | "createdAt",
+                    direction: direction as "asc" | "desc",
+                    offset: undefined,
+                  }),
+                });
+              }}
+            />
             <div
               className="files-view-switch"
               role="group"
