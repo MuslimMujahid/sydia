@@ -218,11 +218,19 @@ function knownDocumentManifest(documents: DocumentMetadata[]): string {
     .join('\n');
 }
 
+/**
+ * One JSON object per memory, as recalled memories already are: a fact that
+ * contains a newline or "id:"-like text cannot break out of its own line.
+ */
 function memoryManifest(memories: Memory[]): string {
   return memories
-    .map(
-      (memory) =>
-        `- id: ${memory.id}; category: ${memory.category ?? 'uncategorized'}; updated: ${memory.updatedAt.toISOString()}; fact: ${memory.content}`,
+    .map((memory) =>
+      JSON.stringify({
+        id: memory.id,
+        category: memory.category ?? 'uncategorized',
+        updated: memory.updatedAt.toISOString(),
+        fact: memory.content,
+      }),
     )
     .join('\n');
 }
@@ -253,9 +261,14 @@ function recentConversationManifest(
     Math.floor(remaining / Math.max(1, conversation.messages.length)),
   );
 
-  const excerpts = conversation.messages.map(({ role, content }) =>
-    truncateToTokens(`${role}: ${content}`, perMessage),
-  );
+  // JSON-encoded so an old message cannot fake an "assistant:" line; the text
+  // is truncated before encoding so each excerpt stays valid JSON.
+  const excerptOverhead = estimateTokens('{"role":"assistant","text":""}');
+  const excerpts = conversation.messages.map(({ role, content }) => {
+    const text = truncateToTokens(content, perMessage - excerptOverhead);
+
+    return text ? JSON.stringify({ role, text }) : '';
+  });
 
   return truncateToTokens(
     [heading, summary, ...excerpts].filter(Boolean).join('\n'),
