@@ -1534,6 +1534,76 @@ function expenseModel(): LanguageModelGateway {
       },
     );
 
+    test('a near-match ref beside a requested note name does not fail the capture', async () => {
+      const nearMatch = await notes.create(owner, {
+        kind: 'note',
+        title: 'Keuangan 2026',
+        requestKey: 'near-match-tracker',
+      });
+
+      const original = await db.message.findUniqueOrThrow({
+        where: { id: messageId },
+      });
+
+      const message = await db.message.create({
+        data: {
+          userId: owner,
+          conversationId: original.conversationId,
+          role: 'user',
+          content: 'Catat pengeluaran Rp50.000 di catatan Keuangan.',
+        },
+      });
+
+      // The model names the requested note but also selects a related note
+      // whose title only resembles it; the exact name must still win.
+      const model: LanguageModelGateway = {
+        provider: 'openrouter',
+        model: 'near-match-ref',
+        generate: (request) =>
+          Promise.resolve({
+            text: JSON.stringify(
+              request.outputSchema?.properties?.items
+                ? {
+                    items: [
+                      {
+                        quote: message.content,
+                        operation: 'add',
+                        purpose: 'tracking',
+                        topic: 'Pengeluaran',
+                        text: '2026-10-31: pengeluaran Rp50.000',
+                        date: '2026-10-31',
+                        explicitRef: `custom:${nearMatch.id}`,
+                        explicitOnly: true,
+                        organize: false,
+                        question: null,
+                        requestedDestination: {
+                          title: 'Keuangan',
+                          parentId: null,
+                        },
+                      },
+                    ],
+                  }
+                : {
+                    append: '2026-10-31: pengeluaran Rp50.000',
+                    replacements: [],
+                    question: null,
+                  },
+            ),
+            usage: {},
+          }),
+      };
+
+      expect(
+        await organizer('apply', model).captureMessage(owner, message.id),
+      ).toMatchObject({
+        records: [expect.objectContaining({ status: 'applied' })],
+      });
+      expect((await notes.list(owner)).notes).toContainEqual(
+        expect.objectContaining({ title: 'Keuangan', parentId: null }),
+      );
+      expect((await notes.find(owner, nearMatch.id)).text).toBe('');
+    });
+
     test('an explicit unresolved folder keeps a clarification record rather than a daily capture', async () => {
       const original = await db.message.findUniqueOrThrow({
         where: { id: messageId },
