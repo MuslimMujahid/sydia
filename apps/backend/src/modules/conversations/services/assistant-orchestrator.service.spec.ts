@@ -16,7 +16,10 @@ import {
   ModelGatewayError,
   type LanguageModelGateway,
 } from '../../../infra/model-gateway';
-import { AssistantOrchestratorService } from './assistant-orchestrator.service';
+import {
+  AssistantOrchestratorService,
+  backgroundDecision,
+} from './assistant-orchestrator.service';
 import { ContextBuilderService } from './context-builder.service';
 import { ConversationSummarizerService } from './conversation-summarizer.service';
 import type { TerminalToolExecution } from './terminal-tool-response';
@@ -888,4 +891,35 @@ describe('active-note message idempotency', () => {
       expect(generate).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('backgroundDecision', () => {
+  it.each([
+    ['bare token', 'NO_ACTION: sudah dibahas', 'sudah dibahas'],
+    [
+      'quoted as in the old prompt',
+      '"NO_ACTION: sudah dibahas"',
+      'sudah dibahas',
+    ],
+    ['backticks', '`NO_ACTION: tidak relevan`', 'tidak relevan'],
+    [
+      'a sentence before the token',
+      'Saya sudah memeriksa kalender. NO_ACTION: tidak ada pekerjaan terkait',
+      'tidak ada pekerjaan terkait',
+    ],
+    ['no reason', 'NO_ACTION', 'no_useful_assistance'],
+    ['empty reply', '', 'no_useful_assistance'],
+  ])('stays silent for %s', (_case, text, reason) => {
+    expect(backgroundDecision(text)).toEqual({ text: null, reason });
+  });
+
+  it('passes a real message through', () => {
+    const message =
+      'Rapat dengan Budi jam 14.00; draf laporannya belum selesai.';
+
+    expect(backgroundDecision(message)).toEqual({
+      text: message,
+      reason: 'useful',
+    });
+  });
 });

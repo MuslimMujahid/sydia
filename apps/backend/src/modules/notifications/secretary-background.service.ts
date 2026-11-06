@@ -329,7 +329,7 @@ export class SecretaryBackgroundService {
         key: `prep:${userId}:${event.id}:${event.startAt!.toISOString()}:r${event.revision}`,
         sourceId: event.id,
         behavior: 'meeting_preparation' as const,
-        trigger: `Upcoming calendar event "${event.title}" at ${localDateTime(event.startAt!, timezone)}–${localDateTime(event.endAt!, timezone).slice(11)} (${timezone}), event id ${event.id}, status ${event.status}. Consider meeting preparation for related unfinished work.`,
+        trigger: `Upcoming calendar event ${JSON.stringify(event.title)} at ${localDateTime(event.startAt!, timezone)}–${localDateTime(event.endAt!, timezone).slice(11)} (${timezone}), event id ${event.id}, status ${event.status}. Consider meeting preparation for related unfinished work.`,
       }));
   }
 }

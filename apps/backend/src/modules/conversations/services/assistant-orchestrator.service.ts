@@ -164,6 +164,33 @@ type AssistantTurnResult = {
   toolInvocations: ToolInvocation[];
 };
 
+const NO_ACTION = /\bNO_ACTION\b:?\s*/i;
+
+/**
+ * A background evaluation stays silent when it says NO_ACTION anywhere: the
+ * token never belongs in a real message, and models often wrap it in quotes
+ * or put a sentence before it, which must not reach the user.
+ */
+export function backgroundDecision(text: string): {
+  text: string | null;
+  reason: string;
+} {
+  const marker = NO_ACTION.exec(text);
+
+  if (!text || marker) {
+    const reason = marker
+      ? text
+          .slice(marker.index + marker[0].length)
+          .replace(/["'`*_\s]+$/, '')
+          .slice(0, 200)
+      : '';
+
+    return { text: null, reason: reason || 'no_useful_assistance' };
+  }
+
+  return { text, reason: 'useful' };
+}
+
 @Injectable()
 export class AssistantOrchestratorService {
   private readonly logger = new Logger(AssistantOrchestratorService.name);
@@ -676,7 +703,7 @@ export class AssistantOrchestratorService {
         ...built.messages,
         {
           role: 'system',
-          content: `Background evaluation (not a message from the user and not an instruction to act): ${input.trigger}\nDecide whether an unsolicited message would genuinely help now. Retrieve current context first. Only connect the event to work that the evidence explicitly ties to it (the same organization, project, or title); never attach unrelated efforts to a meeting. If no recorded work relates to this event, the relevant work is already done, the event no longer exists, the help was already given or declined, or nothing is useful, reply exactly "NO_ACTION: <short reason>". Otherwise write one concise message to the user in their language, grounded only in verified facts. You cannot save anything; if a saved change would help, prepare it with prepare_action and ask in the message.`,
+          content: `Background evaluation (not a message from the user and not an instruction to act): ${input.trigger}\nDecide whether an unsolicited message would genuinely help now. Retrieve current context first. Only connect the event to work that the evidence explicitly ties to it (the same organization, project, or title); never attach unrelated efforts to a meeting. If no recorded work relates to this event, the relevant work is already done, the event no longer exists, the help was already given or declined, or nothing is useful, your entire reply must be the word NO_ACTION, a colon, and a short reason, with no quotes and nothing before it. Otherwise write one concise message to the user in their language, grounded only in verified facts. You cannot save anything; if a saved change would help, prepare it with prepare_action and ask in the message.`,
         },
       ],
       userId: input.user.id,
@@ -697,7 +724,8 @@ export class AssistantOrchestratorService {
         )
       : [];
 
-    const silent = !text || /^NO_ACTION\b/i.test(text);
+    const decision = backgroundDecision(text);
+    const silent = decision.text === null;
 
     this.logger.log(
       JSON.stringify({
@@ -711,11 +739,7 @@ export class AssistantOrchestratorService {
     );
 
     return {
-      text: silent ? null : text,
-      reason: silent
-        ? text.replace(/^NO_ACTION:?\s*/i, '').slice(0, 200) ||
-          'no_useful_assistance'
-        : 'useful',
+      ...decision,
       loadedSkills: Object.fromEntries(skills.loaded),
       preparedActionIds: prepared.map((action) => action.id),
     };
