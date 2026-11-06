@@ -29,7 +29,7 @@ import {
 
 const MAX_SOURCES_PER_RUN = 12;
 const ORGANIZATION_GOAL_VERSION = 'maintained-records-v1';
-const ORGANIZATION_GOAL = `Background note organization goal: maintain useful homes for the owner's records. A successful conversational capture does not settle organization: consider where the records can be compared and maintained. A single useful record can justify initializing a collection; do not require another explicit request solely because the owner has not yet asked for that organization. Honor actual destination requests and preserve original daily captures and owner deletions. No change is appropriate for non-record evidence or material already in a suitable maintained home. In proposal mode describe concrete destination and resulting document changes rather than offering to do them later. Choose useful inspections and actions freely; no fixed workflow is required.`;
+const ORGANIZATION_GOAL = `Background note organization goal: maintain useful homes for the owner's records. A successful conversational capture does not settle organization: consider where the records can be compared and maintained. A single useful record can justify initializing a collection; do not require another explicit request solely because the owner has not yet asked for that organization. Honor actual destination requests and preserve original daily captures and owner deletions. No change is appropriate for non-record evidence or material already in a suitable maintained home. Choose useful inspections and actions freely; no fixed workflow is required.`;
 
 @Injectable()
 export class NoteAgentCoordinatorService {

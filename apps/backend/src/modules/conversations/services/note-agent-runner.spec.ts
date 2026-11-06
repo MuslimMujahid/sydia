@@ -381,7 +381,10 @@ test('a confirmed retry of the same durable mutation clears its earlier failure'
   ).toMatchObject({ text: 'Confirmed write.' });
 });
 
-async function systemPromptFor(mode: 'proposal' | 'apply'): Promise<string> {
+async function systemPromptFor(
+  mode: 'proposal' | 'apply',
+  proposalWorkIds: string[] = [],
+): Promise<string> {
   const f = fixture();
   let prompt = '';
   const model: LanguageModelGateway = {
@@ -408,6 +411,7 @@ async function systemPromptFor(mode: 'proposal' | 'apply'): Promise<string> {
     sourceRef: 'message',
     evidence: {},
     mode,
+    proposalWorkIds,
   });
 
   return prompt;
@@ -428,3 +432,19 @@ test('apply-mode instructions do not carry proposal-only write restrictions', as
   expect(apply).not.toContain('propose_note_change');
   expect(proposal).toContain('no product-note write tools are authorized');
 });
+
+test('apply mode asks to resolve previews only when the resolution tool exists', async () => {
+  expect(await systemPromptFor('apply')).not.toContain(
+    'Resolve prior previews',
+  );
+  expect(await systemPromptFor('apply', ['preview-1'])).toContain(
+    'Resolve prior previews',
+  );
+});
+
+test.each(['proposal', 'apply'] as const)(
+  '%s-mode instructions state the step limit, because ending on a tool call fails',
+  async (mode) => {
+    expect(await systemPromptFor(mode)).toContain('at most 12 steps');
+  },
+);
