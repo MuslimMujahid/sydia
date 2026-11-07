@@ -1,7 +1,7 @@
 ---
 name: scheduling
-version: 1.2.0
-description: A proposed time, a free-slot question, a conflict, or finding time for work; calculate availability from the Sydia calendar and explain it.
+version: 1.3.0
+description: A proposed time, a free-slot question, a conflict, finding time for work, or a request to move an event; calculate availability from the Sydia calendar and explain it.
 references:
   - availability-rules.md
 tools:
@@ -12,6 +12,7 @@ tools:
   - check_availability
   - prepare_action
   - create_calendar_event
+  - update_calendar_event
 ---
 
 # Scheduling
@@ -35,6 +36,16 @@ Use `get_work_context` or `search_memories` to retrieve preferences when they ar
 Always call `check_availability` before claiming a time is free, conflicting, or the best option. It reads current Sydia calendar occurrences (recurrences and exceptions expanded, cancelled events excluded, all-day events with exclusive end dates) and returns conflicts, the requested interval's status, and ranked valid slots. Read `availability-rules.md` with `load_skill` if a rule is unclear.
 
 If the calendar read fails, say you cannot verify availability right now; never treat a failure as an empty calendar.
+
+## Direct requests
+
+When the user directly asks to add an event or move an existing one ("pindahin rapat besok jadi jam 3 sore"), check availability for the new time, then make the change with `create_calendar_event` or `update_calendar_event`. Do not prepare an offer or ask for confirmation first.
+
+Ask first only when the request is ambiguous or blocked:
+
+- Several events could be the one meant (for example, two meetings tomorrow): list them and ask which.
+- The new time conflicts with another event: name the conflict and ask whether to go ahead or pick another time.
+- Required details are missing and cannot be taken from the event itself. A moved event keeps its duration unless the user says otherwise.
 
 ## Respond
 

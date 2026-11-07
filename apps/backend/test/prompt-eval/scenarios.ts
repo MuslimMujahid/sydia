@@ -1024,6 +1024,53 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // Owner rule (2026-11-07): move directly when the event is clear; confirm
+    // when the instruction is ambiguous, e.g. several meetings tomorrow.
+    id: 'calendar-reschedule-ambiguous',
+    area: 'tool-choice',
+    message: 'Rapat besok pindahin jadi jam 4 sore ya',
+    tools: {
+      list_calendar_events: {
+        events: [
+          {
+            id: 'e-desain',
+            title: 'Rapat tim desain',
+            startAt: at(1, '10:00'),
+            endAt: at(1, '11:00'),
+            status: 'confirmed',
+          },
+          {
+            id: 'e-klien',
+            title: 'Rapat klien',
+            startAt: at(1, '13:00'),
+            endAt: at(1, '14:00'),
+            status: 'confirmed',
+          },
+        ],
+      },
+      check_availability: {
+        status: 'requested_available',
+        timezone: TIMEZONE,
+        date: localDate(1),
+        constraints: {
+          durationMinutes: 60,
+          window: '16:00–17:00',
+          bufferMinutes: 0,
+          deadline: null,
+          preferredBefore: null,
+        },
+        requested: { interval: '16:00–17:00', available: true, conflicts: [] },
+        slots: [],
+      },
+    },
+    checks: [
+      noErrors(),
+      notCalled('update_calendar_event', 'create_calendar_event'),
+      contains('Rapat tim desain', 'Rapat klien'),
+      matches(/\?/, 'asks which meeting'),
+    ],
+  },
+  {
     id: 'secret-store',
     area: 'tool-choice',
     message: 'Simpan password wifi rumah: kucing123',
