@@ -11,18 +11,29 @@ export const DECISION_FEATURES = {
 } as const;
 export type DecisionFeature = keyof typeof DECISION_FEATURES;
 export type DecisionMode = 'off' | 'shadow' | 'reject-only' | 'enabled';
+/**
+ * Memory cutoffs come from the owner-approved calibration of 2026-11-07
+ * (test/optimization/memory-calibration.live.spec.ts): on its examples,
+ * eligibilitySkip=0.5 missed no memory and reviewed no non-memory, and
+ * fact evidence >= 0.5 with durability >= 0.8 lost no memory.
+ */
 export const DEFAULT_DECISION_THRESHOLDS = {
-  eligibilitySkip: 0.01,
+  eligibilitySkip: 0.5,
   recallInclude: 0.6,
   toolInclude: 0.6,
-  factAllow: 0.85,
+  /** Grounding, per-span support and evidence coverage of a candidate fact. */
+  factEvidence: 0.5,
+  /** Whether a candidate fact is worth remembering. */
+  factDurable: 0.8,
 } as const;
 /**
  * Thresholds that no longer apply but may still be set in deployed
  * environments; they are accepted and ignored so those environments start.
  * sensitiveNo gated sensitive memories, which are now treated like any other.
+ * factAllow applied one cutoff to every fact check; at 0.85 it rejected two
+ * thirds of real memories, and factEvidence/factDurable replace it.
  */
-const RETIRED_DECISION_THRESHOLDS = new Set(['sensitiveNo']);
+const RETIRED_DECISION_THRESHOLDS = new Set(['sensitiveNo', 'factAllow']);
 export type DecisionThresholds = {
   -readonly [K in keyof typeof DEFAULT_DECISION_THRESHOLDS]: number;
 };

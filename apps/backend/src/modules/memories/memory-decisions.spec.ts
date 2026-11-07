@@ -104,6 +104,28 @@ test('eligibility skips only a confident negative; uncertainty and failure retai
   expect(await eligibility.shouldReview('other', 'Hello')).toBe(true);
   expect(decide).toHaveBeenCalledTimes(3);
 });
+test.each([
+  [0.5, false],
+  [0.501, true],
+] as const)(
+  'eligibility at the calibrated cutoff: a score of %s reviews the message: %s',
+  async (score, reviewed) => {
+    const { decide, eligibility } = setup();
+    decide.mockResolvedValueOnce({
+      status: 'ok',
+      model: 'typesafe/jev-1.13-20260917',
+      answers: { eligible: { type: 'noul', noul: score } },
+      inputTokens: 1,
+      outputTokens: 1,
+      latencyMs: 1,
+      costUsd: null,
+    });
+
+    expect(await eligibility.shouldReview('user', 'Oke makasih ya')).toBe(
+      reviewed,
+    );
+  },
+);
 test('shadow eligibility never drops a source', async () => {
   const { decide, eligibility } = setup({
     BACKEND_MEMORY_ELIGIBILITY_MODE: 'shadow',
@@ -183,12 +205,16 @@ test('compound facts with incomplete selected-evidence coverage are rejected', a
     ),
   ).toEqual({ status: 'reject' });
 });
+/** Each check's cutoff: durability 0.8, every evidence check 0.5. */
+const atCutoff = (key: string): number =>
+  key.startsWith('durable') ? 0.8 : 0.5;
+
 test.each([
-  ['all', 0.85, 'allow'],
-  ['grounded_0', 0.849, 'reject'],
-  ['durable_0', 0.849, 'reject'],
-  ['support_0_0', 0.849, 'reject'],
-  ['coverage_0', 0.849, 'reject'],
+  ['all', null, 'allow'],
+  ['grounded_0', 0.499, 'reject'],
+  ['durable_0', 0.799, 'reject'],
+  ['support_0_0', 0.499, 'reject'],
+  ['coverage_0', 0.499, 'reject'],
 ] as const)(
   'fact approval boundary: %s at %s yields %s',
   async (question, probability, status) => {
@@ -202,7 +228,10 @@ test.each([
             key,
             {
               type: 'noul',
-              noul: question === 'all' || key === question ? probability : 0.85,
+              noul:
+                key === question && probability !== null
+                  ? probability
+                  : atCutoff(key),
             },
           ]),
         ),

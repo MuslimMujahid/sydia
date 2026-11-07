@@ -134,12 +134,12 @@ export class MemoryFactDecisionService {
       const selected = evidence.filter(
         (_, span) =>
           probability(`support_${index}_${span}`)! >=
-          this.settings.thresholds.factAllow,
+          this.settings.thresholds.factEvidence,
       );
 
       if (
-        grounded < this.settings.thresholds.factAllow ||
-        durable < this.settings.thresholds.factAllow ||
+        grounded < this.settings.thresholds.factEvidence ||
+        durable < this.settings.thresholds.factDurable ||
         !selected.length ||
         selected.some((quote) => !quote.trim())
       ) {
@@ -196,7 +196,7 @@ export class MemoryFactDecisionService {
         answer.noul > 1
       )
         return { status: 'unavailable', reason: 'invalid-response' };
-      if (answer.noul < this.settings.thresholds.factAllow)
+      if (answer.noul < this.settings.thresholds.factEvidence)
         return { status: 'reject' };
     }
 

@@ -12,23 +12,33 @@ describe('decision configuration', () => {
     expect(
       JSON.parse(parsed.BACKEND_DECISION_THRESHOLDS_JSON as string),
     ).toMatchObject({
+      eligibilitySkip: 0.5,
       recallInclude: 0.6,
       toolInclude: 0.6,
-      factAllow: 0.85,
+      factEvidence: 0.5,
+      factDurable: 0.8,
     });
     expect(
       new DecisionSettings(new ConfigService()).mode('tools', 'user'),
     ).toBe('off');
   });
-  test('accepts the retired sensitiveNo threshold so existing environments still start', () => {
-    expect(() =>
-      validateDecisionEnvironment({
-        BACKEND_DECISION_THRESHOLDS_JSON: JSON.stringify({
-          factAllow: 0.85,
-          sensitiveNo: 0.25,
-        }),
+  test('accepts retired thresholds so existing environments still start, and ignores them', () => {
+    const parsed = validateDecisionEnvironment({
+      BACKEND_DECISION_THRESHOLDS_JSON: JSON.stringify({
+        factAllow: 0.85,
+        sensitiveNo: 0.25,
       }),
-    ).not.toThrow();
+    });
+
+    expect(
+      JSON.parse(parsed.BACKEND_DECISION_THRESHOLDS_JSON as string),
+    ).toEqual({
+      eligibilitySkip: 0.5,
+      recallInclude: 0.6,
+      toolInclude: 0.6,
+      factEvidence: 0.5,
+      factDurable: 0.8,
+    });
     expect(() =>
       validateDecisionEnvironment({
         BACKEND_DECISION_THRESHOLDS_JSON: JSON.stringify({ madeUp: 0.5 }),
@@ -80,7 +90,8 @@ describe('decision configuration', () => {
     { BACKEND_MEMORY_RECALL_DECISION_MODE: 'reject-only' },
     { BACKEND_DECISION_TIMEOUT_MS: '0' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{' },
-    { BACKEND_DECISION_THRESHOLDS_JSON: '{"factAllow":-1}' },
+    { BACKEND_DECISION_THRESHOLDS_JSON: '{"factEvidence":-1}' },
+    { BACKEND_DECISION_THRESHOLDS_JSON: '{"factDurable":1}' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"factReject":0.01}' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"unknown":0.5}' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"recallSkip":0.01}' },
@@ -88,7 +99,7 @@ describe('decision configuration', () => {
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"constructor":0.5}' },
     { BACKEND_DECISION_THRESHOLDS_JSON: '{"__proto__":0.5}' },
     {
-      BACKEND_DECISION_THRESHOLDS_JSON: '{"factReject":0.9,"factAllow":0.8}',
+      BACKEND_DECISION_THRESHOLDS_JSON: '{"factReject":0.9,"factDurable":0.8}',
     },
   ])('rejects invalid controls %j', (config) => {
     expect(() => validateDecisionEnvironment(config)).toThrow();

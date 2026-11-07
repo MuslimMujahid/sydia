@@ -167,6 +167,79 @@ export const MEMORY_ELIGIBILITY_FIXTURES = [
     content: 'Catat: makan siang tadi 45 ribu.',
     eligible: false,
   },
+  // Owner-approved calibration additions (2026-11-07).
+  {
+    id: 'child-plan-id',
+    content: 'Anakku, Raka, mulai SD bulan Juli nanti.',
+    eligible: true,
+  },
+  {
+    id: 'diet-weeks-id',
+    content: 'Aku lagi diet rendah gula sampai akhir bulan.',
+    eligible: true,
+  },
+  {
+    id: 'concert-event-id',
+    content: 'Kemarin aku nonton konser Hindia di GBK sama adikku.',
+    eligible: true,
+  },
+  {
+    id: 'wfh-routine-id',
+    content: 'Mulai minggu depan aku WFH tiap Senin dan Jumat.',
+    eligible: true,
+  },
+  {
+    id: 'boss-person-id',
+    content: 'Bosku namanya Pak Hendra, orangnya detail banget.',
+    eligible: true,
+  },
+  {
+    id: 'ingat-shoe-size-id',
+    content: 'Ingat ya, nomor sepatuku 42.',
+    eligible: true,
+  },
+  {
+    id: 'mother-birthday-en',
+    content: "My mom's birthday is March 3.",
+    eligible: true,
+  },
+  {
+    id: 'vegetarian-id',
+    content: 'Btw aku sekarang udah vegetarian',
+    eligible: true,
+  },
+  {
+    id: 'purposeful-expense-id',
+    content: 'Tadi beli bensin 150rb buat mudik ke Solo besok.',
+    eligible: true,
+  },
+  { id: 'thanks-id', content: 'Oke makasih ya', eligible: false },
+  {
+    id: 'bare-weight-id',
+    content: 'Berat badan pagi ini 68,2 kg',
+    eligible: false,
+  },
+  { id: 'bare-fuel-id', content: 'Bensin 150rb', eligible: false },
+  {
+    id: 'turn-request-id',
+    content: 'Tolong buatin tugas beli galon.',
+    eligible: false,
+  },
+  {
+    id: 'question-id',
+    content: 'Jam berapa sekarang di London?',
+    eligible: false,
+  },
+  {
+    id: 'reported-claim-id',
+    content: 'Katanya temanku, kopi bikin umur panjang.',
+    eligible: false,
+  },
+  {
+    id: 'hypothetical-id',
+    content: 'Kalau aku pindah ke Bandung, enak gak ya?',
+    eligible: false,
+  },
 ] as const;
 export const EXTRACTOR_FIXTURES = [
   {

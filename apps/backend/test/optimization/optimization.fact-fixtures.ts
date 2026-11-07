@@ -1,4 +1,4 @@
-export const FACT_FIXTURE_VERSION = 'synthetic-fact-review-draft-v1';
+export const FACT_FIXTURE_VERSION = 'owner-approved-fact-review-20261107';
 
 export type FactFixture = {
   id: string;
@@ -10,8 +10,8 @@ export type FactFixture = {
   expectedAdmitted: boolean;
 };
 
-// Development proposals, not human-reviewed ground truth. Never send labels to
-// either reviewer or count these cases as independent held-out evidence.
+// Labels approved by the product owner on 2026-11-07 against the memory
+// retention policy. Never send labels to either reviewer.
 export const FACT_FIXTURES: FactFixture[] = [
   {
     id: 'language',
@@ -196,6 +196,109 @@ export const FACT_FIXTURES: FactFixture[] = [
     evidence: ['Catat: makan siang tadi 45 ribu.'],
     candidates: ['The user spent 45,000 on lunch today.'],
     permissions: [],
+    expectedAdmitted: false,
+  },
+  {
+    id: 'child-plan',
+    language: 'id',
+    category: 'relationship',
+    evidence: ['Anakku, Raka, mulai SD bulan Juli nanti.'],
+    permissions: [],
+    candidates: ["The user's son, Raka, starts elementary school in July."],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'diet-weeks',
+    language: 'id',
+    category: 'plan',
+    evidence: ['Aku lagi diet rendah gula sampai akhir bulan.'],
+    permissions: [],
+    candidates: ['The user is on a low-sugar diet until the end of the month.'],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'concert-event',
+    language: 'id',
+    category: 'event',
+    evidence: ['Kemarin aku nonton konser Hindia di GBK sama adikku.'],
+    permissions: [],
+    candidates: [
+      'Yesterday the user watched a Hindia concert at GBK with their younger sibling.',
+    ],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'salary-date',
+    language: 'id',
+    category: 'finance',
+    evidence: ['Gaji aku masuk tiap tanggal 25.'],
+    permissions: [],
+    candidates: ["The user's salary is paid on the 25th of each month."],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'asthma-diagnosis',
+    language: 'id',
+    category: 'health',
+    evidence: ['Aku baru didiagnosis asma ringan.'],
+    permissions: [],
+    candidates: ['The user was recently diagnosed with mild asthma.'],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'pet-routine',
+    language: 'id',
+    category: 'pet',
+    evidence: ['Kucingku, Mochi, harus minum obat cacing tiap 3 bulan.'],
+    permissions: [],
+    candidates: [
+      "The user's cat, Mochi, needs deworming medicine every three months.",
+    ],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'job-change',
+    language: 'id',
+    category: 'correction',
+    evidence: ['Aku udah gak kerja di Tokopedia lagi, sekarang di Gojek.'],
+    permissions: [],
+    candidates: ['The user now works at Gojek and no longer at Tokopedia.'],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'purposeful-expense-event',
+    language: 'id',
+    category: 'event',
+    evidence: ['Tadi beli bensin 150rb buat mudik ke Solo besok.'],
+    permissions: [],
+    candidates: ['The user is travelling home to Solo tomorrow.'],
+    expectedAdmitted: true,
+  },
+  {
+    id: 'purposeful-expense-amount',
+    language: 'id',
+    category: 'bare-record',
+    evidence: ['Tadi beli bensin 150rb buat mudik ke Solo besok.'],
+    permissions: [],
+    candidates: ['The user spent 150,000 on fuel today.'],
+    expectedAdmitted: false,
+  },
+  {
+    id: 'bare-weight',
+    language: 'id',
+    category: 'bare-record',
+    evidence: ['Berat badan pagi ini 68,2 kg.'],
+    permissions: [],
+    candidates: ['The user weighed 68.2 kg this morning.'],
+    expectedAdmitted: false,
+  },
+  {
+    id: 'reported-claim',
+    language: 'id',
+    category: 'reported',
+    evidence: ['Katanya temanku, kopi bikin umur panjang.'],
+    permissions: [],
+    candidates: ['Coffee makes people live longer.'],
     expectedAdmitted: false,
   },
 ];
