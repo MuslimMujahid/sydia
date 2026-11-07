@@ -15,7 +15,9 @@ export type DecisionMode = 'off' | 'shadow' | 'reject-only' | 'enabled';
  * Memory cutoffs come from the owner-approved calibration of 2026-11-07
  * (test/optimization/memory-calibration.live.spec.ts): on its examples,
  * eligibilitySkip=0.5 missed no memory and reviewed no non-memory, and
- * fact evidence >= 0.5 with durability >= 0.8 lost no memory.
+ * fact evidence >= 0.5 with durability >= 0.75 lost no memory. Durability
+ * 0.8 was too tight: ordinary facts score 0.79-0.83, and one rejected fact
+ * rejects every fact from its message.
  */
 export const DEFAULT_DECISION_THRESHOLDS = {
   eligibilitySkip: 0.5,
@@ -24,7 +26,7 @@ export const DEFAULT_DECISION_THRESHOLDS = {
   /** Grounding, per-span support and evidence coverage of a candidate fact. */
   factEvidence: 0.5,
   /** Whether a candidate fact is worth remembering. */
-  factDurable: 0.8,
+  factDurable: 0.75,
 } as const;
 /**
  * Thresholds that no longer apply but may still be set in deployed

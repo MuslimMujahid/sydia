@@ -205,14 +205,14 @@ test('compound facts with incomplete selected-evidence coverage are rejected', a
     ),
   ).toEqual({ status: 'reject' });
 });
-/** Each check's cutoff: durability 0.8, every evidence check 0.5. */
+/** Each check's cutoff: durability 0.75, every evidence check 0.5. */
 const atCutoff = (key: string): number =>
-  key.startsWith('durable') ? 0.8 : 0.5;
+  key.startsWith('durable') ? 0.75 : 0.5;
 
 test.each([
   ['all', null, 'allow'],
   ['grounded_0', 0.499, 'reject'],
-  ['durable_0', 0.799, 'reject'],
+  ['durable_0', 0.749, 'reject'],
   ['support_0_0', 0.499, 'reject'],
   ['coverage_0', 0.499, 'reject'],
 ] as const)(

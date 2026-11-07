@@ -144,6 +144,37 @@ describe('TypeSafe gateway contract', () => {
       expect(release).toHaveBeenCalledTimes(1);
     },
   );
+  test('retries a connection-level failure once within the deadline', async () => {
+    const fetch = jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce({
+        name: 'TypeError',
+        message: 'fetch failed',
+        cause: { name: 'Error', code: 'ECONNRESET', message: 'socket hang up' },
+      })
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(response), { status: 200 }),
+      );
+
+    const { gateway, release } = setup();
+
+    expect(await gateway.decide(request)).toMatchObject({ status: 'ok' });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+  test('does not retry a failure that is not connection-level', async () => {
+    const fetch = jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new Error('unexpected client failure'));
+
+    const { gateway } = setup();
+
+    expect(await gateway.decide(request)).toMatchObject({
+      status: 'fallback',
+      reason: 'provider',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   test('uses the existing OpenRouter key and preserves billed cost and resolved snapshot', async () => {
     const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

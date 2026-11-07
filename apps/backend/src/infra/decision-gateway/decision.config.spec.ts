@@ -16,7 +16,7 @@ describe('decision configuration', () => {
       recallInclude: 0.6,
       toolInclude: 0.6,
       factEvidence: 0.5,
-      factDurable: 0.8,
+      factDurable: 0.75,
     });
     expect(
       new DecisionSettings(new ConfigService()).mode('tools', 'user'),
@@ -37,7 +37,7 @@ describe('decision configuration', () => {
       recallInclude: 0.6,
       toolInclude: 0.6,
       factEvidence: 0.5,
-      factDurable: 0.8,
+      factDurable: 0.75,
     });
     expect(() =>
       validateDecisionEnvironment({

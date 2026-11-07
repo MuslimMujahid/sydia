@@ -1,3 +1,8 @@
+import {
+  errorCause,
+  errorLabel,
+  retryableNetworkError,
+} from '../../shared/errors';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
@@ -266,18 +271,33 @@ export class TypeSafeDecisionGateway implements DecisionGateway {
 
           try {
             signal.throwIfAborted();
-            const response: unknown = await this.client!.systemOne(
-              {
-                model: this.model,
-                state: request.state,
-                questions: request.questions,
-              },
-              {
-                signal,
-                retry: { maxRetries: 0 },
-                timeout: this.deadlines[request.lane],
-              },
-            );
+            const call = () =>
+              this.client!.systemOne(
+                {
+                  model: this.model,
+                  state: request.state,
+                  questions: request.questions,
+                },
+                {
+                  signal,
+                  retry: { maxRetries: 0 },
+                  timeout: this.deadlines[request.lane],
+                },
+              );
+
+            let response: unknown;
+
+            try {
+              response = await call();
+            } catch (error) {
+              // A connection-level failure (DNS, reset, connect timeout) gets
+              // one more attempt while the request's deadline allows it.
+              if (signal.aborted || !retryableNetworkError(error)) throw error;
+              this.logger.warn(
+                `stage=${request.stage} decision retry after ${errorLabel(error)} cause=${errorCause(error) ?? 'none'}`,
+              );
+              response = await call();
+            }
 
             signal.throwIfAborted();
 
@@ -319,6 +339,10 @@ export class TypeSafeDecisionGateway implements DecisionGateway {
               });
             }
           } catch (error) {
+            if (!signal.aborted)
+              this.logger.warn(
+                `stage=${request.stage} decision failed: ${errorLabel(error)} cause=${errorCause(error) ?? 'none'}`,
+              );
             result = fallback(
               request.abortSignal?.aborted
                 ? 'cancelled'
