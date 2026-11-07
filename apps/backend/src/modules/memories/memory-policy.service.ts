@@ -70,6 +70,25 @@ function json(value: string): Record<string, unknown> {
   return result;
 }
 
+/**
+ * Verbatim quotes from a selected span, each within one user message. A model
+ * sometimes quotes a fact together with a following remember request as one
+ * span crossing the message boundary; that span is split back into its
+ * messages rather than discarded with the fact. Text found in no single
+ * message is never evidence.
+ */
+function singleMessageQuotes(quote: string, messages: string[]): string[] {
+  if (!quote.trim()) return [];
+  if (messages.some((message) => message.includes(quote))) return [quote];
+
+  return quote
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(
+      (part) => part && messages.some((message) => message.includes(part)),
+    );
+}
+
 /** Policy review selects evidence; Hindsight remains responsible for fact extraction. */
 @Injectable()
 export class MemoryPolicyService {
@@ -112,27 +131,23 @@ export class MemoryPolicyService {
         )
       )
         throw new Error('Invalid memory source verdict');
-      if (
-        !item.quote.trim() ||
-        !(context?.messages ?? [content]).some((message) =>
-          message.includes(item.quote as string),
-        ) ||
-        containsMemoryCredential(item.quote)
-      )
-        continue;
+      const messages = context?.messages ?? [content];
       // A remember request strengthens retention only when it is the user's
       // verbatim wording; an unverifiable one is dropped, not the fact.
       const permission =
         typeof item.permissionQuote === 'string' &&
         item.permissionQuote.trim() &&
-        (context?.messages ?? [content]).some((message) =>
+        messages.some((message) =>
           message.includes(item.permissionQuote as string),
         )
           ? item.permissionQuote
           : null;
 
-      if (!spans.some(({ quote }) => quote === item.quote))
-        spans.push({ quote: item.quote, permissionQuote: permission });
+      for (const quote of singleMessageQuotes(item.quote, messages)) {
+        if (quote === permission || containsMemoryCredential(quote)) continue;
+        if (!spans.some((span) => span.quote === quote))
+          spans.push({ quote, permissionQuote: permission });
+      }
     }
 
     return { spans };

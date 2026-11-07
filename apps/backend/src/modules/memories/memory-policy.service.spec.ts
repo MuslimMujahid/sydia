@@ -87,15 +87,29 @@ describe('MemoryPolicyService', () => {
     ]);
   });
 
-  test('rejects fabricated quotes spanning separate conversation messages', async () => {
-    const messages = ['I like coffee.', 'Remember that habit.'];
+  test('splits a quote spanning separate messages back into verbatim single-message quotes', async () => {
+    const messages = ['Nomor sepatuku 42', 'ingat itu ya'];
     const { policy } = setup({
       spans: [
-        {
-          quote: messages.join('\n\n'),
-          permissionQuote: null,
-        },
+        { quote: messages.join('\n\n'), permissionQuote: 'ingat itu ya' },
       ],
+    });
+
+    // The remember request is recorded as permission, not as evidence.
+    await expect(
+      policy.approveEvidence('owner', messages.join('\n\n'), {
+        messages,
+        requestedFact: "The user's shoe size is 42.",
+      }),
+    ).resolves.toEqual({
+      spans: [{ quote: 'Nomor sepatuku 42', permissionQuote: 'ingat itu ya' }],
+    });
+  });
+
+  test('never accepts text found in no single message', async () => {
+    const messages = ['I like coffee.', 'Remember that habit.'];
+    const { policy } = setup({
+      spans: [{ quote: 'I like coffee. Remember', permissionQuote: null }],
     });
 
     await expect(
