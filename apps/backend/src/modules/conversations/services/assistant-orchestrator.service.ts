@@ -461,6 +461,7 @@ export class AssistantOrchestratorService {
         statusCode: diagnostics?.statusCode ?? null,
         retryable: diagnostics?.retryable ?? null,
         providerErrorType: diagnostics?.providerErrorType ?? null,
+        cause: diagnostics?.cause ?? null,
       }),
     );
 

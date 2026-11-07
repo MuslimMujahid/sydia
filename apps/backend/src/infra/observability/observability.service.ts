@@ -36,6 +36,8 @@ export type GenerationTraceError = {
   retryable?: boolean;
   providerErrorType?: string;
   providerMessage?: string;
+  /** Error names and system codes along the cause chain. */
+  cause?: string;
 };
 
 export type GenerationTraceUpdate = {
@@ -272,6 +274,9 @@ export class ObservabilityService
                 ...(update.error.providerErrorType === undefined
                   ? {}
                   : { providerErrorType: update.error.providerErrorType }),
+                ...(update.error.cause === undefined
+                  ? {}
+                  : { cause: update.error.cause }),
               };
             }
 

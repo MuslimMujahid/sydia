@@ -80,6 +80,8 @@ export type ModelGatewayFailure = {
   retryable?: boolean;
   providerErrorType?: string;
   providerMessage?: string;
+  /** Error names and system codes along the cause chain, e.g. "TypeError > Error(ENOTFOUND)". */
+  cause?: string;
 };
 
 export class ModelGatewayError extends Error {
@@ -172,10 +174,91 @@ function toolUsageMetadata(
   };
 }
 
+/**
+ * Network failures worth retrying. Extends the AI SDK's own list with DNS
+ * lookup failures, which a flaky resolver produces at connection time.
+ */
+const RETRYABLE_NETWORK_CODES = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ECONNABORTED',
+  'ETIMEDOUT',
+  'EPIPE',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'UND_ERR_SOCKET',
+  'UND_ERR_CLOSED',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_CONNECT_TIMEOUT',
+]);
+
+/**
+ * The error and its causes, newest first. Read by shape rather than with
+ * `instanceof Error`: errors raised by Node's fetch belong to another realm
+ * under a sandboxed module loader (the Jest VM), where `instanceof` is false
+ * and every network failure used to be reported as "UnknownError".
+ */
+function errorChain(error: unknown): Record<string, unknown>[] {
+  const chain: Record<string, unknown>[] = [];
+  let current: unknown = error;
+
+  while (
+    current !== null &&
+    typeof current === 'object' &&
+    chain.length < 5 &&
+    !chain.includes(current as Record<string, unknown>)
+  ) {
+    const link = current as Record<string, unknown>;
+    chain.push(link);
+    current = link.cause;
+  }
+
+  return chain;
+}
+
+function errorLabel(error: unknown): string {
+  const name = errorChain(error)[0]?.name;
+
+  return typeof name === 'string' && name ? name : 'UnknownError';
+}
+
+/**
+ * Names and system codes along the cause chain. Messages are left out: a
+ * validation error's message can quote model output or user content.
+ */
+function errorCause(error: unknown): string | undefined {
+  const chain = errorChain(error);
+  if (chain.length < 2 && typeof chain[0]?.code !== 'string') return undefined;
+
+  return chain
+    .map((link) => {
+      const name = typeof link.name === 'string' ? link.name : 'Error';
+
+      return typeof link.code === 'string' ? `${name}(${link.code})` : name;
+    })
+    .join(' > ');
+}
+
+/** A connection-level failure (DNS, reset, timeout) anywhere in the chain. */
+function retryableNetworkError(error: unknown): boolean {
+  return errorChain(error).some(
+    (link) =>
+      typeof link.code === 'string' && RETRYABLE_NETWORK_CODES.has(link.code),
+  );
+}
+
 function errorObject(value: unknown): Error {
-  return value instanceof Error
-    ? value
-    : new Error('Unknown model error.', { cause: value });
+  // An error from another realm keeps its own name and cause chain.
+  if (
+    value instanceof Error ||
+    (value !== null &&
+      typeof value === 'object' &&
+      typeof (value as { name?: unknown }).name === 'string')
+  )
+    return value as Error;
+
+  return new Error('Unknown model error.', { cause: value });
 }
 
 function boundedText(value: unknown, limit: number): string | undefined {
@@ -228,7 +311,9 @@ function providerErrorFields(error: APICallError): {
 
 function traceError(error: unknown): GenerationTraceUpdate['error'] {
   if (!APICallError.isInstance(error)) {
-    return { name: error instanceof Error ? error.name : 'UnknownError' };
+    const cause = errorCause(error);
+
+    return { name: errorLabel(error), ...(cause ? { cause } : {}) };
   }
 
   return {
@@ -463,8 +548,16 @@ function toolsRetrySafe(
 }
 
 function gatewayFailure(error: unknown, attempts: number): ModelGatewayFailure {
-  const errorName = error instanceof Error ? error.name : 'UnknownError';
-  if (!APICallError.isInstance(error)) return { errorName, attempts };
+  const errorName = errorLabel(error);
+  const cause = errorCause(error);
+
+  if (!APICallError.isInstance(error))
+    return {
+      errorName,
+      attempts,
+      ...(retryableNetworkError(error) ? { retryable: true } : {}),
+      ...(cause ? { cause } : {}),
+    };
 
   const fields = providerErrorFields(error);
 
@@ -483,6 +576,7 @@ function gatewayFailure(error: unknown, attempts: number): ModelGatewayFailure {
     ...(fields.providerMessage
       ? { providerMessage: fields.providerMessage.slice(0, 500) }
       : {}),
+    ...(cause ? { cause } : {}),
   };
 }
 
@@ -851,6 +945,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             !textEmitted &&
             toolsRetrySafe(request.retrySafeTools, [...executedToolNames]) &&
             (retryableApiError(error) ||
+              retryableNetworkError(error) ||
               NoOutputGeneratedError.isInstance(error) ||
               (Boolean(request.outputSchema) &&
                 NoObjectGeneratedError.isInstance(error)));
@@ -862,13 +957,15 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               runId: request.runId ?? null,
               attempt,
               attempts,
-              errorName: error instanceof Error ? error.name : 'UnknownError',
+              errorName: errorLabel(error),
+              cause: errorCause(error),
               statusCode:
                 APICallError.isInstance(error) &&
                 typeof error.statusCode === 'number'
                   ? error.statusCode
                   : undefined,
-              retryable: retryableApiError(error),
+              retryable:
+                retryableApiError(error) || retryableNetworkError(error),
               executedTools: [...executedToolNames],
               retry: canRetry,
             }),
@@ -887,6 +984,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
             !lastTextEmitted &&
             toolsRetrySafe(request.retrySafeTools, lastExecutedToolNames) &&
             (retryableApiError(error) ||
+              retryableNetworkError(error) ||
               NoOutputGeneratedError.isInstance(error) ||
               (Boolean(request.outputSchema) &&
                 NoObjectGeneratedError.isInstance(error)));
@@ -902,7 +1000,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               attempt,
               nextAttempt: attempt + 1,
               waitMs,
-              errorName: error instanceof Error ? error.name : 'UnknownError',
+              errorName: errorLabel(error),
+              cause: errorCause(error),
             }),
           );
           await delayMs(waitMs, request.abortSignal);
@@ -920,7 +1019,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
           : `, status ${diagnostics.statusCode}`;
 
       this.logger.error(
-        `OpenRouter request failed (${diagnostics.errorName}${status}, attempts ${diagnostics.attempts}, retryable ${diagnostics.retryable ?? 'unknown'})`,
+        `OpenRouter request failed (${diagnostics.errorName}${status}${diagnostics.cause ? `, cause ${diagnostics.cause}` : ''}, attempts ${diagnostics.attempts}, retryable ${diagnostics.retryable ?? 'unknown'})`,
       );
       throw new ModelGatewayError(
         'The assistant model could not be reached.',

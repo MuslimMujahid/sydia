@@ -776,6 +776,80 @@ describe('OpenRouterLanguageModel', () => {
     expect(JSON.stringify(diagnostics)).not.toContain('secret-key');
   });
 
+  it('retries a network failure from another realm and reports its cause chain', async () => {
+    // Under a sandboxed module loader, Node's fetch errors fail `instanceof
+    // Error`, so the SDK passes them through unconverted. Only their shape
+    // identifies them.
+    const fetch = jest.spyOn(globalThis, 'fetch').mockRejectedValue({
+      name: 'TypeError',
+      message: 'fetch failed',
+      cause: {
+        name: 'Error',
+        code: 'ENOTFOUND',
+        message: 'getaddrinfo ENOTFOUND openrouter.ai',
+      },
+    });
+
+    const tracing = tracingSpy();
+
+    const error = await model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    )
+      .generate({ messages: [{ role: 'user', content: 'Halo' }] })
+      .catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(ModelGatewayError);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect((error as ModelGatewayError).diagnostics).toEqual({
+      errorName: 'TypeError',
+      attempts: 3,
+      retryable: true,
+      cause: 'TypeError > Error(ENOTFOUND)',
+    });
+    expect(tracing.updates[0]?.error).toEqual({
+      name: 'TypeError',
+      cause: 'TypeError > Error(ENOTFOUND)',
+    });
+  });
+
+  it('retries a connection dropped mid-stream before any text was sent', async () => {
+    let calls = 0;
+    const languageModel = new MockLanguageModelV4({
+      doStream: () => {
+        calls += 1;
+        if (calls === 1)
+          return Promise.resolve(
+            errorStream(
+              new TypeError('terminated', {
+                cause: Object.assign(new Error('other side closed'), {
+                  code: 'UND_ERR_SOCKET',
+                }),
+              }),
+            ),
+          );
+
+        return Promise.resolve(textStream('Halo kembali.'));
+      },
+    });
+
+    const tracing = tracingSpy();
+    const gateway = model(
+      { BACKEND_MODEL_API_KEY: 'test-key' },
+      tracing.observability,
+    );
+
+    Object.defineProperty(gateway, 'languageModel', { value: languageModel });
+
+    await expect(
+      gateway.generate({
+        messages: [{ role: 'user', content: 'Halo' }],
+        onTextDelta: jest.fn(),
+      }),
+    ).resolves.toMatchObject({ text: 'Halo kembali.' });
+    expect(tracing.calls.map(({ attempt }) => attempt)).toEqual([1, 2]);
+  });
+
   it('retries a rate limit using the provider wait signal in the body', async () => {
     const fetch = jest
       .spyOn(globalThis, 'fetch')
