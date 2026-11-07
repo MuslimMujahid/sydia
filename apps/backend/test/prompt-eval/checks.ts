@@ -124,11 +124,13 @@ export function maxChars(limit: number): Check {
   };
 }
 
+// Casual words matter: a short chatty reply ("Sama-sama! Kalau nanti mau
+// tambah detail, tinggal bilang aja.") contains none of the formal ones.
 const INDONESIAN =
-  /\b(yang|dan|untuk|sudah|akan|kamu|anda|saya|aku|ini|itu|ada|tidak|bisa|dengan|besok|jam|ya)\b/gi;
+  /\b(yang|dan|untuk|sudah|udah|akan|kamu|anda|saya|aku|ini|itu|ada|tidak|nggak|gak|bisa|dengan|besok|jam|ya|kalau|kalo|mau|nanti|aja|saja|buat|tinggal|bilang|atau|juga|lagi|sama-sama|dong|deh|sih|kok)\b/gi;
 
 const ENGLISH =
-  /\b(the|and|you|your|have|will|with|this|that|there|tomorrow|for|is|are)\b/gi;
+  /\b(the|and|you|your|have|will|with|this|that|there|tomorrow|for|is|are|to|of|it|if|just|let|know|what|when|since|i'll|i'm)\b/gi;
 
 function score(text: string, pattern: RegExp): number {
   return text.match(pattern)?.length ?? 0;
