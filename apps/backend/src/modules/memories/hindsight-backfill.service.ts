@@ -1,4 +1,5 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { errorCause, errorLabel } from '../../shared/errors';
 import {
   HINDSIGHT_REPOSITORY,
   MEMORY_REPOSITORY,
@@ -40,6 +41,7 @@ function batchResult(
 /** Explicit, bounded migration of saved facts, never an archive extraction job. */
 @Injectable()
 export class HindsightBackfillService {
+  private readonly logger = new Logger(HindsightBackfillService.name);
   constructor(
     @Inject(MEMORY_REPOSITORY) private readonly memories: IMemoryRepository,
     @Inject(HINDSIGHT_REPOSITORY) private readonly ledger: IHindsightRepository,
@@ -142,7 +144,9 @@ export class HindsightBackfillService {
           continue;
         }
 
-        const envelope = {
+        const envelope: Record<string, unknown> & {
+          permissionQuotes: string[];
+        } = {
           sydiaSource: 1,
           requestedFact: memory.content,
           legacyId: memory.id,
@@ -179,12 +183,26 @@ export class HindsightBackfillService {
             const review = await this.policy.approveEvidence(
               userId,
               evidence.content,
+              { messages: [evidence.content], requestedFact: memory.content },
             );
 
             envelope.permissionQuotes = review.spans.flatMap(
               ({ permissionQuote }) =>
                 permissionQuote ? [permissionQuote] : [],
             );
+
+            // Review the stored fact against the user's own words, as live
+            // ingestion does. Checked against only its own third-person text,
+            // a fact scored far lower (people in the user's life fell below
+            // the durability cutoff). Without supporting quotes, the stored
+            // text remains the evidence.
+            const quotes = review.spans.map(({ quote }) => quote);
+
+            if (quotes.length) {
+              envelope.userEvidence = quotes.join('\n');
+              envelope.approvedEvidence = quotes;
+              envelope.userMessageId = evidence.id;
+            }
           }
 
           const accepted = await this.policy.approveFacts(
@@ -245,9 +263,13 @@ export class HindsightBackfillService {
             nextCursor: retryCursor,
             outcomes,
           });
-      } catch {
+      } catch (error) {
         // Preserve completed outcomes and do not advance past failed work.
         // Replaying the same row also recovers a lost enqueue acknowledgement.
+        // Names and codes only: messages can quote memory content.
+        this.logger.warn(
+          `Backfill deferred legacy memory ${memory.id}: ${errorLabel(error)} cause=${errorCause(error) ?? 'none'}`,
+        );
         outcomes.push({ legacyId: memory.id, status: 'deferred' });
 
         return batchResult({

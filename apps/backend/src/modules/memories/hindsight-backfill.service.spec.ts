@@ -134,10 +134,75 @@ function setup() {
     policy as unknown as MemoryPolicyService,
   );
 
-  return { service, memories, ledger, policy };
+  return { service, memories, ledger, policy, conversations };
 }
 
 describe('HindsightBackfillService', () => {
+  test("reviews an imported fact against the user's own words when its source message supports it", async () => {
+    const { service, memories, policy, conversations } = setup();
+    const message = {
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      content: 'Btw, saya lebih suka dibalas pakai bahasa Indonesia.',
+      createdAt: now,
+    };
+
+    memories.backfillPage.mockResolvedValueOnce([
+      { ...memory, sourceMessageIds: [message.id] },
+    ]);
+    conversations.findUserMemoryEvidence.mockResolvedValue(message);
+    policy.approveEvidence.mockResolvedValueOnce({
+      spans: [
+        {
+          quote: 'saya lebih suka dibalas pakai bahasa Indonesia',
+          permissionQuote: null,
+        },
+      ],
+    });
+
+    await service.batch('owner', { dryRun: false });
+
+    expect(policy.approveEvidence).toHaveBeenCalledWith(
+      'owner',
+      message.content,
+      { messages: [message.content], requestedFact: memory.content },
+    );
+    const envelope = JSON.parse(
+      policy.approveFacts.mock.calls[0]![1],
+    ) as Record<string, unknown>;
+
+    expect(envelope).toMatchObject({
+      requestedFact: memory.content,
+      userEvidence: 'saya lebih suka dibalas pakai bahasa Indonesia',
+      approvedEvidence: ['saya lebih suka dibalas pakai bahasa Indonesia'],
+      userMessageId: message.id,
+    });
+  });
+
+  test('keeps the stored text as evidence when the source message has no supporting quote', async () => {
+    const { service, memories, policy, conversations } = setup();
+
+    memories.backfillPage.mockResolvedValueOnce([
+      { ...memory, sourceMessageIds: ['message-a'] },
+    ]);
+    conversations.findUserMemoryEvidence.mockResolvedValue({
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      content: 'Halo!',
+      createdAt: now,
+    });
+
+    await service.batch('owner', { dryRun: false });
+
+    const envelope = JSON.parse(
+      policy.approveFacts.mock.calls[0]![1],
+    ) as Record<string, unknown>;
+
+    expect(envelope.userEvidence).toBe(memory.content);
+    expect(envelope).not.toHaveProperty('approvedEvidence');
+    expect(envelope).not.toHaveProperty('userMessageId');
+  });
+
   test('dry run inspects saved rows without writing or calling the policy model', async () => {
     const { service, ledger, policy } = setup();
     const result = await service.batch('owner');

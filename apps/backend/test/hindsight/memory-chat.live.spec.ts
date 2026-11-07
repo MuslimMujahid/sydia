@@ -228,7 +228,7 @@ type Turn = {
 
       const policy = new MemoryPolicyService(
         privateModel,
-        createFactReviewer(),
+        createFactReviewer(prisma),
       );
 
       const delivery = new HindsightDeliveryService(

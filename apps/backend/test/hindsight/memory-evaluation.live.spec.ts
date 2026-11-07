@@ -200,7 +200,7 @@ type Row = {
             return result;
           },
         },
-        createFactReviewer(),
+        createFactReviewer(prisma),
       );
 
       const delivery = new HindsightDeliveryService(
