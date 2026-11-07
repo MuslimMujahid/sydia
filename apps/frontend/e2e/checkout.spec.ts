@@ -164,9 +164,7 @@ test("coming back from paying confirms the payment without a manual check", asyn
       name: "Pembayaran berhasil. Langganan sudah aktif",
     })
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Mulai chat dengan Sydia" })
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Katakan Hai" })).toBeVisible();
 });
 
 test("a subscriber with paid time left is told it is active instead of getting a second order", async ({

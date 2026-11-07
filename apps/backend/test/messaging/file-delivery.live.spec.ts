@@ -99,6 +99,7 @@ const saved: DocumentMetadata = {
                 },
               ],
             }),
+          findFirstUserMessageId: () => Promise.resolve(null),
           findRecentContexts: () => Promise.resolve([]),
         } as unknown as IConversationRepository;
 

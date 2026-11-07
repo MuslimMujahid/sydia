@@ -35,6 +35,9 @@ export default defineConfig({
     url: `${baseURL}/e2e/dev-toolbar.html`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: { VITE_API_URL: "http://localhost:5000" },
+    env: {
+      VITE_API_URL: "http://localhost:5000",
+      VITE_WHATSAPP_ENABLED: "true",
+    },
   },
 });

@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -10,12 +10,12 @@ import {
 import { Route as OnboardingRoute } from "../src/routes/onboarding";
 import { Route as WelcomeRoute } from "../src/routes/welcome";
 import "../src/styles/globals.css";
+import { createQueryClient } from "../src/lib/query-client";
 
 // Mounts the real /onboarding route (loader, guards, wizard) in isolation;
 // the specs supply the API responses.
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false } },
-});
+const queryClient = createQueryClient();
+queryClient.setDefaultOptions({ queries: { retry: false } });
 
 const rootRoute = createRootRoute();
 const onboarding = OnboardingRoute.update({
@@ -33,7 +33,15 @@ const welcome = WelcomeRoute.update({
 const home = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: () => <h1>Chat Sydia</h1>,
+  validateSearch: (search: Record<string, unknown>) => ({
+    conversation:
+      typeof search.conversation === "string" ? search.conversation : undefined,
+  }),
+  component: function ChatDestination() {
+    const { conversation } = home.useSearch();
+
+    return <h1 data-conversation={conversation}>Chat Sydia</h1>;
+  },
 });
 
 const router = createRouter({

@@ -169,6 +169,7 @@ async function runReceiptTurn(
     findLatestRunForMessage: resolved(null),
     createRun: resolved(createRun()),
     claimRun: resolved(true),
+    findFirstUserMessageId: () => Promise.resolve(null),
     findRecentContexts: resolved([]),
     findContext: resolved({
       conversation: {
@@ -260,6 +261,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
@@ -370,6 +372,7 @@ describe('AssistantOrchestratorService', () => {
       }),
       findLatestRunForMessage: resolved(queuedRun),
       claimRun: resolved(true),
+      findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
@@ -441,6 +444,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
@@ -523,6 +527,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {
@@ -586,6 +591,7 @@ describe('AssistantOrchestratorService', () => {
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
       claimRun: resolved(true),
+      findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
       findContext: resolved({
         conversation: {

@@ -351,3 +351,31 @@ describe('PrismaConversationRepository memory evidence', () => {
     expect(findMany).not.toHaveBeenCalled();
   });
 });
+
+describe('PrismaConversationRepository first user message', () => {
+  it('finds the earliest owned user message across every channel', async () => {
+    const findFirst = jest.fn(() => Promise.resolve({ id: 'first-message' }));
+    const repository = new PrismaConversationRepository({
+      message: { findFirst },
+    } as unknown as PrismaService);
+
+    await expect(repository.findFirstUserMessageId('user-1')).resolves.toBe(
+      'first-message',
+    );
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { userId: 'user-1', role: 'user' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+  });
+
+  it('returns no first message when the user has no message history', async () => {
+    const repository = new PrismaConversationRepository({
+      message: { findFirst: jest.fn(() => Promise.resolve(null)) },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findFirstUserMessageId('user-1'),
+    ).resolves.toBeNull();
+  });
+});

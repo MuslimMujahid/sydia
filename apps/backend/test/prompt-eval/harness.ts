@@ -169,6 +169,7 @@ function conversationRepository(
         },
         messages,
       }),
+    findFirstUserMessageId: () => Promise.resolve(null),
     findRecentContexts: () => Promise.resolve([]),
     findSourceScope: () =>
       Promise.resolve(

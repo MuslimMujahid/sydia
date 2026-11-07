@@ -11,6 +11,8 @@ interface IntegrationRowProps {
   disabled: boolean;
   onCheckedChange: (checked: boolean) => void;
   children?: ReactNode;
+  onboarding?: boolean;
+  headerDetail?: ReactNode;
 }
 
 export function IntegrationRow({
@@ -23,8 +25,27 @@ export function IntegrationRow({
   disabled,
   onCheckedChange,
   children,
+  onboarding = false,
+  headerDetail,
 }: IntegrationRowProps) {
   const footer = Children.toArray(children);
+
+  if (onboarding)
+    return (
+      <section aria-labelledby={`${id}-title`}>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-6">
+          <h2
+            id={`${id}-title`}
+            className="flex items-center gap-3 text-[15px] font-semibold text-ink"
+          >
+            {logoSrc && <img src={logoSrc} alt="" className="size-7" />}
+            {title}
+          </h2>
+          {headerDetail}
+        </div>
+        {children}
+      </section>
+    );
 
   return (
     <section

@@ -78,6 +78,14 @@ docker compose --env-file .env -f docker/docker-compose.dev.yml --profile hindsi
 
 Hindsight uses its own PostgreSQL volume and exposes its API on the loopback port set by `HINDSIGHT_API_HOST_PORT` (default `8888`). Keep `BACKEND_HINDSIGHT_URL` in sync with that port. The frontend, backend, and worker run on the host with `bun run dev`.
 
+WhatsApp pairing also requires the GoWA companion, which runs separately from `bun run dev`. Build it once with `bash apps/backend/scripts/gowa-build.sh`, then keep it running in another terminal:
+
+```sh
+bun run gowa
+```
+
+Keep `GOWA_PORT` in sync with the port in `BACKEND_WHATSAPP_GOWA_URL` (both default to `3001`), and set `GOWA_WEBHOOK_SECRET` to the same value as `BACKEND_WHATSAPP_WEBHOOK_SECRET`. Enabling `VITE_WHATSAPP_ENABLED` only exposes the linking UI; it does not start the companion. If QR creation fails, check the companion's `/health` endpoint, start the service, then choose **Muat kode QR baru**.
+
 ## Production images
 
 GitHub Actions builds the frontend, backend, and migration images and publishes them to GHCR. `docker/docker-compose.prod.yml` pulls those images and runs the migration, backend, worker, frontend, and GoWA services without rebuilding source on the deployment server. PostgreSQL and Redis are externally managed resources and are not provisioned by Compose.

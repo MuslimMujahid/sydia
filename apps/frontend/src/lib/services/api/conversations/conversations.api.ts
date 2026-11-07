@@ -448,6 +448,28 @@ async function reconcileTerminalTurn(
   return streamed;
 }
 
+/** Persist a message and open its conversation while the assistant works. */
+export async function queueConversationMessage(
+  values: SendMessageVariables
+): Promise<SendMessageResult> {
+  try {
+    const response = await api.post<ApiResponse<SendMessageResult>>(
+      "/conversations/messages",
+      values
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw toApiError(
+      error,
+      getConversationFallback(
+        "Your conversation could not be started. Try again.",
+        "Percakapan belum dapat dimulai. Coba lagi."
+      )
+    );
+  }
+}
+
 export async function sendConversationMessage(
   values: SendMessageVariables,
   handlers: ConversationStreamHandlers,

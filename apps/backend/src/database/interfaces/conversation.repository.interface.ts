@@ -84,6 +84,8 @@ export interface IConversationRepository {
     userId: string,
     conversationId: string,
   ): Promise<ConversationContextRecord | null>;
+  /** The earliest retained user-authored message across all channels. */
+  findFirstUserMessageId(userId: string): Promise<string | null>;
   /** The user's three latest other conversations, with summaries and recent turns. */
   findRecentContexts(
     userId: string,

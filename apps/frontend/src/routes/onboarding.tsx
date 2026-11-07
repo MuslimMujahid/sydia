@@ -1,6 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -9,15 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import {
   FieldShell,
-  FormError,
   SelectField,
   type SelectOption,
 } from "@/components/forms/form-fields";
 import { LoadingState, ErrorState } from "@/components/app-states";
-import { OnboardingPlanStep } from "@/components/onboarding/onboarding-plan-step";
+import { OnboardingChannelStep } from "@/components/onboarding/channel-step";
 import { useAppForm } from "@/lib/hooks/forms";
 import { requireSession } from "@/lib/auth";
-import { billingStatusQueryOptions } from "@/lib/services/api/billing/billing.api";
 import {
   ASSISTANT_PERSONAS,
   DEFAULT_ASSISTANT_PERSONA,
@@ -29,6 +26,7 @@ import {
   useUpdateCurrentUser,
 } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
+import { PERSONA_OPTIONS } from "@/components/onboarding/personas";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
 
 const onboardingSchema = z.object({
@@ -52,54 +50,13 @@ const TIMEZONES = [
   "UTC",
 ];
 
-const PERSONA_OPTIONS: {
-  value: AssistantPersona;
-  label: string;
-  description: string;
-  image: string;
-  imageAlt: string;
-}[] = [
-  {
-    value: "cheerful",
-    label: "Ceria",
-    description:
-      "Antusias, energik, dan optimistis; membuat tugas rutin terasa lebih ringan.",
-    image: "/images/personas/haruka_cheerful.webp",
-    imageAlt: "Sosok tersenyum lebar dengan energi positif.",
-  },
-  {
-    value: "professional",
-    label: "Profesional",
-    description:
-      "Terkendali, presisi, dan dapat diandalkan; jelas dan efisien tanpa berlebihan.",
-    image: "/images/personas/haruka_professional.webp",
-    imageAlt: "Asisten rapi menyusun berkas kerja dengan tenang.",
-  },
-  {
-    value: "friendly",
-    label: "Ramah",
-    description:
-      "Hangat, mudah diajak bicara, dan penuh perhatian; seperti mengobrol dengan seseorang yang Anda kenal.",
-    image: "/images/personas/haruka_friendly.webp",
-    imageAlt: "Dua sosok berbincang akrab dengan hangat.",
-  },
-  {
-    value: "playful",
-    label: "Jenaka",
-    description:
-      "Cerdas, santai, dan ekspresif; humor ringan yang tetap fokus pada tujuan Anda.",
-    image: "/images/personas/haruka_playful.webp",
-    imageAlt: "Sosok ceria melontarkan lelucon ringan.",
-  },
-];
-
 type Step = 1 | 2 | 3 | 4;
 
 const STEP_HEADINGS = [
   "Atur bahasa dan zona waktu",
   "Kamu mau dipanggil apa?",
   "Interaksi seperti apa yang kamu harapkan?",
-  "Pilih cara memulai",
+  "Di mana kamu mau mengobrol dengan Sydia?",
 ] as const;
 
 export const Route = createFileRoute("/onboarding")({
@@ -112,16 +69,7 @@ export const Route = createFileRoute("/onboarding")({
 
     if (user.onboardingCompleted) throw redirect({ to: "/" });
 
-    // The payment step appears only once billing is enforced. A status
-    // failure must not block onboarding; billing stays reachable in settings.
-    const billing = await context.queryClient
-      .ensureQueryData(billingStatusQueryOptions())
-      .catch(() => null);
-
-    return {
-      user,
-      hasPlanStep: billing !== null && billing.enforced,
-    };
+    return { user };
   },
   head: () => ({
     meta: [
@@ -142,10 +90,9 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 function OnboardingPage() {
-  const { user, hasPlanStep } = Route.useLoaderData();
-  const totalSteps: Step = hasPlanStep ? 4 : 3;
+  const { user } = Route.useLoaderData();
+  const totalSteps = 4;
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const updateMutation = useUpdateCurrentUser();
   const preferencesMutation = useUpdateUserPreferences();
   const form = useAppForm({
@@ -168,20 +115,9 @@ function OnboardingPage() {
         locale: value.locale,
         onboardingCompleted: true,
       });
-      const billing = queryClient.getQueryData(
-        billingStatusQueryOptions().queryKey
-      );
-
       await navigate({
         to: "/welcome",
-        search: {
-          reason:
-            billing?.state === "paid"
-              ? "paid"
-              : billing?.state === "trial"
-                ? "trial"
-                : "ready",
-        },
+        search: { reason: "ready" },
         replace: true,
       });
     },
@@ -204,8 +140,12 @@ function OnboardingPage() {
   const [step, setStep] = useState<Step>(1);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
-  const heading = STEP_HEADINGS[step - 1] ?? STEP_HEADINGS[0];
+  const heading = STEP_HEADINGS[step - 1];
   const StepShell: "div" | typeof Card = step === 3 ? "div" : Card;
+
+  useEffect(() => {
+    if (step > 1) document.getElementById("onboarding-title")?.focus();
+  }, [step]);
 
   const goToStep = (next: Step) => {
     preferencesMutation.reset();
@@ -228,10 +168,7 @@ function OnboardingPage() {
         </div>
         <div
           aria-label={`Langkah ${step} dari ${totalSteps}`}
-          className={cn(
-            "mb-5 grid gap-2",
-            totalSteps === 4 ? "grid-cols-4" : "grid-cols-3"
-          )}
+          className="mb-5 grid grid-cols-4 gap-2"
           role="progressbar"
           aria-valuemin={1}
           aria-valuemax={totalSteps}
@@ -260,32 +197,45 @@ function OnboardingPage() {
               : "slide-in-from-left-3"
           )}
         >
-          <h1 className="mb-8 max-w-2xl font-display text-[32px] leading-[1.15] font-bold tracking-[-0.03em] text-ink sm:text-[44px] sm:leading-[1.1]">
-            {heading}
-          </h1>
-          <StepShell
-            className={
-              step === 3
-                ? undefined
-                : "p-6 transition-shadow duration-300 sm:p-8"
-            }
-          >
-            {step === 4 ? (
-              // Rendered outside the form: the checkout owns its own form.
-              <OnboardingPlanStep
-                saving={saving}
-                error={submitError}
-                onBack={() => goToStep(3)}
-                onFinish={() => void form.handleSubmit()}
-              />
-            ) : (
+          {step !== 4 && (
+            <h1
+              id="onboarding-title"
+              tabIndex={-1}
+              className="mb-8 max-w-2xl font-display text-[32px] leading-[1.15] font-bold tracking-[-0.03em] text-ink outline-none sm:text-[44px] sm:leading-[1.1]"
+            >
+              {heading}
+            </h1>
+          )}
+          {step === 4 ? (
+            <OnboardingChannelStep
+              saving={saving}
+              error={submitError}
+              onBack={() => goToStep(3)}
+              onFinish={() => {
+                void form.handleSubmit().catch((error: unknown) => {
+                  // The mutation error stays visible in the channel step for retry.
+                  console.error(
+                    "Onboarding settings could not be saved",
+                    error
+                  );
+                });
+              }}
+            />
+          ) : (
+            <StepShell
+              className={
+                step === 3
+                  ? undefined
+                  : "p-6 transition-shadow duration-300 sm:p-8"
+              }
+            >
               <form
                 className="space-y-7"
                 noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (step !== totalSteps) return;
-                  void form.handleSubmit();
+                  if (step < 3) goToStep((step + 1) as Step);
+                  else goToStep(4);
                 }}
               >
                 {step === 1 && (
@@ -431,12 +381,15 @@ function OnboardingPage() {
                                         <span className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-pill bg-canvas/90 shadow-sm">
                                           <Radio
                                             value={option.value}
-                                            aria-label={option.label}
+                                            aria-labelledby={`onboarding-persona-${option.value}`}
                                           />
                                         </span>
                                       </span>
                                       <span className="flex flex-1 flex-col p-3">
-                                        <span className="block font-display text-[13px] leading-5 font-semibold text-ink sm:text-[15px] sm:leading-6">
+                                        <span
+                                          id={`onboarding-persona-${option.value}`}
+                                          className="block font-display text-[13px] leading-5 font-semibold text-ink sm:text-[15px] sm:leading-6"
+                                        >
                                           {option.label}
                                         </span>
                                         <span className="mt-1 text-[11px] leading-4 text-ink-muted line-clamp-2 sm:text-xs sm:leading-5 sm:line-clamp-3">
@@ -497,7 +450,6 @@ function OnboardingPage() {
                     )}
                   </form.Field>
                 )}
-                {step === totalSteps && <FormError message={submitError} />}
                 <div
                   className={cn(
                     "flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center",
@@ -514,7 +466,7 @@ function OnboardingPage() {
                       Kembali
                     </Button>
                   )}
-                  {step < totalSteps ? (
+                  {step < 3 ? (
                     <Button
                       type="button"
                       onClick={() => goToStep((step + 1) as Step)}
@@ -530,7 +482,8 @@ function OnboardingPage() {
                     >
                       {([canSubmit, isSubmitting]) => (
                         <Button
-                          type="submit"
+                          type="button"
+                          onClick={() => goToStep(4)}
                           disabled={!canSubmit || isSubmitting || saving}
                         >
                           {isSubmitting || saving
@@ -542,8 +495,8 @@ function OnboardingPage() {
                   )}
                 </div>
               </form>
-            )}
-          </StepShell>
+            </StepShell>
+          )}
         </div>
       </div>
     </main>

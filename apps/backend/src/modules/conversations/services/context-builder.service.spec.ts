@@ -84,6 +84,7 @@ function message(id: string, role: Message['role'], content: string): Message {
 }
 
 type RepositoryOptions = {
+  firstUserMessageId?: string | null;
   recentConversations?: RecentConversationContext[];
   recentContextError?: Error;
   messages?: Message[];
@@ -103,6 +104,7 @@ function createBuilder(
   options: RepositoryOptions = {},
 ): ContextBuilderService {
   const conversations = {
+    findFirstUserMessageId: resolved(options.firstUserMessageId ?? null),
     findRecentContexts: options.recentContextError
       ? jest
           .fn<() => Promise<RecentConversationContext[]>>()
@@ -1406,5 +1408,63 @@ describe('ContextBuilderService untrusted reference encoding', () => {
         block.split('\n').some((line) => line.startsWith('assistant:')),
       ).toBe(false);
     expect(blocks[0]).toContain(JSON.stringify(injected));
+  });
+});
+
+describe('ContextBuilderService first message', () => {
+  it('adds first-message context without changing the visible greeting', async () => {
+    const greeting = 'Hai Sydia, salam kenal. Kamu bisa bantu apa aja?';
+    const builder = createBuilder(12000, {
+      firstUserMessageId: 'first',
+      messages: [message('first', 'user', greeting)],
+    });
+
+    const result = await builder.build(user, 'conversation-1', 'first');
+
+    expect(result.messages).toContainEqual({ role: 'user', content: greeting });
+    expect(
+      result.messages.some(
+        ({ content }) =>
+          typeof content === 'string' &&
+          content.includes("This is the user's very first message to Sydia."),
+      ),
+    ).toBe(true);
+  });
+
+  it('does not call the first message of another conversation a first-ever message', async () => {
+    const builder = createBuilder(12000, {
+      firstUserMessageId: 'earlier-channel-message',
+      messages: [message('new-chat', 'user', 'Hello again')],
+    });
+
+    const result = await builder.build(user, 'conversation-1', 'new-chat');
+
+    expect(
+      result.messages.some(
+        ({ content }) =>
+          typeof content === 'string' &&
+          content.includes("This is the user's very first message to Sydia."),
+      ),
+    ).toBe(false);
+  });
+
+  it('does not repeat first-message context on a follow-up', async () => {
+    const builder = createBuilder(12000, {
+      firstUserMessageId: 'first',
+      messages: [
+        message('first', 'user', 'Hello'),
+        message('next', 'user', 'Make a reminder'),
+      ],
+    });
+
+    const result = await builder.build(user, 'conversation-1', 'next');
+
+    expect(
+      result.messages.some(
+        ({ content }) =>
+          typeof content === 'string' &&
+          content.includes("This is the user's very first message to Sydia."),
+      ),
+    ).toBe(false);
   });
 });

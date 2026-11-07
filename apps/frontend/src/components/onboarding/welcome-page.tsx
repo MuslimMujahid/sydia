@@ -1,16 +1,21 @@
-import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import {
   billingLanguage,
   type BillingLanguage,
 } from "@/components/settings/billing-copy";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   billingStatusQueryOptions,
   type BillingStatus,
 } from "@/lib/services/api/billing/billing.api";
+
+import { FormError } from "@/components/forms/form-fields";
+import { useQueueConversationMessage } from "@/lib/services/api/conversations/conversations.queries";
+import { PERSONA_OPTIONS } from "./personas";
+import type { AssistantPersona } from "@/lib/services/api/users/preferences.api";
 
 export type WelcomeReason = "trial" | "ready" | "paid";
 
@@ -59,7 +64,7 @@ const COPY: Record<
       paid: "Pembayaran berhasil. Langganan sudah aktif",
     },
     body: "Selamat menikmati Sydia.",
-    start: "Mulai chat dengan Sydia",
+    start: "Katakan Hai",
     stalledTitle: "Pembayaran Anda masih diproses",
     stalledBody:
       "Biasanya hanya butuh beberapa saat. Langganan Anda akan aktif begitu pembayaran terkonfirmasi.",
@@ -94,7 +99,7 @@ const COPY: Record<
       paid: "Payment successful. Your subscription is active",
     },
     body: "Enjoy Sydia.",
-    start: "Start chatting with Sydia",
+    start: "Say Hi",
     stalledTitle: "Your payment is still processing",
     stalledBody:
       "It usually takes a moment. Your subscription turns on as soon as the payment is confirmed.",
@@ -114,6 +119,8 @@ const isPaid = (billing: BillingStatus | undefined) =>
 interface WelcomePageProps {
   locale: string;
   reason: WelcomeReason;
+  name?: string;
+  persona?: AssistantPersona;
 }
 
 /**
@@ -121,13 +128,70 @@ interface WelcomePageProps {
  * always shown, then the celebration. After a payment it also waits until the
  * subscription is really active.
  */
-export function WelcomePage({ locale, reason }: WelcomePageProps) {
+export function WelcomePage({
+  locale,
+  reason,
+  name,
+  persona = "professional",
+}: WelcomePageProps) {
+  const navigate = useNavigate();
+  const queueMessage = useQueueConversationMessage();
+  const startKey = useRef<string | undefined>(undefined);
+  const startingRef = useRef(false);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string>();
+
+  async function startChat() {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    setStartError(undefined);
+    startKey.current ??= crypto.randomUUID();
+
+    try {
+      const result =
+        queueMessage.data ??
+        (await queueMessage.mutateAsync({
+          content:
+            locale === "en"
+              ? "Hi Sydia, nice to meet you. What could you help me with?"
+              : "Hai Sydia, salam kenal. Kamu bisa bantu apa aja?",
+          idempotencyKey: startKey.current,
+        }));
+
+      await navigate({
+        to: "/",
+        search: { conversation: result.conversation.id, attachment: undefined },
+      });
+    } catch (error) {
+      console.error("Welcome conversation could not be opened", error);
+      setStartError(
+        error instanceof Error
+          ? error.message
+          : locale === "en"
+            ? "Your conversation could not be started. Try again."
+            : "Percakapan belum dapat dimulai. Coba lagi."
+      );
+    } finally {
+      startingRef.current = false;
+      setStarting(false);
+    }
+  }
+
   const language = billingLanguage(locale);
   const text = COPY[language];
   const processing = text.processing[reason];
   const [step, setStep] = useState(0);
   const [minimumElapsed, setMinimumElapsed] = useState(false);
   const [stalled, setStalled] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const avatar = PERSONA_OPTIONS.find((option) => option.value === persona)!;
+  useEffect(() => {
+    const update = () => setPaused(document.hidden);
+    document.addEventListener("visibilitychange", update);
+
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
   const status = useQuery({
     ...billingStatusQueryOptions(),
     enabled: reason === "paid",
@@ -165,28 +229,91 @@ export function WelcomePage({ locale, reason }: WelcomePageProps) {
 
   if (minimumElapsed && confirmed)
     return (
-      <main className="grid min-h-screen place-items-center bg-background px-6">
+      <main
+        className="welcome-scene relative isolate grid min-h-svh place-items-center overflow-hidden bg-background px-6 py-16"
+        data-paused={paused}
+      >
+        <div
+          className="welcome-aurora pointer-events-none absolute inset-0 -z-10"
+          aria-hidden="true"
+        >
+          <span />
+          <span />
+          <span />
+        </div>
+        <div
+          className="welcome-confetti pointer-events-none absolute inset-0 -z-10"
+          aria-hidden="true"
+        >
+          {Array.from({ length: 18 }, (_, index) => (
+            <span
+              key={index}
+              className={index % 5 === 0 ? "welcome-spark" : undefined}
+              style={{
+                left: `${20 + ((index * 37) % 62)}%`,
+                top: `${14 + ((index * 23) % 63)}%`,
+                color: ["#ef5a8a", "#8c5cff", "#ffb27a"][index % 3],
+                animationDelay: `${-(index * 0.7)}s`,
+                animationDuration: `${5 + (index % 4)}s`,
+                rotate: `${index * 31}deg`,
+              }}
+            />
+          ))}
+        </div>
         <section
           role="status"
-          className="mx-auto max-w-md text-center animate-in duration-500 fade-in slide-in-from-bottom-3 motion-reduce:animate-none"
+          className="welcome-content mx-auto w-full max-w-[680px] text-center"
         >
-          <span className="mx-auto flex size-16 items-center justify-center rounded-pill bg-brand/12 text-brand-deep">
-            <Check className="size-8" aria-hidden="true" />
-          </span>
-          <h1 className="mt-8 font-display text-[32px] leading-[1.15] font-bold tracking-[-0.03em] text-ink sm:text-[40px]">
-            {text.title[reason]}
+          <div className="welcome-avatar relative mx-auto size-[132px] rounded-full p-1.5 sm:size-[152px]">
+            <img
+              src={avatar.image}
+              alt=""
+              className="size-full rounded-full border-4 border-white object-cover"
+            />
+            <span className="absolute right-0 bottom-0 flex size-11 items-center justify-center rounded-full border-[3px] border-white bg-brand text-white">
+              <Check className="size-6" aria-hidden="true" />
+            </span>
+          </div>
+          <h1 className="mt-10 text-balance font-display text-[36px] leading-[1.08] font-bold tracking-[-0.04em] text-ink sm:text-[56px]">
+            {reason === "paid" ? (
+              text.title[reason]
+            ) : (
+              <>
+                {language === "id"
+                  ? `Halo${name ? `, ${name}` : ""}! `
+                  : `Hello${name ? `, ${name}` : ""}! `}
+                <span className="text-[#a82859]">
+                  {language === "id" ? "Sydia siap" : "Sydia is ready"}
+                </span>
+                {language === "id" ? " menemanimu." : " to help you."}
+              </>
+            )}
           </h1>
-          <p className="mt-3 text-lg text-ink-muted">{text.body}</p>
-          <Link
-            to="/"
-            search={{ conversation: undefined, attachment: undefined }}
-            className={buttonVariants({
-              variant: "secondary",
-              className: "mt-10",
-            })}
+          <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-ink-muted sm:text-lg">
+            {reason === "paid"
+              ? text.body
+              : language === "id"
+                ? "Pengaturanmu sudah tersimpan. Mulai dengan satu pesan sederhana, Sydia yang urus sisanya."
+                : "Your settings are saved. Start with one simple message, and let Sydia take care of the rest."}
+          </p>
+          <Button
+            type="button"
+            className="mt-10 gap-3"
+            disabled={starting}
+            onClick={() => void startChat()}
           >
-            {text.start}
-          </Link>
+            {starting
+              ? language === "id"
+                ? "Membuka percakapan…"
+                : "Opening conversation…"
+              : text.start}
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Button>
+          {startError && (
+            <div className="mx-auto mt-4 max-w-md">
+              <FormError message={startError} />
+            </div>
+          )}
         </section>
       </main>
     );

@@ -64,6 +64,7 @@ test('the main agent receives a record without depending on a separate capture p
     claimRun: jest
       .fn<IConversationRepository['claimRun']>()
       .mockResolvedValue(true),
+    findFirstUserMessageId: () => Promise.resolve(null),
     findRecentContexts: jest
       .fn<IConversationRepository['findRecentContexts']>()
       .mockResolvedValue([]),

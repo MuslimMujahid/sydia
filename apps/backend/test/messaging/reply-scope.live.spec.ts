@@ -149,6 +149,7 @@ function fixture(request: string, quoteText?: string) {
           },
         ],
       }),
+    findFirstUserMessageId: () => Promise.resolve(null),
     findRecentContexts: () => Promise.resolve([]),
   } as unknown as IConversationRepository;
 

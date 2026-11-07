@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T01:00:07.506015+00:00",
+  "title": "Design System: Aurora Haze · Sydia onboarding",
+  "extensions": {
+    "colorMeta": {
+      "brand": {
+        "role": "primary",
+        "displayName": "Coral",
+        "tonalRamp": [
+          "oklch(15.00% 0.18708 3.65)",
+          "oklch(26.43% 0.18708 3.65)",
+          "oklch(37.86% 0.18708 3.65)",
+          "oklch(49.29% 0.18708 3.65)",
+          "oklch(60.71% 0.18708 3.65)",
+          "oklch(72.14% 0.18708 3.65)",
+          "oklch(83.57% 0.18708 3.65)",
+          "oklch(95.00% 0.18708 3.65)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01089 311.95)",
+          "oklch(26.43% 0.01089 311.95)",
+          "oklch(37.86% 0.01089 311.95)",
+          "oklch(49.29% 0.01089 311.95)",
+          "oklch(60.71% 0.01089 311.95)",
+          "oklch(72.14% 0.01089 311.95)",
+          "oklch(83.57% 0.01089 311.95)",
+          "oklch(95.00% 0.01089 311.95)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.02049 311.40)",
+          "oklch(26.43% 0.02049 311.40)",
+          "oklch(37.86% 0.02049 311.40)",
+          "oklch(49.29% 0.02049 311.40)",
+          "oklch(60.71% 0.02049 311.40)",
+          "oklch(72.14% 0.02049 311.40)",
+          "oklch(83.57% 0.02049 311.40)",
+          "oklch(95.00% 0.02049 311.40)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Bone White",
+        "tonalRamp": [
+          "oklch(15.00% 0.00512 67.76)",
+          "oklch(26.43% 0.00512 67.76)",
+          "oklch(37.86% 0.00512 67.76)",
+          "oklch(49.29% 0.00512 67.76)",
+          "oklch(60.71% 0.00512 67.76)",
+          "oklch(72.14% 0.00512 67.76)",
+          "oklch(83.57% 0.00512 67.76)",
+          "oklch(95.00% 0.00512 67.76)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "White Canvas",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Bold setup and completion headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Readable supporting copy and guidance."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Semibold control labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "rgba(23, 20, 25, 0.04) 0 1px 2px, rgba(23, 20, 25, 0.06) 0 14px 36px -16px",
+        "purpose": "Shared soft task-container shadow."
+      },
+      {
+        "name": "button",
+        "value": "rgba(240, 102, 148, 0.28) 0 10px 24px -10px, rgba(140, 92, 255, 0.22) 0 6px 18px -8px",
+        "purpose": "Shared primary-action bloom."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "description": "Shared grainy aurora action for advancing setup or starting chat.",
+      "html": "<button class=\"ds-button ds-primary\">Lanjutkan</button>",
+      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:12px 22px;border-radius:var(--radius-md);font-family:var(--font-sans);font-size:15px;line-height:1.4;font-weight:600;cursor:pointer;}.ds-primary{background:var(--aurora-gradient);color:var(--color-canvas);border:0;font-weight:700;box-shadow:var(--shadow-button)}.ds-primary:hover{filter:brightness(.97)}.ds-button:focus-visible{outline:2px solid color-mix(in srgb,var(--color-brand) 50%,transparent);outline-offset:2px;}.ds-button:active{transform:scale(.98)}.ds-button:disabled{opacity:.4;filter:saturate(.5);pointer-events:none}"
+    },
+    {
+      "name": "Back action",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Quiet outline back action.",
+      "html": "<button class=\"ds-button ds-outline\">Kembali</button>",
+      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:12px 22px;border-radius:var(--radius-md);font-family:var(--font-sans);font-size:15px;line-height:1.4;font-weight:600;cursor:pointer;}.ds-outline{background:transparent;color:var(--color-ink);border:1px solid color-mix(in srgb,var(--color-ink) 16%,transparent)}.ds-outline:hover{color:var(--color-ink)}.ds-button:focus-visible{outline:2px solid color-mix(in srgb,var(--color-brand) 50%,transparent);outline-offset:2px;}.ds-button:active{transform:scale(.98)}.ds-button:disabled{opacity:.4;filter:saturate(.5);pointer-events:none}"
+    },
+    {
+      "name": "Optional action",
+      "kind": "button",
+      "description": "Underlined skip or switch action in the channel flow.",
+      "html": "<button class=\"ds-button ds-link\">Lewati untuk sekarang</button>",
+      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:12px 22px;border-radius:var(--radius-md);font-family:var(--font-sans);font-size:15px;line-height:1.4;font-weight:600;cursor:pointer;}.ds-link{padding-inline:0;background:transparent;color:var(--color-ink-muted);border:0;text-decoration:underline;text-underline-offset:2px;font-size:14px;font-weight:400}.ds-link:hover{color:var(--color-ink)}.ds-button:focus-visible{outline:2px solid color-mix(in srgb,var(--color-brand) 50%,transparent);outline-offset:2px;}.ds-button:active{transform:scale(.98)}.ds-button:disabled{opacity:.4;filter:saturate(.5);pointer-events:none}"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Shared labeled input for the preferred form of address.",
+      "html": "<label class=\"ds-field\">Panggilan<input class=\"ds-input\" placeholder=\"Mis. Kak Dipa, Bu Ratri\" /></label>",
+      "css": ".ds-field{display:grid;gap:8px;color:var(--color-ink);font-family:var(--font-sans);font-size:14px;font-weight:600}.ds-input{height:44px;padding:8px 12px;border:1px solid color-mix(in srgb,var(--color-ink) 16%,transparent);border-radius:var(--radius-sm);background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-sans);font-size:15px}.ds-input::placeholder{color:var(--color-ink-muted)}.ds-input:hover{border-color:color-mix(in srgb,var(--color-brand) 50%,transparent)}.ds-input:focus-visible{outline:0;border-color:var(--color-brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--color-brand) 15%,transparent)}.ds-input:disabled{opacity:.4}.ds-input[aria-invalid=\"true\"]{border-color:var(--destructive);box-shadow:0 0 0 4px color-mix(in srgb,var(--destructive) 15%,transparent)}"
+    },
+    {
+      "name": "Task container",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Shared calm container for setup controls.",
+      "html": "<div class=\"ds-card\">Atur bahasa dan zona waktu</div>",
+      "css": ".ds-card{padding:24px;border-radius:var(--radius-lg);border:1px solid color-mix(in srgb,var(--color-ink) 6%,transparent);background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-sans);box-shadow:var(--shadow-card)}"
+    },
+    {
+      "name": "Setup progress",
+      "kind": "nav",
+      "description": "Decorative segments with an accessible textual step count.",
+      "html": "<div class=\"ds-progress\" role=\"progressbar\" aria-label=\"Langkah 2 dari 4\" aria-valuemin=\"1\" aria-valuemax=\"4\" aria-valuenow=\"2\"><span class=\"ds-done\" aria-hidden=\"true\"></span><span class=\"ds-current\" aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span></div>",
+      "css": ".ds-progress{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.ds-progress span{height:4px;border-radius:var(--radius-pill);background:color-mix(in srgb,var(--color-ink) 10%,transparent)}.ds-progress .ds-done,.ds-progress .ds-current{background:var(--color-brand)}.ds-progress .ds-current{transform:scaleY(1.25)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Aurora Haze",
+    "overview": "This scoped guide describes the onboarding components and their completion scene. It inherits the established [Aurora Haze system](../../../../../DESIGN.md), the app's shared primitives, and the approved Penpot layout direction. It does not replace the global design system.\n\nPersonalization stays quiet: warm bone-white space, clear graphite headings, restrained coral state cues, and familiar controls. Completion gives that same world a warmer welcome through the selected persona, a soft coral–peach–violet bloom, and sparse celebratory particles.",
+    "keyCharacteristics": [
+      "Calm task surfaces with one clear next action.",
+      "Inter throughout, with bold headings and quieter supporting copy.",
+      "Personal identity expressed through existing persona artwork.",
+      "A celebratory completion that remains readable and accessible."
+    ],
+    "rules": [
+      {
+        "name": "The Readable Welcome Rule",
+        "body": "Preserve the completion heading's darker rose emphasis. The bright coral used for decorative particles and selection accents is not the headline text treatment; check text against the brightest and darkest parts of the moving bloom.",
+        "section": "colors"
+      },
+      {
+        "name": "The Scoped Celebration Rule",
+        "body": "The user-authorized animated coral–peach–violet bloom, persona ring, and deterministic confetti are an exception for this completion scene to the global restraint on gradient placement and motion. Do not propagate this exception to setup steps, settings, or unrelated product surfaces.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** inherit Aurora Haze and existing shared controls before introducing a new visual primitive.",
+      "**Do** keep the completion message and action readable over every bloom state.",
+      "**Do** preserve keyboard selection, visible focus, reduced-motion behavior, and hidden-document pausing.",
+      "**Do** carry the selected persona into the completion scene."
+    ],
+    "donts": [
+      "**Don't** extend the completion gradient and motion exception to unrelated surfaces.",
+      "**Don't** make channel linking or billing an added barrier to finishing this personalization flow.",
+      "**Don't** replace confirmed connection state or chat-start errors with decorative success claims.",
+      "**Don't** turn individual particle positions, portrait dimensions, or animation delays into application-wide tokens."
+    ]
+  }
+}

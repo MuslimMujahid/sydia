@@ -129,6 +129,7 @@ function fixture(channel: 'telegram' | 'whatsapp' | undefined) {
           },
         ],
       }),
+    findFirstUserMessageId: () => Promise.resolve(null),
     findRecentContexts: () =>
       Promise.resolve([
         {

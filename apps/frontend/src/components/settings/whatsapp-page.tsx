@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Copy, Pencil, Unplug, UserRound } from "lucide-react";
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  LoaderCircle,
+  Pencil,
+  Unplug,
+  UserRound,
+} from "lucide-react";
 import { FormError } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +30,7 @@ import {
   useUnlinkWhatsApp,
   whatsappStatusQueryOptions,
 } from "@/lib/services/api/whatsapp/whatsapp.queries";
+import { cn } from "@/lib/utils/cn";
 import { IntegrationRow } from "./integration-row";
 
 interface RecoveryActionProps {
@@ -142,7 +151,13 @@ function QrImage({ attempt }: QrImageProps) {
 
 type Confirmation = "disconnect" | "assistant" | "owner" | null;
 
-export function WhatsAppIntegrationCard() {
+interface WhatsAppIntegrationCardProps {
+  onboarding?: boolean;
+}
+
+export function WhatsAppIntegrationCard({
+  onboarding = false,
+}: WhatsAppIntegrationCardProps) {
   const [attempt, setAttempt] = useState<WhatsAppQr | null>(null);
   const [code, setCode] = useState<WhatsAppLinkCode | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
@@ -153,6 +168,7 @@ export function WhatsAppIntegrationCard() {
   const statusQuery = useQuery(whatsappStatusQueryOptions());
 
   const status = statusQuery.data;
+  const initialQrRequested = useRef(false);
   const qrMutation = useCreateWhatsAppQr();
   const linkMutation = useCreateWhatsAppLinkCode();
   const revoke = useUnlinkWhatsApp();
@@ -193,6 +209,26 @@ export function WhatsAppIntegrationCard() {
     status?.ownerCodeExpiresAt,
     linkMutation,
   ]);
+
+  useEffect(() => {
+    if (!onboarding || !status || initialQrRequested.current) return;
+    initialQrRequested.current = true;
+
+    if (
+      status.setupPhase === "disconnected" ||
+      status.setupPhase === "revoked"
+    ) {
+      qrMutation.mutate(
+        { refresh: false },
+        {
+          onSuccess: (value) => {
+            setNow(Date.now());
+            setAttempt(value);
+          },
+        }
+      );
+    }
+  }, [onboarding, status, qrMutation]);
 
   function beginQr(refresh = false) {
     setAttempt(null);
@@ -313,6 +349,43 @@ export function WhatsAppIntegrationCard() {
 
   return (
     <IntegrationRow
+      onboarding={onboarding}
+      headerDetail={
+        onboarding ? (
+          <ol
+            aria-label="Penautan WhatsApp"
+            className="flex flex-wrap gap-5 text-xs text-ink-muted sm:gap-10"
+          >
+            <li
+              className={cn(
+                "flex items-center gap-2",
+                !status?.assistantNumber && "font-semibold text-ink"
+              )}
+            >
+              <span className="flex size-5 items-center justify-center rounded-full border border-brand text-brand">
+                {status?.assistantNumber ? <Check className="size-3" /> : "1"}
+              </span>
+              Nomor asisten
+            </li>
+            <li
+              className={cn(
+                "flex items-center gap-2",
+                status?.assistantNumber && "font-semibold text-ink"
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-5 items-center justify-center rounded-full border border-ink/20",
+                  status?.assistantNumber && "border-brand text-brand"
+                )}
+              >
+                {status?.connected ? <Check className="size-3" /> : "2"}
+              </span>
+              Nomor pribadi
+            </li>
+          </ol>
+        ) : undefined
+      }
       id="integration-whatsapp"
       title="WhatsApp"
       logoSrc="/images/brands/whatsapp-circle.svg"
@@ -330,7 +403,35 @@ export function WhatsAppIntegrationCard() {
         )
       }
     >
-      <div className="space-y-3 sm:ml-11">
+      <div className={cn("space-y-3", !onboarding && "sm:ml-11")}>
+        {onboarding && statusQuery.isPending && (
+          <p role="status" className="text-sm text-ink-muted">
+            Memeriksa koneksi…
+          </p>
+        )}
+        {onboarding &&
+          status?.assistantNumber &&
+          (ownerVerification || status.connected) && (
+            <p
+              role="status"
+              className="flex items-center gap-3 rounded-sm bg-[#effcf4] p-3 text-[13px] text-[#128c4a]"
+            >
+              <Check className="size-4 shrink-0" />
+              {status.connected
+                ? "Sydia siap mengobrol dan mengirim pengingat lewat WhatsApp."
+                : `Nomor asisten tertaut · +${status.assistantNumber}`}
+            </p>
+          )}
+        {onboarding &&
+          !isPairing &&
+          !ownerVerification &&
+          status &&
+          !status.linked &&
+          !status.assistantNumber && (
+            <RecoveryAction disabled={busy} onClick={() => beginQr()}>
+              Muat kode QR
+            </RecoveryAction>
+          )}
         {statusQuery.isError ? (
           <>
             <FormError message={statusQuery.error.message} />
@@ -346,13 +447,45 @@ export function WhatsAppIntegrationCard() {
                 <QrImage key={attempt.attemptId} attempt={attempt} />
                 <div className="space-y-3 text-[13px] leading-5 text-ink-muted sm:pt-3">
                   <h4 className="text-sm font-semibold text-ink">
-                    Pindai dari akun WhatsApp asisten
+                    Pindai dari ponsel nomor asisten
                   </h4>
-                  <p>
-                    Di WhatsApp nomor asisten: Perangkat tertaut
-                    <br className="hidden sm:block" /> → Tautkan perangkat.
-                    Arahkan kamera ke QR ini.
-                  </p>
+                  {onboarding ? (
+                    <ol className="list-decimal space-y-2 pl-4">
+                      <li>
+                        Buka WhatsApp di ponsel nomor asisten, bukan nomor
+                        pribadi Anda.
+                      </li>
+                      <li>Ketuk Perangkat tertaut → Tautkan perangkat.</li>
+                      <li>Arahkan kamera ke kode QR ini.</li>
+                    </ol>
+                  ) : (
+                    <p>
+                      Di WhatsApp nomor asisten: Perangkat tertaut
+                      <br className="hidden sm:block" /> → Tautkan perangkat.
+                      Arahkan kamera ke QR ini.
+                    </p>
+                  )}
+                  {onboarding && (
+                    <p
+                      className="flex items-center gap-2 text-xs"
+                      role="status"
+                    >
+                      <LoaderCircle className="size-3.5 animate-spin text-brand motion-reduce:animate-none" />
+                      Menunggu pemindaian · QR berlaku{" "}
+                      {Math.floor(
+                        (Date.parse(attempt.expiresAt) - now) / 60000
+                      )}
+                      :
+                      {String(
+                        Math.max(
+                          0,
+                          Math.floor(
+                            (Date.parse(attempt.expiresAt) - now) / 1000
+                          ) % 60
+                        )
+                      ).padStart(2, "0")}
+                    </p>
+                  )}
                   <p className="sm:hidden">
                     Tampilkan Sydia di layar lain agar QR dapat dipindai dari
                     ponsel akun asisten.
@@ -451,9 +584,11 @@ export function WhatsAppIntegrationCard() {
           </div>
         ) : ownerVerification ? (
           <div className="space-y-3 pt-4">
-            <h4 className="text-sm font-semibold text-ink">
-              Verifikasi nomor pribadi Anda
-            </h4>
+            {!onboarding && (
+              <h4 className="text-sm font-semibold text-ink">
+                Verifikasi nomor pribadi Anda
+              </h4>
+            )}
             <p className="text-[13px] leading-5 text-ink-muted">
               Dari WhatsApp pribadi Anda, kirim pesan ini ke asisten{" "}
               <span className="font-medium text-ink">
@@ -484,6 +619,17 @@ export function WhatsAppIntegrationCard() {
                   }).format(new Date(code.expiresAt))}
                   . Jangan bagikan pesan ini.
                 </p>
+                {onboarding && (
+                  <a
+                    href={`https://wa.me/${status.assistantNumber}?text=${encodeURIComponent(code.code)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-9 items-center gap-2 text-[13px] font-semibold text-[#c23d6a] underline-offset-4 hover:underline"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    Buka di WhatsApp pribadi
+                  </a>
+                )}
                 <p className="text-xs text-ink-muted" role="status">
                   Menunggu pesan dari nomor pribadi. Asisten aktif setelah
                   verifikasi selesai.

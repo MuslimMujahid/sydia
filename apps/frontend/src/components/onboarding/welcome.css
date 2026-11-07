@@ -1,0 +1,143 @@
+/* The completion scene follows Penpot's coral, peach and violet bloom. */
+.welcome-aurora {
+  inset: 8% 12%;
+}
+.welcome-aurora span {
+  position: absolute;
+  width: 65%;
+  height: 72%;
+  border-radius: 50%;
+  filter: blur(65px);
+  opacity: 0.42;
+  animation: welcome-bloom 12s ease-in-out infinite alternate;
+}
+.welcome-aurora span:nth-child(1) {
+  left: 9%;
+  top: 6%;
+  background: radial-gradient(
+    ellipse,
+    #ff6b9b 0%,
+    #ef5a8a66 45%,
+    transparent 72%
+  );
+}
+.welcome-aurora span:nth-child(2) {
+  right: 0;
+  top: 20%;
+  background: radial-gradient(
+    ellipse,
+    #c47bff 0%,
+    #8c5cff44 45%,
+    transparent 72%
+  );
+  animation-delay: -5s;
+  animation-direction: alternate-reverse;
+}
+.welcome-aurora span:nth-child(3) {
+  left: 20%;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse,
+    #ffb27a 0%,
+    #ff8a4c44 40%,
+    transparent 72%
+  );
+  animation-delay: -8s;
+}
+.welcome-avatar {
+  background: linear-gradient(135deg, #ffb27a, #ef5a8a, #8c5cff);
+  box-shadow: 0 18px 40px -12px #ef5a8a66;
+  animation: welcome-arrive 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.welcome-content h1,
+.welcome-content p,
+.welcome-content button {
+  animation: welcome-arrive 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.welcome-content h1 {
+  animation-delay: 0.1s;
+}
+.welcome-content p {
+  animation-delay: 0.2s;
+}
+.welcome-content button {
+  animation-delay: 0.3s;
+}
+.welcome-confetti span {
+  position: absolute;
+  width: 8px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 2px;
+  opacity: 0.8;
+  animation: welcome-drift 6s ease-in-out infinite alternate;
+}
+.welcome-confetti span:nth-child(3n) {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.welcome-confetti .welcome-spark {
+  width: 20px;
+  height: 20px;
+  border-radius: 0;
+  clip-path: polygon(
+    50% 0%,
+    64% 36%,
+    100% 50%,
+    64% 64%,
+    50% 100%,
+    36% 64%,
+    0% 50%,
+    36% 36%
+  );
+}
+.welcome-scene[data-paused="true"] * {
+  animation-play-state: paused;
+}
+@keyframes welcome-bloom {
+  from {
+    transform: translate3d(-5%, -4%, 0) scale(0.9) rotate(-8deg);
+  }
+  to {
+    transform: translate3d(8%, 5%, 0) scale(1.12) rotate(12deg);
+  }
+}
+@keyframes welcome-drift {
+  from {
+    transform: translate3d(-8px, -12px, 0) rotate(-18deg);
+    opacity: 0.55;
+  }
+  to {
+    transform: translate3d(12px, 18px, 0) rotate(28deg);
+    opacity: 0.95;
+  }
+}
+@keyframes welcome-arrive {
+  from {
+    transform: translateY(18px) scale(0.97);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@media (max-width: 640px) {
+  .welcome-aurora {
+    inset: 10% -35%;
+  }
+  .welcome-aurora span {
+    filter: blur(40px);
+  }
+  .welcome-confetti span {
+    left: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .welcome-scene *,
+  .welcome-scene *::before,
+  .welcome-scene *::after {
+    animation: none !important;
+  }
+}
