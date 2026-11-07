@@ -1,3 +1,4 @@
+import { RecordUserActivity } from '../../shared/activity/user-activity';
 import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import {
   AllowAnonymous,
@@ -12,10 +13,10 @@ import { RecordNotesService } from './record-notes.service';
 @Controller('record-notes')
 export class RecordNotesController {
   constructor(private readonly records: RecordNotesService) {}
-  @Roles(['user']) @Post() create(
-    @Session() session: UserSession,
-    @Body() body: unknown,
-  ) {
+  @RecordUserActivity('notes')
+  @Roles(['user'])
+  @Post()
+  create(@Session() session: UserSession, @Body() body: unknown) {
     return this.records.create(session.user.id, body);
   }
 
@@ -34,7 +35,10 @@ export class RecordNotesController {
     return this.records.content(session.user.id, id, body);
   }
 
-  @Roles(['user']) @Post(':id/mutations') mutate(
+  @RecordUserActivity('notes')
+  @Roles(['user'])
+  @Post(':id/mutations')
+  mutate(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() body: unknown,

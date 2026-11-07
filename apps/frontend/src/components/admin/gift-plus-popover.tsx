@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -84,14 +84,15 @@ export function GiftPlusPopover({
         <PopoverTrigger
           render={
             <Button
-              variant="dark-outline"
+              variant="ghost"
               size="sm"
+              className="min-h-8 rounded-[8px] px-2 py-1.5 text-[13px] font-medium text-brand hover:bg-brand/5 hover:text-brand"
               disabled={disabled || pending}
               aria-label={`Beri Sydia Plus kepada ${user.name}`}
             />
           }
         >
-          Beri Plus <ChevronDown aria-hidden="true" />
+          <Gift aria-hidden="true" className="size-3.5" /> Hadiah Plus
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80 p-4">
           <PopoverTitle className="text-base">Hadiah Sydia Plus</PopoverTitle>

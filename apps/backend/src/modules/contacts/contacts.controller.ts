@@ -1,3 +1,4 @@
+import { RecordUserActivity } from '../../shared/activity/user-activity';
 import {
   Body,
   Controller,
@@ -38,7 +39,9 @@ export class ContactGroupsController {
     return this.groups.list(session.user.id);
   }
 
-  @Post() async create(
+  @RecordUserActivity('contacts')
+  @Post()
+  async create(
     @Session() session: UserSession,
     @Body() input: CreateContactGroupDto,
   ) {
@@ -49,7 +52,9 @@ export class ContactGroupsController {
     }
   }
 
-  @Patch(':id') async update(
+  @RecordUserActivity('contacts')
+  @Patch(':id')
+  async update(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: UpdateContactGroupDto,
@@ -119,7 +124,9 @@ export class ContactsController {
     return this.required(await this.contacts.findById(session.user.id, id));
   }
 
-  @Post() async create(
+  @RecordUserActivity('contacts')
+  @Post()
+  async create(
     @Session() session: UserSession,
     @Body() input: CreateContactDto,
   ) {
@@ -130,7 +137,9 @@ export class ContactsController {
     }
   }
 
-  @Patch(':id') async update(
+  @RecordUserActivity('contacts')
+  @Patch(':id')
+  async update(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: UpdateContactDto,

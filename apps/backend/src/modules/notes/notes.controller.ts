@@ -1,3 +1,4 @@
+import { RecordUserActivity } from '../../shared/activity/user-activity';
 import { AllowInactiveBilling } from '../billing';
 import {
   Body,
@@ -46,14 +47,18 @@ export class NotesController {
     return this.notes.find(session.user.id, id);
   }
 
-  @Post('items') create(
+  @RecordUserActivity('notes')
+  @Post('items')
+  create(
     @Session() session: UserSession,
     @Body() input: CreateWorkspaceItemDto,
   ) {
     return this.notes.create(session.user.id, input);
   }
 
-  @Patch('items/:id') update(
+  @RecordUserActivity('notes')
+  @Patch('items/:id')
+  update(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: UpdateWorkspaceItemDto,

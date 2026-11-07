@@ -1,3 +1,4 @@
+import { RecordUserActivity } from '../../shared/activity/user-activity';
 import {
   Body,
   Controller,
@@ -69,6 +70,7 @@ export class FileLibraryController {
     );
   }
 
+  @RecordUserActivity('documents')
   @Post('folders')
   create(@Session() session: UserSession, @Body() body: CreateFileFolderDto) {
     return this.service.execute(() =>
@@ -80,6 +82,7 @@ export class FileLibraryController {
     );
   }
 
+  @RecordUserActivity('documents')
   @Patch('folders/:id')
   rename(
     @Session() session: UserSession,
@@ -96,6 +99,7 @@ export class FileLibraryController {
     );
   }
 
+  @RecordUserActivity('documents')
   @Post('moves')
   move(@Session() session: UserSession, @Body() body: MoveFileLibraryDto) {
     return this.service.execute(async () => {

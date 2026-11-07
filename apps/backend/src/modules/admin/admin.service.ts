@@ -1,4 +1,11 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import {
   ADMIN_REPOSITORY,
   AUDIT_EVENT_REPOSITORY,
@@ -15,12 +22,14 @@ export type AdminAction = 'ban' | 'unban' | 'force-sign-out' | 'delete';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
   constructor(
     @Inject(ADMIN_REPOSITORY)
     private readonly adminRepository: IAdminRepository,
     @Inject(AUDIT_EVENT_REPOSITORY)
     private readonly auditEvents: IAuditEventRepository,
     private readonly storage: StorageService,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   overview() {
@@ -28,7 +37,13 @@ export class AdminService {
   }
 
   async users(input: AdminUsersInput) {
-    const result = await this.adminRepository.users(new Date(), input);
+    const result = await this.adminRepository.users(new Date(), {
+      ...input,
+      environment: this.config?.getOrThrow<string>('MAYAR_ENVIRONMENT'),
+      rolloutAt: this.config?.get<string>('BACKEND_BILLING_ROLLOUT_AT')
+        ? new Date(this.config.getOrThrow<string>('BACKEND_BILLING_ROLLOUT_AT'))
+        : undefined,
+    });
 
     return new PaginatedResult(result.items, {
       offset: result.offset,
@@ -73,6 +88,7 @@ export class AdminService {
           await this.storage.delete(key);
         }
       } catch (error: unknown) {
+        this.logger.error('Admin document cleanup failed', error);
         const failure = new ApiException({
           code: ErrorCodes.SERVICE_UNAVAILABLE,
           status: HttpStatus.SERVICE_UNAVAILABLE,
@@ -93,6 +109,14 @@ export class AdminService {
         const cleanup = await Promise.allSettled(
           storageKeys.map((key) => this.storage.delete(extractionKey(key))),
         );
+
+        for (const result of cleanup) {
+          if (result.status === 'rejected')
+            this.logger.error(
+              'Deleted user document cleanup remains incomplete',
+              result.reason,
+            );
+        }
 
         cleanupIncomplete = cleanup.some(
           (result) => result.status === 'rejected',

@@ -24,6 +24,16 @@ async function openUsers(
       status: url.searchParams.get("status") === "banned" ? "banned" : "active",
       createdAt: "2026-10-24T00:00:00Z",
       paidUntil: expiry(`user-${offset + index + 1}`),
+      trialEndsAt: "2026-10-31T00:00:00Z",
+      plan: expiry(`user-${offset + index + 1}`) ? "plus" : "expired",
+      onboardingCompleted: true,
+      acquisitionSource: null,
+      channels: ["web"],
+      payments: 0,
+      paymentTotalIdr: 0,
+      lastPaymentAt: null,
+      lastPaymentMethod: null,
+      llmCost30DaysUsd: 0,
       lastActivityAt: null,
       activeSessions: 0,
       storageBytes: 0,
@@ -45,7 +55,7 @@ async function openUsers(
   });
   await page.goto("/e2e/admin-users.html");
   await expect(page.getByRole("status")).toHaveText(
-    `Menampilkan 1–25 dari ${userCount} pengguna`
+    `Menampilkan 1–${Math.min(25, userCount)} dari ${userCount} pengguna`
   );
 
   return requests;
@@ -120,7 +130,7 @@ test("status filtering uses global counts and starts at page one", async ({
   expect(requests.at(-1)?.searchParams.get("status")).toBe("banned");
   expect(requests.at(-1)?.searchParams.get("offset")).toBe("0");
   await expect(
-    page.getByRole("button", { name: "Aktif 50", exact: true })
+    page.getByRole("button", { name: "Diizinkan 50", exact: true })
   ).toBeVisible();
 });
 
@@ -133,7 +143,7 @@ test("empty search can be reset to the first unfiltered page", async ({
   await expect(page.getByRole("status")).toHaveText(
     "Menampilkan 0–0 dari 0 pengguna"
   );
-  await page.getByRole("button", { name: "Atur ulang filter" }).click();
+  await page.getByRole("button", { name: "Atur ulang filter" }).first().click();
   await expect(page.getByRole("status")).toHaveText(
     "Menampilkan 1–25 dari 51 pengguna"
   );
@@ -187,7 +197,7 @@ test("long lists show a compact range and allow jumps to the last and first page
     name: "Paginasi pengguna",
   });
 
-  await expect(navigation.getByRole("button")).toHaveCount(8);
+  await expect(navigation.getByRole("button")).toHaveCount(6);
   await navigation
     .getByRole("button", { name: "Halaman 34", exact: true })
     .click();
@@ -201,20 +211,23 @@ test("long lists show a compact range and allow jumps to the last and first page
     navigation.getByRole("button", { name: "Berikutnya", exact: true })
   ).toBeDisabled();
   await navigation
+    .getByRole("button", { name: "Halaman 32", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Menampilkan 776–800 dari 839 pengguna"
+  );
+  await navigation
     .getByRole("button", { name: "Halaman 31", exact: true })
     .click();
   await expect(page.getByRole("status")).toHaveText(
     "Menampilkan 751–775 dari 839 pengguna"
   );
-  await navigation
-    .getByRole("button", { name: "Halaman 30", exact: true })
-    .click();
-  await expect(page.getByRole("status")).toHaveText(
-    "Menampilkan 726–750 dari 839 pengguna"
-  );
   await expect(
-    navigation.getByRole("button", { name: "Halaman 29", exact: true })
+    navigation.getByRole("button", { name: "Halaman 30", exact: true })
   ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth)
+  ).toBeLessThanOrEqual(page.viewportSize()!.width);
   await page.screenshot({
     path: testInfo.outputPath("numbered-pagination.png"),
     fullPage: true,
@@ -262,7 +275,9 @@ test("gifts the selected user thirty days and refreshes the user list", async ({
   });
   await expect.poll(() => lists.length).toBeGreaterThan(before);
   await expect(
-    page.getByText("Sydia Plus hingga 1 Des 2026").filter({ visible: true })
+    page
+      .getByText("Plus · s.d. 1 Des", { exact: true })
+      .filter({ visible: true })
   ).toBeVisible();
   await expect(
     page.getByRole("status").filter({ hasText: "Sydia Plus diberikan" })
@@ -411,4 +426,109 @@ test("tablet users retain room for their name and gift action", async ({
       exact: true,
     })
   ).toBeVisible();
+});
+
+test("plan, activity and sort filters reset pagination and reach the server", async ({
+  page,
+}) => {
+  const requests = await openUsers(page);
+  await page.getByRole("button", { name: "Berikutnya", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("26–50");
+  await page.getByRole("button", { name: "Paket: Semua", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Filter paket" })
+    .selectOption("plus");
+  await expect
+    .poll(() => requests.at(-1)?.searchParams.get("plan"))
+    .toBe("plus");
+  expect(requests.at(-1)?.searchParams.get("offset")).toBe("0");
+  await page
+    .getByRole("combobox", { name: "Filter aktivitas" })
+    .selectOption("inactive");
+  await expect
+    .poll(() => requests.at(-1)?.searchParams.get("activity"))
+    .toBe("inactive");
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("combobox", { name: "Urutkan pengguna" })
+    .selectOption("activity");
+  await expect
+    .poll(() => requests.at(-1)?.searchParams.get("sort"))
+    .toBe("activity");
+});
+
+test("CSV exports every matching page and protects spreadsheet formula cells", async ({
+  page,
+}) => {
+  await openUsers(page);
+  const exports: number[] = [];
+  await page.route("**/admin/users?**", async (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    if (params.get("limit") !== "100") return route.fallback();
+    const offset = Number(params.get("offset"));
+    exports.push(offset);
+    await route.fulfill({
+      json: {
+        data: Array.from({ length: offset === 0 ? 100 : 1 }, (_, i) => ({
+          name: i === 0 ? "=DANGEROUS()" : `User ${offset + i}`,
+          email: `${offset + i}@example.test`,
+          status: "active",
+          plan: "trial",
+          createdAt: "2026-11-01T00:00:00Z",
+          lastActivityAt: null,
+          paidUntil: null,
+          paymentTotalIdr: 0,
+        })),
+        pagination: { total: 101, offset, limit: 100 },
+      },
+    });
+  });
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Ekspor CSV", exact: true }).click();
+  const download = await downloadPromise;
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const csv = Buffer.concat(chunks).toString("utf8");
+  expect(exports).toEqual([0, 100]);
+  expect(csv.split("\r\n")).toHaveLength(102);
+  expect(csv).toContain('"\'=DANGEROUS()"');
+});
+
+test("users can compare multiple expanded rows and close them independently", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({
+    width: testInfo.project.name === "desktop" ? 1440 : 390,
+    height: 1000,
+  });
+  await openUsers(page, 7);
+  const first = page.getByRole("button", {
+    name: "Detail penggunaan untuk User 1",
+    exact: true,
+  });
+
+  const second = page.getByRole("button", {
+    name: "Detail penggunaan untuk User 2",
+    exact: true,
+  });
+
+  await first.click();
+  await second.click();
+  await expect(first).toHaveAttribute("aria-expanded", "true");
+  await expect(second).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("heading", { name: "Penggunaan", exact: true })
+  ).toHaveCount(2);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth)
+  ).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await page.screenshot({
+    path: testInfo.outputPath("pengguna-details.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await first.click();
+  await expect(first).toHaveAttribute("aria-expanded", "false");
+  await expect(second).toHaveAttribute("aria-expanded", "true");
 });

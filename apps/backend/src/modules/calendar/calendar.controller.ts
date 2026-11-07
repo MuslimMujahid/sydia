@@ -1,3 +1,4 @@
+import { RecordUserActivity } from '../../shared/activity/user-activity';
 import { AllowInactiveBilling } from '../billing';
 import {
   Body,
@@ -340,7 +341,9 @@ export class CalendarController {
     return this.service.listRecovery(session.user.id, input.beforeId);
   }
 
-  @Post('recovery/:id/restore') restoreRecovery(
+  @RecordUserActivity('calendar')
+  @Post('recovery/:id/restore')
+  restoreRecovery(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: RestoreCalendarRecoveryDto,
@@ -354,7 +357,9 @@ export class CalendarController {
     );
   }
 
-  @Post('conflicts/:id/resolve') resolveConflict(
+  @RecordUserActivity('calendar')
+  @Post('conflicts/:id/resolve')
+  resolveConflict(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: ResolveCalendarConflictDto,
@@ -370,7 +375,9 @@ export class CalendarController {
     );
   }
 
-  @Post('events') create(
+  @RecordUserActivity('calendar')
+  @Post('events')
+  create(
     @Session() session: UserSession,
     @Body() input: CreateCalendarEventDto,
     @Headers('idempotency-key') idempotencyKey?: string,
@@ -383,7 +390,9 @@ export class CalendarController {
     );
   }
 
-  @Post('events/:id/copy') async copyToLocal(
+  @RecordUserActivity('calendar')
+  @Post('events/:id/copy')
+  async copyToLocal(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Headers('idempotency-key') idempotencyKey?: string,
@@ -413,7 +422,9 @@ export class CalendarController {
     );
   }
 
-  @Patch('events/:id') async update(
+  @RecordUserActivity('calendar')
+  @Patch('events/:id')
+  async update(
     @Session() session: UserSession,
     @Param('id') id: string,
     @Body() input: UpdateCalendarEventDto,

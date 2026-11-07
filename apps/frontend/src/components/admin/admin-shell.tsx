@@ -1,94 +1,167 @@
-import { LogOut, MessageSquareText, ShieldCheck, Users } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
+import { House, Users, LogOut, Menu, X } from "lucide-react";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
-  authQueryKeys,
   useSignOut,
+  authQueryKeys,
 } from "@/lib/services/api/auth/auth.queries";
 import {
   userQueryKeys,
   type UserProfile,
 } from "@/lib/services/api/users/users.queries";
+import { cn } from "@/lib/utils/cn";
 
-export function AdminShell({
-  user,
-  children,
-}: {
-  user: UserProfile;
-  children: ReactNode;
-}) {
+type AdminShellProps = { user: UserProfile; children: ReactNode };
+
+export function AdminShell({ user, children }: AdminShellProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const signOutMutation = useSignOut();
+  const signOut = useSignOut();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const [open, setOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const usersPage = pathname.startsWith("/admin/users");
 
   async function handleSignOut() {
-    await signOutMutation.mutateAsync();
-    queryClient.removeQueries({ queryKey: authQueryKeys.all });
-    queryClient.removeQueries({ queryKey: userQueryKeys.all });
-    await navigate({ to: "/admin/login", replace: true });
+    setSignOutError(null);
+
+    try {
+      await signOut.mutateAsync();
+      queryClient.removeQueries({ queryKey: authQueryKeys.all });
+      queryClient.removeQueries({ queryKey: userQueryKeys.all });
+      queryClient.removeQueries({ queryKey: ["admin"] });
+      await navigate({ to: "/admin/login", replace: true });
+    } catch (error) {
+      console.error("Admin sign out failed", error);
+      setSignOutError("Belum dapat keluar. Coba lagi.");
+    }
   }
 
-  return (
-    <div className="min-h-screen bg-background text-ink">
-      <header className="border-b border-ink/8 bg-canvas">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-5 sm:px-8">
-          <Link
-            to="/admin"
-            className="flex items-center gap-3 font-mono text-sm tracking-widest uppercase"
-          >
-            <SydiaLogo className="h-6" />
-            Sydia Admin
-          </Link>
-          <nav
-            aria-label="Navigasi admin"
-            className="ml-4 hidden items-center gap-2 sm:flex"
-          >
+  function navigation() {
+    return (
+      <>
+        <Link
+          to="/admin"
+          className="flex items-center gap-2 px-5 py-5 text-[15px] font-semibold"
+          onClick={() => setOpen(false)}
+        >
+          <SydiaLogo className="size-6" /> Sydia{" "}
+          <span className="ml-2 rounded-full bg-brand/10 px-2 py-1 font-mono text-[9px] tracking-widest text-brand">
+            ADMIN
+          </span>
+        </Link>
+        <nav aria-label="Navigasi admin" className="space-y-1 px-3">
+          <p className="px-2 py-2.5 font-mono text-[10px] tracking-[0.15em] text-ink-muted">
+            OPERASIONAL
+          </p>
+          {(
+            [
+              {
+                to: "/admin",
+                label: "Beranda",
+                icon: House,
+                selected: !usersPage,
+              },
+              {
+                to: "/admin/users",
+                label: "Pengguna",
+                icon: Users,
+                selected: usersPage,
+              },
+            ] as const
+          ).map(({ to, label, icon: Icon, selected }) => (
             <Link
-              to="/admin"
-              aria-current="page"
-              className="flex items-center gap-2 rounded-md bg-surface-1 px-3 py-2 text-sm font-semibold"
+              key={to}
+              to={to}
+              aria-current={selected ? "page" : undefined}
+              onClick={() => setOpen(false)}
+              className={cn(
+                "flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                selected
+                  ? "bg-surface-1 text-ink"
+                  : "text-ink-muted hover:bg-surface-1 hover:text-ink"
+              )}
             >
-              <Users className="size-4 text-brand" />
-              Pengguna
+              <Icon className={cn("size-4", selected && "text-brand")} />
+              {label}
             </Link>
-            <Link
-              to="/admin/whatsapp"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-ink-muted hover:bg-surface-1 hover:text-ink"
-            >
-              <MessageSquareText className="size-4 text-brand" />
-              WhatsApp
-            </Link>
-          </nav>
-          <div className="ml-auto flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold">{user.name}</p>
-              <p className="text-xs text-ink-muted">{user.email}</p>
+          ))}
+        </nav>
+        <div className="mt-auto border-t border-ink/6 px-4 py-5">
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-semibold text-brand">
+              {user.name
+                .split(" ")
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join("")}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{user.name}</p>
+              <p className="truncate text-xs text-ink-muted">{user.email}</p>
             </div>
             <Button
               variant="ghost"
               size="icon"
               aria-label="Keluar dari portal admin"
-              disabled={signOutMutation.isPending}
+              disabled={signOut.isPending}
               onClick={() => void handleSignOut()}
             >
-              <LogOut />
+              <LogOut className="size-4" />
             </Button>
           </div>
+          {signOutError && (
+            <p role="alert" className="mt-2 text-xs text-destructive">
+              {signOutError}
+            </p>
+          )}
         </div>
-      </header>
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 border-b border-ink/8 px-5 py-3 text-sm text-ink-muted sm:hidden">
-        <span className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-brand" />
-          Portal operasi · Pengguna
+      </>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-ink">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-ink/6 bg-canvas lg:flex">
+        {navigation()}
+      </aside>
+      <header className="flex h-14 items-center gap-4 border-b border-ink/6 bg-canvas px-4 lg:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Buka navigasi admin"
+          onClick={() => setOpen(true)}
+        >
+          <Menu />
+        </Button>
+        <SydiaLogo className="size-6" />
+        <span className="text-sm font-semibold">
+          {usersPage ? "Pengguna" : "Beranda"}
         </span>
-        <Link to="/admin/whatsapp" className="font-semibold text-brand">
-          WhatsApp
-        </Link>
-      </div>
-      <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-12">
+      </header>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          showClose={false}
+          className="fixed inset-y-0 left-0 flex h-dvh w-72 max-w-[85vw] translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0"
+        >
+          <DialogTitle className="sr-only">Navigasi admin</DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-5 right-2"
+            aria-label="Tutup navigasi admin"
+            onClick={() => setOpen(false)}
+          >
+            <X />
+          </Button>
+          {navigation()}
+        </DialogContent>
+      </Dialog>
+      <main className="mx-auto max-w-[1800px] px-5 py-7 sm:px-8 lg:ml-64 lg:px-10 lg:py-10">
         {children}
       </main>
     </div>

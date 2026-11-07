@@ -1,3 +1,4 @@
+import { AdminDashboardService } from './admin-dashboard.service';
 import {
   Body,
   Controller,
@@ -11,7 +12,7 @@ import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { IsIn } from 'class-validator';
 import type { AdminAction } from './admin.service';
 import { AdminService } from './admin.service';
-import { AdminUsersQueryDto } from './admin-users.dto';
+import { AdminDashboardQueryDto, AdminUsersQueryDto } from './admin-users.dto';
 import { AdminGiftPlusDto } from './admin-gift-plus.dto';
 import { AdminGiftPlusService } from './admin-gift-plus.service';
 
@@ -28,20 +29,29 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly gifts: AdminGiftPlusService,
+    private readonly dashboards: AdminDashboardService,
   ) {}
 
   @Post('users/:userId/gift-plus')
-  giftPlus(
+  async giftPlus(
     @Session() session: UserSession,
     @Param('userId') userId: string,
     @Body() input: AdminGiftPlusDto,
   ) {
-    return this.gifts.gift(session.user.id, userId, input);
+    const result = await this.gifts.gift(session.user.id, userId, input);
+    this.dashboards.invalidate();
+
+    return result;
   }
 
   @Get('overview')
-  overview() {
-    return this.admin.overview();
+  async overview() {
+    return (await this.dashboards.dashboard(30)).overview;
+  }
+
+  @Get('dashboard')
+  dashboard(@Query() input: AdminDashboardQueryDto) {
+    return this.dashboards.dashboard(input.period);
   }
 
   @Get('users')
@@ -50,11 +60,14 @@ export class AdminController {
   }
 
   @Patch('users/:userId')
-  act(
+  async act(
     @Session() session: UserSession,
     @Param('userId') userId: string,
     @Body() input: AdminActionDto,
   ) {
-    return this.admin.act(session.user.id, userId, input.action);
+    const result = await this.admin.act(session.user.id, userId, input.action);
+    this.dashboards.invalidate();
+
+    return result;
   }
 }

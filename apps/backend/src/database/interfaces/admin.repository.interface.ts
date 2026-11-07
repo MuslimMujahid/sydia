@@ -24,11 +24,23 @@ export type AdminUser = {
   storageBytes: number;
   llmCostUsd: number;
   usage: AdminUsageCounts;
+  trialEndsAt: Date | null;
+  plan: 'trial' | 'plus' | 'expired' | 'disabled';
+  onboardingCompleted: boolean;
+  acquisitionSource: string | null;
+  channels: string[];
+  payments: number;
+  paymentTotalIdr: number;
+  lastPaymentAt: Date | null;
+  lastPaymentMethod: string | null;
+  llmCost30DaysUsd: number;
 };
 
 export type AdminOverview = {
   totalUsers: number;
   activeUsers: number;
+  allowedUsers: number;
+  subscribedUsers: number;
   bannedUsers: number;
   activeSessions: number;
   storageBytes: number;
@@ -39,6 +51,12 @@ export type AdminOverview = {
 export type AdminUsersInput = PaginationInput & {
   q?: string;
   status?: AdminUserStatus;
+  plan?: 'trial' | 'plus' | 'expired';
+  activity?: 'active' | 'inactive';
+  attention?: 'trial-expiring' | 'plus-expiring';
+  environment?: string;
+  rolloutAt?: Date;
+  sort?: 'newest' | 'oldest' | 'activity';
 };
 
 export type AdminUsersPage = {

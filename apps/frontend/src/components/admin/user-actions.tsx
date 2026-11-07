@@ -1,7 +1,7 @@
 import {
   AlertTriangle,
   Ban,
-  EllipsisVertical,
+  Ellipsis,
   LogOut,
   Trash2,
   UserCheck,
@@ -99,12 +99,13 @@ export function UserActionsMenu({
           <Button
             variant="ghost"
             size="icon-sm"
+            className="size-8 rounded-[8px] hover:bg-ink/5"
             aria-label={`Aksi untuk ${user.name}`}
             disabled={disabled}
           />
         }
       >
-        <EllipsisVertical />
+        <Ellipsis aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {user.status === "active" ? (

@@ -84,6 +84,7 @@ model User {
 
   @@index([role])
   @@index([banned])
+  @@index([createdAt])
   @@map("user")
 }
 
@@ -171,6 +172,7 @@ model BillingPayment {
   order                 BillingOrder @relation(fields: [orderId], references: [id])
 
   @@unique([environment, providerTransactionId])
+  @@index([environment, verifiedAt])
   @@map("billing_payment")
 }
 
@@ -370,6 +372,8 @@ model Message {
   @@unique([conversationId, providerMessageId])
   @@unique([userId, idempotencyKey])
   @@index([conversationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([role, createdAt])
   @@map("message")
 }
 
@@ -410,6 +414,7 @@ model AssistantRun {
   @@index([model])
   @@index([conversationId, createdAt])
   @@index([inputMessageId, createdAt])
+  @@index([createdAt])
   @@map("assistant_run")
 }
 

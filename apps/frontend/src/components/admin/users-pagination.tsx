@@ -13,10 +13,10 @@ function pageNumbers(
   current: number,
   total: number
 ): Array<number | "start-gap" | "end-gap"> {
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
-  if (current <= 4) return [1, 2, 3, 4, 5, "end-gap", total];
-  if (current >= total - 3)
-    return [1, "start-gap", total - 4, total - 3, total - 2, total - 1, total];
+  if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1);
+  if (current <= 2) return [1, 2, 3, "end-gap", total];
+  if (current >= total - 1)
+    return [1, "start-gap", total - 2, total - 1, total];
 
   return [1, "start-gap", current - 1, current, current + 1, "end-gap", total];
 }
@@ -32,11 +32,11 @@ export function UsersPagination({
   const pages = Math.max(1, Math.ceil(total / limit));
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-3">
       <Button
-        variant="ghost"
+        variant="dark-outline"
         size="icon-sm"
-        className="size-9"
+        className="size-8 rounded-[8px] bg-canvas"
         aria-label="Sebelumnya"
         disabled={isFetching || current === 1}
         onClick={() => onOffsetChange(Math.max(0, offset - limit))}
@@ -47,9 +47,9 @@ export function UsersPagination({
         typeof page === "number" ? (
           <Button
             key={page}
-            variant={page === current ? "dark" : "ghost"}
+            variant={page === current ? "dark" : "dark-outline"}
             size="icon-sm"
-            className="size-9 tabular-nums"
+            className="size-8 rounded-[8px] font-mono text-xs tabular-nums"
             aria-label={`Halaman ${page}`}
             aria-current={page === current ? "page" : undefined}
             disabled={isFetching || total === 0}
@@ -61,16 +61,16 @@ export function UsersPagination({
           <span
             key={page}
             aria-hidden="true"
-            className="flex size-9 shrink-0 items-center justify-center text-ink-muted"
+            className="flex size-8 shrink-0 items-center justify-center text-ink-muted"
           >
             <Ellipsis className="size-4" />
           </span>
         )
       )}
       <Button
-        variant="ghost"
+        variant="dark-outline"
         size="icon-sm"
-        className="size-9"
+        className="size-8 rounded-[8px] bg-canvas"
         aria-label="Berikutnya"
         disabled={isFetching || current >= pages}
         onClick={() => onOffsetChange(offset + limit)}

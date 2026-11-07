@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: "./e2e",
   testMatch: [
     "admin-users.spec.ts",
+    "admin-dashboard.spec.ts",
     "billing.spec.ts",
     "onboarding-billing.spec.ts",
     "checkout.spec.ts",

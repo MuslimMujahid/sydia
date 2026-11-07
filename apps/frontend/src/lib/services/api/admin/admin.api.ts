@@ -2,6 +2,8 @@ import { api, toApiError } from "../api";
 import type { ApiListResponse, ApiResponse } from "../api.types";
 import type {
   AdminOverview,
+  AdminDashboard,
+  AdminPeriod,
   AdminUser,
   AdminUserAction,
   AdminUsersInput,
@@ -36,6 +38,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
     return response.data.data;
   } catch (error) {
+    console.error("Admin overview request failed", error);
     throw toApiError(error, "Ringkasan pengguna tidak dapat dimuat.");
   }
 }
@@ -68,6 +71,22 @@ export async function updateAdminUser(
       action,
     });
   } catch (error) {
+    console.error("Admin action failed", error);
     throw toApiError(error, "Aksi pengguna tidak dapat dijalankan.");
+  }
+}
+
+export async function getAdminDashboard(
+  period: AdminPeriod
+): Promise<AdminDashboard> {
+  try {
+    return (
+      await api.get<ApiResponse<AdminDashboard>>("/admin/dashboard", {
+        params: { period },
+      })
+    ).data.data;
+  } catch (error) {
+    console.error("Admin dashboard request failed", error);
+    throw toApiError(error, "Dasbor belum dapat dimuat. Coba lagi.");
   }
 }

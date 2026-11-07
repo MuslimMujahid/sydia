@@ -10,6 +10,7 @@ const entityFixture: Plugin = {
       const fixture = request.url?.split("?")[0];
       if (
         fixture !== "/e2e/admin-users.html" &&
+        fixture !== "/e2e/admin-dashboard.html" &&
         fixture !== "/e2e/notes-move.html" &&
         fixture !== "/e2e/notes-search.html" &&
         fixture !== "/e2e/billing.html" &&

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import {
   getAdminOverview,
+  getAdminDashboard,
   getAdminUsers,
   updateAdminUser,
   giftAdminUserPlus,
@@ -14,16 +15,27 @@ import {
 import { billingKeys } from "../billing/billing.api";
 import type {
   AdminUserAction,
+  AdminPeriod,
   AdminUsersInput,
   AdminGiftPlusInput,
 } from "@/components/admin/types";
 
 export const adminQueryKeys = {
   all: ["admin"] as const,
+  dashboards: () => ["admin", "dashboard"] as const,
+  dashboard: (period: AdminPeriod) => ["admin", "dashboard", period] as const,
   overview: () => ["admin", "overview"] as const,
   users: () => ["admin", "users"] as const,
   usersPage: (input: AdminUsersInput) => ["admin", "users", input] as const,
 };
+
+export const adminDashboardQueryOptions = (period: AdminPeriod) =>
+  queryOptions({
+    queryKey: adminQueryKeys.dashboard(period),
+    queryFn: () => getAdminDashboard(period),
+    staleTime: 120_000,
+    refetchInterval: 120_000,
+  });
 
 export const adminOverviewQueryOptions = () =>
   queryOptions({
@@ -50,7 +62,11 @@ export function useAdminUserAction() {
       action: AdminUserAction;
     }) => updateAdminUser(userId, action),
     meta: {
-      invalidateQueries: [adminQueryKeys.overview(), adminQueryKeys.users()],
+      invalidateQueries: [
+        adminQueryKeys.overview(),
+        adminQueryKeys.users(),
+        adminQueryKeys.dashboards(),
+      ],
     },
   });
 }
@@ -64,19 +80,27 @@ export function useAdminGiftPlus() {
       userId: string;
       input: AdminGiftPlusInput;
     }) => giftAdminUserPlus(userId, input),
-    meta: { invalidateQueries: [adminQueryKeys.users(), billingKeys.status] },
+    meta: {
+      invalidateQueries: [
+        adminQueryKeys.users(),
+        adminQueryKeys.overview(),
+        adminQueryKeys.dashboards(),
+        billingKeys.status,
+      ],
+    },
   });
 }
 
-export function useAdminUsersList() {
+export function useAdminUsersList(initial: Partial<AdminUsersInput> = {}) {
   const [input, setInput] = useState<AdminUsersInput>({
     offset: 0,
     limit: 25,
     q: "",
     status: "all",
+    ...initial,
   });
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initial.q ?? "");
   useEffect(() => {
     const timeout = setTimeout(() => {
       setInput((current) =>
@@ -96,11 +120,22 @@ export function useAdminUsersList() {
     onSearchChange: setSearch,
     onStatusChange: (status: AdminUsersInput["status"]) =>
       setInput((current) => ({ ...current, status, offset: 0 })),
+    onFiltersChange: (filters: Partial<AdminUsersInput>) =>
+      setInput((current) => ({ ...current, ...filters, offset: 0 })),
     onOffsetChange: (offset: number) =>
       setInput((current) => ({ ...current, offset })),
     onResetFilters: () => {
       setSearch("");
-      setInput((current) => ({ ...current, q: "", status: "all", offset: 0 }));
+      setInput((current) => ({
+        ...current,
+        q: "",
+        status: "all",
+        plan: undefined,
+        activity: undefined,
+        attention: undefined,
+        sort: "newest",
+        offset: 0,
+      }));
     },
   };
 }

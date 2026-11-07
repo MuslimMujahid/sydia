@@ -1,3 +1,5 @@
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { UserActivityInterceptor } from './shared/activity/user-activity';
 import { RecordNotesModule } from './modules/record-notes';
 import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -454,7 +456,12 @@ export function validateEnvironment(
     TelegramModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AllExceptionsFilter, ResponseInterceptor],
+  providers: [
+    AppService,
+    AllExceptionsFilter,
+    ResponseInterceptor,
+    { provide: APP_INTERCEPTOR, useClass: UserActivityInterceptor },
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer): void {

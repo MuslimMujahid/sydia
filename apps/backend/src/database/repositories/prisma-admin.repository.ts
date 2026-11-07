@@ -1,3 +1,5 @@
+import { BILLING_TRIAL_DAYS } from '../../shared/billing-policy';
+import { userActivitySql, verifiedPaymentsSql } from './admin-analytics.sql';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
@@ -21,6 +23,22 @@ type AdminUserRow = {
   activeSessions: bigint;
   storageBytes: bigint;
   llmCostUsd: Prisma.Decimal;
+  details: Omit<
+    import('../interfaces').AdminUser,
+    | 'id'
+    | 'name'
+    | 'email'
+    | 'status'
+    | 'createdAt'
+    | 'paidUntil'
+    | 'lastActivityAt'
+    | 'activeSessions'
+    | 'storageBytes'
+    | 'llmCostUsd'
+    | 'usage'
+    | 'trialEndsAt'
+    | 'lastPaymentAt'
+  > & { trialEndsAt: string | null; lastPaymentAt: string | null };
   conversations: bigint;
   documents: bigint;
   memories: bigint;
@@ -33,6 +51,8 @@ type AdminUserRow = {
 type OverviewRow = {
   totalUsers: bigint;
   activeUsers: bigint;
+  allowedUsers: bigint;
+  subscribedUsers: bigint;
   bannedUsers: bigint;
   activeSessions: bigint;
   storageBytes: bigint;
@@ -149,9 +169,12 @@ export class PrismaAdminRepository implements IAdminRepository {
   async overview(now: Date): Promise<AdminOverview> {
     const [rows, costs] = await Promise.all([
       this.prisma.$queryRaw<OverviewRow[]>(Prisma.sql`
+        WITH activity AS (${userActivitySql(new Date(now.getTime() - 30 * 86_400_000), now)}), payments AS (${verifiedPaymentsSql('production')})
         SELECT
           COUNT(*)::bigint AS "totalUsers",
-          COUNT(*) FILTER (WHERE NOT u."banned")::bigint AS "activeUsers",
+          (SELECT COUNT(DISTINCT "userId") FROM activity)::bigint AS "activeUsers",
+          COUNT(*) FILTER (WHERE NOT u."banned")::bigint AS "allowedUsers",
+          (SELECT COUNT(DISTINCT "userId") FROM payments WHERE "paidThrough">${now} AND "verifiedAt"<${now})::bigint AS "subscribedUsers",
           COUNT(*) FILTER (WHERE u."banned")::bigint AS "bannedUsers",
           (SELECT COUNT(*) FROM "session" s WHERE s."expiresAt" > ${now})::bigint AS "activeSessions",
           COALESCE((SELECT SUM(f."size") FROM "file_asset" f), 0)::bigint AS "storageBytes",
@@ -168,14 +191,17 @@ export class PrismaAdminRepository implements IAdminRepository {
     ]);
 
     const row = rows[0];
+    if (!row) throw new Error('Admin overview aggregate returned no result');
 
     return {
-      totalUsers: count(row?.totalUsers ?? 0n),
-      activeUsers: count(row?.activeUsers ?? 0n),
-      bannedUsers: count(row?.bannedUsers ?? 0n),
-      activeSessions: count(row?.activeSessions ?? 0n),
-      storageBytes: count(row?.storageBytes ?? 0n),
-      llmCostUsd: money(row?.llmCostUsd ?? new Prisma.Decimal(0)),
+      totalUsers: count(row.totalUsers),
+      allowedUsers: count(row.allowedUsers),
+      subscribedUsers: count(row.subscribedUsers),
+      activeUsers: count(row.activeUsers),
+      bannedUsers: count(row.bannedUsers),
+      activeSessions: count(row.activeSessions),
+      storageBytes: count(row.storageBytes),
+      llmCostUsd: money(row.llmCostUsd),
       llmCostBreakdown: costs.map((entry) => ({
         model: entry.model,
         costUsd: money(entry.costUsd),
@@ -193,7 +219,34 @@ export class PrismaAdminRepository implements IAdminRepository {
       ? Prisma.sql`AND u."banned" = ${input.status === 'banned'}`
       : Prisma.empty;
 
-    const where = Prisma.sql`WHERE TRUE ${search} ${status}`;
+    const weekLater = new Date(now.getTime() + 7 * 86_400_000);
+    const lastActivity = Prisma.sql`(SELECT MAX(a."occurredAt") FROM (${userActivitySql(new Date(0), now)}) a WHERE a."userId"=u.id)`;
+    const trialEnd = Prisma.sql`COALESCE((SELECT b."trialEndsAt" FROM billing_account b WHERE b."userId"=u.id), CASE WHEN ${input.rolloutAt ?? null}::timestamp IS NOT NULL THEN GREATEST(u."createdAt", ${input.rolloutAt ?? null}::timestamp) + (${BILLING_TRIAL_DAYS} * interval '1 day') END)`;
+    const paidEnd = Prisma.sql`(SELECT b."paidUntil" FROM billing_account b WHERE b."userId"=u.id)`;
+    const plan = Prisma.sql`CASE WHEN ${paidEnd}>${now} THEN 'plus' WHEN ${trialEnd}>${now} THEN 'trial' WHEN ${trialEnd} IS NULL THEN 'disabled' ELSE 'expired' END`;
+    const planFilter = input.plan
+      ? Prisma.sql`AND ${plan}=${input.plan}`
+      : Prisma.empty;
+
+    const activityFilter = input.activity
+      ? Prisma.sql`AND EXISTS(SELECT 1 FROM (${userActivitySql(new Date(now.getTime() - 30 * 86_400_000), now)}) a WHERE a."userId"=u.id)=${input.activity === 'active'}`
+      : Prisma.empty;
+
+    const attentionFilter =
+      input.attention === 'trial-expiring'
+        ? Prisma.sql`AND ${plan}='trial' AND ${trialEnd}<=${weekLater}`
+        : input.attention === 'plus-expiring'
+          ? Prisma.sql`AND ${paidEnd}>${now} AND ${paidEnd}<=${weekLater} AND EXISTS(SELECT 1 FROM (${verifiedPaymentsSql(input.environment ?? 'production')}) p WHERE p."userId"=u.id AND p."paidThrough">${now})`
+          : Prisma.empty;
+
+    const order =
+      input.sort === 'oldest'
+        ? Prisma.sql`u."createdAt" ASC, u."id" ASC`
+        : input.sort === 'activity'
+          ? Prisma.sql`${lastActivity} DESC NULLS LAST, u."id" DESC`
+          : Prisma.sql`u."createdAt" DESC, u."id" DESC`;
+
+    const where = Prisma.sql`WHERE TRUE ${search} ${status} ${planFilter} ${activityFilter} ${attentionFilter}`;
     const [countRow] = await this.prisma.$queryRaw<
       [{ total: bigint }]
     >(Prisma.sql`
@@ -211,7 +264,7 @@ export class PrismaAdminRepository implements IAdminRepository {
       WITH page_users AS MATERIALIZED (
         SELECT u."id", u."name", u."email", u."banned", u."createdAt", u."updatedAt"
         FROM "user" u ${where}
-        ORDER BY u."createdAt" DESC, u."id" DESC
+        ORDER BY ${order}
         LIMIT ${input.limit} OFFSET ${offset}
       )
       SELECT
@@ -220,12 +273,18 @@ export class PrismaAdminRepository implements IAdminRepository {
         u."email",
         u."banned",
         u."createdAt",
+        json_build_object('trialEndsAt',(${trialEnd} AT TIME ZONE 'UTC'),'plan',${plan},
+          'onboardingCompleted',(SELECT x."onboardingCompleted" FROM "user" x WHERE x.id=u.id),
+          'acquisitionSource',(SELECT a."utmSource" FROM user_attribution a WHERE a."userId"=u.id),
+          'channels',COALESCE((SELECT json_agg(DISTINCT c.channel) FROM conversation c WHERE c."userId"=u.id),'[]'::json),
+          'payments',(SELECT COUNT(*) FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'}),
+          'paymentTotalIdr',COALESCE((SELECT SUM(p.amount) FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'}),0),
+          'lastPaymentAt',(SELECT MAX(p."verifiedAt") AT TIME ZONE 'UTC' FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'}),
+          'lastPaymentMethod',(SELECT o."paymentMethod" FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'} ORDER BY p."verifiedAt" DESC LIMIT 1),
+          'llmCost30DaysUsd',COALESCE((SELECT SUM(ar."costUsd") FROM assistant_run ar JOIN conversation c ON c.id=ar."conversationId" WHERE c."userId"=u.id AND ar."createdAt">=${new Date(now.getTime() - 30 * 86_400_000)} AND ar."createdAt"<${now}),0)
+        ) AS details,
         (SELECT b."paidUntil" FROM "billing_account" b WHERE b."userId" = u."id") AS "paidUntil",
-        GREATEST(
-          (SELECT MAX(m."createdAt") FROM "message" m WHERE m."userId" = u."id"),
-          (SELECT MAX(s."updatedAt") FROM "session" s WHERE s."userId" = u."id"),
-          u."updatedAt"
-        ) AS "lastActivityAt",
+        ${lastActivity} AS "lastActivityAt",
         (SELECT COUNT(*) FROM "session" s WHERE s."userId" = u."id" AND s."expiresAt" > ${now})::bigint AS "activeSessions",
         COALESCE((SELECT SUM(x."size") FROM "file_asset" x WHERE x."userId" = u."id"), 0)::bigint AS "storageBytes",
         COALESCE((
@@ -242,10 +301,17 @@ export class PrismaAdminRepository implements IAdminRepository {
         (SELECT COUNT(*) FROM "contact" x WHERE x."userId" = u."id")::bigint AS "contacts",
         (SELECT COUNT(*) FROM "calendar_event" x WHERE x."userId" = u."id")::bigint AS "events"
       FROM page_users u
-      ORDER BY u."createdAt" DESC, u."id" DESC
+      ORDER BY ${order}
     `);
 
     const items = rows.map((row) => ({
+      ...row.details,
+      trialEndsAt: row.details.trialEndsAt
+        ? new Date(row.details.trialEndsAt)
+        : null,
+      lastPaymentAt: row.details.lastPaymentAt
+        ? new Date(row.details.lastPaymentAt)
+        : null,
       id: row.id,
       name: row.name,
       email: row.email,

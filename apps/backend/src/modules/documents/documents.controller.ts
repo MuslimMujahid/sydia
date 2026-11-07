@@ -1,3 +1,4 @@
+import { RecordUserActivity } from '../../shared/activity/user-activity';
 import {
   Controller,
   Body,
@@ -81,6 +82,7 @@ export class DocumentsController {
       .send(file);
   }
 
+  @RecordUserActivity('documents')
   @Post()
   @UseInterceptors(DocumentUploadInterceptor)
   async upload(
@@ -102,6 +104,7 @@ export class DocumentsController {
     );
   }
 
+  @RecordUserActivity('documents')
   @Patch(':id')
   async update(
     @Session() session: UserSession,

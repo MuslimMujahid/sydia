@@ -33,3 +33,5 @@ export * from './note-work.repository.interface';
 export * from './note-agent-run.repository.interface';
 export * from './record-notes.repository.interface';
 export * from './attribution.repository.interface';
+
+export * from './admin-analytics.repository.interface';
