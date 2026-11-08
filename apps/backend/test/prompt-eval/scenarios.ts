@@ -207,6 +207,39 @@ function addsColumn(existing: string[]) {
   };
 }
 
+/**
+ * A detail that fits no column is either saved in a newly added column or
+ * named back to the user with a question about adding one (owner decision,
+ * 8 Nov 2026: asking first is acceptable). `detail` is the user's own words.
+ */
+function storesOrOffersColumn(
+  existing: string[],
+  detail: RegExp,
+  label: string,
+): Check {
+  return {
+    name: `adds a column for ${label} or asks about one`,
+    test: (run) => {
+      const added =
+        run.calls.some(
+          ({ name, args }) =>
+            name === 'change_record_schema' && addsColumn(existing)(args),
+        ) &&
+        run.calls.some(
+          ({ name, args }) =>
+            name === 'add_record_rows' && filledNewColumn(args, existing),
+        );
+
+      if (added) return true;
+
+      return (
+        (detail.test(run.text) && run.text.includes('?')) ||
+        `${label} neither saved in a new column nor offered one`
+      );
+    },
+  };
+}
+
 const ORDER_LINK = /\]\(#note\/(?:custom(?:%3A|:))?n-pesanan\)/i;
 
 /**
@@ -1467,9 +1500,9 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    // A forwarded order with no payment method or address leaves both cells
-    // empty, and the pickup, which fits no column, gets a new column. The
-    // guidance must not name this case; see capture-stock-new-column.
+    // A forwarded order is saved with payment and address left empty; the
+    // pickup, which fits no column, gets a new column or a question about one.
+    // The guidance must not name this case; see capture-stock-new-column.
     id: 'capture-order-missing-field',
     area: 'notes',
     history: [
@@ -1525,16 +1558,7 @@ export const SCENARIOS: Scenario[] = [
     },
     checks: [
       noErrors(),
-      called(
-        'change_record_schema',
-        addsColumn(ORDER_COLUMN_IDS),
-        'keeps existing columns and adds one',
-      ),
-      called(
-        'add_record_rows',
-        (args) => filledNewColumn(args, ORDER_COLUMN_IDS),
-        'pickup saved in the new column',
-      ),
+      storesOrOffersColumn(ORDER_COLUMN_IDS, /ambil sendiri/i, 'the pickup'),
       called(
         'add_record_rows',
         (args) => leftEmpty(args, ['pembayaran', 'alamat']),
@@ -1545,8 +1569,9 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     // Held out: the same rule in a domain the guidance never mentions. A
-    // supplier fits no stock column and gets a new one; the price the user
-    // did not give stays empty. Do not add examples from this case to prompts.
+    // supplier fits no stock column and gets a new one or a question about
+    // one; the price the user did not give stays empty. Do not add examples
+    // from this case to prompts.
     id: 'capture-stock-new-column',
     area: 'notes',
     message: 'Tambah stok gula 20 kg, belinya dari Toko Makmur',
@@ -1631,16 +1656,7 @@ export const SCENARIOS: Scenario[] = [
     },
     checks: [
       noErrors(),
-      called(
-        'change_record_schema',
-        addsColumn(STOCK_COLUMN_IDS),
-        'keeps existing columns and adds one',
-      ),
-      called(
-        'add_record_rows',
-        (args) => filledNewColumn(args, STOCK_COLUMN_IDS),
-        'supplier saved in the new column',
-      ),
+      storesOrOffersColumn(STOCK_COLUMN_IDS, /makmur/i, 'the supplier'),
       called(
         'add_record_rows',
         (args) => leftEmpty(args, ['harga']),
