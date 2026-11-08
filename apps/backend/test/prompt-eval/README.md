@@ -30,7 +30,13 @@ bun run eval:prompts                                   # all scenarios, 3 runs e
 PROMPT_EVAL_ONLY=memory bun run eval:prompts           # one area or scenario ids (comma-separated)
 PROMPT_EVAL_RUNS=1 PROMPT_EVAL_ROUTING=off bun run eval:prompts
 PROMPT_EVAL_SAVE_BASELINE=true bun run eval:prompts    # record the baseline
+PROMPT_EVAL_CELL_REVIEW=off bun run eval:prompts       # without the table value review
 ```
+
+Row writes go through the production table value review
+(`RecordCellReviewService`) against the real decision model, using the
+scenario's scripted `get_record_note_metadata`. A refused write is listed under
+`refused` in the results and never reaches the scripted tool.
 
 Output goes to `test/prompt-eval/results/latest.json` and `latest.md`
 (git-ignored). Runs are traced to Langfuse under `prompt-eval.<scenario>`

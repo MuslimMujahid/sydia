@@ -1500,8 +1500,8 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    // A forwarded order is saved with payment and address left empty; the
-    // pickup, which fits no column, gets a new column or a question about one.
+    // A forwarded order is saved with payment left empty; the pickup goes
+    // under Alamat Kirim, into a new column, or into a question about one.
     // The guidance must not name this case; see capture-stock-new-column.
     id: 'capture-order-missing-field',
     area: 'notes',
@@ -1558,11 +1558,31 @@ export const SCENARIOS: Scenario[] = [
     },
     checks: [
       noErrors(),
-      storesOrOffersColumn(ORDER_COLUMN_IDS, /ambil sendiri/i, 'the pickup'),
+      {
+        // Owner decision (8 Nov 2026): the pickup may also go under Alamat
+        // Kirim; a new column or a question about one is fine too.
+        name: 'pickup under address, in a new column, or asked about',
+        test: (run, scenario) =>
+          run.calls.some(
+            ({ name, args }) =>
+              name === 'add_record_rows' &&
+              addedValues(args).some(
+                ([key, value]) =>
+                  key === 'alamat' &&
+                  typeof value === 'string' &&
+                  /ambil sendiri/i.test(value),
+              ),
+          ) ||
+          storesOrOffersColumn(
+            ORDER_COLUMN_IDS,
+            /ambil sendiri/i,
+            'the pickup',
+          ).test(run, scenario),
+      },
       called(
         'add_record_rows',
-        (args) => leftEmpty(args, ['pembayaran', 'alamat']),
-        'payment and address left empty',
+        (args) => leftEmpty(args, ['pembayaran']),
+        'payment left empty',
       ),
       notCalled('create_record_note', 'write_daily_note'),
     ],
