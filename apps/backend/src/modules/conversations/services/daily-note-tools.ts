@@ -71,7 +71,7 @@ const DAY_KEY = {
  * lookup for a request that names another note together with a day.
  */
 export const EMPTY_DAY_SCOPE =
-  'Only the daily note was checked. If the user named another note, find it with search_notes before saying it does not exist.';
+  'Only the daily note was checked. Words in the request besides the day, such as a title or topic, name another note: search_notes for them before replying or asking which note was meant.';
 
 /**
  * Daily note tools. The diary is addressed by local calendar day rather than by

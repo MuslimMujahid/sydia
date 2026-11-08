@@ -16,6 +16,7 @@ import {
 } from './checks';
 import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
 import type { Check, RunRecord, Scenario } from './harness';
+import { recordTable, type FixtureColumn } from './record-fixture';
 
 /**
  * Expected outcomes approved by the product owner (2026-11-07). Each scenario
@@ -242,6 +243,81 @@ function storesOrOffersColumn(
 
 const ORDER_LINK = /\]\(#note\/(?:custom(?:%3A|:))?n-pesanan\)/i;
 
+/** The empty daily note returned when the model checks it first. */
+const EMPTY_TODAY = {
+  date: localDate(),
+  found: false,
+  text: null,
+  document: null,
+  updatedAt: null,
+  scope: EMPTY_DAY_SCOPE,
+};
+
+/** Search result for a table: title, description and column names only. */
+function tableHit(
+  table: ReturnType<typeof recordTable>['metadata'],
+  columns: FixtureColumn[],
+) {
+  return {
+    notes: [
+      {
+        ref: table.ref,
+        id: table.id,
+        kind: 'note',
+        format: 'record',
+        title: table.title,
+        path: table.path,
+        parentId: null,
+        updatedAt: at(0, '08:10'),
+        excerpt: [table.description, ...columns.map(({ name }) => name)].join(
+          '\n',
+        ),
+      },
+    ],
+    retrievalMode: 'hybrid',
+    indexingPending: false,
+  };
+}
+
+/**
+ * Rows of the named day are listed and rows of other days are not. Each
+ * fragment is a value that appears in exactly one row.
+ */
+function onlyThatDay(listed: string[], otherDays: string[]): Check[] {
+  return [contains(...listed), notContains(...otherDays)];
+}
+
+const STOCK_FIXTURE_COLUMNS: FixtureColumn[] = [
+  { id: 'tanggal', name: 'Tanggal', type: 'date' },
+  { id: 'barang', name: 'Barang', type: 'text' },
+  { id: 'jumlah', name: 'Jumlah', type: 'number' },
+  { id: 'satuan', name: 'Satuan', type: 'text' },
+  { id: 'harga', name: 'Harga', type: 'number', unit: 'IDR' },
+];
+
+const STOCK_TABLE = recordTable({
+  id: 'n-stok',
+  title: 'Stok Barang',
+  description: 'Barang masuk ke gudang.',
+  columns: STOCK_FIXTURE_COLUMNS,
+  rows: [
+    {
+      tanggal: localDate(-2),
+      barang: 'Tepung terigu',
+      jumlah: '10',
+      satuan: 'kg',
+    },
+    {
+      tanggal: localDate(-1),
+      barang: 'Minyak goreng',
+      jumlah: '12',
+      satuan: 'liter',
+    },
+    { tanggal: localDate(), barang: 'Gula', jumlah: '20', satuan: 'kg' },
+    { tanggal: localDate(), barang: 'Telur', jumlah: '5', satuan: 'kg' },
+  ],
+});
+
 /**
  * Held out: a named note plus a day, in phrasings fixed before measuring and
  * used by no tool description or skill. Do not add them to prompts.
@@ -255,84 +331,18 @@ function stockLookup(id: string, message: string): Scenario {
       { id: 'n-stok', title: 'Stok Barang', kind: 'note', format: 'record' },
     ],
     tools: {
-      search_notes: {
-        notes: [
-          {
-            ref: 'custom:n-stok',
-            id: 'n-stok',
-            kind: 'note',
-            format: 'record',
-            title: 'Stok Barang',
-            path: 'Stok Barang',
-            parentId: null,
-            updatedAt: at(0, '08:10'),
-            excerpt:
-              'Barang masuk ke gudang.\nTanggal\nBarang\nJumlah\nSatuan\nHarga',
-          },
-        ],
-        retrievalMode: 'hybrid',
-        indexingPending: false,
-      },
-      read_daily_note: {
-        date: localDate(),
-        found: false,
-        text: null,
-        document: null,
-        updatedAt: null,
-        scope: EMPTY_DAY_SCOPE,
-      },
-      get_record_note_metadata: {
-        ref: 'custom:n-stok',
-        id: 'n-stok',
-        kind: 'note',
-        format: 'record',
-        title: 'Stok Barang',
-        path: 'Stok Barang',
-        parentId: null,
-        description: 'Barang masuk ke gudang.',
-        columns: STOCK_COLUMNS,
-        revision: 5,
-        rowCount: 1,
-      },
-      read_record_note_content: {
-        id: 'n-stok',
-        revision: 5,
-        rows: [
-          {
-            id: 'row-gula',
-            position: 1,
-            values: {
-              tanggal: {
-                raw: localDate(),
-                value: localDate(),
-                status: 'typed',
-              },
-              barang: { raw: 'Gula', value: 'Gula', status: 'typed' },
-              jumlah: { raw: '20', value: '20', status: 'typed' },
-              satuan: { raw: 'kg', value: 'kg', status: 'typed' },
-            },
-          },
-        ],
-        total: 1,
-        next: null,
-        previous: null,
-      },
-      query_record_notes: {
-        rows: [{ id: 'row-gula', barang: 'Gula', jumlah: '20', satuan: 'kg' }],
-        sources: [{ id: 'n-stok', revision: 5 }],
-      },
+      search_notes: tableHit(STOCK_TABLE.metadata, STOCK_FIXTURE_COLUMNS),
+      read_daily_note: EMPTY_TODAY,
+      ...STOCK_TABLE.tools,
     },
     checks: [
       noErrors(),
       anyOf(['search_notes', 'list_notes_workspace'], 'looks up the note'),
       anyOf(
-        [
-          'get_record_note_metadata',
-          'read_record_note_content',
-          'query_record_notes',
-        ],
-        'reads the stock note',
+        ['read_record_note_content', 'query_record_notes'],
+        'reads the stock rows',
       ),
+      ...onlyThatDay(['Gula', 'Telur'], ['Minyak', 'Tepung']),
       notCalled(
         'create_record_note',
         'create_custom_note',
@@ -342,6 +352,55 @@ function stockLookup(id: string, message: string): Scenario {
     ],
   };
 }
+
+const ORDER_TABLE = recordTable({
+  id: 'n-pesanan',
+  title: 'Catatan Pemesanan',
+  description: ORDER_METADATA.description,
+  columns: ORDER_COLUMNS as FixtureColumn[],
+  revision: 3,
+  rows: ORDER_ROWS.map(({ values }) =>
+    Object.fromEntries(
+      Object.entries(values).map(([key, cell]) => [key, cell.raw]),
+    ),
+  ),
+});
+
+const EXPENSE_COLUMNS: FixtureColumn[] = [
+  { id: 'tgl', name: 'Tanggal Bayar', type: 'date' },
+  { id: 'keperluan', name: 'Keperluan', type: 'text' },
+  { id: 'nominal', name: 'Nominal', type: 'number', unit: 'IDR' },
+];
+
+const EXPENSE_TABLE = recordTable({
+  id: 'n-pengeluaran',
+  title: 'Pengeluaran Warung',
+  description: 'Uang keluar untuk operasional warung.',
+  columns: EXPENSE_COLUMNS,
+  rows: [
+    { tgl: localDate(-3), keperluan: 'Gas LPG', nominal: '22000' },
+    { tgl: localDate(-1), keperluan: 'Galon air', nominal: '20000' },
+    { tgl: localDate(-1), keperluan: 'Token listrik', nominal: '100000' },
+    { tgl: localDate(), keperluan: 'Plastik kresek', nominal: '15000' },
+  ],
+});
+
+const SHOPPING_COLUMNS: FixtureColumn[] = [
+  { id: 'barang', name: 'Barang', type: 'text' },
+  { id: 'jumlah', name: 'Jumlah', type: 'text' },
+];
+
+const SHOPPING_TABLE = recordTable({
+  id: 'n-belanja',
+  title: 'Daftar Belanja',
+  description: 'Barang yang perlu dibeli.',
+  columns: SHOPPING_COLUMNS,
+  rows: [
+    { barang: 'Kecap manis', jumlah: '2 botol' },
+    { barang: 'Bawang merah', jumlah: '1 kg' },
+    { barang: 'Sabun cuci', jumlah: '1 pak' },
+  ],
+});
 
 export const SCENARIOS: Scenario[] = [
   // ── Task and reminder lists ────────────────────────────────────────────
@@ -1403,42 +1462,18 @@ export const SCENARIOS: Scenario[] = [
       },
     ],
     tools: {
-      search_notes: {
-        notes: [
-          {
-            ...ORDER_NOTE,
-            updatedAt: at(0, '08:22'),
-            excerpt: `${ORDER_METADATA.description}\nTanggal\nPemesan\nBarang\nJumlah\nAlamat Kirim\nPembayaran`,
-          },
-        ],
-        retrievalMode: 'hybrid',
-        indexingPending: false,
-      },
-      read_daily_note: {
-        date: localDate(),
-        found: false,
-        text: null,
-        document: null,
-        updatedAt: null,
-        scope: EMPTY_DAY_SCOPE,
-      },
-      get_record_note_metadata: ORDER_METADATA,
-      read_record_note_content: {
-        id: 'n-pesanan',
-        revision: 3,
-        rows: ORDER_ROWS,
-        total: 3,
-      },
-      query_record_notes: {
-        rows: ORDER_ROWS.slice(1),
-        sources: [{ id: 'n-pesanan', revision: 3 }],
-      },
+      search_notes: tableHit(
+        ORDER_TABLE.metadata,
+        ORDER_COLUMNS as FixtureColumn[],
+      ),
+      read_daily_note: EMPTY_TODAY,
+      ...ORDER_TABLE.tools,
     },
     checks: [
       noErrors(),
       anyOf(['search_notes', 'list_notes_workspace'], 'looks up the note'),
       matches(ORDER_LINK, 'links the order note'),
-      notContains('Bu Sari'),
+      ...onlyThatDay(['Bu Rina', 'Pak Dedi'], ['Bu Sari']),
       notCalled(
         'create_record_note',
         'create_custom_note',
@@ -1461,6 +1496,63 @@ export const SCENARIOS: Scenario[] = [
     'open-named-note-held-out-tanya',
     'Catatan stok hari ini isinya apa?',
   ),
+  {
+    // Held out: another relative day, another table, a date column with a
+    // different name.
+    id: 'named-table-yesterday-held-out',
+    area: 'tool-choice',
+    message: 'Pengeluaran warung kemarin apa aja?',
+    workspace: [
+      {
+        id: 'n-pengeluaran',
+        title: 'Pengeluaran Warung',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: tableHit(EXPENSE_TABLE.metadata, EXPENSE_COLUMNS),
+      read_daily_note: { ...EMPTY_TODAY, date: localDate(-1) },
+      search_daily_notes: { query: 'pengeluaran', count: 0, notes: [] },
+      ...EXPENSE_TABLE.tools,
+    },
+    checks: [
+      noErrors(),
+      anyOf(
+        ['read_record_note_content', 'query_record_notes'],
+        'reads the expense rows',
+      ),
+      ...onlyThatDay(['Galon', 'listrik'], ['LPG', 'Plastik']),
+      notCalled('write_daily_note', 'add_record_rows', 'create_record_note'),
+      inIndonesian(),
+    ],
+  },
+  {
+    // Held out: a table with no date column cannot be narrowed to a day, so
+    // its rows are still shown rather than nothing.
+    id: 'named-table-no-date-held-out',
+    area: 'tool-choice',
+    message: 'Buka daftar belanja hari ini',
+    workspace: [
+      {
+        id: 'n-belanja',
+        title: 'Daftar Belanja',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: tableHit(SHOPPING_TABLE.metadata, SHOPPING_COLUMNS),
+      read_daily_note: EMPTY_TODAY,
+      ...SHOPPING_TABLE.tools,
+    },
+    checks: [
+      noErrors(),
+      contains('Kecap', 'Bawang', 'Sabun'),
+      notCalled('write_daily_note', 'add_record_rows', 'create_record_note'),
+      inIndonesian(),
+    ],
+  },
   {
     // Contrast: without a note name, "catatan hari ini" is the daily note.
     id: 'open-daily-note-today',
