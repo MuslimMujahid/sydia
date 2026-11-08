@@ -72,18 +72,30 @@ Do not record a prompt-eval baseline from a run with gateway failures. On this d
 
 ## Production configuration to apply
 
+Apply after the code is deployed and restart the backend. Do not add
+`cellStated` or `dayScope` to `BACKEND_DECISION_THRESHOLDS_JSON`: they are code
+defaults, and a build without them rejects unknown thresholds and does not start.
+
 ```
 BACKEND_TOOL_GROUP_SELECTION_MODE=enabled
 BACKEND_DECISION_THRESHOLDS_JSON={"eligibilitySkip":0.5,"recallInclude":0.6,"toolInclude":0.6,"factEvidence":0.5,"factDurable":0.75}
-BACKEND_DECISION_CALIBRATION_VERSION=owner-approved-20261107
-# Table value review (owner approved building it, 8 Nov 2026). Decisions take
-# 0.5-2 s; a deadline below ~2500 ms lets many writes through unreviewed.
-BACKEND_RECORD_CELL_REVIEW_MODE=shadow   # then enabled after checking the logs
+# Enabled modes apply only to users in the cohort; "*" is everyone.
+BACKEND_DECISION_COHORT=*
+BACKEND_DECISION_CALIBRATION_VERSION=owner-approved-20261108
+# Table value review takes 0.5-2 s; a deadline below ~2500 ms lets many writes
+# through unreviewed. Turns may wait up to this long when Jev is slow.
 BACKEND_DECISION_TIMEOUT_MS=2500
-# Day scope (owner approved it and its calibration, 8 Nov 2026). One more question in
-# the turn decision; the turn waits for it, as it already does for the tool gate.
-BACKEND_TURN_DAY_SCOPE_MODE=shadow   # then enabled
+# Day scope and table value review: owner approved enabling both directly
+# (8 Nov 2026). Shadow logs only counts, so it cannot show whether a refusal
+# was right; the rate and timeouts are visible with the feature enabled too.
+BACKEND_TURN_DAY_SCOPE_MODE=enabled
+BACKEND_RECORD_CELL_REVIEW_MODE=enabled
 ```
+
+First days after deploying, check the logs:
+
+- `Record cell review rejected cells=`: a few percent of table writes is expected; well over 10% means it misfires. Set the mode to `off` and collect examples.
+- `Record cell review unavailable; write allowed reason=timeout`: frequent timeouts mean writes go through unchecked; revisit `BACKEND_DECISION_TIMEOUT_MS`.
 
 ## Open work
 
