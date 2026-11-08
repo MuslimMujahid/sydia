@@ -67,6 +67,13 @@ const DAY_KEY = {
 } as const;
 
 /**
+ * Returned with an empty day. Reading the daily note is often the wrong first
+ * lookup for a request that names another note together with a day.
+ */
+export const EMPTY_DAY_SCOPE =
+  'Only the daily note was checked. If the user named another note, find it with search_notes before saying it does not exist.';
+
+/**
  * Daily note tools. The diary is addressed by local calendar day rather than by
  * record id, because that is how the user talks about it — "kemarin", "minggu
  * kemarin", "hari ini". Writing always saves the day's complete document, so
@@ -165,7 +172,7 @@ How to write the note. A note is a record to be scanned and retrieved later, not
       label: 'Read daily note',
       description: `Use this tool to read the user's daily note for one specific day. For a daily:YYYY-MM-DD reference, pass that date.
 
-Use it when the user asks about the daily note or diary of a known day — "apa yang saya catat kemarin?", "catatan harian hari Senin" — or before editing a daily note whose current text is needed. A day alone does not mean the daily note: "catatan pemesanan hari ini" names another note plus a day, so find that note with search_notes. An empty day says nothing about other notes.
+Use it when the user asks about the daily note or diary of a known day — "apa yang saya catat kemarin?", "catatan harian hari Senin" — or before editing a daily note whose current text is needed. A day alone does not mean the daily note: when the user names another note together with a day, find that note with search_notes. An empty day says nothing about other notes.
 
 Do not use it to search across many days by topic; use search_daily_notes for that.
 
@@ -191,6 +198,7 @@ date defaults to today in the owner's timezone. Returns the note's text, or null
         text: note ? richTextToMarkedText(note.content) : null,
         document: note?.content ?? null,
         updatedAt: note?.updatedAt.toISOString() ?? null,
+        ...(note ? {} : { scope: EMPTY_DAY_SCOPE }),
       };
     },
   };

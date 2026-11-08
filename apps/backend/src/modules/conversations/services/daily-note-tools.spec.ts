@@ -190,6 +190,43 @@ describe('daily note assistant tools', () => {
     );
   });
 
+  test('an empty day says that only the daily note was checked', async () => {
+    const { dailyNotes } = service();
+    const read = createDailyNoteTools({ dailyNotes }).find(
+      (tool) => tool.definition.name === 'read_daily_note',
+    );
+
+    const result = await read?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      idempotencyKey: 'one',
+      arguments: { date: NOTE_DATE },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        found: false,
+        scope: expect.stringContaining('search_notes'),
+      }),
+    );
+  });
+
+  test('a day with a note carries no scope remark', async () => {
+    const { dailyNotes } = service({ existing: note() });
+    const read = createDailyNoteTools({ dailyNotes }).find(
+      (tool) => tool.definition.name === 'read_daily_note',
+    );
+
+    const result = await read?.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      idempotencyKey: 'one',
+      arguments: { date: NOTE_DATE },
+    });
+
+    expect(result).not.toHaveProperty('scope');
+  });
+
   test('defaults the day to the owner’s today', async () => {
     const { dailyNotes, save, today } = service();
     const write = createDailyNoteTools({ dailyNotes }).find(

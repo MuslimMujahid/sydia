@@ -23,6 +23,7 @@ import {
   type ContextTokenUsage,
 } from '../../src/modules/conversations/services/context-builder.service';
 import { DomainToolsProvider } from '../../src/modules/conversations/services/domain-tools.provider';
+import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
 import { buildTerminalToolResponse } from '../../src/modules/conversations/services/terminal-tool-response';
 import {
   ToolExecutorService,
@@ -125,7 +126,7 @@ function defaultResults(scenario: Scenario): Record<string, ToolScript> {
     search_memories: { results: [] },
     search_notes: { results: [] },
     search_daily_notes: { results: [] },
-    read_daily_note: { exists: false },
+    read_daily_note: { exists: false, scope: EMPTY_DAY_SCOPE },
     list_calendar_events: { events: [] },
     list_notes_workspace: {
       items: (scenario.workspace ?? []).map(({ id, title, kind, format }) => ({
