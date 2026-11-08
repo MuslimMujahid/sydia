@@ -5378,7 +5378,7 @@
     {
       "id": "capture-order-missing-field",
       "area": "notes",
-      "passed": 2,
+      "passed": 3,
       "runs": [
         {
           "text": "Sudah ditambahkan ke [Catatan Pemesanan](#note/custom%3An-pesanan): Pak Dedi — sambal roa 4 botol, ambil sendiri sore ini, tanggal 8 Nov 2026. Kolom pembayaran saya biarkan kosong karena Pak Dedi tidak menyebut metode bayar.",
@@ -5596,12 +5596,7 @@
           },
           "terminalAcknowledgement": false,
           "contextTokens": 3707,
-          "failures": [
-            {
-              "check": "calls add_record_rows (payment left empty)",
-              "reason": "add_record_rows arguments did not match: [{\"id\":\"n-pesanan\",\"revision\":2,\"batch\":{\"rows\":[{\"values\":{\"tanggal\":\"2026-11-08\",\"pemesan\":\"Pak Dedi\",\"barang\":\"Sambal roa\",\"jumlah\":4,\"alamat\":\"Ambil sendiri\",\"pembayaran\":\"\"}}]}}]"
-            }
-          ],
+          "failures": [],
           "retries": 0
         }
       ]
@@ -5609,7 +5604,7 @@
     {
       "id": "capture-stock-new-column",
       "area": "notes",
-      "passed": 2,
+      "passed": 3,
       "runs": [
         {
           "text": "Sudah masuk ke [Stok Barang](#note/n-stok):\n\n- **Gula** — 20 kg, 8 Nov 2026\n\nCatatan: tabelnya belum punya kolom pemasok, jadi \"Toko Makmur\" belum tersimpan di sana. Mau saya tambahkan kolom **Pemasok** supaya asal pembelian bisa dicatat?",
@@ -5773,12 +5768,7 @@
           },
           "terminalAcknowledgement": false,
           "contextTokens": 3584,
-          "failures": [
-            {
-              "check": "adds a column for the supplier or asks about one",
-              "reason": "the supplier neither saved in a new column nor offered one"
-            }
-          ],
+          "failures": [],
           "retries": 0
         }
       ]

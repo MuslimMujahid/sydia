@@ -171,8 +171,9 @@ function addedValues(args: Record<string, unknown>): Array<[string, unknown]> {
 }
 
 /**
- * The user gave no value for these columns, so any value at all (a
- * placeholder, a guess, or another field's text) fails. Checks outcomes, not
+ * The user gave no value for these columns, so any value (a placeholder, a
+ * guess, or another field's text) fails; blank text is empty (owner decision,
+ * 8 Nov 2026). Checks outcomes, not
  * phrases, so it cannot be satisfied by matching wording in the guidance.
  */
 function leftEmpty(args: Record<string, unknown>, columns: string[]): boolean {
@@ -180,7 +181,12 @@ function leftEmpty(args: Record<string, unknown>, columns: string[]): boolean {
 
   return (
     values.length > 0 &&
-    values.every(([key, value]) => !columns.includes(key) || value === null)
+    values.every(
+      ([key, value]) =>
+        !columns.includes(key) ||
+        value === null ||
+        (typeof value === 'string' && !value.trim()),
+    )
   );
 }
 
@@ -209,9 +215,17 @@ function addsColumn(existing: string[]) {
 }
 
 /**
+ * Offers to add a column as a possibility ("saya bisa tambahkan kolom …"),
+ * not as something already done ("sudah saya tambahkan kolom …").
+ */
+const OFFERS_COLUMN =
+  /\b(bisa|boleh|mau|perlu|ingin|can|could|should)\b[^.?!\n]{0,30}\b(tambah\w*|buat\w*|bikin\w*|add)\b[^.?!\n]{0,30}\b(kolom|column)/i;
+
+/**
  * A detail that fits no column is either saved in a newly added column or
- * named back to the user with a question about adding one (owner decision,
- * 8 Nov 2026: asking first is acceptable). `detail` is the user's own words.
+ * named back to the user with a question or an offer to add one (owner
+ * decisions, 8 Nov 2026: asking first is acceptable, and an offer without a
+ * question mark counts). `detail` is the user's own words.
  */
 function storesOrOffersColumn(
   existing: string[],
@@ -234,7 +248,8 @@ function storesOrOffersColumn(
       if (added) return true;
 
       return (
-        (detail.test(run.text) && run.text.includes('?')) ||
+        (detail.test(run.text) &&
+          (run.text.includes('?') || OFFERS_COLUMN.test(run.text))) ||
         `${label} neither saved in a new column nor offered one`
       );
     },
