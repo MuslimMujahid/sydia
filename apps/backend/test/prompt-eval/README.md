@@ -31,6 +31,7 @@ PROMPT_EVAL_ONLY=memory bun run eval:prompts           # one area or scenario id
 PROMPT_EVAL_RUNS=1 PROMPT_EVAL_ROUTING=off bun run eval:prompts
 PROMPT_EVAL_SAVE_BASELINE=true bun run eval:prompts    # record the baseline
 PROMPT_EVAL_CELL_REVIEW=off bun run eval:prompts       # without the table value review
+PROMPT_EVAL_DAY_SCOPE=enabled bun run eval:prompts     # with the day-scope turn question
 ```
 
 Row writes go through the production table value review

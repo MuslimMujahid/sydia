@@ -395,3 +395,94 @@ test('registry covers note clarification tools and rejects missing prerequisites
   expect(() => validateToolGroups(names)).not.toThrow();
   expect(() => validateToolGroups(names.slice(1))).toThrow();
 });
+
+describe('day scope', () => {
+  function scoped(
+    choice: string,
+    confidence: number,
+    settings: Record<string, unknown> = {},
+  ) {
+    const { service, decide } = setup({
+      BACKEND_TURN_DAY_SCOPE_MODE: 'enabled',
+      ...settings,
+    });
+
+    decide.mockImplementation((request) =>
+      Promise.resolve({
+        status: 'ok',
+        model: 'jev-1.13.0',
+        answers: Object.fromEntries(
+          Object.keys(request.questions).map((key) => [
+            key,
+            key === 'day_scope'
+              ? {
+                  type: 'choice',
+                  choice,
+                  confidence,
+                  probabilities: { [choice]: confidence },
+                }
+              : { type: 'noul', noul: key === 'group_tasks' ? 1 : 0 },
+          ]),
+        ),
+        inputTokens: 100,
+        outputTokens: 30,
+        latencyMs: 1,
+        costUsd: null,
+      }),
+    );
+
+    return { service, decide };
+  }
+
+  test('a confident relative period is returned with the decision', async () => {
+    const { service, decide } = scoped('today', 0.9);
+
+    expect(await service.decide('user', input)).toEqual({
+      recall: false,
+      dayScope: 'today',
+    });
+    expect(decide.mock.calls[0]![0].questions.day_scope).toMatchObject({
+      type: 'choice',
+    });
+  });
+
+  test('an uncertain answer or none adds no scope', async () => {
+    expect(
+      await scoped('today', 0.5).service.decide('user', input),
+    ).not.toHaveProperty('dayScope');
+    expect(
+      await scoped('none', 0.95).service.decide('user', input),
+    ).not.toHaveProperty('dayScope');
+  });
+
+  test('is asked even when recall and tool selection are off', async () => {
+    const { service, decide } = scoped('yesterday', 0.9, {
+      BACKEND_MEMORY_RECALL_DECISION_MODE: 'off',
+      BACKEND_TOOL_GROUP_SELECTION_MODE: 'off',
+    });
+
+    expect(await service.decide('user', input)).toEqual({
+      recall: true,
+      dayScope: 'yesterday',
+    });
+    expect(Object.keys(decide.mock.calls[0]![0].questions)).toEqual([
+      'day_scope',
+    ]);
+  });
+
+  test('is neither asked when off nor applied in shadow mode', async () => {
+    const off = scoped('today', 0.9, { BACKEND_TURN_DAY_SCOPE_MODE: 'off' });
+    await off.service.decide('user', input);
+    expect(off.decide.mock.calls[0]![0].questions).not.toHaveProperty(
+      'day_scope',
+    );
+
+    const shadow = scoped('today', 0.9, {
+      BACKEND_TURN_DAY_SCOPE_MODE: 'shadow',
+    });
+
+    expect(await shadow.service.decide('user', input)).not.toHaveProperty(
+      'dayScope',
+    );
+  });
+});

@@ -203,6 +203,47 @@ function attachmentMessageContent(context: ModelMessage[]): string {
   return attachment.content;
 }
 
+describe('ContextBuilderService day scope', () => {
+  const turnContext = (messages: Array<{ content: unknown }>) =>
+    messages.find(
+      (entry) =>
+        typeof entry.content === 'string' &&
+        entry.content.includes('Turn context'),
+    )?.content as string;
+
+  it('states the dates of a relative day in the owner calendar', async () => {
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false, dayScope: 'yesterday' });
+
+    // 18:30 UTC on 7 Nov is already 8 Nov in Jakarta.
+    const result = await createBuilder(10_000, {
+      messages: [message('current', 'user', 'Pengeluaran kemarin?')],
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+    }).build(user, 'conversation-1', 'current', undefined, undefined, {
+      now: new Date('2026-11-07T18:30:00Z'),
+    });
+
+    expect(turnContext(result.messages)).toContain(
+      'limited to yesterday (2026-11-07,',
+    );
+    expect(result.tokenUsage.turnContext).toBeGreaterThan(0);
+  });
+
+  it('adds nothing without a scope', async () => {
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false });
+
+    const result = await createBuilder(10_000, {
+      messages: [message('current', 'user', 'Halo')],
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+    }).build(user, 'conversation-1', 'current');
+
+    expect(turnContext(result.messages)).not.toContain('limited to');
+  });
+});
+
 describe('ContextBuilderService active notes', () => {
   it('offers every tool for a pending note question the gate saw no tools for', async () => {
     const decide = jest

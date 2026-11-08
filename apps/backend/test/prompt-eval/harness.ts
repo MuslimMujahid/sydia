@@ -410,6 +410,7 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
       // Importing the app module writes config defaults ('off') into
       // process.env, so the harness has its own switch.
       BACKEND_RECORD_CELL_REVIEW_MODE: env.PROMPT_EVAL_CELL_REVIEW ?? 'enabled',
+      BACKEND_TURN_DAY_SCOPE_MODE: env.PROMPT_EVAL_DAY_SCOPE ?? 'off',
     }),
   );
 
