@@ -19,7 +19,7 @@ import { TurnDecisionService } from '../../src/modules/conversations/services/tu
  *     node --env-file=.env --experimental-vm-modules node_modules/jest/bin/jest.js \
  *     --config ./jest.config.mjs --runInBand --testPathPatterns=day-scope-calibration
  *
- * Expectations drafted on 8 November 2026, pending owner review. A wrong day
+ * Expectations reviewed by the owner on 8 November 2026. A wrong day
  * adds a false date limit to the turn, so wrong scopes must not occur; a
  * missed scope only leaves the turn as it was before this question existed.
  */

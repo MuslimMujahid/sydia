@@ -80,7 +80,7 @@ BACKEND_DECISION_CALIBRATION_VERSION=owner-approved-20261107
 # 0.5-2 s; a deadline below ~2500 ms lets many writes through unreviewed.
 BACKEND_RECORD_CELL_REVIEW_MODE=shadow   # then enabled after checking the logs
 BACKEND_DECISION_TIMEOUT_MS=2500
-# Day scope (owner approved prototyping it, 8 Nov 2026). One more question in
+# Day scope (owner approved it and its calibration, 8 Nov 2026). One more question in
 # the turn decision; the turn waits for it, as it already does for the tool gate.
 BACKEND_TURN_DAY_SCOPE_MODE=shadow   # then enabled
 ```
