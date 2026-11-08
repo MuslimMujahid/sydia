@@ -7,6 +7,7 @@ import {
   type DecisionQuestion,
 } from '../../../infra/decision-gateway';
 import { containsDecisionCredential } from '../../../shared/decision-privacy';
+import { DAY_SCOPES, isDayScope, type DayScope } from './day-scope';
 import { TOOL_GROUPS, type ToolGroup } from './tool-groups';
 
 export const TURN_DECISION_HISTORY_LIMIT = 4;
@@ -22,7 +23,35 @@ export type TurnDecisionInput = {
   attachments: TurnAttachment[];
   recallEligible: boolean;
 };
-export type TurnDecision = { recall: boolean; toolNames?: readonly string[] };
+export type TurnDecision = {
+  recall: boolean;
+  toolNames?: readonly string[];
+  /** A relative day or period the latest message limits itself to. */
+  dayScope?: DayScope;
+};
+
+const DAY_SCOPE_QUESTION: DecisionQuestion = {
+  type: 'choice',
+  instructions:
+    'Does the latest message limit what it asks for or records to one day or period, stated relative to the current date? Choose none when it names no day or period, or names a calendar date.',
+  criteria: {
+    none: 'No relative day or period limits the latest message.',
+    today: 'The current day.',
+    yesterday: 'The day before the current day.',
+    tomorrow: 'The day after the current day.',
+    this_week: 'The current calendar week.',
+    last_week: 'The previous calendar week.',
+    this_month: 'The current calendar month.',
+    last_month: 'The previous calendar month.',
+  },
+};
+
+// The question's choices and the scopes the context understands must agree.
+if (
+  Object.keys(DAY_SCOPE_QUESTION.criteria).join() !==
+  ['none', ...DAY_SCOPES].join()
+)
+  throw new Error('Day scope choices do not match DAY_SCOPES.');
 
 @Injectable()
 export class TurnDecisionService implements OnModuleDestroy {
@@ -45,7 +74,9 @@ export class TurnDecisionService implements OnModuleDestroy {
       : 'off';
 
     const toolMode = this.settings.mode('tools', userId);
-    if (recallMode === 'off' && toolMode === 'off') return baseline;
+    const scopeMode = this.settings.mode('scope', userId);
+    if (recallMode === 'off' && toolMode === 'off' && scopeMode === 'off')
+      return baseline;
     // Without a decision the turn keeps every tool, like a failed selector:
     // an attachment-only or credential-bearing message may still need them.
     const initial: TurnDecision = {
@@ -93,12 +124,14 @@ export class TurnDecisionService implements OnModuleDestroy {
       }
     }
 
+    if (scopeMode !== 'off') questions.day_scope = DAY_SCOPE_QUESTION;
+
     const operation = async (): Promise<TurnDecision> => {
       const result = await this.gateway.decide({
         stage: 'turn',
         version: this.settings.version,
         lane: 'interactive',
-        featureModes: { recall: recallMode, tools: toolMode },
+        featureModes: { recall: recallMode, tools: toolMode, scope: scopeMode },
         state,
         questions,
         abortSignal: AbortSignal.any([
@@ -125,6 +158,14 @@ export class TurnDecisionService implements OnModuleDestroy {
 
         return { recall: initial.recall };
       }
+
+      const scopeAnswer = result.answers.day_scope;
+      const dayScope =
+        scopeAnswer?.type === 'choice' &&
+        isDayScope(scopeAnswer.choice) &&
+        scopeAnswer.confidence >= this.settings.thresholds.dayScope
+          ? scopeAnswer.choice
+          : undefined;
 
       const probability = (key: string): number | null => {
         const answer = result.answers[key];
@@ -159,7 +200,7 @@ export class TurnDecisionService implements OnModuleDestroy {
       const needsTools = selected.length > 0;
 
       this.logger.debug(
-        `version=${this.settings.version} recallMode=${recallMode} toolsMode=${toolMode} candidateRecall=${candidateRecall} needsTools=${needsTools} groups=${selected.join(',')}`,
+        `version=${this.settings.version} recallMode=${recallMode} toolsMode=${toolMode} scopeMode=${scopeMode} candidateRecall=${candidateRecall} needsTools=${needsTools} groups=${selected.join(',')} dayScope=${dayScope ?? 'none'}`,
       );
 
       return {
@@ -168,10 +209,15 @@ export class TurnDecisionService implements OnModuleDestroy {
             ? input.recallEligible && candidateRecall
             : baseline.recall,
         ...(toolMode === 'enabled' && !needsTools ? { toolNames: [] } : {}),
+        ...(scopeMode === 'enabled' && dayScope ? { dayScope } : {}),
       };
     };
 
-    if (recallMode !== 'enabled' && toolMode !== 'enabled') {
+    if (
+      recallMode !== 'enabled' &&
+      toolMode !== 'enabled' &&
+      scopeMode !== 'enabled'
+    ) {
       if (
         createHash('sha256').update(state).digest().readUInt32BE(0) % 100 <
           this.settings.shadowSamplePercent &&

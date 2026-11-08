@@ -14,7 +14,9 @@ import {
   notMatches,
   whatsappPlain,
 } from './checks';
+import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
 import type { Check, RunRecord, Scenario } from './harness';
+import { recordTable, type FixtureColumn } from './record-fixture';
 
 /**
  * Expected outcomes approved by the product owner (2026-11-07). Each scenario
@@ -75,6 +77,345 @@ const CANNOT =
   /(tidak|belum|nggak|gak|enggak) (bisa|dapat)|tidak (memiliki|punya) akses|di luar kemampuan|can(no|')t|unable/i;
 
 const isTomorrow = (args: Record<string, unknown>) => args.due === 'tomorrow';
+
+/** One ongoing order table with a date column, as Sydia creates it. */
+const ORDER_NOTE = {
+  ref: 'custom:n-pesanan',
+  id: 'n-pesanan',
+  kind: 'note',
+  format: 'record',
+  title: 'Catatan Pemesanan',
+  path: 'Catatan Pemesanan',
+  parentId: null,
+};
+
+const ORDER_COLUMNS = [
+  { id: 'tanggal', name: 'Tanggal', type: 'date', required: false },
+  { id: 'pemesan', name: 'Pemesan', type: 'text', required: false },
+  { id: 'barang', name: 'Barang', type: 'text', required: false },
+  { id: 'jumlah', name: 'Jumlah', type: 'number', required: false },
+  { id: 'alamat', name: 'Alamat Kirim', type: 'text', required: false },
+  { id: 'pembayaran', name: 'Pembayaran', type: 'text', required: false },
+];
+
+const ORDER_METADATA = {
+  ...ORDER_NOTE,
+  description:
+    'Pesanan masuk dari pelanggan, termasuk barang, jumlah, alamat kirim, dan metode pembayaran.',
+  columns: ORDER_COLUMNS,
+  revision: 3,
+  rowCount: 3,
+};
+
+function orderRow(
+  id: string,
+  position: number,
+  day: number,
+  values: Record<string, string>,
+) {
+  const cells = { tanggal: localDate(day), ...values };
+
+  return {
+    id,
+    position,
+    values: Object.fromEntries(
+      Object.entries(cells).map(([key, value]) => [
+        key,
+        { raw: value, value, status: 'typed' },
+      ]),
+    ),
+  };
+}
+
+const ORDER_ROWS = [
+  orderRow('row-sari', 1, -1, {
+    pemesan: 'Bu Sari',
+    barang: 'Keripik pisang',
+    jumlah: '5',
+    pembayaran: 'Tunai',
+  }),
+  orderRow('row-rina', 2, 0, {
+    pemesan: 'Bu Rina',
+    barang: 'Sambal roa',
+    jumlah: '2',
+    alamat: 'Jl. Melati 12',
+    pembayaran: 'Transfer',
+  }),
+  orderRow('row-dedi', 3, 0, {
+    pemesan: 'Pak Dedi',
+    barang: 'Sambal roa',
+    jumlah: '4',
+  }),
+];
+
+const ORDER_COLUMN_IDS = ORDER_COLUMNS.map(({ id }) => id);
+
+const STOCK_COLUMNS = [
+  { id: 'tanggal', name: 'Tanggal', type: 'date', required: false },
+  { id: 'barang', name: 'Barang', type: 'text', required: false },
+  { id: 'jumlah', name: 'Jumlah', type: 'number', required: false },
+  { id: 'satuan', name: 'Satuan', type: 'text', required: false },
+  { id: 'harga', name: 'Harga', type: 'number', unit: 'IDR', required: false },
+];
+
+const STOCK_COLUMN_IDS = STOCK_COLUMNS.map(({ id }) => id);
+
+/** Every column/value pair in an add_record_rows batch. */
+function addedValues(args: Record<string, unknown>): Array<[string, unknown]> {
+  const batch = args.batch as
+    { rows?: Array<{ values?: Record<string, unknown> }> } | undefined;
+
+  return (batch?.rows ?? []).flatMap(({ values = {} }) =>
+    Object.entries(values),
+  );
+}
+
+/**
+ * The user gave no value for these columns, so any value (a placeholder, a
+ * guess, or another field's text) fails; blank text is empty (owner decision,
+ * 8 Nov 2026). Checks outcomes, not
+ * phrases, so it cannot be satisfied by matching wording in the guidance.
+ */
+function leftEmpty(args: Record<string, unknown>, columns: string[]): boolean {
+  const values = addedValues(args);
+
+  return (
+    values.length > 0 &&
+    values.every(
+      ([key, value]) =>
+        !columns.includes(key) ||
+        value === null ||
+        (typeof value === 'string' && !value.trim()),
+    )
+  );
+}
+
+/** Some column outside `existing` received a non-empty value. */
+function filledNewColumn(
+  args: Record<string, unknown>,
+  existing: string[],
+): boolean {
+  return addedValues(args).some(
+    ([key, value]) =>
+      !existing.includes(key) && typeof value === 'string' && value.trim(),
+  );
+}
+
+/** change_record_schema kept every existing column and added at least one. */
+function addsColumn(existing: string[]) {
+  return (args: Record<string, unknown>) => {
+    const ids = Array.isArray(args.columns)
+      ? args.columns.map((column) => (column as { id?: unknown }).id)
+      : [];
+
+    return (
+      existing.every((id) => ids.includes(id)) && ids.length > existing.length
+    );
+  };
+}
+
+/**
+ * Offers to add a column as a possibility ("saya bisa tambahkan kolom …"),
+ * not as something already done ("sudah saya tambahkan kolom …").
+ */
+const OFFERS_COLUMN =
+  /\b(bisa|boleh|mau|perlu|ingin|can|could|should)\b[^.?!\n]{0,30}\b(tambah\w*|buat\w*|bikin\w*|add)\b[^.?!\n]{0,30}\b(kolom|column)/i;
+
+/**
+ * A detail that fits no column is either saved in a newly added column or
+ * named back to the user with a question or an offer to add one (owner
+ * decisions, 8 Nov 2026: asking first is acceptable, and an offer without a
+ * question mark counts). `detail` is the user's own words.
+ */
+function storesOrOffersColumn(
+  existing: string[],
+  detail: RegExp,
+  label: string,
+): Check {
+  return {
+    name: `adds a column for ${label} or asks about one`,
+    test: (run) => {
+      const added =
+        run.calls.some(
+          ({ name, args }) =>
+            name === 'change_record_schema' && addsColumn(existing)(args),
+        ) &&
+        run.calls.some(
+          ({ name, args }) =>
+            name === 'add_record_rows' && filledNewColumn(args, existing),
+        );
+
+      if (added) return true;
+
+      return (
+        (detail.test(run.text) &&
+          (run.text.includes('?') || OFFERS_COLUMN.test(run.text))) ||
+        `${label} neither saved in a new column nor offered one`
+      );
+    },
+  };
+}
+
+const ORDER_LINK = /\]\(#note\/(?:custom(?:%3A|:))?n-pesanan\)/i;
+
+/** The empty daily note returned when the model checks it first. */
+const EMPTY_TODAY = {
+  date: localDate(),
+  found: false,
+  text: null,
+  document: null,
+  updatedAt: null,
+  scope: EMPTY_DAY_SCOPE,
+};
+
+/** Search result for a table: title, description and column names only. */
+function tableHit(
+  table: ReturnType<typeof recordTable>['metadata'],
+  columns: FixtureColumn[],
+) {
+  return {
+    notes: [
+      {
+        ref: table.ref,
+        id: table.id,
+        kind: 'note',
+        format: 'record',
+        title: table.title,
+        path: table.path,
+        parentId: null,
+        updatedAt: at(0, '08:10'),
+        excerpt: [table.description, ...columns.map(({ name }) => name)].join(
+          '\n',
+        ),
+      },
+    ],
+    retrievalMode: 'hybrid',
+    indexingPending: false,
+  };
+}
+
+/**
+ * Rows of the named day are listed and rows of other days are not. Each
+ * fragment is a value that appears in exactly one row.
+ */
+function onlyThatDay(listed: string[], otherDays: string[]): Check[] {
+  return [contains(...listed), notContains(...otherDays)];
+}
+
+const STOCK_FIXTURE_COLUMNS: FixtureColumn[] = [
+  { id: 'tanggal', name: 'Tanggal', type: 'date' },
+  { id: 'barang', name: 'Barang', type: 'text' },
+  { id: 'jumlah', name: 'Jumlah', type: 'number' },
+  { id: 'satuan', name: 'Satuan', type: 'text' },
+  { id: 'harga', name: 'Harga', type: 'number', unit: 'IDR' },
+];
+
+const STOCK_TABLE = recordTable({
+  id: 'n-stok',
+  title: 'Stok Barang',
+  description: 'Barang masuk ke gudang.',
+  columns: STOCK_FIXTURE_COLUMNS,
+  rows: [
+    {
+      tanggal: localDate(-2),
+      barang: 'Tepung terigu',
+      jumlah: '10',
+      satuan: 'kg',
+    },
+    {
+      tanggal: localDate(-1),
+      barang: 'Minyak goreng',
+      jumlah: '12',
+      satuan: 'liter',
+    },
+    { tanggal: localDate(), barang: 'Gula', jumlah: '20', satuan: 'kg' },
+    { tanggal: localDate(), barang: 'Telur', jumlah: '5', satuan: 'kg' },
+  ],
+});
+
+/**
+ * Held out: a named note plus a day, in phrasings fixed before measuring and
+ * used by no tool description or skill. Do not add them to prompts.
+ */
+function stockLookup(id: string, message: string): Scenario {
+  return {
+    id,
+    area: 'tool-choice',
+    message,
+    workspace: [
+      { id: 'n-stok', title: 'Stok Barang', kind: 'note', format: 'record' },
+    ],
+    tools: {
+      search_notes: tableHit(STOCK_TABLE.metadata, STOCK_FIXTURE_COLUMNS),
+      read_daily_note: EMPTY_TODAY,
+      ...STOCK_TABLE.tools,
+    },
+    checks: [
+      noErrors(),
+      anyOf(['search_notes', 'list_notes_workspace'], 'looks up the note'),
+      anyOf(
+        ['read_record_note_content', 'query_record_notes'],
+        'reads the stock rows',
+      ),
+      ...onlyThatDay(['Gula', 'Telur'], ['Minyak', 'Tepung']),
+      notCalled(
+        'create_record_note',
+        'create_custom_note',
+        'write_daily_note',
+        'add_record_rows',
+      ),
+    ],
+  };
+}
+
+const ORDER_TABLE = recordTable({
+  id: 'n-pesanan',
+  title: 'Catatan Pemesanan',
+  description: ORDER_METADATA.description,
+  columns: ORDER_COLUMNS as FixtureColumn[],
+  revision: 3,
+  rows: ORDER_ROWS.map(({ values }) =>
+    Object.fromEntries(
+      Object.entries(values).map(([key, cell]) => [key, cell.raw]),
+    ),
+  ),
+});
+
+const EXPENSE_COLUMNS: FixtureColumn[] = [
+  { id: 'tgl', name: 'Tanggal Bayar', type: 'date' },
+  { id: 'keperluan', name: 'Keperluan', type: 'text' },
+  { id: 'nominal', name: 'Nominal', type: 'number', unit: 'IDR' },
+];
+
+const EXPENSE_TABLE = recordTable({
+  id: 'n-pengeluaran',
+  title: 'Pengeluaran Warung',
+  description: 'Uang keluar untuk operasional warung.',
+  columns: EXPENSE_COLUMNS,
+  rows: [
+    { tgl: localDate(-3), keperluan: 'Gas LPG', nominal: '22000' },
+    { tgl: localDate(-1), keperluan: 'Galon air', nominal: '20000' },
+    { tgl: localDate(-1), keperluan: 'Token listrik', nominal: '100000' },
+    { tgl: localDate(), keperluan: 'Plastik kresek', nominal: '15000' },
+  ],
+});
+
+const SHOPPING_COLUMNS: FixtureColumn[] = [
+  { id: 'barang', name: 'Barang', type: 'text' },
+  { id: 'jumlah', name: 'Jumlah', type: 'text' },
+];
+
+const SHOPPING_TABLE = recordTable({
+  id: 'n-belanja',
+  title: 'Daftar Belanja',
+  description: 'Barang yang perlu dibeli.',
+  columns: SHOPPING_COLUMNS,
+  rows: [
+    { barang: 'Kecap manis', jumlah: '2 botol' },
+    { barang: 'Bawang merah', jumlah: '1 kg' },
+    { barang: 'Sabun cuci', jumlah: '1 pak' },
+  ],
+});
 
 export const SCENARIOS: Scenario[] = [
   // ── Task and reminder lists ────────────────────────────────────────────
@@ -1117,6 +1458,349 @@ export const SCENARIOS: Scenario[] = [
       ),
       contains('Dina'),
       notCalled('write_daily_note'),
+    ],
+  },
+
+  // ── A named note plus a day ────────────────────────────────────────────
+  {
+    // "hari ini" picks entries inside the named note, not the daily note
+    // (8 Nov 2026 session: only read_daily_note was called).
+    id: 'open-named-note-today',
+    area: 'tool-choice',
+    message: 'Buka catatan pemesanan hari ini',
+    workspace: [
+      {
+        id: 'n-pesanan',
+        title: 'Catatan Pemesanan',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: tableHit(
+        ORDER_TABLE.metadata,
+        ORDER_COLUMNS as FixtureColumn[],
+      ),
+      read_daily_note: EMPTY_TODAY,
+      ...ORDER_TABLE.tools,
+    },
+    checks: [
+      noErrors(),
+      anyOf(['search_notes', 'list_notes_workspace'], 'looks up the note'),
+      matches(ORDER_LINK, 'links the order note'),
+      ...onlyThatDay(['Bu Rina', 'Pak Dedi'], ['Bu Sari']),
+      notCalled(
+        'create_record_note',
+        'create_custom_note',
+        'write_daily_note',
+        'add_record_rows',
+      ),
+      inIndonesian(),
+    ],
+  },
+  stockLookup(
+    'open-named-note-today-held-out',
+    'Tolong tampilkan catatan stok gudang buat hari ini',
+  ),
+  stockLookup('open-named-note-held-out-lihat', 'Lihat catatan stok hari ini'),
+  stockLookup(
+    'open-named-note-held-out-buka',
+    'Buka catatan stok barang hari ini',
+  ),
+  stockLookup(
+    'open-named-note-held-out-tanya',
+    'Catatan stok hari ini isinya apa?',
+  ),
+  {
+    // Held out: another relative day, another table, a date column with a
+    // different name.
+    id: 'named-table-yesterday-held-out',
+    area: 'tool-choice',
+    message: 'Pengeluaran warung kemarin apa aja?',
+    workspace: [
+      {
+        id: 'n-pengeluaran',
+        title: 'Pengeluaran Warung',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: tableHit(EXPENSE_TABLE.metadata, EXPENSE_COLUMNS),
+      read_daily_note: { ...EMPTY_TODAY, date: localDate(-1) },
+      search_daily_notes: { query: 'pengeluaran', count: 0, notes: [] },
+      ...EXPENSE_TABLE.tools,
+    },
+    checks: [
+      noErrors(),
+      anyOf(
+        ['read_record_note_content', 'query_record_notes'],
+        'reads the expense rows',
+      ),
+      ...onlyThatDay(['Galon', 'listrik'], ['LPG', 'Plastik']),
+      notCalled('write_daily_note', 'add_record_rows', 'create_record_note'),
+      inIndonesian(),
+    ],
+  },
+  {
+    // Held out: a table with no date column cannot be narrowed to a day, so
+    // its rows are still shown rather than nothing.
+    id: 'named-table-no-date-held-out',
+    area: 'tool-choice',
+    message: 'Buka daftar belanja hari ini',
+    workspace: [
+      {
+        id: 'n-belanja',
+        title: 'Daftar Belanja',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: tableHit(SHOPPING_TABLE.metadata, SHOPPING_COLUMNS),
+      read_daily_note: EMPTY_TODAY,
+      ...SHOPPING_TABLE.tools,
+    },
+    checks: [
+      noErrors(),
+      contains('Kecap', 'Bawang', 'Sabun'),
+      notCalled('write_daily_note', 'add_record_rows', 'create_record_note'),
+      inIndonesian(),
+    ],
+  },
+  {
+    // Contrast: without a note name, "catatan hari ini" is the daily note.
+    id: 'open-daily-note-today',
+    area: 'tool-choice',
+    message: 'Buka catatan hari ini',
+    workspace: [
+      {
+        id: 'n-pesanan',
+        title: 'Catatan Pemesanan',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      read_daily_note: {
+        date: localDate(),
+        found: true,
+        text: '- Belanja bahan sambal di pasar\n- Kirim paket ke Bu Rina',
+        document: { type: 'doc', content: [] },
+        updatedAt: at(0, '07:30'),
+      },
+      search_notes: {
+        notes: [{ ...ORDER_NOTE, excerpt: ORDER_METADATA.description }],
+        retrievalMode: 'hybrid',
+        indexingPending: false,
+      },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'read_daily_note',
+        (args) => args.date === undefined || args.date === localDate(),
+        'today',
+      ),
+      notMatches(ORDER_LINK, 'does not open the order note'),
+      notCalled('write_daily_note', 'create_custom_note', 'create_record_note'),
+    ],
+  },
+  {
+    // A forwarded order is saved with payment left empty; the pickup goes
+    // under Alamat Kirim, into a new column, or into a question about one.
+    // The guidance must not name this case; see capture-stock-new-column.
+    id: 'capture-order-missing-field',
+    area: 'notes',
+    history: [
+      {
+        role: 'user',
+        content:
+          '[Diteruskan dari Bu Rina] Kak, pesan sambal roa 2 botol ya. Kirim ke Jl. Melati 12, bayar transfer. --- Buat catatan pemesanan untuk hari ini dan masukkan pesanan ini',
+      },
+      {
+        role: 'assistant',
+        content:
+          'Siap! Pesanan Bu Rina sudah masuk ke [Catatan Pemesanan](#note/custom%3An-pesanan): sambal roa 2 botol, kirim ke Jl. Melati 12, bayar transfer.',
+      },
+    ],
+    message:
+      '[Diteruskan dari Pak Dedi] Mbak, mau order sambal roa 4 botol, ambil sendiri sore ini ya. --- tambah ini',
+    workspace: [
+      {
+        id: 'n-pesanan',
+        title: 'Catatan Pemesanan',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: {
+        notes: [{ ...ORDER_NOTE, excerpt: ORDER_METADATA.description }],
+        retrievalMode: 'hybrid',
+        indexingPending: false,
+      },
+      get_record_note_metadata: { ...ORDER_METADATA, revision: 2, rowCount: 2 },
+      read_record_note_content: {
+        id: 'n-pesanan',
+        revision: 2,
+        rows: ORDER_ROWS.slice(0, 2),
+        total: 2,
+      },
+      change_record_schema: (args: Record<string, unknown>) => ({
+        ...ORDER_METADATA,
+        columns: args.columns,
+        revision: 3,
+        rowCount: 2,
+        status: 'committed',
+        saved: true,
+      }),
+      add_record_rows: (args: Record<string, unknown>) => ({
+        ...ORDER_METADATA,
+        revision: Number(args.revision) + 1,
+        status: 'committed',
+        saved: true,
+        changedIds: ['row-dedi'],
+      }),
+    },
+    checks: [
+      noErrors(),
+      {
+        // Owner decision (8 Nov 2026): the pickup may also go under Alamat
+        // Kirim; a new column or a question about one is fine too.
+        name: 'pickup under address, in a new column, or asked about',
+        test: (run, scenario) =>
+          run.calls.some(
+            ({ name, args }) =>
+              name === 'add_record_rows' &&
+              addedValues(args).some(
+                ([key, value]) =>
+                  key === 'alamat' &&
+                  typeof value === 'string' &&
+                  /ambil sendiri/i.test(value),
+              ),
+          ) ||
+          storesOrOffersColumn(
+            ORDER_COLUMN_IDS,
+            /ambil sendiri/i,
+            'the pickup',
+          ).test(run, scenario),
+      },
+      called(
+        'add_record_rows',
+        (args) => leftEmpty(args, ['pembayaran']),
+        'payment left empty',
+      ),
+      notCalled('create_record_note', 'write_daily_note'),
+    ],
+  },
+  {
+    // Held out: the same rule in a domain the guidance never mentions. A
+    // supplier fits no stock column and gets a new one or a question about
+    // one; the price the user did not give stays empty. Do not add examples
+    // from this case to prompts.
+    id: 'capture-stock-new-column',
+    area: 'notes',
+    message: 'Tambah stok gula 20 kg, belinya dari Toko Makmur',
+    workspace: [
+      { id: 'n-stok', title: 'Stok Barang', kind: 'note', format: 'record' },
+    ],
+    tools: {
+      search_notes: {
+        notes: [
+          {
+            ref: 'custom:n-stok',
+            id: 'n-stok',
+            kind: 'note',
+            format: 'record',
+            title: 'Stok Barang',
+            path: 'Stok Barang',
+            parentId: null,
+            excerpt:
+              'Barang masuk ke gudang.\nTanggal\nBarang\nJumlah\nSatuan\nHarga',
+          },
+        ],
+        retrievalMode: 'hybrid',
+        indexingPending: false,
+      },
+      get_record_note_metadata: {
+        ref: 'custom:n-stok',
+        id: 'n-stok',
+        kind: 'note',
+        format: 'record',
+        title: 'Stok Barang',
+        path: 'Stok Barang',
+        parentId: null,
+        description: 'Barang masuk ke gudang.',
+        columns: STOCK_COLUMNS,
+        revision: 5,
+        rowCount: 1,
+      },
+      read_record_note_content: {
+        id: 'n-stok',
+        revision: 5,
+        rows: [
+          {
+            id: 'row-tepung',
+            position: 4,
+            values: {
+              tanggal: {
+                raw: localDate(-2),
+                value: localDate(-2),
+                status: 'typed',
+              },
+              barang: {
+                raw: 'Tepung terigu',
+                value: 'Tepung terigu',
+                status: 'typed',
+              },
+              jumlah: { raw: '10', value: '10', status: 'typed' },
+              satuan: { raw: 'kg', value: 'kg', status: 'typed' },
+              harga: { raw: '120000', value: '120000', status: 'typed' },
+            },
+          },
+        ],
+        total: 1,
+        next: null,
+        previous: null,
+      },
+      change_record_schema: (args: Record<string, unknown>) => ({
+        id: 'n-stok',
+        title: 'Stok Barang',
+        columns: args.columns,
+        revision: 6,
+        status: 'committed',
+        saved: true,
+      }),
+      add_record_rows: (args: Record<string, unknown>) => ({
+        id: 'n-stok',
+        title: 'Stok Barang',
+        revision: Number(args.revision) + 1,
+        status: 'committed',
+        saved: true,
+        changedIds: ['row-gula'],
+      }),
+    },
+    checks: [
+      noErrors(),
+      storesOrOffersColumn(STOCK_COLUMN_IDS, /makmur/i, 'the supplier'),
+      called(
+        'add_record_rows',
+        (args) => leftEmpty(args, ['harga']),
+        'price left empty',
+      ),
+      called(
+        'add_record_rows',
+        (args) =>
+          !addedValues(args).some(
+            ([key, value]) =>
+              STOCK_COLUMN_IDS.includes(key) &&
+              typeof value === 'string' &&
+              /makmur/i.test(value),
+          ),
+        'supplier not in an existing column',
+      ),
+      notCalled('create_record_note', 'write_daily_note'),
     ],
   },
 ];

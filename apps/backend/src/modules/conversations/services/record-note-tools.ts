@@ -17,6 +17,33 @@ const json = (value: unknown): Json =>
   JSON.parse(JSON.stringify(value)) as Json;
 
 const id = z.string().min(1).max(160);
+
+/**
+ * Every other record tool names its table with a top-level id, so models often
+ * add one to a query too. When it repeats a queried source it says nothing new
+ * and is dropped; any other id is refused with where the table belongs.
+ */
+function queryArguments(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || !('id' in value)) return value;
+  const { id: table, ...rest } = value as Record<string, unknown>;
+  const sources = Array.isArray(rest.sources) ? rest.sources : [];
+
+  if (
+    !sources.some(
+      (source: unknown) =>
+        typeof source === 'object' &&
+        source !== null &&
+        (source as { id?: unknown }).id === table,
+    )
+  )
+    recordFailure(
+      'VALIDATION',
+      'query_record_notes has no id argument. Name each table in sources[].id.',
+    );
+
+  return rest;
+}
+
 export const RECORD_TOOL_NAMES = [
   'get_record_note_metadata',
   'read_record_note_content',
@@ -54,15 +81,20 @@ export function createRecordNoteTools(
         }) as AssistantTool['definition']['parameters'],
       },
       readOnly,
-      parseArguments: (value) => {
+      parseArguments: (raw) => {
+        const value = name === 'query_record_notes' ? queryArguments(raw) : raw;
         if (name === 'query_record_notes') assertRecordQueryBounds(value);
 
         return json(parseRecord(schema, value));
       },
       execute: async (input) => {
-        if (name === 'query_record_notes')
-          assertRecordQueryBounds(input.arguments);
-        const args = parseRecord(schema, input.arguments);
+        const raw =
+          name === 'query_record_notes'
+            ? queryArguments(input.arguments)
+            : input.arguments;
+
+        if (name === 'query_record_notes') assertRecordQueryBounds(raw);
+        const args = parseRecord(schema, raw);
         // Applies to direct/background execution as well as ordinary ToolExecutor calls.
         const allowed = input.context?.sourceNoteRefs;
 
@@ -100,7 +132,7 @@ export function createRecordNoteTools(
     tool(
       'read_record_note_content',
       'Read table rows',
-      'Read bounded saved rows with stable IDs. First/last navigation, previous/next cursors and optional column projection; stale cursors require restarting.',
+      'Read bounded saved rows with stable IDs, in saved order and from every date. First/last navigation, previous/next cursors and optional column projection; stale cursors require restarting. When the user asks for the rows of a day or period and the table has a date column, select them with query_record_notes instead; rows from other dates are not part of that answer.',
       pageSchema.extend({ id }).strict(),
       true,
       ({ userId }, a) => {
@@ -149,7 +181,7 @@ export function createRecordNoteTools(
     tool(
       'query_record_notes',
       'Analyze saved records',
-      'Execute an explicit mapped query against saved tables immediately. Supports nested filters, groups, named decimal calculations and bounded expressions. No LLM arithmetic, joins or unsaved drafts. Returns source revisions, contribution/exclusion counts and query-bound cursors. See record-notes query reference.',
+      'Execute an explicit mapped query against saved tables immediately. Also lists the rows of a requested day or period through a filter on the date column. Supports nested filters, groups, named decimal calculations and bounded expressions. No LLM arithmetic, joins or unsaved drafts. Returns source revisions, contribution/exclusion counts and query-bound cursors. See record-notes query reference.',
       querySchema,
       true,
       (i, a) => records.query(i.userId, a),

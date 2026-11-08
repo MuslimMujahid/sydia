@@ -38,6 +38,8 @@ describe('decision configuration', () => {
       toolInclude: 0.6,
       factEvidence: 0.5,
       factDurable: 0.75,
+      cellStated: 0.4,
+      dayScope: 0.6,
     });
     expect(() =>
       validateDecisionEnvironment({

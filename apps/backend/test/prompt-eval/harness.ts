@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { validateEnvironment } from '../../src/app.module';
+import type { RecordNotesService } from '../../src/modules/record-notes';
+import { ApiException } from '../../src/shared/errors';
 import type {
   AssistancePreference,
   AssistantPersona,
@@ -23,6 +25,8 @@ import {
   type ContextTokenUsage,
 } from '../../src/modules/conversations/services/context-builder.service';
 import { DomainToolsProvider } from '../../src/modules/conversations/services/domain-tools.provider';
+import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
+import { RecordCellReviewService } from '../../src/modules/conversations/services/record-cell-review.service';
 import { buildTerminalToolResponse } from '../../src/modules/conversations/services/terminal-tool-response';
 import {
   ToolExecutorService,
@@ -58,7 +62,13 @@ export type Scenario = {
   /** Sources the user selected for this message (notes use custom:ID refs). */
   sources?: ChatSource[];
   /** Note workspace inventory shown when note skills load. */
-  workspace?: Array<{ id: string; title: string; kind: 'note' | 'folder' }>;
+  workspace?: Array<{
+    id: string;
+    title: string;
+    kind: 'note' | 'folder';
+    /** Record tables must say so; notes default to the existing label. */
+    format?: 'rich-text' | 'record';
+  }>;
   /** Unsolicited suggestion state; omitted means active. */
   assistance?: 'active' | 'paused';
   tools?: Record<string, ToolScript>;
@@ -79,6 +89,8 @@ export type ToolCall = { name: string; args: Record<string, unknown> };
 export type RunRecord = {
   text: string;
   calls: ToolCall[];
+  /** Row writes the cell review refused before they reached the table. */
+  refused?: ToolCall[];
   /** Tools the model called that the scenario did not script. */
   unscripted: string[];
   /** Tool names offered after routing (null when routing was skipped). */
@@ -119,13 +131,14 @@ function defaultResults(scenario: Scenario): Record<string, ToolScript> {
     search_memories: { results: [] },
     search_notes: { results: [] },
     search_daily_notes: { results: [] },
-    read_daily_note: { exists: false },
+    read_daily_note: { exists: false, scope: EMPTY_DAY_SCOPE },
     list_calendar_events: { events: [] },
     list_notes_workspace: {
-      items: (scenario.workspace ?? []).map(({ id, title, kind }) => ({
+      items: (scenario.workspace ?? []).map(({ id, title, kind, format }) => ({
         id,
         title,
         kind,
+        ...(format ? { format } : {}),
         path: title,
       })),
     },
@@ -219,11 +232,60 @@ function conversationRepository(
 }
 
 /** Real tool definitions, descriptions, and schemas; scripted execution. */
+type RunCalls = {
+  calls: ToolCall[];
+  unscripted: string[];
+  refused: ToolCall[];
+};
+
+/**
+ * Applies the production cell review to scripted row writes. Table metadata
+ * comes from the scenario's scripted get_record_note_metadata; a refused write
+ * is recorded and never reaches the scripted tool.
+ */
+function reviewedTools(
+  review: RecordCellReviewService,
+  tools: AssistantTool[],
+  scenario: Scenario,
+  record: RunCalls,
+): AssistantTool[] {
+  const metadata = scenario.tools?.get_record_note_metadata;
+  // Without scripted table metadata there is nothing to review against.
+  if (metadata === undefined) return tools;
+  const records = {
+    metadata: (_userId: string, id: string) =>
+      Promise.resolve(
+        typeof metadata === 'function'
+          ? (metadata as (a: Record<string, unknown>) => unknown)({ id })
+          : metadata,
+      ),
+  } as unknown as RecordNotesService;
+
+  return review.wrap(tools, records).map((tool) => ({
+    ...tool,
+    execute: async (input) => {
+      try {
+        return await tool.execute(input);
+      } catch (error) {
+        if (
+          error instanceof ApiException &&
+          JSON.stringify(error.getResponse()).includes('UNSTATED_VALUES')
+        )
+          record.refused.push({
+            name: tool.definition.name,
+            args: input.arguments as Record<string, unknown>,
+          });
+        throw error;
+      }
+    },
+  }));
+}
+
 function scriptedTools(
   scenario: Scenario,
   user: EvalUser,
   skills: SkillCatalogService,
-  record: { calls: ToolCall[]; unscripted: string[] },
+  record: RunCalls,
 ): AssistantTool[] {
   const defaults = defaultResults(scenario);
   const stub = {} as never;
@@ -232,7 +294,7 @@ function scriptedTools(
       Promise.resolve({
         items: (scenario.workspace ?? []).map((item) => ({
           ...item,
-          format: item.kind === 'note' ? 'rich_text' : null,
+          format: item.format ?? (item.kind === 'note' ? 'rich_text' : null),
           path: item.title,
           revision: 1,
           parentId: null,
@@ -341,17 +403,29 @@ export type Harness = {
  */
 export function createHarness(env: NodeJS.ProcessEnv): Harness {
   // Parse env exactly as the app does, so numbers and flags have their real types.
-  const config = new ConfigService(validateEnvironment({ ...env }));
+  const config = new ConfigService(
+    validateEnvironment({
+      ...env,
+      // Scenarios measure the cell review as it would run in production.
+      // Importing the app module writes config defaults ('off') into
+      // process.env, so the harness has its own switch.
+      BACKEND_RECORD_CELL_REVIEW_MODE: env.PROMPT_EVAL_CELL_REVIEW ?? 'enabled',
+      BACKEND_TURN_DAY_SCOPE_MODE: env.PROMPT_EVAL_DAY_SCOPE ?? 'off',
+    }),
+  );
+
   const observability = new ObservabilityService(config);
   const model = new OpenRouterLanguageModel(config, observability);
   const skills = new SkillCatalogService();
   const routing = env.PROMPT_EVAL_ROUTING !== 'off';
   const capacity = routing ? new DecisionCapacityService(config) : null;
-  const decisions = capacity
-    ? new TurnDecisionService(
-        new TypeSafeDecisionGateway(config, capacity, observability),
-        new DecisionSettings(config),
-      )
+  const gateway = capacity
+    ? new TypeSafeDecisionGateway(config, capacity, observability)
+    : null;
+
+  const decisionSettings = new DecisionSettings(config);
+  const decisions = gateway
+    ? new TurnDecisionService(gateway, decisionSettings)
     : undefined;
 
   /** Routing fails closed until Redis connects; wait so turn one is routed too. */
@@ -374,9 +448,10 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
       await connected;
       const user = evalUser(scenario);
       const now = new Date();
-      const record: { calls: ToolCall[]; unscripted: string[] } = {
+      const record: RunCalls = {
         calls: [],
         unscripted: [],
+        refused: [],
       };
 
       const preference = (
@@ -438,9 +513,21 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
           ? [...built.decision.toolNames]
           : null;
 
+        const scripted = scriptedTools(scenario, user, skills, record);
         const executor = new ToolExecutorService(
           conversations,
-          scriptedTools(scenario, user, skills, record),
+          gateway
+            ? reviewedTools(
+                new RecordCellReviewService(
+                  gateway,
+                  decisionSettings,
+                  conversations,
+                ),
+                scripted,
+                scenario,
+                record,
+              )
+            : scripted,
         );
 
         const state: AssistantSkillState = {
@@ -496,6 +583,7 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
         return {
           text: result.text,
           calls: record.calls,
+          refused: record.refused,
           unscripted: [...new Set(record.unscripted)],
           routedTools,
           terminalAcknowledgement,
@@ -506,6 +594,7 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
         return {
           text: '',
           calls: record.calls,
+          refused: record.refused,
           unscripted: [...new Set(record.unscripted)],
           routedTools,
           terminalAcknowledgement,

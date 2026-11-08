@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ModelGatewayModule } from '../../infra/model-gateway';
 import { DecisionGatewayModule } from '../../infra/decision-gateway';
 import { TurnDecisionService } from './services/turn-decision.service';
+import { RecordCellReviewService } from './services/record-cell-review.service';
 import { MemoriesModule } from '../memories/memories.module';
 import { DailyNotesModule } from '../daily-notes/daily-notes.module';
 import { NotesModule } from '../notes/notes.module';
@@ -72,6 +73,7 @@ import {
     AssistantOrchestratorService,
     ContextBuilderService,
     TurnDecisionService,
+    RecordCellReviewService,
     ConversationSummarizerService,
     ToolExecutorService,
     NoteAgentCoordinatorService,

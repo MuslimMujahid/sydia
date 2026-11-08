@@ -8,6 +8,8 @@ export const DECISION_FEATURES = {
   facts: 'BACKEND_MEMORY_FACT_REVIEW_MODE',
   recall: 'BACKEND_MEMORY_RECALL_DECISION_MODE',
   tools: 'BACKEND_TOOL_GROUP_SELECTION_MODE',
+  cells: 'BACKEND_RECORD_CELL_REVIEW_MODE',
+  scope: 'BACKEND_TURN_DAY_SCOPE_MODE',
 } as const;
 export type DecisionFeature = keyof typeof DECISION_FEATURES;
 export type DecisionMode = 'off' | 'shadow' | 'reject-only' | 'enabled';
@@ -27,6 +29,18 @@ export const DEFAULT_DECISION_THRESHOLDS = {
   factEvidence: 0.5,
   /** Whether a candidate fact is worth remembering. */
   factDurable: 0.75,
+  /**
+   * Whether the owner stated a table value the assistant is about to save.
+   * Owner-reviewed calibration of 8 Nov 2026
+   * (test/optimization/record-cell-calibration.live.spec.ts): placeholders
+   * and guesses scored 0.10-0.24, stated or paraphrased values 0.52-0.97.
+   */
+  cellStated: 0.4,
+  /**
+   * Confidence the latest message limits itself to a relative day or period
+   * (today, last week). Provisional until a reviewed calibration exists.
+   */
+  dayScope: 0.6,
 } as const;
 /**
  * Thresholds that no longer apply but may still be set in deployed

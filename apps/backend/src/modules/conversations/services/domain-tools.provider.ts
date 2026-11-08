@@ -3,6 +3,7 @@ import { createRecordNoteTools } from './record-note-tools';
 import { withNoteSkillInventory } from './note-skill-inventory';
 import { NoteMutationService } from '../../notes/note-mutation.service';
 import { protectNoteTools } from './protected-note-tools';
+import { RecordCellReviewService } from './record-cell-review.service';
 import { createNoteQuestionResponseTools } from './note-question-tools';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
@@ -76,45 +77,49 @@ export class DomainToolsProvider {
     @Optional() availability?: AvailabilityService,
     @Optional() actions?: AssistantActionService,
     @Optional() policy?: AssistancePolicyService,
+    @Optional() cellReview?: RecordCellReviewService,
   ) {
+    const protectedTools = protectNoteTools(
+      [
+        ...createDomainTools({
+          tasks,
+          categories,
+          reminders,
+          memoryService,
+          scheduler,
+          users,
+          secrets,
+        }),
+        ...createPhaseTools({
+          contacts,
+          contactGroups,
+          documents,
+          calendars,
+          calendarService,
+          calendarRead,
+          calendarSync,
+          users,
+        }),
+        ...createDailyNoteTools({ dailyNotes }),
+        ...createNotesWorkspaceTools(notes),
+        ...createRecordNoteTools(records),
+        ...createNoteQuestionResponseTools(noteWork),
+        ...(skills && workContext && availability && actions && policy
+          ? createSecretaryTools({
+              skills: skills.skills,
+              context: workContext,
+              availability,
+              actions,
+              policy,
+            })
+          : []),
+      ],
+      { mutations, notes, daily: dailyNotes },
+    );
+
+    // Review runs before protection so a refused write never becomes pending work.
     this.tools = withNoteSkillInventory(
-      protectNoteTools(
-        [
-          ...createDomainTools({
-            tasks,
-            categories,
-            reminders,
-            memoryService,
-            scheduler,
-            users,
-            secrets,
-          }),
-          ...createPhaseTools({
-            contacts,
-            contactGroups,
-            documents,
-            calendars,
-            calendarService,
-            calendarRead,
-            calendarSync,
-            users,
-          }),
-          ...createDailyNoteTools({ dailyNotes }),
-          ...createNotesWorkspaceTools(notes),
-          ...createRecordNoteTools(records),
-          ...createNoteQuestionResponseTools(noteWork),
-          ...(skills && workContext && availability && actions && policy
-            ? createSecretaryTools({
-                skills: skills.skills,
-                context: workContext,
-                availability,
-                actions,
-                policy,
-              })
-            : []),
-        ],
-        { mutations, notes, daily: dailyNotes },
-      ),
+      cellReview ? cellReview.wrap(protectedTools, records) : protectedTools,
       notes,
     );
     const names = this.tools.map(({ definition }) => definition.name);

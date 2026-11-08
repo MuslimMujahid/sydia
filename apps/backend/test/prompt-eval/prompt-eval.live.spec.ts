@@ -34,6 +34,7 @@ type ScenarioResult = {
       retries?: number;
       contextTokens: number | null;
       failures: Array<{ check: string; reason: string }>;
+      refused?: Array<{ name: string; args: Record<string, unknown> }>;
     }
   >;
 };
@@ -64,6 +65,7 @@ function evaluate(
   return {
     text: run.text,
     calls: run.calls,
+    refused: run.refused ?? [],
     unscripted: run.unscripted,
     routedTools: run.routedTools,
     error: run.error,
