@@ -58,7 +58,13 @@ export type Scenario = {
   /** Sources the user selected for this message (notes use custom:ID refs). */
   sources?: ChatSource[];
   /** Note workspace inventory shown when note skills load. */
-  workspace?: Array<{ id: string; title: string; kind: 'note' | 'folder' }>;
+  workspace?: Array<{
+    id: string;
+    title: string;
+    kind: 'note' | 'folder';
+    /** Record tables must say so; notes default to the existing label. */
+    format?: 'rich-text' | 'record';
+  }>;
   /** Unsolicited suggestion state; omitted means active. */
   assistance?: 'active' | 'paused';
   tools?: Record<string, ToolScript>;
@@ -122,10 +128,11 @@ function defaultResults(scenario: Scenario): Record<string, ToolScript> {
     read_daily_note: { exists: false },
     list_calendar_events: { events: [] },
     list_notes_workspace: {
-      items: (scenario.workspace ?? []).map(({ id, title, kind }) => ({
+      items: (scenario.workspace ?? []).map(({ id, title, kind, format }) => ({
         id,
         title,
         kind,
+        ...(format ? { format } : {}),
         path: title,
       })),
     },
@@ -232,7 +239,7 @@ function scriptedTools(
       Promise.resolve({
         items: (scenario.workspace ?? []).map((item) => ({
           ...item,
-          format: item.kind === 'note' ? 'rich_text' : null,
+          format: item.format ?? (item.kind === 'note' ? 'rich_text' : null),
           path: item.title,
           revision: 1,
           parentId: null,

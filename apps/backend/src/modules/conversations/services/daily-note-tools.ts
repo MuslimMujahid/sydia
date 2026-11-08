@@ -90,7 +90,7 @@ date defaults to today in the owner's timezone; pass an explicit date only when 
 
 The note is addressed as a whole. text is the complete resulting note for that day, not a fragment to add — whatever you send replaces the day's content in its entirety. So read_daily_note for that date first, fold the new information into the text you read, and send the full note back. When the day has no note yet, the text you send is the new note and there is nothing to read.
 
-For an existing note, also send document (the complete Tiptap JSON from read_daily_note with only the requested changes) and expectedUpdatedAt (the exact updatedAt you read). Preserve unchanged nodes, formatting marks, and noteLink targets. A stale version is rejected; reread and resolve the user's request instead of blindly retrying an old document. Without an explicit destination, the daily note is a useful default when no better home is established. Use custom-note tools for a suitable maintained home or a named custom destination.
+For an existing note, also send document (the complete Tiptap JSON from read_daily_note with only the requested changes) and expectedUpdatedAt (the exact updatedAt you read). Preserve unchanged nodes, formatting marks, and noteLink targets. A stale version is rejected; reread and resolve the user's request instead of blindly retrying an old document.
 
 Place and format the information where it belongs in that note. You may insert a line into an existing group, start a new group with its own heading, reorder groups, reword, or restructure the whole note when that makes it easier to scan — the result, not the edit history, is what the user keeps. Preserve unrelated records and genuine separate events. Apply corrections and superseding reports: a newer aggregate for the same period updates the prior aggregate, even without an explicit correction verb. Do not preserve outdated totals as additional transactions.
 
@@ -165,7 +165,7 @@ How to write the note. A note is a record to be scanned and retrieved later, not
       label: 'Read daily note',
       description: `Use this tool to read the user's daily note for one specific day. For a daily:YYYY-MM-DD reference, pass that date.
 
-Use it when the user asks what was written on a known day — "apa yang saya catat kemarin?", "catatan hari Senin" — or before editing a note whose current text is needed.
+Use it when the user asks about the daily note or diary of a known day — "apa yang saya catat kemarin?", "catatan harian hari Senin" — or before editing a daily note whose current text is needed. A day alone does not mean the daily note: "catatan pemesanan hari ini" names another note plus a day, so find that note with search_notes. An empty day says nothing about other notes.
 
 Do not use it to search across many days by topic; use search_daily_notes for that.
 

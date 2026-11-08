@@ -76,6 +76,82 @@ const CANNOT =
 
 const isTomorrow = (args: Record<string, unknown>) => args.due === 'tomorrow';
 
+/** One ongoing order table with a date column, as Sydia creates it. */
+const ORDER_NOTE = {
+  ref: 'custom:n-pesanan',
+  id: 'n-pesanan',
+  kind: 'note',
+  format: 'record',
+  title: 'Catatan Pemesanan',
+  path: 'Catatan Pemesanan',
+  parentId: null,
+};
+
+const ORDER_COLUMNS = [
+  { id: 'tanggal', name: 'Tanggal', type: 'date', required: false },
+  { id: 'pemesan', name: 'Pemesan', type: 'text', required: false },
+  { id: 'barang', name: 'Barang', type: 'text', required: false },
+  { id: 'jumlah', name: 'Jumlah', type: 'number', required: false },
+  { id: 'alamat', name: 'Alamat Kirim', type: 'text', required: false },
+  { id: 'pembayaran', name: 'Pembayaran', type: 'text', required: false },
+];
+
+const ORDER_METADATA = {
+  ...ORDER_NOTE,
+  description:
+    'Pesanan masuk dari pelanggan, termasuk barang, jumlah, alamat kirim, dan metode pembayaran.',
+  columns: ORDER_COLUMNS,
+  revision: 3,
+  rowCount: 3,
+};
+
+function orderRow(
+  id: string,
+  position: number,
+  day: number,
+  values: Record<string, string>,
+) {
+  const cells = { tanggal: localDate(day), ...values };
+
+  return {
+    id,
+    position,
+    values: Object.fromEntries(
+      Object.entries(cells).map(([key, value]) => [
+        key,
+        { raw: value, value, status: 'typed' },
+      ]),
+    ),
+  };
+}
+
+const ORDER_ROWS = [
+  orderRow('row-sari', 1, -1, {
+    pemesan: 'Bu Sari',
+    barang: 'Keripik pisang',
+    jumlah: '5',
+    pembayaran: 'Tunai',
+  }),
+  orderRow('row-rina', 2, 0, {
+    pemesan: 'Bu Rina',
+    barang: 'Sambal roa',
+    jumlah: '2',
+    alamat: 'Jl. Melati 12',
+    pembayaran: 'Transfer',
+  }),
+  orderRow('row-dedi', 3, 0, {
+    pemesan: 'Pak Dedi',
+    barang: 'Sambal roa',
+    jumlah: '4',
+  }),
+];
+
+const ORDER_LINK = /\]\(#note\/(?:custom(?:%3A|:))?n-pesanan\)/i;
+
+/** A placeholder written where the user gave no value. */
+const PLACEHOLDER =
+  /belum (?:ditentukan|diketahui|ada)|tidak diketahui|unknown|^\s*-\s*$/i;
+
 export const SCENARIOS: Scenario[] = [
   // ── Task and reminder lists ────────────────────────────────────────────
   {
@@ -1117,6 +1193,175 @@ export const SCENARIOS: Scenario[] = [
       ),
       contains('Dina'),
       notCalled('write_daily_note'),
+    ],
+  },
+
+  // ── A named note plus a day ────────────────────────────────────────────
+  {
+    // "hari ini" picks entries inside the named note, not the daily note
+    // (8 Nov 2026 session: only read_daily_note was called).
+    id: 'open-named-note-today',
+    area: 'tool-choice',
+    message: 'Buka catatan pemesanan hari ini',
+    workspace: [
+      {
+        id: 'n-pesanan',
+        title: 'Catatan Pemesanan',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: {
+        notes: [
+          {
+            ...ORDER_NOTE,
+            updatedAt: at(0, '08:22'),
+            excerpt: `${ORDER_METADATA.description}\nTanggal\nPemesan\nBarang\nJumlah\nAlamat Kirim\nPembayaran`,
+          },
+        ],
+        retrievalMode: 'hybrid',
+        indexingPending: false,
+      },
+      read_daily_note: {
+        date: localDate(),
+        found: false,
+        text: null,
+        document: null,
+        updatedAt: null,
+      },
+      get_record_note_metadata: ORDER_METADATA,
+      read_record_note_content: {
+        id: 'n-pesanan',
+        revision: 3,
+        rows: ORDER_ROWS,
+        total: 3,
+      },
+      query_record_notes: {
+        rows: ORDER_ROWS.slice(1),
+        sources: [{ id: 'n-pesanan', revision: 3 }],
+      },
+    },
+    checks: [
+      noErrors(),
+      anyOf(['search_notes', 'list_notes_workspace'], 'looks up the note'),
+      matches(ORDER_LINK, 'links the order note'),
+      notCalled(
+        'create_record_note',
+        'create_custom_note',
+        'write_daily_note',
+        'add_record_rows',
+      ),
+      inIndonesian(),
+    ],
+  },
+  {
+    // Contrast: without a note name, "catatan hari ini" is the daily note.
+    id: 'open-daily-note-today',
+    area: 'tool-choice',
+    message: 'Buka catatan hari ini',
+    workspace: [
+      {
+        id: 'n-pesanan',
+        title: 'Catatan Pemesanan',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      read_daily_note: {
+        date: localDate(),
+        found: true,
+        text: '- Belanja bahan sambal di pasar\n- Kirim paket ke Bu Rina',
+        document: { type: 'doc', content: [] },
+        updatedAt: at(0, '07:30'),
+      },
+      search_notes: {
+        notes: [{ ...ORDER_NOTE, excerpt: ORDER_METADATA.description }],
+        retrievalMode: 'hybrid',
+        indexingPending: false,
+      },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'read_daily_note',
+        (args) => args.date === undefined || args.date === localDate(),
+        'today',
+      ),
+      notMatches(ORDER_LINK, 'does not open the order note'),
+      notCalled('write_daily_note', 'create_custom_note', 'create_record_note'),
+    ],
+  },
+  {
+    // A forwarded order with no payment method gets no placeholder value.
+    id: 'capture-order-missing-field',
+    area: 'notes',
+    history: [
+      {
+        role: 'user',
+        content:
+          '[Diteruskan dari Bu Rina] Kak, pesan sambal roa 2 botol ya. Kirim ke Jl. Melati 12, bayar transfer. --- Buat catatan pemesanan untuk hari ini dan masukkan pesanan ini',
+      },
+      {
+        role: 'assistant',
+        content:
+          'Siap! Pesanan Bu Rina sudah masuk ke [Catatan Pemesanan](#note/custom%3An-pesanan): sambal roa 2 botol, kirim ke Jl. Melati 12, bayar transfer.',
+      },
+    ],
+    message:
+      '[Diteruskan dari Pak Dedi] Mbak, mau order sambal roa 4 botol, ambil sendiri sore ini ya. --- tambah ini',
+    workspace: [
+      {
+        id: 'n-pesanan',
+        title: 'Catatan Pemesanan',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      search_notes: {
+        notes: [{ ...ORDER_NOTE, excerpt: ORDER_METADATA.description }],
+        retrievalMode: 'hybrid',
+        indexingPending: false,
+      },
+      get_record_note_metadata: { ...ORDER_METADATA, revision: 2, rowCount: 2 },
+      read_record_note_content: {
+        id: 'n-pesanan',
+        revision: 2,
+        rows: ORDER_ROWS.slice(0, 2),
+        total: 2,
+      },
+      add_record_rows: {
+        ...ORDER_METADATA,
+        revision: 3,
+        saved: true,
+        changedIds: ['row-dedi'],
+      },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'add_record_rows',
+        (args) => {
+          const batch = args.batch as
+            { rows?: Array<{ values?: Record<string, unknown> }> } | undefined;
+
+          const rows = batch?.rows ?? [];
+
+          return (
+            rows.length > 0 &&
+            rows.every(({ values = {} }) =>
+              Object.values(values).every(
+                (value) =>
+                  !(typeof value === 'string' && PLACEHOLDER.test(value)),
+              ),
+            )
+          );
+        },
+        'no placeholder for the missing payment',
+      ),
+      notCalled('create_record_note', 'write_daily_note'),
     ],
   },
 ];
