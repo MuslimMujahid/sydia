@@ -5699,7 +5699,8 @@
       "passed": 3,
       "runs": [
         {
-          "text": "Sudah ditambahkan ke [Catatan Pemesanan](#note/custom%3An-pesanan): Pak Dedi — sambal roa 4 botol, ambil sendiri sore ini, tanggal 8 Nov 2026. Kolom pembayaran saya biarkan kosong karena Pak Dedi tidak menyebut metode bayar.",
+          "durationMs": 23854,
+          "text": "Pesanan Pak Dedi sudah masuk ke [Catatan Pemesanan](#note/custom%3An-pesanan): sambal roa 4 botol, ambil sendiri sore ini (9 Nov 2026), pemesan Pak Dedi.\n\nKolom pembayarannya aku kosongkan karena belum disebut — kalau tahu, tinggal bilang saja nanti aku isi.",
           "calls": [
             {
               "name": "load_skill",
@@ -5707,77 +5708,6 @@
                 "name": "note-capture"
               }
             },
-            {
-              "name": "search_notes",
-              "args": {
-                "query": "Catatan Pemesanan"
-              }
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-pesanan"
-              }
-            },
-            {
-              "name": "add_record_rows",
-              "args": {
-                "id": "n-pesanan",
-                "revision": 2,
-                "batch": {
-                  "rows": [
-                    {
-                      "values": {
-                        "alamat": "Ambil sendiri",
-                        "barang": "Sambal roa",
-                        "jumlah": 4,
-                        "pemesan": "Pak Dedi",
-                        "tanggal": "2026-11-08"
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ],
-          "refused": [
-            {
-              "name": "add_record_rows",
-              "args": {
-                "id": "n-pesanan",
-                "revision": 2,
-                "batch": {
-                  "rows": [
-                    {
-                      "values": {
-                        "tanggal": "2026-11-08",
-                        "pemesan": "Pak Dedi",
-                        "barang": "Sambal roa",
-                        "jumlah": 4,
-                        "alamat": "Ambil sendiri",
-                        "pembayaran": "Ambil sendiri sore ini"
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ],
-          "unscripted": [],
-          "routedTools": null,
-          "usage": {
-            "inputTokens": 131241,
-            "outputTokens": 467,
-            "costUsd": 0.000289928
-          },
-          "terminalAcknowledgement": false,
-          "contextTokens": 3707,
-          "failures": [],
-          "retries": 0
-        },
-        {
-          "text": "Sudah ditambahkan ke [Catatan Pemesanan](#note/custom%3An-pesanan):\n\n- **Pak Dedi** — Sambal roa, 4 botol, ambil sendiri, 8 Nov 2026\n\nKolom pembayaran saya biarkan kosong karena Pak Dedi belum menyebutkan caranya. Mau saya isi kalau nanti sudah ada kabar?",
-          "calls": [
             {
               "name": "search_notes",
               "args": {
@@ -5793,7 +5723,7 @@
             {
               "name": "read_record_note_content",
               "args": {
-                "limit": 10,
+                "limit": 50,
                 "id": "n-pesanan"
               }
             },
@@ -5806,11 +5736,11 @@
                   "rows": [
                     {
                       "values": {
-                        "alamat": "Ambil sendiri",
-                        "barang": "Sambal roa",
-                        "jumlah": 4,
+                        "tanggal": "2026-11-09",
                         "pemesan": "Pak Dedi",
-                        "tanggal": "2026-11-08"
+                        "barang": "Sambal roa",
+                        "jumlah": "4",
+                        "alamat": "Ambil sendiri"
                       }
                     }
                   ]
@@ -5818,7 +5748,47 @@
               }
             }
           ],
-          "refused": [
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 106984,
+            "outputTokens": 968
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3962,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 21247,
+          "text": "Sambal roa buat **Pak Dedi** sudah masuk ke [Catatan Pemesanan](#note/custom%3An-pesanan): 4 botol, ambil sendiri. Metode pembayarannya belum disebut, jadi kolom itu saya biarkan kosong.\n\nSatu catatan kecil: pesannya bilang ambil \"sore ini\", padahal sekarang sudah lewat jam 11 malam — mungkin mau dipastikan apakah ambilnya jadi hari ini atau besok sore?",
+          "calls": [
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "Catatan Pemesanan"
+              }
+            },
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pesanan"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 20,
+                "id": "n-pesanan"
+              }
+            },
             {
               "name": "add_record_rows",
               "args": {
@@ -5828,12 +5798,11 @@
                   "rows": [
                     {
                       "values": {
-                        "tanggal": "2026-11-08",
+                        "tanggal": "2026-11-09",
                         "pemesan": "Pak Dedi",
                         "barang": "Sambal roa",
                         "jumlah": 4,
-                        "alamat": "Ambil sendiri",
-                        "pembayaran": "Belum disebut"
+                        "alamat": "Ambil sendiri, sore ini"
                       }
                     }
                   ]
@@ -5841,27 +5810,22 @@
               }
             }
           ],
+          "refused": [],
           "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 140899,
-            "outputTokens": 507,
-            "costUsd": 0.000271928
+            "inputTokens": 106987,
+            "outputTokens": 754
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3707,
+          "contextTokens": 3962,
           "failures": [],
           "retries": 0
         },
         {
-          "text": "Sudah ditambahkan ke [Catatan Pemesanan](#note/custom%3An-pesanan):\n\n- **Pak Dedi** — Sambal roa, 4 botol, ambil sendiri, 8 Nov 2026\n\nMetode pembayarannya belum disebut, jadi kolom itu saya biarkan kosong. Kalau nanti sudah tahu, tinggal bilang saja.",
+          "durationMs": 26806,
+          "text": "Sudah masuk ke [Catatan Pemesanan](#note/custom%3An-pesanan) sebagai baris baru: Pak Dedi — sambal roa 4 botol, ambil sendiri, tanggal hari ini. Kolom pembayaran saya kosongkan karena belum disebut.",
           "calls": [
-            {
-              "name": "load_skill",
-              "args": {
-                "name": "note-capture"
-              }
-            },
             {
               "name": "search_notes",
               "args": {
@@ -5891,12 +5855,11 @@
                   "rows": [
                     {
                       "values": {
-                        "tanggal": "2026-11-08",
+                        "tanggal": "2026-11-09",
                         "pemesan": "Pak Dedi",
                         "barang": "Sambal roa",
-                        "jumlah": 4,
-                        "alamat": "Ambil sendiri",
-                        "pembayaran": ""
+                        "jumlah": "4",
+                        "alamat": "Ambil sendiri"
                       }
                     }
                   ]
@@ -5908,12 +5871,11 @@
           "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 131542,
-            "outputTokens": 417,
-            "costUsd": 0.00031239
+            "inputTokens": 119758,
+            "outputTokens": 775
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3707,
+          "contextTokens": 3962,
           "failures": [],
           "retries": 0
         }

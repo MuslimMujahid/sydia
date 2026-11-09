@@ -397,6 +397,20 @@ const ORDER_TABLE = recordTable({
   ),
 });
 
+/** The order table before Pak Dedi's order: Bu Sari and Bu Rina only. */
+const ORDER_INTAKE_TABLE = recordTable({
+  id: 'n-pesanan',
+  title: 'Catatan Pemesanan',
+  description: ORDER_METADATA.description,
+  columns: ORDER_COLUMNS as FixtureColumn[],
+  revision: 2,
+  rows: ORDER_ROWS.slice(0, 2).map(({ values }) =>
+    Object.fromEntries(
+      Object.entries(values).map(([key, cell]) => [key, cell.raw]),
+    ),
+  ),
+});
+
 const EXPENSE_COLUMNS: FixtureColumn[] = [
   { id: 'tgl', name: 'Tanggal Bayar', type: 'date' },
   { id: 'keperluan', name: 'Keperluan', type: 'text' },
@@ -2231,29 +2245,9 @@ export const SCENARIOS: Scenario[] = [
         retrievalMode: 'hybrid',
         indexingPending: false,
       },
-      get_record_note_metadata: { ...ORDER_METADATA, revision: 2, rowCount: 2 },
-      read_record_note_content: {
-        id: 'n-pesanan',
-        revision: 2,
-        rows: ORDER_ROWS.slice(0, 2),
-        total: 2,
-      },
-      change_record_schema: (args: Record<string, unknown>) => ({
-        ...ORDER_METADATA,
-        columns: args.columns,
-        revision: 3,
-        rowCount: 2,
-        status: 'committed',
-        saved: true,
-      }),
-      add_record_rows: (args: Record<string, unknown>) => ({
-        ...ORDER_METADATA,
-        revision: Number(args.revision) + 1,
-        status: 'committed',
-        saved: true,
-        changedIds: ['row-dedi'],
-      }),
     },
+    // Reads show this run's own rows and columns, as production would.
+    freshTools: ORDER_INTAKE_TABLE.fresh,
     checks: [
       noErrors(),
       {

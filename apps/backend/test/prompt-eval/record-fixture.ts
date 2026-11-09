@@ -23,6 +23,8 @@ type TableSpec = {
   description: string;
   columns: FixtureColumn[];
   rows: Array<Record<string, string>>;
+  /** Stable row IDs, parallel to `rows`; defaults to `row-<position>`. */
+  rowIds?: string[];
   revision?: number;
 };
 
@@ -34,8 +36,9 @@ type TableFixture = {
 /**
  * One saved table answered by the real record-note read and query code, so a
  * filter the model writes selects exactly the rows production would select.
- * `fresh()` returns tools for a single run whose reads show the rows that run
- * added, so a model that re-reads after writing sees its own write.
+ * `fresh()` returns tools for a single run whose reads show the rows and
+ * columns that run added, so a model that re-reads after writing sees its own
+ * write.
  */
 export function recordTable(
   table: TableSpec,
@@ -44,8 +47,12 @@ export function recordTable(
     ...tableTools(table),
     fresh: () => {
       const rows = [...table.rows];
+      const rowIds = rows.map((_, index) => `row-${index + 1}`);
+      let nextId = rows.length + 1;
+      let columns = [...table.columns];
       let revision = table.revision ?? rows.length + 1;
-      const current = () => tableTools({ ...table, rows, revision });
+      const current = () =>
+        tableTools({ ...table, columns, rows, rowIds, revision });
 
       const delegate =
         (name: string) =>
@@ -57,46 +64,107 @@ export function recordTable(
             : script;
         };
 
+      const committed = (changedIds: string[]) => {
+        revision += 1;
+
+        return {
+          ...current().metadata,
+          status: 'committed',
+          saved: true,
+          changedIds,
+        };
+      };
+
+      const batchOf = (args: Record<string, unknown>) =>
+        (args.batch ?? {}) as {
+          rows?: Array<{ id?: string; values?: Record<string, unknown> }>;
+          ids?: string[];
+        };
+
+      const missing = (ids: string[]) => {
+        const unknown = ids.filter((id) => !rowIds.includes(id));
+
+        return unknown.length
+          ? new Error(`Row not found: ${unknown.join(', ')}.`)
+          : null;
+      };
+
       return {
         get_record_note_metadata: delegate('get_record_note_metadata'),
         read_record_note_content: delegate('read_record_note_content'),
         query_record_notes: delegate('query_record_notes'),
         add_record_rows: (args: Record<string, unknown>) => {
-          const batch = args.batch as
-            { rows?: Array<{ values?: Record<string, unknown> }> } | undefined;
-
-          const added = (batch?.rows ?? []).map(({ values = {} }) =>
+          const added = (batchOf(args).rows ?? []).map(({ values = {} }) =>
             Object.fromEntries(
               Object.entries(values).flatMap(([key, value]) =>
                 value === null || value === undefined || value === ''
                   ? []
-                  : [
-                      [
-                        key,
-                        typeof value === 'string'
-                          ? value
-                          : JSON.stringify(value),
-                      ],
-                    ],
+                  : [[key, cellText(value)]],
               ),
             ),
           );
 
-          rows.push(...added);
-          revision += 1;
+          const ids = added.map(() => `row-${nextId++}`);
 
-          return {
-            ...current().metadata,
-            status: 'committed',
-            saved: true,
-            changedIds: added.map(
-              (_, index) => `row-${rows.length - added.length + index + 1}`,
-            ),
-          };
+          rows.push(...added);
+          rowIds.push(...ids);
+
+          return committed(ids);
+        },
+        // Omitted values stay; null or an empty string clears the cell.
+        update_record_rows: (args: Record<string, unknown>) => {
+          const updates = batchOf(args).rows ?? [];
+          const error = missing(updates.map(({ id }) => String(id)));
+          if (error) return error;
+
+          for (const { id, values = {} } of updates) {
+            const index = rowIds.indexOf(String(id));
+            const row = { ...rows[index] };
+
+            for (const [key, value] of Object.entries(values))
+              if (value === null || value === '') delete row[key];
+              else if (value !== undefined) row[key] = cellText(value);
+            rows[index] = row;
+          }
+
+          return committed(updates.map(({ id }) => String(id)));
+        },
+        delete_record_rows: (args: Record<string, unknown>) => {
+          const ids = batchOf(args).ids ?? [];
+          const error = missing(ids);
+          if (error) return error;
+
+          for (const id of ids) {
+            const index = rowIds.indexOf(id);
+            rows.splice(index, 1);
+            rowIds.splice(index, 1);
+          }
+
+          return committed(ids);
+        },
+        // The full ordered schema replaces the columns, as in production.
+        change_record_schema: (args: Record<string, unknown>) => {
+          if (!Array.isArray(args.columns) || !args.columns.length)
+            return new Error('columns must list the full schema.');
+          columns = (args.columns as FixtureColumn[]).map(
+            ({ id, name, type, unit, options }) => ({
+              id,
+              name,
+              type,
+              ...(unit ? { unit } : {}),
+              ...(options ? { options } : {}),
+            }),
+          );
+
+          return committed([]);
         },
       };
     },
   };
+}
+
+function cellText(value: unknown): string {
+  return typeof value === 'string' ? value : JSON.stringify(value);
 }
 
 function tableTools(table: TableSpec): TableFixture {
@@ -106,7 +174,7 @@ function tableTools(table: TableSpec): TableFixture {
   }));
 
   const rows: RecordRow[] = table.rows.map((values, index) => ({
-    id: `row-${index + 1}`,
+    id: table.rowIds?.[index] ?? `row-${index + 1}`,
     position: index + 1,
     cells: Object.fromEntries(
       columns.flatMap((column) => {
