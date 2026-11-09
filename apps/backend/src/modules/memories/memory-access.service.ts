@@ -396,7 +396,7 @@ export class MemoryAccessService {
       sourceIds: snapshots.map(({ source }) => source.id),
       message: completed
         ? 'Memory erased.'
-        : 'This memory is no longer used. Permanent deletion is still processing.',
+        : 'Forgotten: this memory is no longer used.',
     };
   }
 
@@ -948,7 +948,7 @@ export class MemoryAccessService {
         status === 'completed'
           ? 'Memory retention confirmed.'
           : status === 'queued'
-            ? 'Memory request queued; retention is not yet confirmed.'
+            ? 'Memory request accepted.'
             : 'This request was superseded, removed, or not admitted.',
     };
   }

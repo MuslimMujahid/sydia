@@ -1,4 +1,7 @@
-import { createFactReviewer } from '../../../test/hindsight/create-fact-reviewer';
+import {
+  createFactReviewer,
+  LIVE_POLICY_MODEL,
+} from '../../../test/hindsight/create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { describe, expect, test } from '@jest/globals';
@@ -53,7 +56,7 @@ live('Hindsight saved-fact backfill live contract', () => {
     const model = new OpenRouterLanguageModel(
       new ConfigService({
         BACKEND_MODEL_API_KEY: modelKey,
-        BACKEND_MODEL_NAME: 'qwen/qwen3.8-flash',
+        BACKEND_MODEL_NAME: LIVE_POLICY_MODEL,
         BACKEND_MODEL_BASE_URL: process.env.HINDSIGHT_POLICY_CONTRACT_BASE_URL,
       }),
       ObservabilityService.disabled(),

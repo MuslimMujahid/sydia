@@ -159,6 +159,8 @@ type Row = {
       const embeddings = new EmbeddingsService(
         new ConfigService({
           BACKEND_MODEL_API_KEY: policyKey,
+          // A dedicated embedding key wins, as in the app configuration.
+          BACKEND_EMBEDDING_API_KEY: process.env.BACKEND_EMBEDDING_API_KEY,
           BACKEND_MODEL_BASE_URL:
             process.env.HINDSIGHT_EMBEDDING_CONTRACT_BASE_URL,
           BACKEND_EMBEDDING_CONCURRENCY: 2,

@@ -1,4 +1,4 @@
-import { createFactReviewer } from './create-fact-reviewer';
+import { createFactReviewer, LIVE_POLICY_MODEL } from './create-fact-reviewer';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -498,7 +498,7 @@ type Runtime = {
       const model = new OpenRouterLanguageModel(
         new ConfigService({
           BACKEND_MODEL_API_KEY: policyKey,
-          BACKEND_MODEL_NAME: 'qwen/qwen3.8-flash',
+          BACKEND_MODEL_NAME: LIVE_POLICY_MODEL,
           BACKEND_MODEL_BASE_URL:
             process.env.HINDSIGHT_POLICY_CONTRACT_BASE_URL,
         }),

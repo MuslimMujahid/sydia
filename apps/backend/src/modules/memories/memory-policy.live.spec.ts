@@ -1,4 +1,7 @@
-import { createFactReviewer } from '../../../test/hindsight/create-fact-reviewer';
+import {
+  createFactReviewer,
+  LIVE_POLICY_MODEL,
+} from '../../../test/hindsight/create-fact-reviewer';
 import { describe, expect, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { OpenRouterLanguageModel } from '../../infra/model-gateway';
@@ -13,7 +16,7 @@ live('Memory admission policy synthetic model contract', () => {
     new OpenRouterLanguageModel(
       new ConfigService({
         BACKEND_MODEL_API_KEY: key,
-        BACKEND_MODEL_NAME: 'qwen/qwen3.8-flash',
+        BACKEND_MODEL_NAME: LIVE_POLICY_MODEL,
         BACKEND_MODEL_BASE_URL: process.env.HINDSIGHT_POLICY_CONTRACT_BASE_URL,
       }),
       ObservabilityService.disabled(),

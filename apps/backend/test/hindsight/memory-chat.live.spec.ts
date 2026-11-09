@@ -9,7 +9,11 @@ import {
   billingTestAccess,
   billingTestStorage,
 } from '../support/billing-fixtures';
-import { createFactReviewer } from './create-fact-reviewer';
+import {
+  createFactReviewer,
+  LIVE_POLICY_MODEL,
+  type RecordedDecision,
+} from './create-fact-reviewer';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -142,7 +146,7 @@ type Turn = {
         BACKEND_HINDSIGHT_RECALL_TOKENS: 800,
         BACKEND_ASSISTANT_CONTEXT_TOKENS: 6000,
         BACKEND_MODEL_API_KEY: policyKey,
-        BACKEND_MODEL_NAME: 'qwen/qwen3.8-flash',
+        BACKEND_MODEL_NAME: LIVE_POLICY_MODEL,
         BACKEND_MODEL_BASE_URL: process.env.HINDSIGHT_POLICY_CONTRACT_BASE_URL,
         BACKEND_AUTH_URL: 'http://127.0.0.1:1',
         FRONTEND_URL: 'http://127.0.0.1:1',
@@ -164,6 +168,8 @@ type Turn = {
       const embeddings = new EmbeddingsService(
         new ConfigService({
           BACKEND_MODEL_API_KEY: policyKey,
+          // A dedicated embedding key wins, as in the app configuration.
+          BACKEND_EMBEDDING_API_KEY: process.env.BACKEND_EMBEDDING_API_KEY,
           BACKEND_MODEL_BASE_URL:
             process.env.HINDSIGHT_EMBEDDING_CONTRACT_BASE_URL,
         }),
@@ -182,10 +188,11 @@ type Turn = {
         costUsd: number | null;
       }> = [];
 
-      const policyDiagnostics: Array<{
-        candidates: unknown;
-        verdicts: unknown;
-      }> = [];
+      // Synthetic local report only; raw evidence and verdicts never enter traces.
+      const policyDiagnostics: Array<
+        | { stage: 'evidence'; input: unknown; spans: unknown }
+        | (RecordedDecision & { stage: string })
+      > = [];
 
       let currentRequestIsLast = false;
       let currentQuery = '';
@@ -202,17 +209,17 @@ type Turn = {
             traceContent: false,
           });
 
-          // Synthetic local report only; raw evidence/verdicts never enter traces.
-          if (request.traceName?.startsWith('memory-policy.facts.')) {
+          if (request.traceName?.startsWith('memory-policy.evidence.')) {
             const input = request.messages.at(-1)?.content;
 
-            if (typeof input === 'string') {
-              const parsed = JSON.parse(input) as { candidates?: unknown };
-              policyDiagnostics.push({
-                candidates: parsed.candidates,
-                verdicts: JSON.parse(result.text) as unknown,
-              });
-            }
+            policyDiagnostics.push({
+              stage: 'evidence',
+              input:
+                typeof input === 'string'
+                  ? (JSON.parse(input) as unknown)
+                  : null,
+              spans: JSON.parse(result.text) as unknown,
+            });
           }
 
           usage.push({
@@ -228,7 +235,9 @@ type Turn = {
 
       const policy = new MemoryPolicyService(
         privateModel,
-        createFactReviewer(prisma),
+        createFactReviewer(prisma, (decision) =>
+          policyDiagnostics.push(decision),
+        ),
       );
 
       const delivery = new HindsightDeliveryService(
