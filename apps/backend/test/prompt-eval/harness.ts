@@ -81,6 +81,9 @@ export type Scenario = {
   /** Unsolicited suggestion state; omitted means active. */
   assistance?: 'active' | 'paused';
   tools?: Record<string, ToolScript>;
+  /** Scripts with per-run state (for example a table that shows its own
+   * writes); created once per run and merged over `tools`. */
+  freshTools?: () => Record<string, ToolScript>;
   checks: Check[];
 };
 
@@ -472,7 +475,14 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
   const connected = ready();
 
   return {
-    async run(scenario) {
+    async run(definition) {
+      const scenario: Scenario = definition.freshTools
+        ? {
+            ...definition,
+            tools: { ...definition.tools, ...definition.freshTools() },
+          }
+        : definition;
+
       const startedAt = performance.now();
       await connected;
       const user = evalUser(scenario);

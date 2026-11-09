@@ -17,21 +17,89 @@ export type FixtureColumn = Omit<RecordColumn, 'type' | 'required'> & {
   required?: false;
 };
 
-/**
- * One saved table answered by the real record-note read and query code, so a
- * filter the model writes selects exactly the rows production would select.
- */
-export function recordTable(table: {
+type TableSpec = {
   id: string;
   title: string;
   description: string;
   columns: FixtureColumn[];
   rows: Array<Record<string, string>>;
   revision?: number;
-}): {
+};
+
+type TableFixture = {
   metadata: Record<string, unknown>;
   tools: Record<string, ToolScript>;
-} {
+};
+
+/**
+ * One saved table answered by the real record-note read and query code, so a
+ * filter the model writes selects exactly the rows production would select.
+ * `fresh()` returns tools for a single run whose reads show the rows that run
+ * added, so a model that re-reads after writing sees its own write.
+ */
+export function recordTable(
+  table: TableSpec,
+): TableFixture & { fresh: () => Record<string, ToolScript> } {
+  return {
+    ...tableTools(table),
+    fresh: () => {
+      const rows = [...table.rows];
+      let revision = table.revision ?? rows.length + 1;
+      const current = () => tableTools({ ...table, rows, revision });
+
+      const delegate =
+        (name: string) =>
+        (args: Record<string, unknown>): unknown => {
+          const script = current().tools[name];
+
+          return typeof script === 'function'
+            ? (script as (a: Record<string, unknown>) => unknown)(args)
+            : script;
+        };
+
+      return {
+        get_record_note_metadata: delegate('get_record_note_metadata'),
+        read_record_note_content: delegate('read_record_note_content'),
+        query_record_notes: delegate('query_record_notes'),
+        add_record_rows: (args: Record<string, unknown>) => {
+          const batch = args.batch as
+            { rows?: Array<{ values?: Record<string, unknown> }> } | undefined;
+
+          const added = (batch?.rows ?? []).map(({ values = {} }) =>
+            Object.fromEntries(
+              Object.entries(values).flatMap(([key, value]) =>
+                value === null || value === undefined || value === ''
+                  ? []
+                  : [
+                      [
+                        key,
+                        typeof value === 'string'
+                          ? value
+                          : JSON.stringify(value),
+                      ],
+                    ],
+              ),
+            ),
+          );
+
+          rows.push(...added);
+          revision += 1;
+
+          return {
+            ...current().metadata,
+            status: 'committed',
+            saved: true,
+            changedIds: added.map(
+              (_, index) => `row-${rows.length - added.length + index + 1}`,
+            ),
+          };
+        },
+      };
+    },
+  };
+}
+
+function tableTools(table: TableSpec): TableFixture {
   const columns: RecordColumn[] = table.columns.map((column) => ({
     ...column,
     required: false,
