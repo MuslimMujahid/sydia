@@ -134,11 +134,11 @@ describe('domain assistant tools', () => {
 
     const updated = { ...created, title: 'Kirim invoice revisi' };
     const createTask = resolved(created);
-    const findTask = resolved(created);
+    const findTasks = resolved([created]);
     const updateTask = resolved(updated);
     const tasks = {
       create: createTask,
-      findReference: findTask,
+      list: findTasks,
       update: updateTask,
     } as unknown as ITaskRepository;
 
@@ -170,6 +170,10 @@ describe('domain assistant tools', () => {
     });
 
     expect(createTask).toHaveBeenCalledTimes(1);
+    expect(findTasks.mock.calls[0]).toEqual([
+      'user-1',
+      { search: 'invoice', status: 'inbox' },
+    ]);
     expect(updateTask.mock.calls[0]).toEqual([
       'user-1',
       'task-1',
@@ -470,7 +474,7 @@ describe('domain assistant tools', () => {
       tasks: {} as ITaskRepository,
       categories: {} as ICategoryRepository,
       reminders: {
-        findReference: resolved({
+        findById: resolved({
           id: 'reminder-1',
           recurrence: {
             frequency: 'weekly',

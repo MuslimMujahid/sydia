@@ -9,6 +9,7 @@ import type {
 import type {
   Reminder,
   ReminderRecurrence,
+  Task,
   TaskStatus,
 } from '../../../database/entities';
 import {
@@ -17,6 +18,7 @@ import {
   zonedInstant,
 } from '../../../shared/date-time';
 import type { AssistantTool } from './tool-executor.service';
+import { AmbiguousReferenceError, closestReferences } from './tool-references';
 import { MemoryAccessService } from '../../memories/memory-access.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
 
@@ -381,6 +383,89 @@ export function createDomainTools(deps: {
   users: IUserRepository;
   secrets?: SecretsService;
 }): AssistantTool[] {
+  const ownerTimezone = async (userId: string): Promise<string> =>
+    (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
+
+  const localWhen = (instant: Date, timezone: string): string =>
+    `${localDate(instant, timezone)} ${localTime(instant, timezone)}`;
+
+  /** The inbox task an id or text reference names; never a guess between several. */
+  const findTask = async (
+    userId: string,
+    a: Record<string, unknown>,
+  ): Promise<Task> => {
+    const id = text(a, 'id', false);
+    const query = text(a, 'query', false);
+    if (!id && !query) throw invalid('id or query', 'is required.');
+    let task: Task | null | undefined;
+
+    if (id) task = await deps.tasks.findById(userId, id);
+    else if (query) {
+      const matches = closestReferences(
+        await deps.tasks.list(userId, { search: query, status: 'inbox' }),
+        query,
+      );
+
+      if (matches.length > 1) {
+        const timezone = await ownerTimezone(userId);
+        throw new AmbiguousReferenceError(
+          'task',
+          query,
+          matches.map((match) => ({
+            id: match.id,
+            title: match.title,
+            when: match.dueAt ? localWhen(match.dueAt, timezone) : null,
+          })),
+        );
+      }
+
+      task = matches[0];
+    }
+
+    if (!task) throw new Error('The specified task was not found.');
+
+    return task;
+  };
+
+  /** The reminder an id or text reference names; never a guess between several. */
+  const findReminder = async (
+    userId: string,
+    a: Record<string, unknown>,
+  ): Promise<Reminder> => {
+    const id = text(a, 'id', false);
+    const query = text(a, 'query', false);
+    if (!id && !query) throw invalid('id or query', 'is required.');
+    let reminder: Reminder | null | undefined;
+
+    if (id) reminder = await deps.reminders.findById(userId, id);
+    else if (query) {
+      const matches = closestReferences(
+        await deps.reminders.list(userId, { search: query }),
+        query,
+      );
+
+      if (matches.length > 1) {
+        const timezone = await ownerTimezone(userId);
+        throw new AmbiguousReferenceError(
+          'reminder',
+          query,
+          matches.map((match) => ({
+            id: match.id,
+            title: match.title,
+            when: localWhen(match.scheduledAt, timezone),
+            ...(match.recurrence ? { recurring: true as const } : {}),
+          })),
+        );
+      }
+
+      reminder = matches[0];
+    }
+
+    if (!reminder) throw new Error('The specified reminder was not found.');
+
+    return reminder;
+  };
+
   const getCurrentDateTime: AssistantTool = {
     definition: {
       name: 'get_current_datetime',
@@ -509,13 +594,7 @@ Only supplied fields change; categoryMode adds, removes or sets categories.`,
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
-      const current = await deps.tasks.findReference(
-        userId,
-        text(a, 'id', false),
-        text(a, 'query', false),
-      );
-
-      if (!current) throw new Error('The specified task was not found.');
+      const current = await findTask(userId, a);
       const categoryNames = texts(a, 'categoryNames');
       const matched = categoryNames
         ? await deps.categories.findByNames(userId, categoryNames)
@@ -746,15 +825,8 @@ A request that fits the existing rule is an update; one that cannot be expressed
         )
       )
         throw invalid('reminder update', 'must include a change.');
-      const current = await deps.reminders.findReference(
-        userId,
-        text(a, 'id', false),
-        text(a, 'query', false),
-      );
-
-      if (!current) throw new Error('The specified reminder was not found.');
-      const timezone =
-        (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
+      const current = await findReminder(userId, a);
+      const timezone = await ownerTimezone(userId);
 
       const date = text(a, 'date', false);
       const time = text(a, 'time', false);
@@ -805,23 +877,8 @@ Identify the reminder with id or query. If several reminders match, ask which on
     },
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
-      const a = object(raw);
-      const id = text(a, 'id', false);
-      const query = text(a, 'query', false);
-      if (!id && !query) throw invalid('id or query', 'is required.');
-
-      const matches = id
-        ? [await deps.reminders.findById(userId, id)].filter(
-            (reminder): reminder is Reminder => reminder !== null,
-          )
-        : await deps.reminders.list(userId, { search: query });
-
-      if (matches.length > 1)
-        throw new Error(
-          'Several reminders match. Ask the user to choose a reminder id.',
-        );
-      const reminder = matches[0];
-      if (!reminder || !(await deps.reminders.delete(userId, reminder.id)))
+      const reminder = await findReminder(userId, object(raw));
+      if (!(await deps.reminders.delete(userId, reminder.id)))
         throw new Error('The specified reminder was not found.');
       await deps.scheduler.cancel(reminder.id);
 

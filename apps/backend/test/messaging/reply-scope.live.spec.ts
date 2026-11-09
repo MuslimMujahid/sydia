@@ -51,45 +51,35 @@ function fixture(request: string, quoteText?: string) {
   }));
 
   const store = new Map(tasks.map((task) => [task.id, task]));
-  const taskRepository: Pick<
-    ITaskRepository,
-    'list' | 'findReference' | 'update'
-  > = {
-    list: (_owner, filters) =>
-      Promise.resolve(
-        [...store.values()].filter(
-          (task) =>
-            (!filters?.status || task.status === filters.status) &&
-            (!filters?.search ||
-              task.title.toLowerCase().includes(filters.search.toLowerCase())),
+  const taskRepository: Pick<ITaskRepository, 'list' | 'findById' | 'update'> =
+    {
+      list: (_owner, filters) =>
+        Promise.resolve(
+          [...store.values()].filter(
+            (task) =>
+              (!filters?.status || task.status === filters.status) &&
+              (!filters?.search ||
+                task.title
+                  .toLowerCase()
+                  .includes(filters.search.toLowerCase())),
+          ),
         ),
-      ),
-    findReference: (_owner, id, query) => {
-      if (id) return Promise.resolve(store.get(id) ?? null);
-      const matches = [...store.values()].filter(
-        (task) =>
-          query && task.title.toLowerCase().includes(query.toLowerCase()),
-      );
+      findById: (_owner, id) => Promise.resolve(store.get(id) ?? null),
+      update: (_owner, id, input) => {
+        const current = store.get(id);
+        if (!current) throw new Error('Task not found.');
+        const updated = {
+          ...current,
+          ...Object.fromEntries(
+            Object.entries(input).filter(([, value]) => value !== undefined),
+          ),
+        };
 
-      if (matches.length > 1) throw new Error('Several tasks match.');
+        store.set(id, updated);
 
-      return Promise.resolve(matches[0] ?? null);
-    },
-    update: (_owner, id, input) => {
-      const current = store.get(id);
-      if (!current) throw new Error('Task not found.');
-      const updated = {
-        ...current,
-        ...Object.fromEntries(
-          Object.entries(input).filter(([, value]) => value !== undefined),
-        ),
-      };
-
-      store.set(id, updated);
-
-      return Promise.resolve(updated);
-    },
-  };
+        return Promise.resolve(updated);
+      },
+    };
 
   const inbound = new TelegramInboundAdapter().normalize({
     me: { id: 99 },

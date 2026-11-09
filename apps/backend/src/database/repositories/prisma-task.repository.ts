@@ -125,25 +125,6 @@ export class PrismaTaskRepository implements ITaskRepository {
     return row ? present(row) : null;
   }
 
-  async findReference(
-    userId: string,
-    id?: string,
-    query?: string,
-  ): Promise<Task | null> {
-    const row = await this.prisma.task.findFirst({
-      where: {
-        userId,
-        ...(id ? { id } : {}),
-        ...(query ? { title: { contains: query, mode: 'insensitive' } } : {}),
-        ...(!id ? { status: { in: ['inbox'] } } : {}),
-      },
-      orderBy: { updatedAt: 'desc' },
-      select: taskSelect,
-    });
-
-    return row ? present(row) : null;
-  }
-
   async create(userId: string, input: TaskWrite): Promise<Task> {
     const { categoryIds, ...data } = input;
     const ids = [...new Set(categoryIds ?? [])];

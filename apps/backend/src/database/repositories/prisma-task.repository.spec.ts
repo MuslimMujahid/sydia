@@ -117,26 +117,6 @@ describe('PrismaTaskRepository status transitions', () => {
     );
   });
 
-  test('finds active task references only in inbox', async () => {
-    const findFirst = jest.fn<(input: unknown) => Promise<null>>();
-    findFirst.mockResolvedValue(null);
-    const repository = new PrismaTaskRepository({
-      task: { findFirst },
-    } as unknown as PrismaService);
-
-    await repository.findReference('user-1', undefined, 'invoice');
-
-    expect(findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId: 'user-1',
-          title: { contains: 'invoice', mode: 'insensitive' },
-          status: { in: ['inbox'] },
-        },
-      }),
-    );
-  });
-
   test('matches any selected category owned by the user', async () => {
     const findMany = jest.fn<(input: unknown) => Promise<never[]>>();
     findMany.mockResolvedValue([]);

@@ -20,6 +20,7 @@ import type {
 import type { MessageProvider } from '../../../shared/messaging';
 import type { NoteWork } from '../../../database/entities';
 import { advertisedInputSchema } from './advertised-tool-schema';
+import { AmbiguousReferenceError } from './tool-references';
 
 export type AssistantToolDefinition = {
   name: string;
@@ -120,6 +121,18 @@ const PRISMA_CODE_FRAME_LINE =
   /^\s*(?:→\s*)?(?:\d+\s+\S|\S*\.(?:ts|js|mjs|cjs|prisma):\d+(?::\d+)?\s*$)/;
 
 function toolErrorContent(error: unknown): string {
+  // Candidates are the point of this error, so they bypass the message cap.
+  if (error instanceof AmbiguousReferenceError)
+    return JSON.stringify({
+      error: 'ambiguous_reference',
+      message: error.message.replace(/[\p{Cc}]/gu, ' '),
+      candidates: error.candidates.map((candidate) => ({
+        ...candidate,
+        title: candidate.title.replace(/[\p{Cc}]/gu, ' '),
+      })),
+      ...(error.omitted ? { omitted: error.omitted } : {}),
+    });
+
   let message =
     error instanceof Error && error.message.trim()
       ? error.message

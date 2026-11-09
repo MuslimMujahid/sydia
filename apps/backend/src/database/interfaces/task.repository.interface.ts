@@ -14,11 +14,6 @@ export type TaskFilters = {
 export interface ITaskRepository {
   list(userId: string, filters?: TaskFilters): Promise<Task[]>;
   findById(userId: string, id: string): Promise<Task | null>;
-  findReference(
-    userId: string,
-    id?: string,
-    query?: string,
-  ): Promise<Task | null>;
   create(userId: string, input: TaskWrite): Promise<Task>;
   update(
     userId: string,

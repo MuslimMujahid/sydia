@@ -13,11 +13,6 @@ export type ReminderFilters = {
 export interface IReminderRepository {
   list(userId: string, filters?: ReminderFilters): Promise<Reminder[]>;
   findById(userId: string, id: string): Promise<Reminder | null>;
-  findReference(
-    userId: string,
-    id?: string,
-    query?: string,
-  ): Promise<Reminder | null>;
   create(userId: string, input: ReminderWrite): Promise<Reminder>;
   update(
     userId: string,

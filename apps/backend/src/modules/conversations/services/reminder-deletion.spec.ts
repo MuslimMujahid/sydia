@@ -42,7 +42,6 @@ function setup() {
       findById,
       list,
       delete: remove,
-      findReference: findById,
       update,
     } as unknown as IReminderRepository,
     scheduler: { cancel } as unknown as Parameters<

@@ -133,24 +133,6 @@ export class PrismaReminderRepository implements IReminderRepository {
     return present(row);
   }
 
-  async findReference(
-    userId: string,
-    id?: string,
-    query?: string,
-  ): Promise<Reminder | null> {
-    const row = await this.prisma.reminder.findFirst({
-      where: {
-        userId,
-        ...(id ? { id } : {}),
-        ...(query ? { title: { contains: query, mode: 'insensitive' } } : {}),
-      },
-      orderBy: { updatedAt: 'desc' },
-      select: reminderSelect,
-    });
-
-    return row ? present(row) : null;
-  }
-
   async create(userId: string, input: ReminderWrite): Promise<Reminder> {
     const row = await this.prisma.reminder.create({
       data: {
