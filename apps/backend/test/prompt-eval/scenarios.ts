@@ -15,6 +15,11 @@ import {
   whatsappPlain,
 } from './checks';
 import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
+import {
+  AmbiguousReferenceError,
+  closestReferences,
+  type ReferenceKind,
+} from '../../src/modules/conversations/services/tool-references';
 import type { Check, RunRecord, Scenario, ToolScript } from './harness';
 import { recordTable, type FixtureColumn } from './record-fixture';
 import { dateScopedRows, dateScopeSpec } from './date-attribution';
@@ -503,6 +508,162 @@ function newTableTools(): Record<string, ToolScript> {
   };
 }
 
+/** A task or reminder the reference scenarios resolve by id or title. */
+type ReferenceFixture = {
+  id: string;
+  title: string;
+  offsetDays: number;
+  time: string;
+  recurring?: true;
+};
+
+const INVOICE_TASKS: ReferenceFixture[] = [
+  { id: 't-acme', title: 'Kirim invoice Acme', offsetDays: 1, time: '17:00' },
+  { id: 't-budi', title: 'Kirim invoice Budi', offsetDays: 3, time: '10:00' },
+  { id: 't-read', title: 'Membaca bab pertama', offsetDays: 1, time: '17:00' },
+];
+
+const MEDICINE_REMINDERS: ReferenceFixture[] = [
+  {
+    id: 'r-pagi',
+    title: 'Minum obat pagi',
+    offsetDays: 1,
+    time: '07:00',
+    recurring: true,
+  },
+  { id: 'r-malam', title: 'Minum obat malam', offsetDays: 0, time: '21:00' },
+];
+
+const MEETING_REMINDERS: ReferenceFixture[] = [
+  { id: 'r-rapat-tim', title: 'Rapat tim', offsetDays: 1, time: '09:00' },
+  { id: 'r-rapat-klien', title: 'Rapat klien', offsetDays: 2, time: '14:00' },
+];
+
+/**
+ * Production reference resolution over fixtures: an id or a unique title
+ * resolves; a query naming several items fails with the real
+ * `ambiguous_reference` candidates.
+ */
+function resolveReference(
+  kind: ReferenceKind,
+  items: ReferenceFixture[],
+  args: Record<string, unknown>,
+): ReferenceFixture | Error {
+  const id = typeof args.id === 'string' ? args.id : undefined;
+  const query = typeof args.query === 'string' ? args.query.trim() : '';
+  if (id)
+    return (
+      items.find((item) => item.id === id) ??
+      new Error(`The specified ${kind} was not found.`)
+    );
+  if (!query) return new Error('id or query is required.');
+
+  const matches = closestReferences(
+    items.filter((item) =>
+      item.title.toLowerCase().includes(query.toLowerCase()),
+    ),
+    query,
+  );
+
+  if (matches.length > 1)
+    return new AmbiguousReferenceError(
+      kind,
+      query,
+      matches.map((item) => ({
+        id: item.id,
+        title: item.title,
+        when: `${localDate(item.offsetDays)} ${item.time}`,
+        ...(item.recurring ? { recurring: true as const } : {}),
+      })),
+    );
+
+  return matches[0] ?? new Error(`The specified ${kind} was not found.`);
+}
+
+function referenceTask(item: ReferenceFixture, status = 'inbox') {
+  return {
+    ...task(item.id, item.title, item.offsetDays, item.time),
+    status,
+  };
+}
+
+function referenceReminder(item: ReferenceFixture) {
+  return {
+    id: item.id,
+    title: item.title,
+    notes: null,
+    date: localDate(item.offsetDays),
+    time: item.time,
+    recurrence: item.recurring
+      ? { frequency: 'daily', interval: 1, endsAt: null }
+      : null,
+  };
+}
+
+const invoiceTaskTools: Record<string, ToolScript> = {
+  list_tasks: { tasks: INVOICE_TASKS.map((item) => referenceTask(item)) },
+  update_task: (args: Record<string, unknown>) => {
+    const item = resolveReference('task', INVOICE_TASKS, args);
+    if (item instanceof Error) return item;
+
+    return {
+      objectType: 'task',
+      object: referenceTask(
+        item,
+        typeof args.status === 'string' ? args.status : 'inbox',
+      ),
+    };
+  },
+};
+
+function reminderTools(items: ReferenceFixture[]): Record<string, ToolScript> {
+  return {
+    list_reminders: { reminders: items.map(referenceReminder) },
+    update_reminder: (args: Record<string, unknown>) => {
+      const item = resolveReference('reminder', items, args);
+      if (item instanceof Error) return item;
+
+      return {
+        objectType: 'reminder',
+        object: {
+          ...referenceReminder(item),
+          scheduledAt: at(item.offsetDays, item.time),
+          timezone: TIMEZONE,
+          ...(typeof args.title === 'string' ? { title: args.title } : {}),
+        },
+      };
+    },
+    delete_reminder: (args: Record<string, unknown>) => {
+      const item = resolveReference('reminder', items, args);
+      if (item instanceof Error) return item;
+
+      return { deleted: true, reminderId: item.id, title: item.title };
+    },
+  };
+}
+
+/**
+ * Fails when a call of the tool named exactly one item without the user
+ * choosing it: an id, or a query that matches a single fixture title.
+ */
+function noGuessedReference(name: string, items: ReferenceFixture[]): Check {
+  return {
+    name: `does not ${name} a single item the user did not choose`,
+    test: (run) => {
+      const guessed = run.calls
+        .filter((call) => call.name === name)
+        .map(({ args }) => resolveReference('task', items, args))
+        .filter(
+          (result): result is ReferenceFixture => !(result instanceof Error),
+        );
+
+      return guessed.length
+        ? `${name} resolved to ${guessed.map(({ id }) => id).join(', ')}`
+        : true;
+    },
+  };
+}
+
 export const SCENARIOS: Scenario[] = [
   // ── Task and reminder lists ────────────────────────────────────────────
   {
@@ -636,6 +797,95 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
 
+  // ── Ambiguous references ───────────────────────────────────────────────
+  // A title query that names several items fails with candidates; the model
+  // asks which one instead of picking, then acts on the user's choice.
+  // Expected outcomes approved by the product owner (2026-11-09).
+  {
+    id: 'task-update-ambiguous-asks',
+    area: 'references',
+    message: 'Tugas kirim invoice udah beres, tandai selesai ya',
+    tools: invoiceTaskTools,
+    checks: [
+      noErrors(),
+      noGuessedReference('update_task', INVOICE_TASKS),
+      calledAtMost('update_task', 2),
+      matches(/\?/, 'asks which task'),
+      contains('Acme', 'Budi'),
+      inIndonesian(),
+      noProcessTalk(),
+    ],
+  },
+  {
+    id: 'task-update-ambiguous-answered',
+    area: 'references',
+    history: [
+      {
+        role: 'user',
+        content: 'Tugas kirim invoice udah beres, tandai selesai ya',
+      },
+      {
+        role: 'assistant',
+        content:
+          'Ada dua tugas yang cocok:\n1. Kirim invoice Acme (besok, 17.00)\n2. Kirim invoice Budi (3 hari lagi, 10.00)\n\nYang mana yang sudah selesai?',
+      },
+    ],
+    message: 'Yang Budi',
+    tools: invoiceTaskTools,
+    checks: [
+      noErrors(),
+      called(
+        'update_task',
+        (args) =>
+          args.status === 'done' &&
+          (args.id === 't-budi' ||
+            (typeof args.query === 'string' && /budi/i.test(args.query))),
+        'marks the Budi task done',
+      ),
+      notCalled('create_task'),
+      {
+        name: 'leaves the Acme task alone',
+        test: (run) =>
+          !run.calls.some(
+            ({ name, args }) =>
+              name === 'update_task' &&
+              (args.id === 't-acme' ||
+                (typeof args.query === 'string' && /acme/i.test(args.query))),
+          ) || 'update_task named the Acme task',
+      },
+    ],
+  },
+  {
+    id: 'reminder-update-ambiguous-asks',
+    area: 'references',
+    message: 'Pengingat minum obat ganti ke jam 8 ya',
+    tools: reminderTools(MEDICINE_REMINDERS),
+    checks: [
+      noErrors(),
+      noGuessedReference('update_reminder', MEDICINE_REMINDERS),
+      calledAtMost('update_reminder', 2),
+      matches(/\?/, 'asks which reminder'),
+      matches(/pagi[\s\S]*malam|malam[\s\S]*pagi/i, 'names both reminders'),
+      inIndonesian(),
+      noProcessTalk(),
+    ],
+  },
+  {
+    id: 'reminder-delete-ambiguous-asks',
+    area: 'references',
+    channel: 'whatsapp',
+    message: 'Hapus pengingat rapat',
+    tools: reminderTools(MEETING_REMINDERS),
+    checks: [
+      noErrors(),
+      noGuessedReference('delete_reminder', MEETING_REMINDERS),
+      calledAtMost('delete_reminder', 2),
+      matches(/\?/, 'asks which reminder'),
+      matches(/tim[\s\S]*klien|klien[\s\S]*tim/i, 'names both reminders'),
+      whatsappPlain(),
+      noProcessTalk(),
+    ],
+  },
   // ── Note capture ───────────────────────────────────────────────────────
   {
     id: 'capture-expense',
