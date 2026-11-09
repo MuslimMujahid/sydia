@@ -84,6 +84,14 @@ const anyOf = (names: string[], label: string): Check => ({
 const CANNOT =
   /(tidak|belum|nggak|gak|enggak) (bisa|dapat)|tidak (memiliki|punya) akses|di luar kemampuan|can(no|')t|unable/i;
 
+/**
+ * A claim that a message was actually sent. A bare "terkirim" is not one:
+ * "belum bisa terkirim" denies it and "memastikan pesan ini terkirim" is
+ * about the future (approved by the product owner, 2026-11-10).
+ */
+export const CLAIMS_SENT =
+  /\b(sudah|udah|telah) (saya |aku )?(ku)?(kirim|kirimkan|terkirim|dikirim)\b|\bberhasil (di)?kirim\b|\b(i've|i have) sent\b|\b(has|have|was) been sent\b|\bwas sent\b/i;
+
 const isTomorrow = (args: Record<string, unknown>) => args.due === 'tomorrow';
 
 /** One ongoing order table with a date column, as Sydia creates it. */
@@ -1573,10 +1581,7 @@ export const SCENARIOS: Scenario[] = [
     checks: [
       noErrors(),
       matches(CANNOT, 'says it cannot send email'),
-      notMatches(
-        /(sudah|udah) (saya |aku )?(kirim|kirimkan)|terkirim/i,
-        'does not claim it was sent',
-      ),
+      notMatches(CLAIMS_SENT, 'does not claim it was sent'),
     ],
   },
   {
