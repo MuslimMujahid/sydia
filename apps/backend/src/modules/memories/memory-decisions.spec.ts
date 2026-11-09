@@ -251,6 +251,97 @@ test.each([
     ).toMatchObject({ status });
   },
 );
+/** Scores every question at 1 except durability, which scores 0 (not worth remembering). */
+const notDurable = (request: Parameters<DecisionGateway['decide']>[0]) =>
+  Promise.resolve<DecisionResult>({
+    status: 'ok',
+    model: 'typesafe/jev-1.13-20260917',
+    answers: Object.fromEntries(
+      Object.keys(request.questions).map((key) => [
+        key,
+        { type: 'noul', noul: key.startsWith('durable') ? 0 : 1 },
+      ]),
+    ),
+    inputTokens: 1,
+    outputTokens: 1,
+    latencyMs: 1,
+    costUsd: null,
+  });
+
+const hypothetical = [
+  {
+    id: 'f1',
+    text: 'The user would buy a sailboat if they won the lottery.',
+  },
+];
+
+const hypotheticalEvidence = [
+  'if I ever won the lottery I would buy a sailboat',
+];
+
+test('a verified explicit remember request admits a fact the retention review would reject', async () => {
+  const { facts, decide } = setup();
+  decide.mockImplementation(notDurable);
+  expect(
+    await facts.review(
+      'user',
+      hypothetical,
+      hypotheticalEvidence,
+      ['Remember that'],
+      undefined,
+      undefined,
+      true,
+    ),
+  ).toMatchObject({ status: 'allow' });
+  expect(Object.keys(decide.mock.calls[0]![0].questions)).not.toContain(
+    'durable_0',
+  );
+});
+test('without a verified request wording, an explicit save still faces the retention review', async () => {
+  const { facts, decide } = setup();
+  decide.mockImplementation(notDurable);
+  expect(
+    await facts.review(
+      'user',
+      hypothetical,
+      hypotheticalEvidence,
+      [],
+      undefined,
+      undefined,
+      true,
+    ),
+  ).toEqual({ status: 'reject' });
+});
+test('an explicit remember request does not admit a fact the user did not state', async () => {
+  const { facts, decide } = setup();
+  decide.mockImplementation((request) =>
+    Promise.resolve<DecisionResult>({
+      status: 'ok',
+      model: 'typesafe/jev-1.13-20260917',
+      answers: Object.fromEntries(
+        Object.keys(request.questions).map((key) => [
+          key,
+          { type: 'noul', noul: key.startsWith('grounded') ? 0 : 1 },
+        ]),
+      ),
+      inputTokens: 1,
+      outputTokens: 1,
+      latencyMs: 1,
+      costUsd: null,
+    }),
+  );
+  expect(
+    await facts.review(
+      'user',
+      [{ id: 'f1', text: 'The user owns a sailboat.' }],
+      hypotheticalEvidence,
+      ['Remember that'],
+      undefined,
+      undefined,
+      true,
+    ),
+  ).toEqual({ status: 'reject' });
+});
 test('sensitive facts are reviewed like any other fact, with no consent questions', async () => {
   const { facts, decide } = setup();
   expect(

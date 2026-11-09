@@ -53,6 +53,7 @@ export class MemoryFactDecisionService {
     permissions: string[],
     beforeReview?: () => Promise<void>,
     sourceMessageId?: string,
+    explicitRequest = false,
   ): Promise<FactBatchDecision> {
     const mode = this.settings.mode('facts', userId);
     if (mode !== 'enabled')
@@ -65,6 +66,9 @@ export class MemoryFactDecisionService {
       )
     )
       return { status: 'reject' };
+    // A verified explicit remember request decides retention on its own; the
+    // review still checks that each candidate is what the user actually said.
+    const retentionDecided = explicitRequest && permissions.length > 0;
     const context = await this.reviewContext(userId, sourceMessageId);
     if (
       candidates.some(
@@ -82,10 +86,11 @@ export class MemoryFactDecisionService {
         type: 'noul',
         instructions: `${prefix}${SPEAKER_POLICY}Does approvedEvidence support EVERY substantive claim in ${target} about the same person after resolving the speaker using userProfile? Preserve negation, uncertainty and temporal meaning. Reject unsupported details, contradictions, and additional facts taken only from profile or dialogue.`,
       };
-      questions[`durable_${index}`] = {
-        type: 'noul',
-        instructions: `${prefix}Is ${target} worth remembering under these retention criteria? ${MEMORY_FACT_RETENTION_POLICY} Also reject source, category, and timezone metadata.`,
-      };
+      if (!retentionDecided)
+        questions[`durable_${index}`] = {
+          type: 'noul',
+          instructions: `${prefix}Is ${target} worth remembering under these retention criteria? ${MEMORY_FACT_RETENTION_POLICY} Also reject source, category, and timezone metadata.`,
+        };
       // Independent support decisions select full immutable spans, never invented
       // substrings. The whole-evidence grounding question covers compound facts.
       for (let span = 0; span < evidence.length; span++)
@@ -129,7 +134,7 @@ export class MemoryFactDecisionService {
 
     for (const [index, candidate] of candidates.entries()) {
       const grounded = probability(`grounded_${index}`)!;
-      const durable = probability(`durable_${index}`)!;
+      const durable = retentionDecided ? 1 : probability(`durable_${index}`)!;
 
       const selected = evidence.filter(
         (_, span) =>

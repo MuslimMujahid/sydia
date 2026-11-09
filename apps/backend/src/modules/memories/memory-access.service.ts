@@ -725,6 +725,7 @@ export class MemoryAccessService {
         userMessageId: requestMessageId,
         approvedEvidence,
         permissionQuotes,
+        explicitRequest: true,
       };
 
       const accepted =
