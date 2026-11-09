@@ -207,6 +207,89 @@ describe('OpenRouterLanguageModel', () => {
     },
   );
 
+  it.each([false, true])(
+    'ends a turn that is still calling tools at its last step with a reply (streaming=%s)',
+    async (streaming) => {
+      const toolStep = () =>
+        toolCallResult(
+          [toolCallChunk('lookup-1', 'search_documents', {})],
+          'tool-calls',
+        );
+
+      const languageModel = new MockLanguageModelV4({
+        doGenerate: [
+          toolStep(),
+          {
+            content: [{ type: 'text', text: 'Saved the order.' }],
+            finishReason: { unified: 'stop', raw: undefined },
+            usage: streamUsage,
+            warnings: [],
+          },
+        ],
+        doStream: [
+          toolCallStream('search_documents'),
+          textStream('Saved the order.'),
+        ],
+      });
+
+      const output = await gatewayFor(languageModel).generate({
+        messages: [{ role: 'user', content: 'Record the order.' }],
+        tools: fakeTools(),
+        maxSteps: 2,
+        ...(streaming ? { onToolCall: () => undefined } : {}),
+      });
+
+      const calls = streaming
+        ? languageModel.doStreamCalls
+        : languageModel.doGenerateCalls;
+
+      expect(output.text).toBe('Saved the order.');
+      expect(calls[0]?.tools?.map((item) => item.name)).toEqual([
+        'search_documents',
+        'create_task',
+      ]);
+      // Withheld rather than refused: some endpoints ignore tool_choice "none".
+      expect(calls[1]?.tools).toBeUndefined();
+      const last = calls[1]?.prompt.at(-1);
+
+      expect(last?.role).toBe('user');
+      expect(JSON.stringify(last?.content)).toContain('no tool calls left');
+    },
+  );
+
+  it('keeps every routed tool callable before the last step', async () => {
+    const languageModel = new MockLanguageModelV4({
+      doGenerate: [
+        toolCallResult(
+          [toolCallChunk('lookup-1', 'search_documents', {})],
+          'tool-calls',
+        ),
+        {
+          content: [{ type: 'text', text: 'Found it.' }],
+          finishReason: { unified: 'stop', raw: undefined },
+          usage: streamUsage,
+          warnings: [],
+        },
+      ],
+    });
+
+    await gatewayFor(languageModel).generate({
+      messages: [{ role: 'user', content: 'Find it.' }],
+      tools: fakeTools(),
+      activeTools: () => ['search_documents'],
+      maxSteps: 3,
+    });
+
+    const [first, second] = languageModel.doGenerateCalls;
+
+    for (const call of [first, second]) {
+      expect(call?.tools?.map((item) => item.name)).toEqual([
+        'search_documents',
+      ]);
+      expect(JSON.stringify(call?.prompt)).not.toContain('no tool calls left');
+    }
+  });
+
   it('uses a keyless custom endpoint with high reasoning and no OpenRouter options', async () => {
     const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -1578,6 +1661,11 @@ describe('OpenRouterLanguageModel', () => {
   it.each([
     ['whole', ['<｜DSML｜ invoke name="list_tasks" />']],
     ['split', ['<', '｜DS', 'ML｜', ' invoke name="list_tasks" />']],
+    [
+      'double-bar',
+      ['<｜｜DSML｜｜ calls>\n<｜｜DSML｜｜ invoke name="list_tasks">'],
+    ],
+    ['split double-bar', ['<｜', '｜DS', 'ML｜｜ calls>']],
   ])(
     'rejects %s raw provider tool protocol even when no tools were selected',
     async (_label, chunks) => {

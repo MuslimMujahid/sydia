@@ -18,6 +18,7 @@ import {
 } from 'ai';
 import type {
   LanguageModel as AiLanguageModel,
+  ModelMessage,
   StopCondition,
   ToolSet,
 } from 'ai';
@@ -48,6 +49,13 @@ const MAX_ATTEMPTS = 5;
 const DEFAULT_PROVIDER_SORT = 'latency';
 const DEFAULT_REASONING_EFFORT = 'none';
 const SESSION_ID_HEADER = 'x-session-id';
+/**
+ * Appended to the last step a turn's budget allows. Earlier tool calls may
+ * already have saved changes, so the turn must end with a reply that says what
+ * happened rather than with a tool call nobody will see the result of.
+ */
+const FINAL_STEP_INSTRUCTION =
+  'This turn has no tool calls left. Reply to the user now without calling a tool: say what the tool results above confirm was saved or changed, and what is still not done. Do not claim anything the tool results do not confirm.';
 
 const PROVIDER_SORTS = ['latency', 'throughput', 'price'] as const;
 const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high'] as const;
@@ -108,9 +116,14 @@ class ToolProtocolTextError extends Error {
   }
 }
 
+// DeepSeek writes its tool-call markup with one or more fullwidth bars
+// (`<｜DSML｜` and `<｜｜DSML｜｜` have both been observed).
+const TOOL_PROTOCOL_TAG = /<｜+DSML｜/;
+const TOOL_PROTOCOL_PREFIX = /^<｜*(?:D|DS|DSM|DSML)?$/;
+
 function assertAssistantText(text: string): void {
   // DeepSeek control tags are a provider protocol failure, never executable tool input.
-  if (text.includes('<｜DSML｜')) throw new ToolProtocolTextError();
+  if (TOOL_PROTOCOL_TAG.test(text)) throw new ToolProtocolTextError();
 }
 
 function parseAttempts(value: unknown): number {
@@ -624,6 +637,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     // restate what the tools already confirmed. The decision is made inside the
     // SDK's own stop condition, which runs once every sibling call of the
     // finished step has settled; the text is stashed for the result below.
+    const stepLimit = request.maxSteps ?? this.maxSteps;
     const options = (
       terminal: { text: string | null },
       offered: Set<string>,
@@ -645,17 +659,41 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       messages: request.messages,
       allowSystemInMessages: true as const,
       tools: request.tools,
-      ...(request.activeTools && request.tools
+      ...(request.tools && Object.keys(request.tools).length > 0
         ? {
-            prepareStep: () => {
-              const names = new Set(request.activeTools!());
-              const activeTools = Object.keys(request.tools!).filter((name) =>
-                names.has(name),
-              );
+            prepareStep: ({
+              stepNumber,
+              messages,
+            }: {
+              stepNumber: number;
+              messages: ModelMessage[];
+            }) => {
+              let activeTools: string[] | undefined;
 
-              for (const name of activeTools) offered.add(name);
+              if (request.activeTools) {
+                const names = new Set(request.activeTools());
 
-              return { activeTools };
+                activeTools = Object.keys(request.tools!).filter((name) =>
+                  names.has(name),
+                );
+
+                for (const name of activeTools) offered.add(name);
+              }
+
+              if (stepNumber < stepLimit - 1)
+                return activeTools ? { activeTools } : {};
+
+              // The step limit would otherwise stop the loop right after a
+              // tool call, leaving the turn without any reply text. Tools are
+              // withheld rather than refused with tool_choice "none", which
+              // some OpenAI-compatible endpoints ignore.
+              return {
+                activeTools: [],
+                messages: [
+                  ...messages,
+                  { role: 'user' as const, content: FINAL_STEP_INSTRUCTION },
+                ],
+              };
             },
           }
         : {}),
@@ -669,10 +707,10 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       maxOutputTokens: request.maxOutputTokens ?? this.maxOutputTokens,
       stopWhen: request.acknowledgeTerminalStep
         ? [
-            stepCountIs(request.maxSteps ?? this.maxSteps),
+            stepCountIs(stepLimit),
             terminalStepStop(request.acknowledgeTerminalStep, terminal),
           ]
-        : stepCountIs(request.maxSteps ?? this.maxSteps),
+        : stepCountIs(stepLimit),
       timeout: REQUEST_TIMEOUT_MS,
       abortSignal: request.abortSignal
         ? AbortSignal.any([
@@ -751,7 +789,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                     const held =
                       partial &&
                       start >= 0 &&
-                      '<｜DSML｜'.startsWith(stepText.slice(start))
+                      TOOL_PROTOCOL_PREFIX.test(stepText.slice(start))
                         ? stepText.slice(start)
                         : '';
 
