@@ -384,7 +384,7 @@ describe('MemoryAccessService', () => {
     const { service, ledger, conversations } = setup();
     await expect(
       service.create('user', { content: 'My password is secret123.' }, context),
-    ).rejects.toThrow(/Credential/);
+    ).rejects.toThrow(/never kept in memory/);
     conversations.findUserMemoryEvidence.mockResolvedValue(null);
     await expect(
       service.create('user', { content: 'I am a doctor.' }, context),
@@ -531,7 +531,7 @@ describe('MemoryAccessService', () => {
         ledger.suppressedMessageIds.mockResolvedValue(['previous-message']);
       await expect(
         service.create('user', { content: quote }, context),
-      ).rejects.toThrow(/eligible user evidence/);
+      ).rejects.toThrow(/only in the user's own words/);
       expect(ledger.enqueue).not.toHaveBeenCalled();
       const prompt = generate.mock.calls[0]![0].messages[1]!.content;
       const reviewInput = JSON.parse(prompt as string) as {

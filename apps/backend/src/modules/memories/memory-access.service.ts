@@ -305,7 +305,7 @@ export class MemoryAccessService {
 
       if (containsMemoryCredential(sourceInput))
         throw fail(
-          'Credential material cannot be saved as memory.',
+          'Not saved: passwords, PINs, keys, and card or account numbers are never kept in memory. Offer to store it in the secret vault (store_secret) instead; retrying save_memory will be refused again.',
           HttpStatus.BAD_REQUEST,
         );
       inputs.push({
@@ -659,7 +659,7 @@ export class MemoryAccessService {
       );
     if (containsMemoryCredential(content))
       throw fail(
-        'Credential material cannot be saved as memory. Use the secret vault.',
+        'Not saved: passwords, PINs, keys, and card or account numbers are never kept in memory. Offer to store it in the secret vault (store_secret) instead; retrying save_memory will be refused again.',
         HttpStatus.BAD_REQUEST,
       );
 
@@ -749,7 +749,7 @@ export class MemoryAccessService {
 
       if (!accepted)
         throw fail(
-          'This memory request is not supported by eligible user evidence.',
+          "Not saved: memory keeps a fact only in the user's own words, and this differs from them. Retry at most once with their exact words; if refused again, tell the user it was not kept and do not suggest trying again.",
           HttpStatus.BAD_REQUEST,
         );
 
@@ -768,7 +768,7 @@ export class MemoryAccessService {
     } catch (error: unknown) {
       if (error instanceof ApiException) throw error;
       throw fail(
-        'Memory policy review is temporarily unavailable. No save was dispatched.',
+        'Not saved: the memory review is temporarily unavailable. Tell the user it was not saved this time and can be tried again later.',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }

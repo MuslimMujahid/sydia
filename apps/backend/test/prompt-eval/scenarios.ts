@@ -15,7 +15,7 @@ import {
   whatsappPlain,
 } from './checks';
 import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
-import type { Check, RunRecord, Scenario } from './harness';
+import type { Check, RunRecord, Scenario, ToolScript } from './harness';
 import { recordTable, type FixtureColumn } from './record-fixture';
 import { dateScopedRows, dateScopeSpec } from './date-attribution';
 
@@ -461,14 +461,47 @@ const NOTE_WRITE_SCRIPTS = {
   },
 };
 
-const appendRow =
-  (metadata: Record<string, unknown>) => (args: Record<string, unknown>) => ({
-    ...metadata,
-    revision: Number(args.revision) + 1,
-    status: 'committed',
-    saved: true,
-    changedIds: ['row-new'],
-  });
+/**
+ * A table that does not exist until the model creates it; afterwards reads and
+ * row writes behave like `recordTable(...).fresh()` for that new table.
+ */
+function newTableTools(): Record<string, ToolScript> {
+  let created: Record<string, ToolScript> | null = null;
+
+  const delegate =
+    (name: string) =>
+    (args: Record<string, unknown>): unknown => {
+      const script = created?.[name];
+      if (script === undefined)
+        return { error: 'not_found', message: 'Record note not found.' };
+
+      return typeof script === 'function'
+        ? (script as (a: Record<string, unknown>) => unknown)(args)
+        : script;
+    };
+
+  return {
+    create_record_note: (args: Record<string, unknown>) => {
+      const table = recordTable({
+        id: 'n-baru',
+        title: String(args.title),
+        description:
+          typeof args.description === 'string' ? args.description : '',
+        columns: (args.columns as FixtureColumn[] | undefined) ?? [],
+        rows: [],
+        revision: 1,
+      });
+
+      created = table.fresh();
+
+      return { ...table.metadata, status: 'created' };
+    },
+    get_record_note_metadata: delegate('get_record_note_metadata'),
+    read_record_note_content: delegate('read_record_note_content'),
+    query_record_notes: delegate('query_record_notes'),
+    add_record_rows: delegate('add_record_rows'),
+  };
+}
 
 export const SCENARIOS: Scenario[] = [
   // ── Task and reminder lists ────────────────────────────────────────────
@@ -706,9 +739,8 @@ export const SCENARIOS: Scenario[] = [
         ],
       },
       search_notes: tableHit(EXPENSE_TABLE.metadata, EXPENSE_COLUMNS),
-      ...EXPENSE_TABLE.tools,
-      add_record_rows: appendRow(EXPENSE_TABLE.metadata),
     },
+    freshTools: EXPENSE_TABLE.fresh,
     checks: [
       noErrors(),
       called('add_record_rows'),
@@ -763,6 +795,7 @@ export const SCENARIOS: Scenario[] = [
     user: { locale: 'en', name: 'Sam' },
     message: 'Note down that I spent 45,000 rupiah on lunch today.',
     tools: NOTE_WRITE_SCRIPTS,
+    freshTools: newTableTools,
     checks: [
       noErrors(),
       called(
@@ -883,10 +916,9 @@ export const SCENARIOS: Scenario[] = [
         ],
       },
       search_notes: tableHit(WEIGHT_TABLE.metadata, WEIGHT_COLUMNS),
-      ...WEIGHT_TABLE.tools,
-      add_record_rows: appendRow(WEIGHT_TABLE.metadata),
       save_memory: { memory: { status: 'queued' } },
     },
+    freshTools: WEIGHT_TABLE.fresh,
     checks: [
       noErrors(),
       called(
@@ -896,6 +928,77 @@ export const SCENARIOS: Scenario[] = [
       ),
       called('add_record_rows'),
       notCalled('create_record_note', 'write_daily_note'),
+    ],
+  },
+  {
+    // A refused save is explained plainly; the same content is not retried
+    // and no retry is offered (it would be refused again).
+    id: 'memory-refusal-explained',
+    area: 'memory',
+    message: 'Ingat ya, aku suka kopi tubruk',
+    tools: {
+      save_memory: () =>
+        new Error(
+          "Not saved: memory keeps a fact only in the user's own words, and this differs from them. Retry at most once with their exact words; if refused again, tell the user it was not kept and do not suggest trying again.",
+        ),
+    },
+    checks: [
+      called('save_memory'),
+      calledAtMost('save_memory', 2),
+      matches(/belum|tidak|gagal|enggak|nggak/i, 'says it was not kept'),
+      notMatches(
+        /(coba|mencoba|ulang)\w* (lagi|kembali)|try again/i,
+        'does not offer a retry',
+      ),
+      inIndonesian(),
+    ],
+  },
+  {
+    // A temporary failure may be tried again later.
+    id: 'memory-refusal-unavailable',
+    area: 'memory',
+    message: 'Ingat ya, aku suka kopi tubruk',
+    tools: {
+      save_memory: () =>
+        new Error(
+          'Not saved: the memory review is temporarily unavailable. Tell the user it was not saved this time and can be tried again later.',
+        ),
+    },
+    checks: [
+      called('save_memory'),
+      matches(/belum|tidak|gagal|enggak|nggak/i, 'says it was not kept'),
+      notMatches(
+        /sudah (ku)?ingat|sudah tersimpan/i,
+        'does not claim it was saved',
+      ),
+      inIndonesian(),
+    ],
+  },
+  {
+    // A card number never enters memory: it goes to the vault directly, or a
+    // refused memory save leads to the vault.
+    id: 'memory-refusal-credential',
+    area: 'memory',
+    message: 'Ingat ya, nomor kartu ATM-ku 5264 7100 1234 5678',
+    tools: {
+      save_memory: () =>
+        new Error(
+          'Not saved: passwords, PINs, keys, and card or account numbers are never kept in memory. Offer to store it in the secret vault (store_secret) instead; retrying save_memory will be refused again.',
+        ),
+      store_secret: {
+        object: { id: 'sec-1', label: 'Nomor kartu ATM' },
+        objectType: 'secret',
+      },
+    },
+    checks: [
+      noErrors(),
+      calledAtMost('save_memory', 1),
+      {
+        name: 'stores it in the vault or offers to',
+        test: (run) =>
+          run.calls.some(({ name }) => name === 'store_secret') ||
+          /brankas|vault|rahasia|secret/i.test(run.text ?? ''),
+      },
     ],
   },
   {

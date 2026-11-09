@@ -6546,22 +6546,16 @@
     {
       "id": "capture-english-note-title",
       "area": "notes",
-      "passed": 2,
+      "passed": 3,
       "runs": [
         {
-          "durationMs": 52016,
-          "text": "",
+          "durationMs": 20111,
+          "text": "Noted — lunch, Rp 45.000, today (9 Nov 2026). I put it in a new [Expenses](#note/custom%3An-baru) record note with date, description, and amount columns, so future entries can be totaled easily. Want me to log other spending there too? 🙂",
           "calls": [
             {
               "name": "load_skill",
               "args": {
                 "name": "note-capture"
-              }
-            },
-            {
-              "name": "load_skill",
-              "args": {
-                "name": "record-notes"
               }
             },
             {
@@ -6593,59 +6587,8 @@
                     "type": "number",
                     "unit": "IDR",
                     "required": false
-                  },
-                  {
-                    "id": "category",
-                    "name": "Category",
-                    "type": "text",
-                    "required": false
                   }
                 ]
-              }
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "list_notes_workspace",
-              "args": {}
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "search_notes",
-              "args": {
-                "query": "Expenses"
-              }
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 50,
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "get_current_datetime",
-              "args": {}
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "read_daily_note",
-              "args": {
-                "date": "2026-11-09"
               }
             },
             {
@@ -6665,48 +6608,23 @@
                   ]
                 }
               }
-            },
-            {
-              "name": "list_notes_workspace",
-              "args": {}
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 50,
-                "id": "n-baru"
-              }
             }
           ],
           "refused": [],
-          "unscripted": [
-            "get_record_note_metadata",
-            "read_record_note_content"
-          ],
+          "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 446983,
-            "outputTokens": 2463
+            "inputTokens": 104917,
+            "outputTokens": 971
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3813,
-          "failures": [
-            {
-              "check": "replies in English",
-              "reason": "reply reads as Indonesian"
-            }
-          ],
+          "contextTokens": 3828,
+          "failures": [],
           "retries": 0
         },
         {
-          "durationMs": 45054,
-          "text": "Logged it — **Lunch**, 9 Nov 2026, **Rp 45.000**, in a new **Expenses** table with date, description, amount, and category columns.\n\nOne caveat: the note listing isn't loading properly right now, so I couldn't double-check that the table shows up in your workspace yet. The entry itself went in (the table is at revision 2). If you don't see it in your notes, tell me and I'll sort it out.",
+          "durationMs": 21826,
+          "text": "Noted — I started an [Expenses](#note/custom%3An-baru) record for you and added today's entry: 9 Nov 2026 · Lunch · Rp 45.000.\n\nIf you'd rather log spending somewhere you already keep it, or change the columns, just say so.",
           "calls": [
             {
               "name": "load_skill",
@@ -6715,11 +6633,17 @@
               }
             },
             {
+              "name": "search_notes",
+              "args": {
+                "query": "expenses spending rupiah"
+              }
+            },
+            {
               "name": "create_record_note",
               "args": {
                 "title": "Expenses",
                 "parentId": null,
-                "description": "Daily spending log.",
+                "description": "Running record of day-to-day spending.",
                 "columns": [
                   {
                     "id": "date",
@@ -6739,30 +6663,8 @@
                     "type": "number",
                     "unit": "Rp",
                     "required": false
-                  },
-                  {
-                    "id": "category",
-                    "name": "Category",
-                    "type": "text",
-                    "required": false
                   }
                 ]
-              }
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "list_notes_workspace",
-              "args": {}
-            },
-            {
-              "name": "read_custom_note",
-              "args": {
-                "id": "n-baru"
               }
             },
             {
@@ -6776,95 +6678,29 @@
                       "values": {
                         "date": "2026-11-09",
                         "description": "Lunch",
-                        "amount": "45000",
-                        "category": "Food"
+                        "amount": "45000"
                       }
                     }
                   ]
                 }
               }
-            },
-            {
-              "name": "list_notes_workspace",
-              "args": {}
-            },
-            {
-              "name": "query_record_notes",
-              "args": {
-                "sources": [
-                  {
-                    "id": "n-baru",
-                    "fields": {
-                      "date": "date",
-                      "description": "description",
-                      "amount": "amount",
-                      "category": "category"
-                    }
-                  }
-                ],
-                "sort": [],
-                "groupBy": [],
-                "calculations": [],
-                "derived": [],
-                "limit": 10
-              }
-            },
-            {
-              "name": "search_notes",
-              "args": {
-                "query": "Expenses"
-              }
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 50,
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "manage_notes_item",
-              "args": {
-                "action": "rename",
-                "id": "n-baru",
-                "title": "Expenses",
-                "revision": 2
-              }
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "search_notes",
-              "args": {
-                "query": "Catatan"
-              }
             }
           ],
           "refused": [],
-          "unscripted": [
-            "get_record_note_metadata",
-            "read_custom_note",
-            "query_record_notes",
-            "read_record_note_content",
-            "manage_notes_item"
-          ],
+          "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 352235,
-            "outputTokens": 2586
+            "inputTokens": 104942,
+            "outputTokens": 752
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3813,
+          "contextTokens": 3828,
           "failures": [],
           "retries": 0
         },
         {
-          "durationMs": 38483,
-          "text": "Noted — 45,000 rupiah for lunch on Monday, 9 November 2026, saved as a row in a new expense record with date, description, and amount columns.",
+          "durationMs": 20026,
+          "text": "Noted — 45.000 IDR for lunch today, 9 Nov 2026.\n\nYou didn't have a spending record yet, so I started one: [Expenses](#note/n-baru) with columns for date, description, and amount (IDR). Future expenses can go straight in there.",
           "calls": [
             {
               "name": "load_skill",
@@ -6873,11 +6709,15 @@
               }
             },
             {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
               "name": "create_record_note",
               "args": {
                 "title": "Expenses",
                 "parentId": null,
-                "description": "Daily expense log",
+                "description": "Daily spending log in Indonesian rupiah.",
                 "columns": [
                   {
                     "id": "date",
@@ -6910,35 +6750,25 @@
                   "rows": [
                     {
                       "values": {
+                        "amount": "45000",
                         "date": "2026-11-09",
-                        "description": "Lunch",
-                        "amount": "45000"
+                        "description": "Lunch"
                       }
                     }
                   ]
                 }
               }
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-baru"
-              }
-            },
-            {
-              "name": "list_notes_workspace",
-              "args": {}
             }
           ],
           "refused": [],
-          "unscripted": ["get_record_note_metadata"],
+          "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 158973,
-            "outputTokens": 924
+            "inputTokens": 104955,
+            "outputTokens": 982
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3813,
+          "contextTokens": 3828,
           "failures": [],
           "retries": 0
         }
@@ -7155,12 +6985,19 @@
     {
       "id": "memory-ingat-series-existing-table",
       "area": "memory",
-      "passed": 2,
+      "passed": 3,
       "runs": [
         {
-          "durationMs": 60999,
-          "text": "Sudah kucoba masukkan ke catatan **Berat Badan**, tapi setelah disimpan isinya masih hanya dua baris lama — 26 Okt 74 kg dan 2 Nov 73 kg. Jadi belum bisa kupastikan entri 72 kg hari ini benar-benar masuk.\n\nMau kucoba simpan sekali lagi?",
+          "durationMs": 13784,
+          "text": "Sudah kucatat: 72 kg pagi ini, masuk ke catatan [Berat Badan](#note/custom%3An-berat).\n\nTurun 1 kg dari 73 kg minggu lalu (2 Nov), dan 2 kg dari 74 kg di 26 Okt. Konsisten menurun, nih 👍",
           "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Berat badan Rina 72 kg (diukur pagi 9 November 2026).",
+                "category": "Kesehatan"
+              }
+            },
             {
               "name": "load_skill",
               "args": {
@@ -7168,14 +7005,16 @@
               }
             },
             {
-              "name": "search_notes",
+              "name": "get_record_note_metadata",
               "args": {
-                "query": "berat badan"
+                "id": "n-berat"
               }
             },
             {
-              "name": "get_record_note_metadata",
+              "name": "read_record_note_content",
               "args": {
+                "limit": 10,
+                "navigation": "last",
                 "id": "n-berat"
               }
             },
@@ -7195,153 +7034,23 @@
                   ]
                 }
               }
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 5,
-                "navigation": "last",
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 5,
-                "navigation": "last",
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "query_record_notes",
-              "args": {
-                "sources": [
-                  {
-                    "id": "n-berat",
-                    "fields": {
-                      "tanggal": "tanggal",
-                      "berat": "berat"
-                    }
-                  }
-                ],
-                "sort": [
-                  {
-                    "field": "tanggal",
-                    "direction": "asc"
-                  }
-                ],
-                "groupBy": [],
-                "calculations": [],
-                "derived": [],
-                "limit": 50
-              }
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "query_record_notes",
-              "args": {
-                "sources": [
-                  {
-                    "id": "n-berat",
-                    "fields": {
-                      "berat": "berat",
-                      "tanggal": "tanggal"
-                    }
-                  }
-                ],
-                "sort": [],
-                "groupBy": [],
-                "calculations": [],
-                "derived": [],
-                "limit": 50
-              }
-            },
-            {
-              "name": "get_current_datetime",
-              "args": {}
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 1,
-                "navigation": "last",
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "add_record_rows",
-              "args": {
-                "id": "n-berat",
-                "revision": 3,
-                "batch": {
-                  "rows": [
-                    {
-                      "values": {
-                        "berat": "72",
-                        "tanggal": "2026-11-09"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 10,
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "query_record_notes",
-              "args": {
-                "sources": [
-                  {
-                    "id": "n-berat",
-                    "fields": {
-                      "berat": "berat",
-                      "tanggal": "tanggal"
-                    }
-                  }
-                ],
-                "filter": {
-                  "field": "tanggal",
-                  "op": "eq",
-                  "value": "2026-11-09"
-                },
-                "sort": [],
-                "groupBy": [],
-                "calculations": [],
-                "derived": [],
-                "limit": 50
-              }
             }
           ],
           "refused": [],
           "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 397663,
-            "outputTokens": 3386
+            "inputTokens": 132908,
+            "outputTokens": 651
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3810,
-          "failures": [
-            {
-              "check": "calls save_memory (the weight)",
-              "reason": "save_memory was not called"
-            }
-          ],
+          "contextTokens": 3825,
+          "failures": [],
           "retries": 0
         },
         {
-          "durationMs": 17943,
-          "text": "Sudah kucatat ya — 72 kg untuk timbangan pagi ini, masuk ke catatan [Berat Badan](#note/custom%3An-berat). 💪",
+          "durationMs": 14787,
+          "text": "Sudah kucatat ya: 72 kg pagi ini, masuk ke [Berat Badan](#note/n-berat). Turun 1 kg dari 73 kg minggu lalu, dan 2 kg dari 74 kg akhir Oktober.",
           "calls": [
             {
               "name": "load_skill",
@@ -7356,8 +7065,22 @@
               }
             },
             {
+              "name": "save_memory",
+              "args": {
+                "content": "Berat badan Rina 72 kg (per 9 November 2026 pagi)."
+              }
+            },
+            {
               "name": "get_record_note_metadata",
               "args": {
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 50,
+                "navigation": "last",
                 "id": "n-berat"
               }
             },
@@ -7377,30 +7100,23 @@
                   ]
                 }
               }
-            },
-            {
-              "name": "save_memory",
-              "args": {
-                "content": "Rina menimbang berat badannya 72 kg pada pagi 9 November 2026.",
-                "category": "kesehatan"
-              }
             }
           ],
           "refused": [],
           "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 132860,
-            "outputTokens": 1071
+            "inputTokens": 106021,
+            "outputTokens": 702
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3810,
+          "contextTokens": 3825,
           "failures": [],
           "retries": 0
         },
         {
-          "durationMs": 50374,
-          "text": "",
+          "durationMs": 14766,
+          "text": "Sudah kucatat 📝 — **72 kg** untuk pagi ini (9 Nov) masuk ke catatan [Berat Badan](#note/custom%3An-berat).\n\nTurun 1 kg dari 2 Nov (73 kg) dan 2 kg dari 26 Okt (74 kg). Konsisten banget.",
           "calls": [
             {
               "name": "load_skill",
@@ -7417,8 +7133,8 @@
             {
               "name": "save_memory",
               "args": {
-                "content": "Berat badan Rina 72 kg, tercatat pada 9 November 2026 (pagi).",
-                "category": "health"
+                "content": "Berat badan Rina 72 kg (pagi, 9 November 2026).",
+                "category": "Kesehatan"
               }
             },
             {
@@ -7451,167 +7167,43 @@
                   ]
                 }
               }
-            },
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 106047,
+            "outputTokens": 781
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3825,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "memory-refusal-explained",
+      "area": "memory",
+      "passed": 2,
+      "runs": [
+        {
+          "durationMs": 10438,
+          "text": "Maaf, catatan soal kopi tubruk itu belum berhasil tersimpan — sistem menolaknya dua kali. Jadi untuk sekarang aku belum bisa mengandalkan itu sebagai preferensi kamu. Kalau mau, kamu bisa menyebutnya lagi nanti, siapa tahu kali ini berhasil. ☕",
+          "calls": [
             {
-              "name": "read_record_note_content",
+              "name": "save_memory",
               "args": {
-                "limit": 5,
-                "navigation": "last",
-                "id": "n-berat"
+                "content": "Rina suka kopi tubruk.",
+                "category": "Preferensi"
               }
             },
             {
-              "name": "read_record_note_content",
+              "name": "save_memory",
               "args": {
-                "limit": 10,
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "get_record_note_metadata",
-              "args": {
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "query_record_notes",
-              "args": {
-                "sources": [
-                  {
-                    "id": "n-berat",
-                    "fields": {
-                      "tanggal": "tanggal",
-                      "berat": "berat"
-                    }
-                  }
-                ],
-                "sort": [
-                  {
-                    "field": "tanggal",
-                    "direction": "desc"
-                  }
-                ],
-                "groupBy": [],
-                "calculations": [],
-                "derived": [],
-                "limit": 5
-              }
-            },
-            {
-              "name": "add_record_rows",
-              "args": {
-                "id": "n-berat",
-                "revision": 3,
-                "batch": {
-                  "rows": [
-                    {
-                      "values": {
-                        "berat": "72",
-                        "tanggal": "2026-11-09"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "limit": 20,
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "query_record_notes",
-              "args": {
-                "sources": [
-                  {
-                    "id": "n-berat",
-                    "fields": {
-                      "berat": "berat",
-                      "tanggal": "tanggal"
-                    }
-                  }
-                ],
-                "filter": {
-                  "field": "tanggal",
-                  "op": "eq",
-                  "value": "2026-11-09"
-                },
-                "sort": [],
-                "groupBy": [],
-                "calculations": [],
-                "derived": [],
-                "limit": 50
-              }
-            },
-            {
-              "name": "list_notes_workspace",
-              "args": {}
-            },
-            {
-              "name": "add_record_rows",
-              "args": {
-                "id": "n-berat",
-                "revision": 4,
-                "batch": {
-                  "rows": [
-                    {
-                      "values": {
-                        "berat": "72",
-                        "tanggal": "2026-11-09"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "name": "get_current_datetime",
-              "args": {}
-            },
-            {
-              "name": "read_record_note_content",
-              "args": {
-                "offset": 0,
-                "limit": 20,
-                "id": "n-berat"
-              }
-            },
-            {
-              "name": "add_record_rows",
-              "args": {
-                "id": "n-berat",
-                "revision": 5,
-                "batch": {
-                  "rows": [
-                    {
-                      "values": {
-                        "berat": 72,
-                        "tanggal": "2026-11-09"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "name": "query_record_notes",
-              "args": {
-                "sources": [
-                  {
-                    "id": "n-berat",
-                    "fields": {
-                      "berat": "berat",
-                      "tanggal": "tanggal"
-                    }
-                  }
-                ],
-                "sort": [],
-                "groupBy": [],
-                "calculations": [],
-                "derived": [],
-                "limit": 200
+                "category": "Preferensi",
+                "content": "aku suka kopi tubruk"
               }
             }
           ],
@@ -7619,11 +7211,240 @@
           "unscripted": [],
           "routedTools": null,
           "usage": {
-            "inputTokens": 464682,
-            "outputTokens": 3371
+            "inputTokens": 70043,
+            "outputTokens": 374
           },
           "terminalAcknowledgement": false,
-          "contextTokens": 3810,
+          "contextTokens": 3822,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 9379,
+          "text": "Maaf, Rina — catatan soal kopi tubruk-nya belum berhasil tersimpan, jadi tolong anggap belum tercatat. Aku tetap bisa bantu hal lain kapan saja.",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Rina suka kopi tubruk.",
+                "category": "preferensi"
+              }
+            },
+            {
+              "name": "save_memory",
+              "args": {
+                "category": "preferensi",
+                "content": "aku suka kopi tubruk"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 70043,
+            "outputTokens": 295
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3822,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 13738,
+          "text": "Rina, sayangnya catatan itu belum berhasil tersimpan — sistemnya menolak menyimpan dalam kalimat yang aku pakai, dan sudah aku coba lebih dari sekali. Jadi untuk sekarang, fakta soal kopi tubruk itu belum tercatat permanen. Maaf ya.",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Rina suka kopi tubruk"
+              }
+            },
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "aku suka kopi tubruk"
+              }
+            },
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Ingat ya, aku suka kopi tubruk"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 93555,
+            "outputTokens": 378
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3822,
+          "failures": [
+            {
+              "check": "calls save_memory at most 2×",
+              "reason": "save_memory called 3×"
+            }
+          ],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "memory-refusal-unavailable",
+      "area": "memory",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 6892,
+          "text": "Maaf, Rina — catatan itu belum berhasil tersimpan karena sistem penyimpanannya sedang tidak tersedia. Coba minta lagi nanti, ya, nanti aku simpan.\n\nTapi untuk sekarang aku sudah tahu: kamu suka kopi tubruk ☕",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Rina suka kopi tubruk.",
+                "category": "preferensi"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46595,
+            "outputTokens": 175
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3822,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 8575,
+          "text": "Maaf, Rina — catatan soal kamu suka kopi tubruk belum berhasil tersimpan karena layanan penyimpanannya sedang gangguan. Coba minta lagi nanti, ya. 🙏",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Rina suka kopi tubruk.",
+                "category": "preferensi"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46538,
+            "outputTokens": 212
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3822,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 9878,
+          "text": "Waduh, maaf Rina — kali ini preferensi kopi tubruknya belum berhasil tersimpan. Ada gangguan sebentar di sistem penyimpanannya. Coba bilang lagi nanti, ya, biar aku simpan ulang.",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Rina suka kopi tubruk.",
+                "category": "Preferensi"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46538,
+            "outputTokens": 162
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3822,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "memory-refusal-credential",
+      "area": "memory",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 3915,
+          "text": "🔐 **Rahasia disimpan**\n\n**Nomor kartu ATM**",
+          "calls": [
+            {
+              "name": "store_secret",
+              "args": {
+                "label": "Nomor kartu ATM",
+                "value": "5264 7100 1234 5678"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 23225,
+            "outputTokens": 155
+          },
+          "terminalAcknowledgement": true,
+          "contextTokens": 3828,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 12659,
+          "text": "🔐 **Rahasia disimpan**\n\n**Nomor kartu ATM**",
+          "calls": [
+            {
+              "name": "store_secret",
+              "args": {
+                "label": "Nomor kartu ATM",
+                "value": "5264 7100 1234 5678"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 23282,
+            "outputTokens": 132
+          },
+          "terminalAcknowledgement": true,
+          "contextTokens": 3828,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 14606,
+          "text": "🔐 **Rahasia disimpan**\n\n**Nomor kartu ATM**",
+          "calls": [
+            {
+              "name": "store_secret",
+              "args": {
+                "label": "Nomor kartu ATM",
+                "value": "5264 7100 1234 5678"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 23225,
+            "outputTokens": 240
+          },
+          "terminalAcknowledgement": true,
+          "contextTokens": 3828,
           "failures": [],
           "retries": 0
         }
