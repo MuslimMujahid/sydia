@@ -49,7 +49,7 @@ test('loading note guidance exposes note capabilities in the existing agent turn
 
   expect(result).toMatchObject({
     skill: 'note-capture',
-    version: '1.6.2',
+    version: '1.7.0',
   });
   expect(result).toHaveProperty(
     'guidance',
@@ -57,7 +57,7 @@ test('loading note guidance exposes note capabilities in the existing agent turn
       (skill) => skill.name === 'note-capture',
     )!.body,
   );
-  expect(skills.loaded.get('note-capture')).toBe('1.6.2');
+  expect(skills.loaded.get('note-capture')).toBe('1.7.0');
   expect(activeTurnTools(initial, skills)).toEqual(
     expect.arrayContaining([
       'write_daily_note',

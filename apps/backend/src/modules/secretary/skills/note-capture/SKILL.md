@@ -1,6 +1,6 @@
 ---
 name: note-capture
-version: 1.6.2
+version: 1.7.0
 description: Choose useful note formats and destinations for reported facts, collections, prose, or diary entries. Capture and organize expenses, measurements, plans, and reference material while honoring explicit user choices.
 tools:
   - get_record_note_metadata
@@ -33,10 +33,7 @@ references:
 ## Outcome
 
 The owner's records remain durable and easy to find, with their meaning intact.
-Memory alone is not a substitute for a record the owner expects to maintain in
-notes. A concrete report can establish recording intent without saying "catat".
-Questions, quotations, hypotheticals, and ordinary conversation do not themselves
-create records. Personal context independently follows the existing memory rules.
+A record is an entry in a series the owner adds to, totals or compares. "catat" or a named destination always means notes, whatever the content. Otherwise a lasting fact with a number (shoe size, height) is not a record, and questions, quotations, hypotheticals, venting and passing mentions create none; add a report to a matching collection, or ask once before starting a new one. Memory is decided separately.
 
 ## Choose the useful representation
 
@@ -44,8 +41,8 @@ Choose from the owner's intended use, not the presence of the word "table":
 
 - Prefer a record note for comparable entries with recurring fields that the owner
   will append, filter, total or compare (for example spending, measurements or stock).
-  One reported entry can start a useful collection. Do not require a future total
-  request or the explicit word "tabel" before choosing this format.
+  One entry can start a collection the owner asked for or agreed to; "tabel" or a
+  future total request is not required.
 - Prefer a regular rich-text note for explanations, plans, reflections and reference
   prose whose meaning depends on paragraphs rather than comparable rows.
 - Prefer a daily note for a diary, day-centered reflection/check-in, or an explicit
@@ -57,6 +54,7 @@ entry mentioning money. Existing diary content is not evidence of a diary prefer
 Do not duplicate a new capture into both a table and a daily note without a purpose
 requested by the owner. Preserve missing fields as absent; do not invent categories,
 merchants, descriptions or units to complete a row. Use supported context for units.
+Name new notes and columns in the owner's language, even if examples are Indonesian.
 See format-choice.md for contrasting examples. Load record-notes and its references
 when detailed table/query syntax is useful; record tools are available here too.
 
@@ -71,7 +69,7 @@ Honor explicit destinations and earlier clarifications. Dates supply record date
 not diary destinations. Inspect context/content/schema as needed; reuse a suitable
 home or create a useful new note within existing folders. Earlier diary captures
 and guessed destinations do not establish a preference. Investigate plausible
-homes when suitability is unknown; there is no fixed search or read count.
+homes when suitability is unknown.
 
 A new report is a distinct entry unless the owner explicitly links it as a
 correction, continuation or summary of another entry. Existing records help choose

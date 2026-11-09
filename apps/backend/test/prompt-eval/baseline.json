@@ -5765,6 +5765,1869 @@
           "retries": 0
         }
       ]
+    },
+    {
+      "id": "capture-implicit-existing-table",
+      "area": "notes",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 71668,
+          "text": "Maaf Rina, entri itu belum masuk ke catatan **Pengeluaran Warung** — sudah saya coba simpan, tapi isi tabelnya masih 4 baris (Gas LPG, Galon air 8 Nov, Token listrik, Plastik kresek), jadi pembayaran galon hari ini belum tercatat.\n\nMau saya coba simpan lagi?",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "pengeluaran harian"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-pengeluaran",
+                "revision": 5,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "tgl": "2026-11-09",
+                        "keperluan": "Galon air",
+                        "nominal": "20000"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 3,
+                "navigation": "last",
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 5,
+                "navigation": "last",
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "tgl": "tgl",
+                      "keperluan": "keperluan",
+                      "nominal": "nominal"
+                    }
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "tgl",
+                    "direction": "desc"
+                  }
+                ],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 10
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-pengeluaran",
+                "revision": 5,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "keperluan": "Galon air",
+                        "nominal": "20000",
+                        "tgl": "2026-11-09"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 10,
+                "navigation": "first",
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "keperluan": "keperluan",
+                      "nominal": "nominal",
+                      "tgl": "tgl"
+                    }
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "tgl",
+                    "direction": "asc"
+                  }
+                ],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 20
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "keperluan": "keperluan",
+                      "nominal": "nominal",
+                      "tgl": "tgl"
+                    }
+                  }
+                ],
+                "sort": [],
+                "groupBy": [],
+                "calculations": [
+                  {
+                    "name": "jumlah",
+                    "op": "count"
+                  }
+                ],
+                "derived": [],
+                "limit": 10
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 405254,
+            "outputTokens": 3467
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3806,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 58545,
+          "text": "",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "pengeluaran"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 10,
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-pengeluaran",
+                "revision": 5,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "tgl": "2026-11-09",
+                        "keperluan": "Galon air",
+                        "nominal": "20000"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 10,
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "tgl": "tgl",
+                      "keperluan": "keperluan",
+                      "nominal": "nominal"
+                    }
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "tgl",
+                    "direction": "asc"
+                  }
+                ],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 5,
+                "navigation": "last",
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "keperluan": "keperluan",
+                      "nominal": "nominal",
+                      "tgl": "tgl"
+                    }
+                  }
+                ],
+                "filter": {
+                  "field": "keperluan",
+                  "op": "eq",
+                  "value": "Galon air"
+                },
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 50,
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "keperluan": "keperluan",
+                      "nominal": "nominal",
+                      "tgl": "tgl"
+                    }
+                  }
+                ],
+                "filter": {
+                  "field": "tgl",
+                  "op": "eq",
+                  "value": "2026-11-09"
+                },
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-pengeluaran",
+                "revision": 5,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "keperluan": "Galon air",
+                        "nominal": "20000",
+                        "tgl": "2026-11-09"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "keperluan": "keperluan",
+                      "nominal": "nominal",
+                      "tgl": "tgl"
+                    }
+                  }
+                ],
+                "filter": {
+                  "field": "nominal",
+                  "op": "eq",
+                  "value": "20000"
+                },
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "offset": 0,
+                "limit": 50,
+                "id": "n-pengeluaran"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 478467,
+            "outputTokens": 3086
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3806,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 45043,
+          "text": "Rina, catatan pengeluaran hari ini belum masuk ke [Pengeluaran Warung](#note/n-pengeluaran) — datanya masih 4 baris dan galon air 20rb belum muncul di sana, kemungkinan catatannya sedang terbuka di editor jadi penulisannya tertahan.\n\nKalau catatannya sudah ditutup, bilang saja nanti aku coba simpan lagi: tanggal 9 Nov 2026, keperluan \"Galon air\", nominal Rp20.000.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "pengeluaran harian"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 20,
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-pengeluaran",
+                "revision": 5,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "tgl": "2026-11-09",
+                        "keperluan": "Galon air",
+                        "nominal": "20000"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 5,
+                "navigation": "last",
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "tgl": "tgl",
+                      "keperluan": "keperluan",
+                      "nominal": "nominal"
+                    }
+                  }
+                ],
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "list_note_questions",
+              "args": {}
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-pengeluaran",
+                "revision": 5,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "keperluan": "Galon air",
+                        "nominal": "20000",
+                        "tgl": "2026-11-09"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-pengeluaran",
+                    "fields": {
+                      "keperluan": "keperluan",
+                      "nominal": "nominal",
+                      "tgl": "tgl"
+                    }
+                  }
+                ],
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-pengeluaran"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 20,
+                "id": "n-pengeluaran"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": ["list_note_questions"],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 347054,
+            "outputTokens": 2286
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3806,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "capture-implicit-no-table-asks",
+      "area": "notes",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 8253,
+          "text": "Tadi keluar 20rb buat galon air, ya. Kamu belum punya catatan pengeluaran, jadi mau aku buatkan catatan pengeluaran sekalian isi yang ini? Nanti tinggal kamu tambahin pengeluaran lain di situ.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "pengeluaran"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 50171,
+            "outputTokens": 508
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3806,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 10752,
+          "text": "Galon air 20rb, oke. Kamu belum punya catatan pengeluaran di sini — mau aku mulaiin satu tabel **Pengeluaran** (tanggal, keterangan, jumlah) dan tulis ini sebagai entri pertamanya? Kalau iya, nanti tinggal bilang \"catat\" tiap kali ada pengeluaran lain.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 50098,
+            "outputTokens": 619
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3806,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 10152,
+          "text": "Noted — galon air, Rp20.000, hari ini. Kamu belum punya catatan pengeluaran sama sekali, jadi mau aku buatkan satu catatan \"Pengeluaran\" supaya yang begini-begini bisa langsung dicatat dan gampang dijumlah nanti? Kalau iya, yang ini sekalian aku masukkan sebagai entri pertama. 🙂",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 50070,
+            "outputTokens": 700
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3806,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "stable-fact-not-a-note",
+      "area": "notes",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 3201,
+          "text": "Noted, ukuran 42 — pas buat jadi patokan kalau nanti mau cari sepatu atau ada yang mau beliin. 👍",
+          "calls": [],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 23200,
+            "outputTokens": 178
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3805,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 2937,
+          "text": "Noted — sepatu ukuran 42. Kalau nanti ada yang perlu dicocokkan soal ukuran, aku sudah tahu patokannya.",
+          "calls": [],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 23200,
+            "outputTokens": 130
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3805,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 2873,
+          "text": "Noted — 42, ya. Kalau nanti ada yang perlu aku bantu soal itu, tinggal bilang aja 🙂",
+          "calls": [],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 23257,
+            "outputTokens": 177
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3805,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "venting-not-a-record",
+      "area": "notes",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 4023,
+          "text": "Iya, paling nyebelin itu yang mahal tapi nggak sepadan — duitnya keluar banyak, tapi pulang masih ngerasa kurang 😅\n\nMakan di mana tadi, Rina? Kalau memang biasa aja, mending besok-besok diparkir dulu tempatnya.",
+          "calls": [],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": [],
+          "usage": {
+            "inputTokens": 4227,
+            "outputTokens": 337
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3820,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 4122,
+          "text": "Yah, itu paling nyesek ya — mahal tapi rasanya cuma \"oke lah\". 200rb buat rasa yang nggak berkesan itu beneran bikin kesel 😅\n\nYang bikin geregetan biasanya bukan harganya, tapi ekspektasinya. Kalau mau, ceritain aja tempatnya di mana — biar lain kali bisa dihindari.",
+          "calls": [],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": [],
+          "usage": {
+            "inputTokens": 4227,
+            "outputTokens": 336
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3820,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 5543,
+          "text": "Wajar kesel 😅 200 ribu buat rasa yang cuma \"biasa aja\" itu memang bikin geregetan. Kayak bayar mahal buat rasa kecewa.\n\nMudah-mudahan besok makannya lebih memuaskan — atau setidaknya lebih murah.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": [],
+          "usage": {
+            "inputTokens": 18127,
+            "outputTokens": 351
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3820,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "capture-english-note-title",
+      "area": "notes",
+      "passed": 2,
+      "runs": [
+        {
+          "durationMs": 52016,
+          "text": "",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "record-notes"
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "create_record_note",
+              "args": {
+                "title": "Expenses",
+                "parentId": null,
+                "description": "Day-to-day spending log.",
+                "columns": [
+                  {
+                    "id": "date",
+                    "name": "Date",
+                    "type": "date",
+                    "required": false
+                  },
+                  {
+                    "id": "description",
+                    "name": "Description",
+                    "type": "text",
+                    "required": false
+                  },
+                  {
+                    "id": "amount",
+                    "name": "Amount",
+                    "type": "number",
+                    "unit": "IDR",
+                    "required": false
+                  },
+                  {
+                    "id": "category",
+                    "name": "Category",
+                    "type": "text",
+                    "required": false
+                  }
+                ]
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "Expenses"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 50,
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "get_current_datetime",
+              "args": {}
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "read_daily_note",
+              "args": {
+                "date": "2026-11-09"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-baru",
+                "revision": 1,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "date": "2026-11-09",
+                        "description": "Lunch",
+                        "amount": "45000"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 50,
+                "id": "n-baru"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [
+            "get_record_note_metadata",
+            "read_record_note_content"
+          ],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 446983,
+            "outputTokens": 2463
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3813,
+          "failures": [
+            {
+              "check": "replies in English",
+              "reason": "reply reads as Indonesian"
+            }
+          ],
+          "retries": 0
+        },
+        {
+          "durationMs": 45054,
+          "text": "Logged it — **Lunch**, 9 Nov 2026, **Rp 45.000**, in a new **Expenses** table with date, description, amount, and category columns.\n\nOne caveat: the note listing isn't loading properly right now, so I couldn't double-check that the table shows up in your workspace yet. The entry itself went in (the table is at revision 2). If you don't see it in your notes, tell me and I'll sort it out.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "create_record_note",
+              "args": {
+                "title": "Expenses",
+                "parentId": null,
+                "description": "Daily spending log.",
+                "columns": [
+                  {
+                    "id": "date",
+                    "name": "Date",
+                    "type": "date",
+                    "required": false
+                  },
+                  {
+                    "id": "description",
+                    "name": "Description",
+                    "type": "text",
+                    "required": false
+                  },
+                  {
+                    "id": "amount",
+                    "name": "Amount",
+                    "type": "number",
+                    "unit": "Rp",
+                    "required": false
+                  },
+                  {
+                    "id": "category",
+                    "name": "Category",
+                    "type": "text",
+                    "required": false
+                  }
+                ]
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "read_custom_note",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-baru",
+                "revision": 1,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "date": "2026-11-09",
+                        "description": "Lunch",
+                        "amount": "45000",
+                        "category": "Food"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-baru",
+                    "fields": {
+                      "date": "date",
+                      "description": "description",
+                      "amount": "amount",
+                      "category": "category"
+                    }
+                  }
+                ],
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 10
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "Expenses"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 50,
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "manage_notes_item",
+              "args": {
+                "action": "rename",
+                "id": "n-baru",
+                "title": "Expenses",
+                "revision": 2
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "Catatan"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [
+            "get_record_note_metadata",
+            "read_custom_note",
+            "query_record_notes",
+            "read_record_note_content",
+            "manage_notes_item"
+          ],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 352235,
+            "outputTokens": 2586
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3813,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 38483,
+          "text": "Noted — 45,000 rupiah for lunch on Monday, 9 November 2026, saved as a row in a new expense record with date, description, and amount columns.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "create_record_note",
+              "args": {
+                "title": "Expenses",
+                "parentId": null,
+                "description": "Daily expense log",
+                "columns": [
+                  {
+                    "id": "date",
+                    "name": "Date",
+                    "type": "date",
+                    "required": false
+                  },
+                  {
+                    "id": "description",
+                    "name": "Description",
+                    "type": "text",
+                    "required": false
+                  },
+                  {
+                    "id": "amount",
+                    "name": "Amount",
+                    "type": "number",
+                    "unit": "IDR",
+                    "required": false
+                  }
+                ]
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-baru",
+                "revision": 1,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "date": "2026-11-09",
+                        "description": "Lunch",
+                        "amount": "45000"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            }
+          ],
+          "refused": [],
+          "unscripted": ["get_record_note_metadata"],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 158973,
+            "outputTokens": 924
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3813,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "capture-catat-stable-fact",
+      "area": "notes",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 34803,
+          "text": "Aku sudah mencoba mencatatnya, tapi penyimpanan catatan sedang tidak merespons — workspace catatan kosong dan aku tidak bisa membaca kembali apa pun yang ditulis. Jadi ukuran sepatu 42 belum bisa kupastikan tersimpan.\n\nCoba lagi sebentar lagi, atau bilang kalau kamu mau aku taruh di tempat lain (misalnya catatan harian hari ini). Sementara ini, angka 42-nya sudah kucatat di percakapan kita ya.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "create_custom_note",
+              "args": {
+                "title": "Data Pribadi",
+                "text": "## Ukuran\n\n- Ukuran sepatu: 42\n"
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "read_custom_note",
+              "args": {
+                "id": "n-baru"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "Ukuran sepatu"
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "Data Pribadi"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-baru"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": ["read_custom_note", "get_record_note_metadata"],
+          "routedTools": [],
+          "usage": {
+            "inputTokens": 117192,
+            "outputTokens": 1881
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3805,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 18690,
+          "text": "Sudah kucatat ya, ukuran sepatumu **42** di catatan [Ukuran Sepatu](#note/custom:n-baru). 👍",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "create_custom_note",
+              "args": {
+                "title": "Ukuran Sepatu",
+                "text": "42"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": [],
+          "usage": {
+            "inputTokens": 32074,
+            "outputTokens": 1167
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3805,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 12508,
+          "text": "Sudah kucatat, Rina — ukuran sepatumu 42, tersimpan di catatan [Ukuran Pribadi](#note/custom%3An-baru).\n\nKalau nanti mau sekalian ukuran lain (baju, celana, cincin), bilang saja, nanti kutambahkan di catatan yang sama.",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "create_custom_note",
+              "args": {
+                "title": "Ukuran Pribadi",
+                "text": "## Ukuran\n\n- Sepatu: 42\n"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": [],
+          "usage": {
+            "inputTokens": 32070,
+            "outputTokens": 879
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3805,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "memory-ingat-stable-measurement",
+      "area": "memory",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 6378,
+          "text": "Oke, ukuran sepatumu 42 — nanti aku ingat itu kalau ada urusan sepatu. 👞",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Ukuran sepatu Rina adalah 42.",
+                "category": "profil"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46486,
+            "outputTokens": 265
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3807,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 5503,
+          "text": "Oke, ukuran sepatumu 42 — nanti aku sesuaikan kalau ada urusan beli sepatu 😊",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Ukuran sepatu Rina adalah 42.",
+                "category": "Profil pribadi"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46488,
+            "outputTokens": 232
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3807,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 3945,
+          "text": "Siap, aku ingat ukuran sepatumu 42 👟",
+          "calls": [
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Ukuran sepatu Rina adalah 42.",
+                "category": "preferensi pribadi"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46547,
+            "outputTokens": 113
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3807,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "memory-ingat-series-existing-table",
+      "area": "memory",
+      "passed": 2,
+      "runs": [
+        {
+          "durationMs": 60999,
+          "text": "Sudah kucoba masukkan ke catatan **Berat Badan**, tapi setelah disimpan isinya masih hanya dua baris lama — 26 Okt 74 kg dan 2 Nov 73 kg. Jadi belum bisa kupastikan entri 72 kg hari ini benar-benar masuk.\n\nMau kucoba simpan sekali lagi?",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "berat badan"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-berat",
+                "revision": 3,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "tanggal": "2026-11-09",
+                        "berat": "72"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 5,
+                "navigation": "last",
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 5,
+                "navigation": "last",
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-berat",
+                    "fields": {
+                      "tanggal": "tanggal",
+                      "berat": "berat"
+                    }
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "tanggal",
+                    "direction": "asc"
+                  }
+                ],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-berat",
+                    "fields": {
+                      "berat": "berat",
+                      "tanggal": "tanggal"
+                    }
+                  }
+                ],
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "get_current_datetime",
+              "args": {}
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 1,
+                "navigation": "last",
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-berat",
+                "revision": 3,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "berat": "72",
+                        "tanggal": "2026-11-09"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 10,
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-berat",
+                    "fields": {
+                      "berat": "berat",
+                      "tanggal": "tanggal"
+                    }
+                  }
+                ],
+                "filter": {
+                  "field": "tanggal",
+                  "op": "eq",
+                  "value": "2026-11-09"
+                },
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 397663,
+            "outputTokens": 3386
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3810,
+          "failures": [
+            {
+              "check": "calls save_memory (the weight)",
+              "reason": "save_memory was not called"
+            }
+          ],
+          "retries": 0
+        },
+        {
+          "durationMs": 17943,
+          "text": "Sudah kucatat ya — 72 kg untuk timbangan pagi ini, masuk ke catatan [Berat Badan](#note/custom%3An-berat). 💪",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "berat badan"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-berat",
+                "revision": 3,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "tanggal": "2026-11-09",
+                        "berat": 72
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Rina menimbang berat badannya 72 kg pada pagi 9 November 2026.",
+                "category": "kesehatan"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 132860,
+            "outputTokens": 1071
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3810,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 50374,
+          "text": "",
+          "calls": [
+            {
+              "name": "load_skill",
+              "args": {
+                "name": "note-capture"
+              }
+            },
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "berat badan"
+              }
+            },
+            {
+              "name": "save_memory",
+              "args": {
+                "content": "Berat badan Rina 72 kg, tercatat pada 9 November 2026 (pagi).",
+                "category": "health"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 10,
+                "navigation": "last",
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-berat",
+                "revision": 3,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "tanggal": "2026-11-09",
+                        "berat": "72"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 5,
+                "navigation": "last",
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 10,
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "get_record_note_metadata",
+              "args": {
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-berat",
+                    "fields": {
+                      "tanggal": "tanggal",
+                      "berat": "berat"
+                    }
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "tanggal",
+                    "direction": "desc"
+                  }
+                ],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 5
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-berat",
+                "revision": 3,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "berat": "72",
+                        "tanggal": "2026-11-09"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "limit": 20,
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-berat",
+                    "fields": {
+                      "berat": "berat",
+                      "tanggal": "tanggal"
+                    }
+                  }
+                ],
+                "filter": {
+                  "field": "tanggal",
+                  "op": "eq",
+                  "value": "2026-11-09"
+                },
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 50
+              }
+            },
+            {
+              "name": "list_notes_workspace",
+              "args": {}
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-berat",
+                "revision": 4,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "berat": "72",
+                        "tanggal": "2026-11-09"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "get_current_datetime",
+              "args": {}
+            },
+            {
+              "name": "read_record_note_content",
+              "args": {
+                "offset": 0,
+                "limit": 20,
+                "id": "n-berat"
+              }
+            },
+            {
+              "name": "add_record_rows",
+              "args": {
+                "id": "n-berat",
+                "revision": 5,
+                "batch": {
+                  "rows": [
+                    {
+                      "values": {
+                        "berat": 72,
+                        "tanggal": "2026-11-09"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "query_record_notes",
+              "args": {
+                "sources": [
+                  {
+                    "id": "n-berat",
+                    "fields": {
+                      "berat": "berat",
+                      "tanggal": "tanggal"
+                    }
+                  }
+                ],
+                "sort": [],
+                "groupBy": [],
+                "calculations": [],
+                "derived": [],
+                "limit": 200
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 464682,
+            "outputTokens": 3371
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3810,
+          "failures": [],
+          "retries": 0
+        }
+      ]
     }
   ]
 }

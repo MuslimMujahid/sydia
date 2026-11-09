@@ -420,6 +420,56 @@ const SHOPPING_TABLE = recordTable({
   ],
 });
 
+const WEIGHT_COLUMNS: FixtureColumn[] = [
+  { id: 'tanggal', name: 'Tanggal', type: 'date' },
+  { id: 'berat', name: 'Berat', type: 'number', unit: 'kg' },
+];
+
+const WEIGHT_TABLE = recordTable({
+  id: 'n-berat',
+  title: 'Berat Badan',
+  description: 'Penimbangan berat badan pagi hari.',
+  columns: WEIGHT_COLUMNS,
+  rows: [
+    { tanggal: localDate(-14), berat: '74' },
+    { tanggal: localDate(-7), berat: '73' },
+  ],
+});
+
+/** Every tool that writes a note, for checks that nothing was recorded. */
+const NOTE_WRITES = [
+  'create_record_note',
+  'add_record_rows',
+  'write_daily_note',
+  'create_custom_note',
+  'update_custom_note',
+];
+
+/** Scripted note writes, so a wrong write is caught rather than failing. */
+const NOTE_WRITE_SCRIPTS = {
+  list_notes_workspace: { items: [] },
+  search_notes: { results: [] },
+  create_record_note: {
+    status: 'created',
+    note: { id: 'n-baru', title: 'Catatan', revision: 1 },
+  },
+  add_record_rows: { status: 'added', added: 1, revision: 2 },
+  write_daily_note: { status: 'saved', date: localDate(), revision: 1 },
+  create_custom_note: {
+    status: 'created',
+    note: { id: 'n-baru', revision: 1 },
+  },
+};
+
+const appendRow =
+  (metadata: Record<string, unknown>) => (args: Record<string, unknown>) => ({
+    ...metadata,
+    revision: Number(args.revision) + 1,
+    status: 'committed',
+    saved: true,
+    changedIds: ['row-new'],
+  });
+
 export const SCENARIOS: Scenario[] = [
   // ── Task and reminder lists ────────────────────────────────────────────
   {
@@ -630,6 +680,129 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
 
+  {
+    // Owner decision (9 Nov 2026): without "catat", a reported entry joins a
+    // matching existing collection.
+    id: 'capture-implicit-existing-table',
+    area: 'notes',
+    message: 'Tadi bayar galon air 20rb',
+    workspace: [
+      {
+        id: 'n-pengeluaran',
+        title: 'Pengeluaran Warung',
+        kind: 'note',
+        format: 'record',
+      },
+    ],
+    tools: {
+      list_notes_workspace: {
+        items: [
+          {
+            id: 'n-pengeluaran',
+            title: 'Pengeluaran Warung',
+            kind: 'note',
+            format: 'record',
+          },
+        ],
+      },
+      search_notes: tableHit(EXPENSE_TABLE.metadata, EXPENSE_COLUMNS),
+      ...EXPENSE_TABLE.tools,
+      add_record_rows: appendRow(EXPENSE_TABLE.metadata),
+    },
+    checks: [
+      noErrors(),
+      called('add_record_rows'),
+      notCalled('create_record_note', 'write_daily_note', 'create_custom_note'),
+    ],
+  },
+  {
+    // Owner decision (9 Nov 2026): without "catat" and with no matching
+    // collection, ask once instead of creating one.
+    id: 'capture-implicit-no-table-asks',
+    area: 'notes',
+    message: 'Tadi bayar galon air 20rb',
+    tools: {
+      ...NOTE_WRITE_SCRIPTS,
+      save_memory: { memory: { status: 'queued' } },
+    },
+    checks: [
+      noErrors(),
+      notCalled(...NOTE_WRITES),
+      matches(/\?/, 'asks whether to start a note'),
+      inIndonesian(),
+    ],
+  },
+  {
+    // A lasting fact with a number is not a record; with no "ingat" it is
+    // left to background memory.
+    id: 'stable-fact-not-a-note',
+    area: 'notes',
+    message: 'Btw, ukuran sepatuku 42.',
+    tools: {
+      ...NOTE_WRITE_SCRIPTS,
+      save_memory: { memory: { status: 'queued' } },
+    },
+    checks: [noErrors(), notCalled(...NOTE_WRITES, 'save_memory')],
+  },
+  {
+    // Venting about spending is conversation, not a record.
+    id: 'venting-not-a-record',
+    area: 'notes',
+    message:
+      'Kesel banget, makan malam tadi habis 200rb padahal rasanya biasa aja',
+    tools: {
+      ...NOTE_WRITE_SCRIPTS,
+      save_memory: { memory: { status: 'queued' } },
+    },
+    checks: [noErrors(), notCalled(...NOTE_WRITES)],
+  },
+  {
+    // New notes are named in the language the user writes in.
+    id: 'capture-english-note-title',
+    area: 'notes',
+    user: { locale: 'en', name: 'Sam' },
+    message: 'Note down that I spent 45,000 rupiah on lunch today.',
+    tools: NOTE_WRITE_SCRIPTS,
+    checks: [
+      noErrors(),
+      called(
+        'create_record_note',
+        (args) =>
+          !/pengeluaran|catatan|harian|biaya|belanja|makan/i.test(
+            String(args.title),
+          ),
+        'English title',
+      ),
+      inEnglish(),
+    ],
+  },
+
+  {
+    // Owner decision (9 Nov 2026): "catat" always writes a note, even for a
+    // lasting fact; memory decides separately in the background.
+    id: 'capture-catat-stable-fact',
+    area: 'notes',
+    message: 'Catat ukuran sepatuku 42',
+    tools: {
+      ...NOTE_WRITE_SCRIPTS,
+      save_memory: { memory: { status: 'queued' } },
+    },
+    checks: [
+      noErrors(),
+      anyOf(
+        [
+          'create_custom_note',
+          'create_record_note',
+          'write_daily_note',
+          'update_custom_note',
+          'add_record_rows',
+        ],
+        'writes a note',
+      ),
+      notCalled('save_memory'),
+    ],
+  },
+
   // ── Memory ─────────────────────────────────────────────────────────────
   {
     id: 'memory-ingat',
@@ -667,6 +840,63 @@ export const SCENARIOS: Scenario[] = [
       write_daily_note: { status: 'saved', date: localDate(), revision: 1 },
     },
     checks: [noErrors(), notCalled('save_memory')],
+  },
+  {
+    // A lasting fact with a number is a memory, never a note.
+    id: 'memory-ingat-stable-measurement',
+    area: 'memory',
+    message: 'Ingat ya, ukuran sepatuku 42',
+    tools: {
+      ...NOTE_WRITE_SCRIPTS,
+      save_memory: { memory: { status: 'queued' } },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'save_memory',
+        (args) => String(args.content).includes('42'),
+        'shoe size',
+      ),
+      notCalled(...NOTE_WRITES),
+      inIndonesian(),
+    ],
+  },
+  {
+    // Owner decision (9 Nov 2026): notes and memory are decided independently.
+    // "ingat" saves the memory; the reported entry also joins its existing
+    // collection under the note rules.
+    id: 'memory-ingat-series-existing-table',
+    area: 'memory',
+    message: 'Ingat ya, berat badanku 72 kg pagi ini',
+    workspace: [
+      { id: 'n-berat', title: 'Berat Badan', kind: 'note', format: 'record' },
+    ],
+    tools: {
+      list_notes_workspace: {
+        items: [
+          {
+            id: 'n-berat',
+            title: 'Berat Badan',
+            kind: 'note',
+            format: 'record',
+          },
+        ],
+      },
+      search_notes: tableHit(WEIGHT_TABLE.metadata, WEIGHT_COLUMNS),
+      ...WEIGHT_TABLE.tools,
+      add_record_rows: appendRow(WEIGHT_TABLE.metadata),
+      save_memory: { memory: { status: 'queued' } },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'save_memory',
+        (args) => String(args.content).includes('72'),
+        'the weight',
+      ),
+      called('add_record_rows'),
+      notCalled('create_record_note', 'write_daily_note'),
+    ],
   },
   {
     // Ordinary statements are left to background extraction.
