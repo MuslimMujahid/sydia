@@ -27,6 +27,29 @@ function transportFailure(): Error {
 describe('EmbeddingsService', () => {
   afterEach(() => jest.restoreAllMocks());
 
+  test('keeps embeddings on their own provider when chat uses a keyless endpoint', async () => {
+    const fetch = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(embeddingResponse([0.5]));
+
+    const embeddings = await service({
+      BACKEND_MODEL_API_KEY: '',
+      BACKEND_MODEL_BASE_URL: 'http://localhost:20128/v1',
+      BACKEND_EMBEDDING_API_KEY: 'embedding-key',
+      BACKEND_EMBEDDING_BASE_URL: 'https://openrouter.ai/api/v1',
+    }).embed('A document.');
+
+    expect(embeddings).toEqual([0.5]);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe('https://openrouter.ai/api/v1/embeddings');
+    expect(new Headers(init?.headers).get('authorization')).toBe(
+      'Bearer embedding-key',
+    );
+    expect(JSON.parse(init?.body as string)).toMatchObject({
+      model: 'openai/text-embedding-3-small',
+    });
+  });
+
   test('keeps concurrent requests within the configured limit', async () => {
     let inFlight = 0;
     let peak = 0;

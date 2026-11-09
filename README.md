@@ -78,6 +78,10 @@ docker compose --env-file .env -f docker/docker-compose.dev.yml --profile hindsi
 
 Hindsight uses its own PostgreSQL volume and exposes its API on the loopback port set by `HINDSIGHT_API_HOST_PORT` (default `8888`). Keep `BACKEND_HINDSIGHT_URL` in sync with that port. The frontend, backend, and worker run on the host with `bun run dev`.
 
+For a keyless local OpenAI-compatible chat server, set `BACKEND_MODEL_API_KEY=` and configure `BACKEND_MODEL_BASE_URL`, `BACKEND_MODEL_NAME`, and `BACKEND_MODEL_REASONING_EFFORT` in your ignored `.env`. For example, use `http://localhost:20128/v1`, `cmc/deepseek/deepseek-v4.1-flash`, and `high`. Custom endpoints receive `reasoning_effort` without OpenRouter routing options. To keep other services on OpenRouter, set `BACKEND_MEDIA_API_KEY` / `BACKEND_MEDIA_BASE_URL`, `BACKEND_EMBEDDING_API_KEY` / `BACKEND_EMBEDDING_BASE_URL`, and `BACKEND_DECISION_API_KEY` explicitly; media and embeddings otherwise inherit the chat settings.
+
+Hindsight has separate global LLM, retain/extraction, embedding, and reranking settings. For a keyless local LLM, use its `lmstudio` provider (OpenAI-compatible local mode), leave `HINDSIGHT_API_LLM_API_KEY` empty, and use `http://host.docker.internal:20128/v1` as `HINDSIGHT_API_LLM_BASE_URL` so the container can reach the host. Set `HINDSIGHT_API_LLM_MODEL` and `HINDSIGHT_API_LLM_REASONING_EFFORT` to the local model ID and effort. To retain GPT-OSS extraction on OpenRouter, explicitly set `HINDSIGHT_API_RETAIN_LLM_PROVIDER=openai`, its base URL to `https://openrouter.ai/api/v1`, and its API key to your OpenRouter key, keeping the retain model and routing options. Keep Hindsight's embedding provider settings on OpenRouter. Docker Engine on Linux may require a `host.docker.internal:host-gateway` host mapping and a host-reachable listener. Recreate the Hindsight container after changing its environment, and restart the backend and worker after changing theirs.
+
 WhatsApp pairing also requires the GoWA companion, which runs separately from `bun run dev`. Build it once with `bash apps/backend/scripts/gowa-build.sh`, then keep it running in another terminal:
 
 ```sh

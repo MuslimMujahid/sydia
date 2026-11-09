@@ -9,11 +9,16 @@ export class OpenRouterMediaService {
   private readonly visionModel: string;
 
   constructor(config: ConfigService) {
-    this.apiKey = config.get<string>('BACKEND_MODEL_API_KEY');
-    this.baseUrl = config.get<string>(
-      'BACKEND_MODEL_BASE_URL',
-      'https://openrouter.ai/api/v1',
-    );
+    // Optional media overrides keep vision and transcription independent of chat.
+    this.apiKey =
+      config.get<string>('BACKEND_MEDIA_API_KEY')?.trim() ||
+      config.get<string>('BACKEND_MODEL_API_KEY');
+    this.baseUrl =
+      config.get<string>('BACKEND_MEDIA_BASE_URL')?.trim() ||
+      config.get<string>(
+        'BACKEND_MODEL_BASE_URL',
+        'https://openrouter.ai/api/v1',
+      );
     this.sttModel = config.get<string>(
       'BACKEND_STT_MODEL',
       'openai/whisper-large-v3-turbo',

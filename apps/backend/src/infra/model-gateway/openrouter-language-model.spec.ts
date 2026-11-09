@@ -58,6 +58,42 @@ function model(
 describe('OpenRouterLanguageModel', () => {
   afterEach(() => jest.restoreAllMocks());
 
+  it('uses a keyless custom endpoint with high reasoning and no OpenRouter options', async () => {
+    const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'local-response',
+          choices: [
+            {
+              message: { role: 'assistant', content: 'Local response.' },
+              finish_reason: 'stop',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    const result = await model({
+      BACKEND_MODEL_API_KEY: '',
+      BACKEND_MODEL_BASE_URL: 'http://localhost:20128/v1',
+      BACKEND_MODEL_NAME: 'cmc/deepseek/deepseek-v4.1-flash',
+      BACKEND_MODEL_REASONING_EFFORT: 'high',
+    }).generate({ messages: [{ role: 'user', content: 'Hello' }] });
+
+    expect(result.text).toBe('Local response.');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe('http://localhost:20128/v1/chat/completions');
+    expect(new Headers(init?.headers).has('authorization')).toBe(false);
+    expect(JSON.parse(init?.body as string)).toMatchObject({
+      model: 'cmc/deepseek/deepseek-v4.1-flash',
+      reasoning_effort: 'high',
+    });
+    expect(JSON.parse(init?.body as string)).not.toHaveProperty('provider');
+    expect(JSON.parse(init?.body as string)).not.toHaveProperty('reasoning');
+  });
+
   it('uses the OpenRouter model defaults', () => {
     const gateway = model();
 

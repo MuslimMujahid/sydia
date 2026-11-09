@@ -48,11 +48,16 @@ export class EmbeddingsService {
   readonly version = 'v1';
 
   constructor(config: ConfigService) {
-    this.apiKey = config.get<string>('BACKEND_MODEL_API_KEY', '');
-    this.baseUrl = config.get<string>(
-      'BACKEND_MODEL_BASE_URL',
-      'https://openrouter.ai/api/v1',
-    );
+    // Optional embedding overrides allow chat to use a different provider.
+    this.apiKey =
+      config.get<string>('BACKEND_EMBEDDING_API_KEY')?.trim() ||
+      config.get<string>('BACKEND_MODEL_API_KEY', '');
+    this.baseUrl =
+      config.get<string>('BACKEND_EMBEDDING_BASE_URL')?.trim() ||
+      config.get<string>(
+        'BACKEND_MODEL_BASE_URL',
+        'https://openrouter.ai/api/v1',
+      );
     this.model = config.get<string>(
       'BACKEND_EMBEDDING_MODEL',
       'openai/text-embedding-3-small',

@@ -517,6 +517,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
   readonly model: string;
 
   private readonly apiKey?: string;
+  private readonly requiresApiKey: boolean;
   private readonly languageModel: AiLanguageModel;
   private readonly logger = new Logger(OpenRouterLanguageModel.name);
   private readonly temperature: number;
@@ -566,21 +567,49 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     const baseURL =
       config.get<string>('BACKEND_MODEL_BASE_URL')?.trim() || DEFAULT_BASE_URL;
 
+    this.requiresApiKey = new URL(baseURL).hostname === 'openrouter.ai';
+
     const openrouter = createOpenRouter({
-      apiKey: this.apiKey,
+      // An explicit empty key prevents the SDK from reading OPENROUTER_API_KEY
+      // from the environment when a custom endpoint needs no authentication.
+      apiKey: this.apiKey ?? '',
       baseURL,
-      compatibility: 'strict',
+      compatibility: this.requiresApiKey ? 'strict' : 'compatible',
+      ...(!this.requiresApiKey
+        ? { extraBody: { reasoning_effort: this.reasoningEffort } }
+        : {}),
+      ...(!this.apiKey && !this.requiresApiKey
+        ? {
+            fetch: (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+              const headers = new Headers(init?.headers);
+
+              headers.delete('Authorization');
+
+              return globalThis.fetch(input, { ...init, headers });
+            },
+          }
+        : {}),
     });
 
-    this.languageModel = openrouter.chat(this.model, {
-      usage: { include: true },
-      provider: { sort: this.providerSort, require_parameters: true },
-      reasoning: { enabled: true, exclude: true, effort: this.reasoningEffort },
-    });
+    this.languageModel = openrouter.chat(
+      this.model,
+      this.requiresApiKey
+        ? {
+            usage: { include: true },
+            provider: { sort: this.providerSort, require_parameters: true },
+            reasoning: {
+              enabled: true,
+              exclude: true,
+              effort: this.reasoningEffort,
+            },
+          }
+        : {},
+    );
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResult> {
-    if (!this.apiKey) {
+    if (!this.apiKey && this.requiresApiKey) {
+      this.logger.error('The assistant model requires BACKEND_MODEL_API_KEY.');
       throw new ModelGatewayError(
         'The assistant model is not configured. Set BACKEND_MODEL_API_KEY.',
       );
