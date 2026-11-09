@@ -305,6 +305,7 @@ model Conversation {
   memoryDreamThroughMessageId String?
   memoryDeletionMarkers       MemoryDeletionMarker[]
   channelConversations        ChannelConversation[]
+  planRevisions               AssistantPlanRevision[]
 
   @@index([userId, lastMessageAt])
   @@map("conversation")
@@ -410,6 +411,7 @@ model AssistantRun {
   conversation       Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   inputMessage       Message          @relation("AssistantRunInput", fields: [inputMessageId], references: [id], onDelete: Cascade)
   toolInvocations    ToolInvocation[]
+  planRevisions      AssistantPlanRevision[]
 
   @@index([model])
   @@index([conversationId, createdAt])
@@ -1735,4 +1737,21 @@ model RecordReceipt {
   createdAt DateTime @default(now())
   @@id([userId, key])
   @@map("record_receipt")
+}
+
+// Immutable snapshots preserve plan history independently of conversation summaries.
+model AssistantPlanRevision {
+  id              String       @id @default(cuid())
+  conversationId  String
+  runId           String
+  sourceMessageId String
+  revision        Int
+  steps           Json
+  idempotencyKey  String       @unique
+  createdAt       DateTime     @default(now())
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  run             AssistantRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, revision])
+  @@map("assistant_plan_revision")
 }

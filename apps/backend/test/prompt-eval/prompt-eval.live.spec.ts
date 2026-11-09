@@ -3,7 +3,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, test } from '@jest/globals';
 import { createHarness, type RunRecord, type Scenario } from './harness';
-import { SCENARIOS } from './scenarios';
+import { SCENARIOS, SCENARIO_DATE } from './scenarios';
+import { DATE_ATTRIBUTION_VERSION } from './date-attribution';
+import { ConfigService } from '@nestjs/config';
+import { AssistantExecutionSettings } from '../../src/modules/conversations/services/assistant-execution';
 
 // Live: real model and Jev routing, synthetic data, no database or channel
 // writes. Run with `bun run eval:prompts`.
@@ -27,7 +30,13 @@ type ScenarioResult = {
   runs: Array<
     Pick<
       RunRecord,
-      'text' | 'calls' | 'unscripted' | 'routedTools' | 'error' | 'usage'
+      | 'text'
+      | 'calls'
+      | 'unscripted'
+      | 'routedTools'
+      | 'error'
+      | 'usage'
+      | 'durationMs'
     > & {
       terminalAcknowledgement: boolean;
       /** Gateway failures retried before this result. */
@@ -46,6 +55,9 @@ type EvalFile = {
     commit: string;
     startedAt: string;
     runsPerScenario: number;
+    scoringVersion?: string;
+    fixtureDate?: string;
+    execution?: AssistantExecutionSettings;
   };
   scenarios: ScenarioResult[];
 };
@@ -63,6 +75,7 @@ function evaluate(
   });
 
   return {
+    durationMs: run.durationMs,
     text: run.text,
     calls: run.calls,
     refused: run.refused ?? [],
@@ -124,9 +137,12 @@ function compare(current: EvalFile, baseline: EvalFile | null) {
 function report(current: EvalFile, rows: ReturnType<typeof compare>): string {
   const total = current.scenarios.reduce((sum, s) => sum + s.passed, 0);
   const runs = current.scenarios.reduce((sum, s) => sum + s.runs.length, 0);
-  const cost = current.scenarios
-    .flatMap((s) => s.runs)
-    .reduce((sum, run) => sum + (run.usage.costUsd ?? 0), 0);
+  const billedRuns = current.scenarios.flatMap((s) => s.runs);
+  const cost =
+    billedRuns.length > 0 &&
+    billedRuns.every((run) => run.usage.costUsd !== undefined)
+      ? `$${billedRuns.reduce((sum, run) => sum + run.usage.costUsd!, 0).toFixed(4)}`
+      : 'unavailable';
 
   const retries = current.scenarios
     .flatMap((s) => s.runs)
@@ -136,7 +152,7 @@ function report(current: EvalFile, rows: ReturnType<typeof compare>): string {
     `# Prompt evaluation — ${current.meta.startedAt}`,
     '',
     `Model ${current.meta.model}, routing ${current.meta.routing ? 'Jev' : 'off'}, commit ${current.meta.commit}, ${current.meta.runsPerScenario} runs per scenario.`,
-    `Passed ${total}/${runs} runs. Cost $${cost.toFixed(4)}. Gateway retries: ${retries}.`,
+    `Passed ${total}/${runs} runs. Cost ${cost}. Gateway retries: ${retries}.`,
     '',
     '| Scenario | Area | Now | Baseline | Status |',
     '|---|---|---|---|---|',
@@ -202,6 +218,11 @@ function report(current: EvalFile, rows: ReturnType<typeof compare>): string {
           commit: execSync('git rev-parse --short HEAD').toString().trim(),
           startedAt: new Date().toISOString(),
           runsPerScenario: RUNS,
+          scoringVersion: DATE_ATTRIBUTION_VERSION,
+          fixtureDate: SCENARIO_DATE,
+          execution: new AssistantExecutionSettings(
+            new ConfigService(process.env),
+          ),
         },
         scenarios: scenarios.map((scenario, index) => {
           const runs = records.slice(index * RUNS, (index + 1) * RUNS);

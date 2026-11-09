@@ -17,6 +17,7 @@ import {
 import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
 import type { Check, RunRecord, Scenario } from './harness';
 import { recordTable, type FixtureColumn } from './record-fixture';
+import { dateScopedRows, dateScopeSpec } from './date-attribution';
 
 /**
  * Expected outcomes approved by the product owner (2026-11-07). Each scenario
@@ -36,6 +37,8 @@ function localDate(offsetDays = 0): string {
     day: '2-digit',
   }).format(new Date(Date.now() + offsetDays * 86_400_000));
 }
+
+export const SCENARIO_DATE = localDate();
 
 /** Instant for a local wall-clock time (WIB is UTC+7, no DST). */
 function at(offsetDays: number, time: string): string {
@@ -294,12 +297,12 @@ function tableHit(
   };
 }
 
-/**
- * Rows of the named day are listed and rows of other days are not. Each
- * fragment is a value that appears in exactly one row.
- */
-function onlyThatDay(listed: string[], otherDays: string[]): Check[] {
-  return [contains(...listed), notContains(...otherDays)];
+/** Historical context is acceptable when requested-day attribution stays correct. */
+function rowsForDay(scenarioId: string): Check {
+  const spec = dateScopeSpec(scenarioId, SCENARIO_DATE);
+  if (!spec) throw new Error(`Missing date attribution fixture: ${scenarioId}`);
+
+  return dateScopedRows(spec);
 }
 
 const STOCK_FIXTURE_COLUMNS: FixtureColumn[] = [
@@ -357,7 +360,7 @@ function stockLookup(id: string, message: string): Scenario {
         ['read_record_note_content', 'query_record_notes'],
         'reads the stock rows',
       ),
-      ...onlyThatDay(['Gula', 'Telur'], ['Minyak', 'Tepung']),
+      rowsForDay(id),
       notCalled(
         'create_record_note',
         'create_custom_note',
@@ -1488,7 +1491,7 @@ export const SCENARIOS: Scenario[] = [
       noErrors(),
       anyOf(['search_notes', 'list_notes_workspace'], 'looks up the note'),
       matches(ORDER_LINK, 'links the order note'),
-      ...onlyThatDay(['Bu Rina', 'Pak Dedi'], ['Bu Sari']),
+      rowsForDay('open-named-note-today'),
       notCalled(
         'create_record_note',
         'create_custom_note',
@@ -1537,7 +1540,7 @@ export const SCENARIOS: Scenario[] = [
         ['read_record_note_content', 'query_record_notes'],
         'reads the expense rows',
       ),
-      ...onlyThatDay(['Galon', 'listrik'], ['LPG', 'Plastik']),
+      rowsForDay('named-table-yesterday-held-out'),
       notCalled('write_daily_note', 'add_record_rows', 'create_record_note'),
       inIndonesian(),
     ],

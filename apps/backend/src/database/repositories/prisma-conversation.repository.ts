@@ -1,3 +1,8 @@
+import {
+  executionPlanStepsSchema,
+  type ExecutionPlan,
+  type ExecutionPlanWrite,
+} from '../entities';
 import { lockFileLibrary } from './file-library-lock';
 import {
   resolveChatSources,
@@ -1224,7 +1229,11 @@ export class PrismaConversationRepository implements IConversationRepository {
     }
   }
 
-  async claimRun(id: string, staleBefore: Date): Promise<boolean> {
+  async claimRun(
+    id: string,
+    staleBefore: Date,
+    claimStartedAt = new Date(),
+  ): Promise<boolean> {
     const result = await this.prisma.assistantRun.updateMany({
       where: {
         id,
@@ -1240,12 +1249,108 @@ export class PrismaConversationRepository implements IConversationRepository {
         errorMessage: null,
         inputTokens: null,
         outputTokens: null,
-        startedAt: new Date(),
+        startedAt: claimStartedAt,
         completedAt: null,
       },
     });
 
     return result.count === 1;
+  }
+
+  async findExecutionPlan(
+    userId: string,
+    conversationId: string,
+  ): Promise<ExecutionPlan | null> {
+    const row = await this.prisma.assistantPlanRevision.findFirst({
+      where: { conversationId, conversation: { userId } },
+      orderBy: { revision: 'desc' },
+      select: {
+        conversationId: true,
+        runId: true,
+        sourceMessageId: true,
+        revision: true,
+        steps: true,
+      },
+    });
+
+    return row
+      ? { ...row, steps: executionPlanStepsSchema.parse(row.steps) }
+      : null;
+  }
+
+  async saveExecutionPlan(input: ExecutionPlanWrite): Promise<ExecutionPlan> {
+    return this.prisma.$transaction(async (tx) => {
+      // Serializes first writes as well as revisions; ownership is checked below.
+      await tx.$queryRaw`SELECT id FROM conversation WHERE id = ${input.conversationId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM assistant_run WHERE id = ${input.runId} FOR UPDATE`;
+      const run = await tx.assistantRun.findFirst({
+        where: {
+          id: input.runId,
+          conversationId: input.conversationId,
+          inputMessageId: input.sourceMessageId,
+          status: 'running',
+          startedAt: input.claimStartedAt,
+          conversation: { userId: input.userId },
+        },
+        select: { id: true },
+      });
+
+      const latestMessage = await tx.message.findFirst({
+        where: {
+          conversationId: input.conversationId,
+          userId: input.userId,
+          role: 'user',
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true },
+      });
+
+      if (!run || latestMessage?.id !== input.sourceMessageId)
+        throw new Error(
+          'Execution plan write rejected: run claim was superseded.',
+        );
+      const replay = await tx.assistantPlanRevision.findUnique({
+        where: { idempotencyKey: input.idempotencyKey },
+      });
+
+      if (replay) {
+        if (
+          replay.conversationId !== input.conversationId ||
+          replay.runId !== input.runId
+        )
+          throw new Error(
+            'Execution plan idempotency key belongs to another run.',
+          );
+
+        return {
+          ...replay,
+          steps: executionPlanStepsSchema.parse(replay.steps),
+        };
+      }
+
+      const latest = await tx.assistantPlanRevision.findFirst({
+        where: { conversationId: input.conversationId },
+        orderBy: { revision: 'desc' },
+        select: { revision: true },
+      });
+
+      if ((latest ? latest.revision : 0) !== input.revision)
+        throw new Error(
+          'Execution plan revision changed; reload before updating.',
+        );
+      const row = await tx.assistantPlanRevision.create({
+        data: {
+          conversationId: input.conversationId,
+          runId: input.runId,
+          sourceMessageId: input.sourceMessageId,
+          revision: input.revision + 1,
+          steps: executionPlanStepsSchema.parse(input.steps),
+          idempotencyKey: input.idempotencyKey,
+        },
+      });
+
+      return { ...row, steps: executionPlanStepsSchema.parse(row.steps) };
+    });
   }
 
   async updateRun(

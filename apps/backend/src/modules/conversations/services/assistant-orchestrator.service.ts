@@ -1,3 +1,9 @@
+import { ConfigService } from '@nestjs/config';
+import { AssistantPlanState } from './assistant-plan';
+import {
+  AssistantExecutionSettings,
+  generateAssistantTurn,
+} from './assistant-execution';
 import { activeTurnTools } from './turn-tool-discovery';
 import { NoteOrganizationSchedulerService } from '../../notes/note-organization-scheduler.service';
 import {
@@ -194,6 +200,7 @@ export function backgroundDecision(text: string): {
 @Injectable()
 export class AssistantOrchestratorService {
   private readonly logger = new Logger(AssistantOrchestratorService.name);
+  private readonly executionSettings: AssistantExecutionSettings;
 
   constructor(
     @Inject(CONVERSATION_REPOSITORY)
@@ -213,7 +220,10 @@ export class AssistantOrchestratorService {
     @Optional() private readonly assistantActions?: AssistantActionService,
     @Optional()
     private readonly noteOrganization?: NoteOrganizationSchedulerService,
-  ) {}
+    @Optional() config: ConfigService = new ConfigService(),
+  ) {
+    this.executionSettings = new AssistantExecutionSettings(config);
+  }
 
   async sendQueued(
     user: TurnUser,
@@ -796,7 +806,12 @@ export class AssistantOrchestratorService {
     sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>,
   ): Promise<Omit<AssistantTurnResult, 'conversation' | 'userMessage'>> {
     const staleBefore = new Date(Date.now() - RUN_STALE_AFTER_MS);
-    const claimed = await this.conversations.claimRun(run.id, staleBefore);
+    const claimStartedAt = new Date();
+    const claimed = await this.conversations.claimRun(
+      run.id,
+      staleBefore,
+      claimStartedAt,
+    );
 
     if (!claimed) {
       const latest = await this.conversations.findRun(
@@ -812,6 +827,10 @@ export class AssistantOrchestratorService {
       };
     }
 
+    abortSignal = AbortSignal.any([
+      AbortSignal.timeout(this.executionSettings.timeoutMs),
+      ...(abortSignal ? [abortSignal] : []),
+    ]);
     const toolInvocations: ToolInvocation[] = [];
     let aborted = abortSignal?.aborted ?? false;
 
@@ -861,6 +880,17 @@ export class AssistantOrchestratorService {
             evidence: new Set(),
           };
 
+          const plan = this.executionSettings.planning
+            ? new AssistantPlanState(this.conversations, {
+                userId: state.user.id,
+                conversationId: state.conversation.id,
+                runId: state.run.id,
+                sourceMessageId: state.inputMessage.id,
+                claimStartedAt,
+              })
+            : undefined;
+
+          if (plan) await plan.load();
           const selected = state.selectedToolNames;
           const tools = this.toolExecutor.aiTools(
             state.user.id,
@@ -877,44 +907,55 @@ export class AssistantOrchestratorService {
               conversationId: state.conversation.id,
               runId: state.run.id,
               trigger: 'user',
+              executionPlan: plan,
+              toolBudget: { remaining: 48 },
               skills,
             },
           );
 
-          const generation = await this.languageModel.generate({
-            messages: state.context,
-            userId: state.user.id,
-            conversationId: state.conversation.id,
-            runId: state.run.id,
-            abortSignal,
-            tools,
-            retrySafeTools: this.toolExecutor.retrySafeTools(),
-            activeTools: () =>
-              activeTurnTools(selected ?? Object.keys(tools), skills),
-            onTextDelta: (delta: string) => observer?.onTextDelta(delta),
-            onToolCall: (toolName: string) => {
-              const label = this.toolExecutor.activityLabel(
-                toolName,
-                state.user.locale === 'id' ? 'id' : 'en',
-              );
+          const generation = await generateAssistantTurn(
+            this.languageModel,
+            {
+              messages: state.context,
+              userId: state.user.id,
+              conversationId: state.conversation.id,
+              runId: state.run.id,
+              abortSignal,
+              tools,
+              retrySafeTools: this.toolExecutor.retrySafeTools(),
+              activeTools: () =>
+                activeTurnTools(selected ?? Object.keys(tools), skills).filter(
+                  (name) =>
+                    this.executionSettings.planning || name !== 'update_plan',
+                ),
+              onTextDelta: (delta: string) => observer?.onTextDelta(delta),
+              onToolCall: (toolName: string) => {
+                const label = this.toolExecutor.activityLabel(
+                  toolName,
+                  state.user.locale === 'id' ? 'id' : 'en',
+                );
 
-              if (label) observer?.onToolCall(label);
+                if (label) observer?.onToolCall(label);
+              },
+              // Every completed tool step is offered here: when the tools have
+              // fully answered the user, their deterministic acknowledgement ends
+              // the turn instead of paying for a second model call that would
+              // only restate them.
+              acknowledgeTerminalStep: (executions, decidedBy) =>
+                buildTerminalToolResponse(
+                  {
+                    locale: state.user.locale === 'id' ? 'id' : 'en',
+                    timezone: state.user.timezone,
+                    channel: state.channel,
+                  },
+                  executions,
+                  decidedBy,
+                ),
             },
-            // Every completed tool step is offered here: when the tools have
-            // fully answered the user, their deterministic acknowledgement ends
-            // the turn instead of paying for a second model call that would
-            // only restate them.
-            acknowledgeTerminalStep: (executions, decidedBy) =>
-              buildTerminalToolResponse(
-                {
-                  locale: state.user.locale === 'id' ? 'id' : 'en',
-                  timezone: state.user.timezone,
-                  channel: state.channel,
-                },
-                executions,
-                decidedBy,
-              ),
-          });
+            this.executionSettings,
+            plan,
+            state.user.locale === 'id' ? 'id' : 'en',
+          );
 
           this.logger.log(
             JSON.stringify({

@@ -139,6 +139,14 @@ function openRouterCost(metadata: unknown): number | undefined {
   return tokenCount((usage as Record<string, unknown>).cost);
 }
 
+/** Missing provider billing stays unknown, rather than reporting a partial total. */
+function totalCost(costs: Array<number | undefined>): number | undefined {
+  if (costs.length === 0 || costs.some((cost) => cost === undefined))
+    return undefined;
+
+  return (costs as number[]).reduce((sum, cost) => sum + cost, 0);
+}
+
 /**
  * Prompt-cache read/write counters reported by OpenRouter. Cache reads are the
  * signal that the assembled context is being reused across turns; they collapse
@@ -575,9 +583,6 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       apiKey: this.apiKey ?? '',
       baseURL,
       compatibility: this.requiresApiKey ? 'strict' : 'compatible',
-      ...(!this.requiresApiKey
-        ? { extraBody: { reasoning_effort: this.reasoningEffort } }
-        : {}),
       ...(!this.apiKey && !this.requiresApiKey
         ? {
             fetch: (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
@@ -597,11 +602,6 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
         ? {
             usage: { include: true },
             provider: { sort: this.providerSort, require_parameters: true },
-            reasoning: {
-              enabled: true,
-              exclude: true,
-              effort: this.reasoningEffort,
-            },
           }
         : {},
     );
@@ -629,6 +629,19 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       offered: Set<string>,
     ) => ({
       model: this.languageModel,
+      providerOptions: {
+        openrouter: this.requiresApiKey
+          ? {
+              reasoning: {
+                enabled: true,
+                exclude: true,
+                effort: request.reasoningEffort ?? this.reasoningEffort,
+              },
+            }
+          : {
+              reasoning_effort: request.reasoningEffort ?? this.reasoningEffort,
+            },
+      },
       messages: request.messages,
       allowSystemInMessages: true as const,
       tools: request.tools,
@@ -707,7 +720,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 let usage:
                   { inputTokens?: unknown; outputTokens?: unknown } | undefined;
 
-                let providerMetadata: unknown;
+                const stepCosts: Array<number | undefined> = [];
                 const result = streamText({
                   ...options(terminalText, offered),
                   onError: ({ error }) => {
@@ -784,7 +797,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                       stepText = await request.reviewFinalText(stepText);
                     flushStep();
                     usage = chunk.usage;
-                    providerMetadata = chunk.providerMetadata;
+                    stepCosts.push(openRouterCost(chunk.providerMetadata));
                   } else if (chunk.type === 'finish') {
                     usage = chunk.totalUsage;
                   }
@@ -808,7 +821,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 const normalizedUsage = {
                   inputTokens: tokenCount(usage?.inputTokens),
                   outputTokens: tokenCount(usage?.outputTokens),
-                  costUsd: openRouterCost(providerMetadata),
+                  costUsd: totalCost(stepCosts),
                 };
 
                 const cache = cacheUsage(usage);
@@ -842,6 +855,12 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   ...(request.includeCompletionMetadata
                     ? { finishReason: await result.finishReason }
                     : {}),
+                  ...(request.includeResponseMessages
+                    ? {
+                        responseMessages: await result.responseMessages,
+                        stepCount: (await result.steps).length,
+                      }
+                    : {}),
                 };
               }
 
@@ -868,9 +887,13 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               assertAssistantText(finalText);
 
               const normalizedUsage = {
-                inputTokens: tokenCount(result.usage.inputTokens),
-                outputTokens: tokenCount(result.usage.outputTokens),
-                costUsd: openRouterCost(result.providerMetadata),
+                inputTokens: tokenCount(result.totalUsage.inputTokens),
+                outputTokens: tokenCount(result.totalUsage.outputTokens),
+                costUsd: totalCost(
+                  result.steps.map((step) =>
+                    openRouterCost(step.providerMetadata),
+                  ),
+                ),
               };
 
               const cache = cacheUsage(result.usage);
@@ -891,6 +914,12 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 usage: normalizedUsage,
                 ...(request.includeCompletionMetadata
                   ? { finishReason: result.finishReason }
+                  : {}),
+                ...(request.includeResponseMessages
+                  ? {
+                      responseMessages: result.responseMessages,
+                      stepCount: result.steps.length,
+                    }
                   : {}),
               };
             } catch (error) {

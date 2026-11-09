@@ -58,6 +58,155 @@ function model(
 describe('OpenRouterLanguageModel', () => {
   afterEach(() => jest.restoreAllMocks());
 
+  it.each([
+    ['OpenRouter', 'https://openrouter.ai/api/v1', 'test-key'],
+    ['custom', 'http://localhost:20128/v1', ''],
+  ])(
+    'keeps a reasoning override local to one %s request',
+    async (_provider, baseUrl, apiKey) => {
+      const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'response',
+              choices: [
+                {
+                  message: { role: 'assistant', content: 'Hello.' },
+                  finish_reason: 'stop',
+                },
+              ],
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+      );
+
+      const gateway = model({
+        BACKEND_MODEL_BASE_URL: baseUrl,
+        BACKEND_MODEL_API_KEY: apiKey,
+        BACKEND_MODEL_REASONING_EFFORT: 'none',
+      });
+
+      await gateway.generate({
+        messages: [{ role: 'user', content: 'Hello' }],
+        reasoningEffort: 'medium',
+      });
+      await gateway.generate({
+        messages: [{ role: 'user', content: 'Summarize' }],
+      });
+
+      const first: unknown = JSON.parse(
+        fetch.mock.calls[0]![1]!.body as string,
+      );
+
+      const second: unknown = JSON.parse(
+        fetch.mock.calls[1]![1]!.body as string,
+      );
+
+      expect(first).toMatchObject(
+        apiKey
+          ? { reasoning: { effort: 'medium', exclude: true } }
+          : { reasoning_effort: 'medium' },
+      );
+      expect(second).toMatchObject(
+        apiKey
+          ? { reasoning: { effort: 'none', exclude: true } }
+          : { reasoning_effort: 'none' },
+      );
+    },
+  );
+
+  it.each([false, true])(
+    'returns tool results and final messages for continuation (streaming=%s)',
+    async (streaming) => {
+      const languageModel = new MockLanguageModelV4({
+        doGenerate: [
+          toolCallResult(
+            [toolCallChunk('lookup-1', 'search_documents', {})],
+            'tool-calls',
+          ),
+          {
+            content: [{ type: 'text', text: 'Found it.' }],
+            finishReason: { unified: 'stop', raw: undefined },
+            usage: streamUsage,
+            warnings: [],
+          },
+        ],
+        doStream: [toolCallStream('search_documents'), textStream('Found it.')],
+      });
+
+      const output = await gatewayFor(languageModel).generate({
+        messages: [{ role: 'user', content: 'Find the document.' }],
+        tools: fakeTools(),
+        includeCompletionMetadata: true,
+        includeResponseMessages: true,
+        ...(streaming ? { onToolCall: () => undefined } : {}),
+      });
+
+      expect(output.stepCount).toBe(2);
+      expect(output.finishReason).toBe('stop');
+      const toolMessages = output.responseMessages?.filter(
+        (message) => message.role === 'tool',
+      );
+
+      const toolResults = toolMessages?.flatMap((message) => message.content);
+      expect(toolResults).toContainEqual(
+        expect.objectContaining({
+          type: 'tool-result',
+          toolName: 'search_documents',
+          output: { type: 'text', value: 'ok' },
+        }),
+      );
+      const final = output.responseMessages?.at(-1);
+      expect(final?.role).toBe('assistant');
+      expect(final?.content).toEqual(
+        expect.arrayContaining([{ type: 'text', text: 'Found it.' }]),
+      );
+      // Two provider steps of 3 input + 4 output tokens each.
+      expect(output.usage).toMatchObject({ inputTokens: 6, outputTokens: 8 });
+    },
+  );
+
+  it.each([
+    { secondCost: 0.02, expected: 0.03 },
+    { secondCost: undefined, expected: undefined },
+  ])(
+    'reports the whole generation cost only when every step reports billing ($secondCost)',
+    async ({ secondCost, expected }) => {
+      const languageModel = new MockLanguageModelV4({
+        doGenerate: [
+          {
+            ...toolCallResult(
+              [toolCallChunk('lookup-1', 'search_documents', {})],
+              'tool-calls',
+            ),
+            providerMetadata: { openrouter: { usage: { cost: 0.01 } } },
+          },
+          {
+            content: [{ type: 'text', text: 'Found it.' }],
+            finishReason: { unified: 'stop', raw: undefined },
+            usage: streamUsage,
+            warnings: [],
+            ...(secondCost === undefined
+              ? {}
+              : {
+                  providerMetadata: {
+                    openrouter: { usage: { cost: secondCost } },
+                  },
+                }),
+          },
+        ],
+      });
+
+      const output = await gatewayFor(languageModel).generate({
+        messages: [{ role: 'user', content: 'Find it.' }],
+        tools: fakeTools(),
+      });
+
+      expect(output.usage.costUsd).toBe(expected);
+    },
+  );
+
   it('uses a keyless custom endpoint with high reasoning and no OpenRouter options', async () => {
     const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

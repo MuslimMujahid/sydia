@@ -61,6 +61,7 @@ test('the main agent receives a record without depending on a separate capture p
     createRun: jest
       .fn<IConversationRepository['createRun']>()
       .mockResolvedValue({ ...run, status: 'queued' }),
+    findExecutionPlan: () => Promise.resolve(null),
     claimRun: jest
       .fn<IConversationRepository['claimRun']>()
       .mockResolvedValue(true),

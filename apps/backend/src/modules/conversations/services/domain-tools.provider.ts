@@ -1,3 +1,4 @@
+import { createAssistantPlanTool } from './assistant-plan';
 import { RecordNotesService } from '../../record-notes';
 import { createRecordNoteTools } from './record-note-tools';
 import { withNoteSkillInventory } from './note-skill-inventory';
@@ -81,6 +82,7 @@ export class DomainToolsProvider {
   ) {
     const protectedTools = protectNoteTools(
       [
+        createAssistantPlanTool(),
         ...createDomainTools({
           tasks,
           categories,

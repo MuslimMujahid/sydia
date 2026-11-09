@@ -385,13 +385,13 @@ export function createDomainTools(deps: {
     definition: {
       name: 'get_current_datetime',
       label: 'View current time',
-      description: `Use this tool to retrieve the user's current date, time, timezone, and UTC instant.
+      description: `Use this tool to get local date, time, profile timezone and UTC instant.
 
-Use it when interpreting relative dates or scheduling and the timezone is needed.
+Use it when relative dates or scheduling need them.
 
-Do not use it when the current time is already known and no calculation is required.
+Do not use it when already known and no calculation is needed.
 
-The timezone comes from the user's profile.`,
+Profile timezone applies.`,
       parameters: schema({}),
     },
     internal: true,
@@ -428,13 +428,13 @@ The timezone comes from the user's profile.`,
     definition: {
       name: 'create_task',
       label: 'Create task',
-      description: `Use this tool to create a new task for the user.
+      description: `Use this tool to create personal tasks.
 
-Use it when the user asks to remember work, add a to-do, or create an actionable item.
+Use it when work or a to-do is requested.
 
-Do not use it to create a reminder or save a long-term memory; use 'create_reminder' or 'save_memory' instead.
+Do not use it for reminders or long-term memory.
 
-title is required; description, priority, ISO dueAt, and up to five existing categoryNames are optional. Unmatched category names are not attached.`,
+title is required; up to five existing categoryNames; unmatched names are not attached.`,
       parameters: schema(
         {
           title: string,
@@ -477,13 +477,13 @@ title is required; description, priority, ISO dueAt, and up to five existing cat
     definition: {
       name: 'update_task',
       label: 'Update task',
-      description: `Use this tool to update an existing task.
+      description: `Use this tool to update a task by id or query.
 
-Use it when the user asks to change a task's title, details, priority, due date, status, or categories.
+Use it when task fields change.
 
-Do not use it to create a task, list tasks unchanged, or change a reminder.
+Do not use it for creation, listing or reminders.
 
-Identify the task with id or query. Only supplied fields change; categoryMode adds, removes, or sets categories.`,
+Only supplied fields change; categoryMode adds, removes or sets categories.`,
       parameters: schema(
         {
           id: string,

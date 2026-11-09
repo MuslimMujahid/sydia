@@ -168,6 +168,7 @@ async function runReceiptTurn(
     }),
     findLatestRunForMessage: resolved(null),
     createRun: resolved(createRun()),
+    findExecutionPlan: () => Promise.resolve(null),
     claimRun: resolved(true),
     findFirstUserMessageId: () => Promise.resolve(null),
     findRecentContexts: resolved([]),
@@ -260,6 +261,7 @@ describe('AssistantOrchestratorService', () => {
       }),
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
+      findExecutionPlan: () => Promise.resolve(null),
       claimRun: resolved(true),
       findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
@@ -371,6 +373,7 @@ describe('AssistantOrchestratorService', () => {
         replayed: true,
       }),
       findLatestRunForMessage: resolved(queuedRun),
+      findExecutionPlan: () => Promise.resolve(null),
       claimRun: resolved(true),
       findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
@@ -443,6 +446,7 @@ describe('AssistantOrchestratorService', () => {
       }),
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
+      findExecutionPlan: () => Promise.resolve(null),
       claimRun: resolved(true),
       findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
@@ -526,6 +530,7 @@ describe('AssistantOrchestratorService', () => {
       }),
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
+      findExecutionPlan: () => Promise.resolve(null),
       claimRun: resolved(true),
       findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
@@ -590,6 +595,7 @@ describe('AssistantOrchestratorService', () => {
       }),
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
+      findExecutionPlan: () => Promise.resolve(null),
       claimRun: resolved(true),
       findFirstUserMessageId: () => Promise.resolve(null),
       findRecentContexts: resolved([]),
@@ -795,6 +801,7 @@ describe('AssistantOrchestratorService', () => {
       }),
       findLatestRunForMessage: resolved(null),
       createRun: resolved(createRun()),
+      findExecutionPlan: () => Promise.resolve(null),
       claimRun: resolved(true),
       completeRun: resolved({ assistantMessage, assistantRun: completedRun }),
       replaceSummary: jest.fn(),
@@ -836,10 +843,10 @@ describe('AssistantOrchestratorService', () => {
       conversation.id,
       userMessage.id,
       'telegram',
-      undefined,
+      expect.any(AbortSignal),
     );
-    expect(generate).toHaveBeenCalledWith(
-      expect.objectContaining({ messages: context }),
+    expect(generate.mock.calls[0]?.[0].messages).toEqual(
+      expect.arrayContaining(context),
     );
   });
 });

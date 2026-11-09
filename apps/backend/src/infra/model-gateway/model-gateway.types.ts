@@ -33,6 +33,8 @@ export type ToolStepAcknowledger = (
   decidedBy: readonly ToolStepExecution[],
 ) => string | null;
 
+export type ReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high';
+
 export type GenerateRequest = {
   messages: ModelMessage[];
   userId?: string;
@@ -47,6 +49,9 @@ export type GenerateRequest = {
   retrySafeTools?: ReadonlySet<string>;
   temperature?: number;
   maxOutputTokens?: number;
+  reasoningEffort?: ReasoningEffort;
+  /** Include the full SDK response transcript for bounded same-turn continuation. */
+  includeResponseMessages?: boolean;
   maxSteps?: number;
   /** Include the provider finish reason for callers that must verify a completed run. */
   includeCompletionMetadata?: boolean;
@@ -83,6 +88,8 @@ export type GenerateRequest = {
 export type GenerateResult = {
   text: string;
   finishReason?: string;
+  responseMessages?: ModelMessage[];
+  stepCount?: number;
   usage: { inputTokens?: number; outputTokens?: number; costUsd?: number };
 };
 

@@ -4,7 +4,10 @@
     "routing": true,
     "commit": "8a3a97c",
     "startedAt": "2026-11-08T11:14:14.586Z",
-    "runsPerScenario": 3
+    "runsPerScenario": 3,
+    "scoringVersion": "date-attribution-v2",
+    "fixtureDate": "2026-11-08",
+    "rescoredFromSha256": "0bae9360116e6c1e4c797ab9b6e9e10a4a54e13ff49000a3025c3362e7dc6dcf"
   },
   "scenarios": [
     {
@@ -4632,7 +4635,7 @@
     {
       "id": "open-named-note-held-out-buka",
       "area": "tool-choice",
-      "passed": 1,
+      "passed": 3,
       "runs": [
         {
           "text": "Ini catatan **[Stok Barang](#note/n-stok)** — tabel barang masuk ke gudang, sekarang ada 4 baris:\n\n| Tanggal | Barang | Jumlah | Satuan | Harga |\n| --- | --- | --- | --- | --- |\n| 6 Nov 2026 | Tepung terigu | 10 | kg | — |\n| 7 Nov 2026 | Minyak goreng | 12 | liter | — |\n| 8 Nov 2026 | Gula | 20 | kg | — |\n| 8 Nov 2026 | Telur | 5 | kg | — |\n\nKolom **Harga** masih kosong di semua baris. Mau saya isikan harganya, atau ada barang lain yang masuk hari ini?",
@@ -4672,12 +4675,7 @@
           },
           "terminalAcknowledgement": false,
           "contextTokens": 3579,
-          "failures": [
-            {
-              "check": "does not mention \"Minyak\", \"Tepung\"",
-              "reason": "mentions Minyak, Tepung"
-            }
-          ],
+          "failures": [],
           "retries": 0
         },
         {
@@ -4780,12 +4778,7 @@
           },
           "terminalAcknowledgement": false,
           "contextTokens": 3579,
-          "failures": [
-            {
-              "check": "does not mention \"Minyak\", \"Tepung\"",
-              "reason": "mentions Minyak, Tepung"
-            }
-          ],
+          "failures": [],
           "retries": 0
         }
       ]

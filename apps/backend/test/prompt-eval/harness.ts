@@ -1,3 +1,12 @@
+import { AssistantPlanState } from '../../src/modules/conversations/services/assistant-plan';
+import {
+  AssistantExecutionSettings,
+  generateAssistantTurn,
+} from '../../src/modules/conversations/services/assistant-execution';
+import type {
+  ExecutionPlan,
+  ExecutionPlanWrite,
+} from '../../src/database/entities';
 import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { validateEnvironment } from '../../src/app.module';
@@ -87,6 +96,9 @@ export type EvalUser = {
 export type ToolCall = { name: string; args: Record<string, unknown> };
 
 export type RunRecord = {
+  durationMs?: number;
+  executionPlan?: ExecutionPlan | null;
+  responseMessages?: import('../../src/infra/model-gateway').ModelMessage[];
   text: string;
   calls: ToolCall[];
   /** Row writes the cell review refused before they reached the table. */
@@ -171,8 +183,23 @@ function conversationRepository(
   }));
 
   const invocations = new Map<string, ToolInvocation>();
+  let plan: ExecutionPlan | null = null;
 
   return {
+    findExecutionPlan: () => Promise.resolve(plan),
+    saveExecutionPlan: (input: ExecutionPlanWrite) => {
+      if (input.revision !== (plan ? plan.revision : 0))
+        throw new Error('Execution plan revision changed.');
+      plan = {
+        conversationId: input.conversationId,
+        runId: input.runId,
+        sourceMessageId: input.sourceMessageId,
+        revision: input.revision + 1,
+        steps: structuredClone(input.steps),
+      };
+
+      return Promise.resolve(plan);
+    },
     findContext: () =>
       Promise.resolve({
         conversation: {
@@ -333,7 +360,7 @@ function scriptedTools(
   return provider.tools.map((tool) => {
     const name = tool.definition.name;
 
-    if (name === 'load_skill')
+    if (name === 'load_skill' || name === 'update_plan')
       return {
         ...tool,
         execute: (input) => {
@@ -417,6 +444,7 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
   const observability = new ObservabilityService(config);
   const model = new OpenRouterLanguageModel(config, observability);
   const skills = new SkillCatalogService();
+  const executionSettings = new AssistantExecutionSettings(config);
   const routing = env.PROMPT_EVAL_ROUTING !== 'off';
   const capacity = routing ? new DecisionCapacityService(config) : null;
   const gateway = capacity
@@ -445,6 +473,7 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
 
   return {
     async run(scenario) {
+      const startedAt = performance.now();
       await connected;
       const user = evalUser(scenario);
       const now = new Date();
@@ -537,6 +566,17 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
           evidence: new Set(),
         };
 
+        const plan = executionSettings.planning
+          ? new AssistantPlanState(conversations, {
+              userId: user.id,
+              conversationId: 'prompt-eval',
+              runId: 'prompt-eval-run',
+              sourceMessageId: 'current',
+              claimStartedAt: now,
+            })
+          : undefined;
+
+        if (plan) await plan.load();
         const tools = executor.aiTools(
           user.id,
           'prompt-eval-run',
@@ -549,38 +589,51 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
             conversationId: 'prompt-eval',
             runId: 'prompt-eval-run',
             trigger: 'user',
+            executionPlan: plan,
+            toolBudget: { remaining: 48 },
             skills: state,
           },
         );
 
-        const result = await model.generate({
-          messages: built.messages,
-          userId: user.id,
-          conversationId: 'prompt-eval',
-          runId: `prompt-eval-${scenario.id}`,
-          traceName: `prompt-eval.${scenario.id}`,
-          tools,
-          retrySafeTools: executor.retrySafeTools(),
-          activeTools: () =>
-            activeTurnTools(routedTools ?? Object.keys(tools), state),
-          acknowledgeTerminalStep: (executions, decidedBy) => {
-            const reply = buildTerminalToolResponse(
-              {
-                locale: user.locale,
-                timezone: user.timezone,
-                channel: scenario.channel,
-              },
-              executions,
-              decidedBy,
-            );
+        const result = await generateAssistantTurn(
+          model,
+          {
+            messages: built.messages,
+            userId: user.id,
+            conversationId: 'prompt-eval',
+            runId: `prompt-eval-${scenario.id}`,
+            traceName: `prompt-eval.${scenario.id}`,
+            tools,
+            retrySafeTools: executor.retrySafeTools(),
+            activeTools: () =>
+              activeTurnTools(routedTools ?? Object.keys(tools), state).filter(
+                (name) => executionSettings.planning || name !== 'update_plan',
+              ),
+            acknowledgeTerminalStep: (executions, decidedBy) => {
+              const reply = buildTerminalToolResponse(
+                {
+                  locale: user.locale,
+                  timezone: user.timezone,
+                  channel: scenario.channel,
+                },
+                executions,
+                decidedBy,
+              );
 
-            if (reply !== null) terminalAcknowledgement = true;
+              if (reply !== null) terminalAcknowledgement = true;
 
-            return reply;
+              return reply;
+            },
           },
-        });
+          executionSettings,
+          plan,
+          user.locale,
+        );
 
         return {
+          durationMs: Math.round(performance.now() - startedAt),
+          executionPlan: plan?.snapshot(),
+          responseMessages: result.responseMessages,
           text: result.text,
           calls: record.calls,
           refused: record.refused,
@@ -592,6 +645,7 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
         };
       } catch (error) {
         return {
+          durationMs: Math.round(performance.now() - startedAt),
           text: '',
           calls: record.calls,
           refused: record.refused,

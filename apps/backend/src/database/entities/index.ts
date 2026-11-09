@@ -27,3 +27,5 @@ export * from './assistant-action.entity';
 export * from './note-work.entity';
 export * from './record-note.entity';
 export * from './attribution.entity';
+
+export * from './execution-plan.entity';

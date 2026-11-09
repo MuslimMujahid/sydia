@@ -61,6 +61,7 @@ export const TOOL_GROUPS = {
     'delete_category',
   ],
   time: ['get_current_datetime'],
+  planning: ['update_plan'],
   assistance: [
     'load_skill',
     'get_work_context',

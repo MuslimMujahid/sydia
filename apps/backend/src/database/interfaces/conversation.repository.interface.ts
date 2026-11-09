@@ -1,3 +1,4 @@
+import type { ExecutionPlan, ExecutionPlanWrite } from '../entities';
 import type { Prisma } from '../../generated/prisma/client';
 import type { NormalizedInboundMessage } from '../../shared/messaging';
 import type {
@@ -205,7 +206,17 @@ export interface IConversationRepository {
     messageId: string,
   ): Promise<AssistantRunRecord | null>;
   createRun(input: NewAssistantRun): Promise<AssistantRun>;
-  claimRun(id: string, staleBefore: Date): Promise<boolean>;
+  claimRun(
+    id: string,
+    staleBefore: Date,
+    claimStartedAt?: Date,
+  ): Promise<boolean>;
+  findExecutionPlan(
+    userId: string,
+    conversationId: string,
+  ): Promise<ExecutionPlan | null>;
+  /** revision is the expected previous revision; writes append an immutable snapshot. */
+  saveExecutionPlan(input: ExecutionPlanWrite): Promise<ExecutionPlan>;
   updateRun(
     id: string,
     update: {

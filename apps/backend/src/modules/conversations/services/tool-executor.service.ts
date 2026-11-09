@@ -1,3 +1,4 @@
+import type { AssistantPlanState } from './assistant-plan';
 import { ApiException } from '../../../shared/errors';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
@@ -44,6 +45,7 @@ export type AssistantSkillState = {
 };
 
 export type AssistantToolExecutionContext = {
+  executionPlan?: AssistantPlanState;
   sourceDocumentIds?: string[];
   sourceNoteRefs?: string[];
   channel?: MessageProvider;
@@ -162,6 +164,7 @@ type LocalizedToolLabel = Record<SupportedLocale, string>;
  * descriptions and canonical labels sent to the model remain English.
  */
 const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
+  update_plan: { en: 'Update execution plan', id: 'Memperbarui rencana kerja' },
   get_record_note_metadata: {
     en: 'View table structure',
     id: 'Melihat struktur tabel',
@@ -400,7 +403,7 @@ export class ToolExecutorService {
                   if (tracksFailure)
                     context.noteMutationFailures!.add(failureKey);
                   Logger.warn(
-                    'Background tool failed; unfinished mutations must remain recoverable.',
+                    `${context?.trigger === 'background' ? 'Background' : 'Internal'} tool ${definition.name} failed; unfinished work must remain recoverable.`,
                     'ToolExecutorService',
                   );
                   throw new Error(toolErrorContent(error), { cause: error });

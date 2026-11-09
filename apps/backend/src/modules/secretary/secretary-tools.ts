@@ -28,6 +28,7 @@ export const SECRETARY_TOOL_NAMES = [
 
 /** Capabilities that stay available all turn so early routing cannot hide guidance. */
 export const ALWAYS_AVAILABLE_TOOLS: readonly string[] = [
+  'update_plan',
   'load_skill',
   'get_work_context',
   'get_current_datetime',
