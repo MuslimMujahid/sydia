@@ -344,6 +344,7 @@ export class HindsightDeliveryService {
             delivery.content,
             facts,
             () => this.renew(bankId, token),
+            snapshot.source.eventAt,
           )))
       ) {
         await this.ledger.rejectDelivery(bankId, token, delivery.id);

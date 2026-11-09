@@ -158,6 +158,7 @@ export class MemoryAccessService {
       userEvidence.requestedFact,
       userEvidence.messages,
       context.sourceMessageId,
+      userEvidence.eventAt,
     );
 
     const sourceInput = JSON.stringify({
@@ -264,6 +265,7 @@ export class MemoryAccessService {
       userEvidence.requestedFact,
       userEvidence.messages,
       context.sourceMessageId,
+      userEvidence.eventAt,
     );
 
     for (const { snapshot, factIds } of targets) {
@@ -697,6 +699,7 @@ export class MemoryAccessService {
     requestedFact: string,
     messages: Array<{ id: string; content: string }>,
     requestMessageId?: string,
+    sourceTime?: Date,
   ): Promise<{
     userEvidence: string;
     approvedEvidence?: string[];
@@ -745,6 +748,8 @@ export class MemoryAccessService {
               mentionedAt: null,
             },
           ],
+          undefined,
+          sourceTime,
         ));
 
       if (!accepted)

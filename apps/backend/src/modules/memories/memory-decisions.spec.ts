@@ -342,6 +342,48 @@ test('an explicit remember request does not admit a fact the user did not state'
     ),
   ).toEqual({ status: 'reject' });
 });
+test('the source time lets a date the user did not write count as when they wrote it', async () => {
+  const { facts, decide } = setup();
+  await facts.review(
+    'user',
+    [{ id: 'f1', text: 'The user lives in Makassar | When: 2026-09-03' }],
+    ['Saya tinggal di Makassar.'],
+    [],
+    undefined,
+    undefined,
+    false,
+    new Date('2026-09-02T17:30:00Z'),
+  );
+
+  const request = decide.mock.calls[0]![0];
+  expect(JSON.parse(request.state)).toMatchObject({
+    sourceTime: {
+      at: '2026-09-02T17:30:00.000Z',
+      localDate: '2026-09-03',
+      timezone: 'Asia/Makassar',
+    },
+  });
+  expect(request.questions.grounded_0!.instructions).toContain('sourceTime');
+  expect(request.questions.support_0_0!.instructions).toContain('sourceTime');
+  expect(decide.mock.calls[1]![0].questions.coverage_0!.instructions).toContain(
+    'sourceTime',
+  );
+});
+test('without a source time the review is unchanged', async () => {
+  const { facts, decide } = setup();
+  await facts.review(
+    'user',
+    [{ id: 'f1', text: 'The user lives in Makassar.' }],
+    ['Saya tinggal di Makassar.'],
+    [],
+  );
+
+  const request = decide.mock.calls[0]![0];
+  expect(JSON.parse(request.state)).not.toHaveProperty('sourceTime');
+  expect(request.questions.grounded_0!.instructions).not.toContain(
+    'sourceTime',
+  );
+});
 test('sensitive facts are reviewed like any other fact, with no consent questions', async () => {
   const { facts, decide } = setup();
   expect(

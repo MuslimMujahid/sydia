@@ -39,6 +39,8 @@ const enabled = process.env.MEMORY_CALIBRATION_ENABLED === 'true';
 const RUNS = Number(process.env.MEMORY_CALIBRATION_RUNS ?? 3);
 const reportPath = process.env.MEMORY_CALIBRATION_REPORT ?? '';
 const COHORT = 'memory-calibration';
+/** Production reviews always know when the user wrote the evidence. */
+const SOURCE_TIME = new Date('2026-11-07T02:00:00Z');
 /** Junk facts admitted at most once per this many reject decisions. */
 const JUNK_TOLERANCE = 12;
 
@@ -194,6 +196,10 @@ function admitted(row: FactRow): boolean {
             })),
             fixture.evidence,
             fixture.permissions,
+            undefined,
+            undefined,
+            false,
+            SOURCE_TIME,
           );
           const review = recorded.find(
             ({ stage }) => stage === 'memory-facts',

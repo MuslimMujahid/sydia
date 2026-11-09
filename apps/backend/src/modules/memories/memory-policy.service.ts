@@ -158,6 +158,7 @@ export class MemoryPolicyService {
     sourceContent: string,
     facts: HindsightFact[],
     beforeReview?: () => Promise<void>,
+    sourceTime?: Date,
   ): Promise<boolean> {
     if (!facts.length) return true;
     if (
@@ -209,6 +210,7 @@ export class MemoryPolicyService {
           ? source.userMessageId
           : undefined,
         source.explicitRequest === true,
+        sourceTime,
       );
 
       if (decision.status === 'unavailable')

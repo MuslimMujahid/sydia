@@ -220,6 +220,8 @@ export class HindsightBackfillService {
                 mentionedAt: null,
               },
             ],
+            undefined,
+            evidence?.createdAt ?? memory.createdAt,
           );
 
           if (!accepted) {
