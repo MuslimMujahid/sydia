@@ -479,6 +479,331 @@
       ]
     },
     {
+      "id": "task-update-ambiguous-asks",
+      "area": "references",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 6444,
+          "text": "Ada dua tugas invoice yang masih terbuka: [Kirim invoice Acme](#task/t-acme) (jatuh tempo 10 Nov 2026, 17.00) dan [Kirim invoice Budi](#task/t-budi) (12 Nov 2026, 10.00). Yang mana yang sudah beres — salah satunya, atau dua-duanya?",
+          "calls": [
+            {
+              "name": "list_tasks",
+              "args": {
+                "query": "invoice"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46833,
+            "outputTokens": 245
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3840,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 5433,
+          "text": "Ada dua tugas kirim invoice yang masih terbuka:\n\n- [Kirim invoice Acme](#task/t-acme) — 10 Nov 2026, 17.00\n- [Kirim invoice Budi](#task/t-budi) — 12 Nov 2026, 10.00\n\nYang mana yang sudah beres? 🙂",
+          "calls": [
+            {
+              "name": "list_tasks",
+              "args": {
+                "query": "invoice"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46833,
+            "outputTokens": 211
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3840,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 6081,
+          "text": "Ada dua tugas kirim invoice yang masih terbuka, Rina. Yang mana yang mau ditandai selesai?\n\n- [Kirim invoice Acme](#task/t-acme) — 10 Nov 2026, 17.00\n- [Kirim invoice Budi](#task/t-budi) — 12 Nov 2026, 10.00",
+          "calls": [
+            {
+              "name": "list_tasks",
+              "args": {
+                "query": "invoice"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46833,
+            "outputTokens": 212
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3840,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "task-update-ambiguous-answered",
+      "area": "references",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 8455,
+          "text": "Siap, [Kirim invoice Budi](#task/t-budi) sudah ditandai selesai ✅\n\nTinggal [Kirim invoice Acme](#task/t-acme) yang masih terbuka, jatuh tempo besok 10 Nov 2026, 17.00.",
+          "calls": [
+            {
+              "name": "list_tasks",
+              "args": {
+                "query": "invoice"
+              }
+            },
+            {
+              "name": "update_task",
+              "args": {
+                "id": "t-budi",
+                "status": "done"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 70854,
+            "outputTokens": 257
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3889,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 9077,
+          "text": "Sudah kutandai selesai: [Kirim invoice Budi](#task/t-budi). Yang Acme masih terbuka, jatuh tempo besok 17.00.",
+          "calls": [
+            {
+              "name": "list_tasks",
+              "args": {
+                "query": "kirim invoice"
+              }
+            },
+            {
+              "name": "update_task",
+              "args": {
+                "id": "t-budi",
+                "status": "done"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 70799,
+            "outputTokens": 271
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3889,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 18037,
+          "text": "Sudah, [Kirim invoice Budi](#task/t-budi) sekarang ditandai selesai. [Kirim invoice Acme](#task/t-acme) masih terbuka, jatuh tempo besok 17.00 — mau sekalian aku biarkan saja? 🙂",
+          "calls": [
+            {
+              "name": "list_tasks",
+              "args": {
+                "query": "kirim invoice"
+              }
+            },
+            {
+              "name": "update_task",
+              "args": {
+                "id": "t-budi",
+                "status": "done"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 70858,
+            "outputTokens": 202
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3889,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "reminder-update-ambiguous-asks",
+      "area": "references",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 6474,
+          "text": "Ada dua pengingat minum obat yang tersimpan:\n\n- [Minum obat pagi](#reminder/r-pagi) — setiap hari jam 07.00\n- [Minum obat malam](#reminder/r-malam) — hari ini jam 21.00 (tidak berulang)\n\nYang mau diganti ke jam 8 yang mana? Kalau pagi, berarti jadi 08.00; kalau malam, jadi 20.00.",
+          "calls": [
+            {
+              "name": "list_reminders",
+              "args": {
+                "query": "minum obat"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46592,
+            "outputTokens": 316
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3836,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 15234,
+          "text": "Ada dua pengingat obat yang tersimpan: **[Minum obat pagi](#reminder/r-pagi)** (setiap hari jam 07.00) dan **[Minum obat malam](#reminder/r-malam)** (hari ini jam 21.00).\n\nYang mau digeser ke jam 8 itu yang mana — pagi (jadi 08.00) atau malam (jadi 20.00)?",
+          "calls": [
+            {
+              "name": "list_reminders",
+              "args": {
+                "query": "minum obat"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46592,
+            "outputTokens": 439
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3836,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 36022,
+          "text": "Ada dua pengingat obat yang tersimpan: **Minum obat pagi** (tiap hari, 07.00) dan **Minum obat malam** (hari ini, 21.00 — sudah lewat).\n\nYang mau digeser ke jam 8 itu yang mana, dan jam 8 pagi (08.00) atau jam 8 malam (20.00)?",
+          "calls": [
+            {
+              "name": "list_reminders",
+              "args": {
+                "query": "minum obat"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46591,
+            "outputTokens": 458
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3836,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "reminder-delete-ambiguous-asks",
+      "area": "references",
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 8330,
+          "text": "Ada dua pengingat rapat yang cocok:\n\n- Rapat tim — 10 Nov 2026, 09.00\n- Rapat klien — 11 Nov 2026, 14.00\n\nYang mana yang mau dihapus, atau dua-duanya?",
+          "calls": [
+            {
+              "name": "list_reminders",
+              "args": {
+                "query": "rapat"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46717,
+            "outputTokens": 137
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3877,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 5551,
+          "text": "Ada dua pengingat rapat yang cocok:\n\n- Rapat tim — Selasa, 10 Nov 2026, 09.00\n- Rapat klien — Rabu, 11 Nov 2026, 14.00\n\nYang mana yang mau dihapus? Atau keduanya? 🙂",
+          "calls": [
+            {
+              "name": "list_reminders",
+              "args": {
+                "query": "rapat"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46603,
+            "outputTokens": 159
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3877,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 5675,
+          "text": "Ada dua pengingat rapat yang saya temukan:\n\n- Rapat tim — 10 Nov 2026, 09.00\n- Rapat klien — 11 Nov 2026, 14.00\n\nYang mau dihapus yang mana? Atau keduanya?",
+          "calls": [
+            {
+              "name": "list_reminders",
+              "args": {
+                "query": "rapat"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 46603,
+            "outputTokens": 153
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3877,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
       "id": "capture-expense",
       "area": "notes",
       "passed": 3,
