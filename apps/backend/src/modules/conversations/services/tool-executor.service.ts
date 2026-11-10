@@ -20,6 +20,7 @@ import type {
 import type { MessageProvider } from '../../../shared/messaging';
 import type { NoteWork } from '../../../database/entities';
 import { advertisedInputSchema } from './advertised-tool-schema';
+import { ToolLoopGuard } from './tool-loop-guard';
 import { AmbiguousReferenceError } from './tool-references';
 
 export type AssistantToolDefinition = {
@@ -335,6 +336,7 @@ export class ToolExecutorService {
     selectedToolNames?: readonly string[],
   ): ToolSet {
     const documentSearches = new Map<string, Promise<ToolExecutionResult>>();
+    const loopGuard = new ToolLoopGuard();
 
     return Object.fromEntries(
       Object.values(this.toolsByName)
@@ -429,6 +431,28 @@ export class ToolExecutorService {
                 arguments: input,
               };
 
+              const loopArguments = stripCompleteTurn(input);
+              const refusal = loopGuard.refusal(definition.name, loopArguments);
+
+              if (refusal) {
+                Logger.warn(
+                  `Refused ${definition.name}: it kept failing the same way in this turn.`,
+                  'ToolExecutorService',
+                );
+                const refused = await this.reject(
+                  runId,
+                  inputMessageId,
+                  call,
+                  definition.label,
+                  'Refused after repeated identical failures.',
+                  refusal,
+                );
+
+                onExecution?.(refused);
+
+                return refused.content;
+              }
+
               const searchKey =
                 definition.name === 'search_documents'
                   ? JSON.stringify(assistantTool.parseArguments(input))
@@ -454,7 +478,16 @@ export class ToolExecutorService {
                     return execution;
                   })();
 
-              if (!existingSearch) onExecution?.(result);
+              if (!existingSearch) {
+                loopGuard.record(
+                  definition.name,
+                  loopArguments,
+                  ['failed', 'rejected'].includes(result.invocation.status)
+                    ? result.content
+                    : null,
+                );
+                onExecution?.(result);
+              }
 
               return result.content;
             },
@@ -475,30 +508,15 @@ export class ToolExecutorService {
     const assistantTool = this.toolsByName[call.name];
     const idempotencyKey = `${inputMessageId}:${call.id}`;
 
-    if (!assistantTool) {
-      const invocation = await this.conversations.createToolInvocation({
-        assistantRunId: runId,
-        toolCallId: call.id,
-        name: call.name || 'unknown',
-        label: call.name || 'Unknown tool',
-        arguments: {},
-        idempotencyKey,
-      });
-
-      const rejected = await this.conversations.updateToolInvocation(
-        invocation.id,
-        {
-          status: 'rejected',
-          errorMessage: 'Tool not allowed.',
-          completedAt: new Date(),
-        },
+    if (!assistantTool)
+      return this.reject(
+        runId,
+        inputMessageId,
+        call,
+        call.name || 'Unknown tool',
+        'Tool not allowed.',
+        'Tool rejected: not allowed.',
       );
-
-      return {
-        invocation: rejected,
-        content: 'Tool rejected: not allowed.',
-      };
-    }
 
     let argumentsValue: Prisma.InputJsonValue;
 
@@ -507,29 +525,14 @@ export class ToolExecutorService {
         stripCompleteTurn(call.arguments),
       );
     } catch (error) {
-      const invocation = await this.conversations.createToolInvocation({
-        assistantRunId: runId,
-        toolCallId: call.id,
-        name: call.name,
-        label: assistantTool.definition.label,
-        arguments: {},
-        idempotencyKey,
-      });
-
-      const rejected = await this.conversations.updateToolInvocation(
-        invocation.id,
-        {
-          status: 'rejected',
-          errorMessage:
-            error instanceof Error ? error.message : 'Invalid tool arguments.',
-          completedAt: new Date(),
-        },
+      return this.reject(
+        runId,
+        inputMessageId,
+        call,
+        assistantTool.definition.label,
+        error instanceof Error ? error.message : 'Invalid tool arguments.',
+        'Tool rejected: invalid arguments.',
       );
-
-      return {
-        invocation: rejected,
-        content: 'Tool rejected: invalid arguments.',
-      };
     }
 
     const persistedArguments: Prisma.InputJsonValue = assistantTool.sensitive
@@ -643,6 +646,32 @@ export class ToolExecutorService {
 
       return { invocation: failed, content: toolErrorContent(error) };
     }
+  }
+
+  /** Records a call that was never run, with the reason the model sees. */
+  private async reject(
+    runId: string,
+    inputMessageId: string,
+    call: AssistantToolCall,
+    label: string,
+    errorMessage: string,
+    content: string,
+  ): Promise<ToolExecutionResult> {
+    const invocation = await this.conversations.createToolInvocation({
+      assistantRunId: runId,
+      toolCallId: call.id,
+      name: call.name || 'unknown',
+      label,
+      arguments: {},
+      idempotencyKey: `${inputMessageId}:${call.id}`,
+    });
+
+    const rejected = await this.conversations.updateToolInvocation(
+      invocation.id,
+      { status: 'rejected', errorMessage, completedAt: new Date() },
+    );
+
+    return { invocation: rejected, content };
   }
 
   private secretResultMetadata(
