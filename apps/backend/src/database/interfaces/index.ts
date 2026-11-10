@@ -35,3 +35,4 @@ export * from './record-notes.repository.interface';
 export * from './attribution.repository.interface';
 
 export * from './admin-analytics.repository.interface';
+export * from './model-usage.repository.interface';

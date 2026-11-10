@@ -32,6 +32,11 @@ export type AdminUser = {
   lastPaymentAt: string | null;
   lastPaymentMethod: string | null;
   llmCost30DaysUsd: number;
+  llmCost30DaysByKind: Array<{
+    kind: AdminCostKind;
+    costUsd: number;
+    calls: number;
+  }>;
 };
 
 export type AdminOverview = {
@@ -63,16 +68,45 @@ export type AdminUsersInput = {
   plan?: "trial" | "plus" | "expired";
   activity?: "active" | "inactive";
   attention?: "trial-expiring" | "plus-expiring";
-  sort?: "newest" | "oldest" | "activity";
+  sort?: "newest" | "oldest" | "activity" | "cost";
 };
 
-export type AdminPeriod = 7 | 30 | 90;
+export type AdminPeriod = "today" | "24h" | "7d" | "30d" | "90d";
+export type AdminBucket = "hour" | "day";
+/** What a model call was spent on. */
+export type AdminCostKind = "message" | "background" | "hindsight" | "other";
+export type AdminCosts = {
+  byKind: Array<{ kind: AdminCostKind; costUsd: number; calls: number }>;
+  breakdown: Array<{
+    kind: AdminCostKind;
+    job: string | null;
+    stage: string;
+    costUsd: number;
+    calls: number;
+    failedCalls: number;
+    unpricedCalls: number;
+  }>;
+  topAccounts: Array<{
+    userId: string;
+    name: string;
+    email: string;
+    costUsd: number;
+    calls: number;
+    messages: number;
+  }>;
+  unattributedUsd: number;
+  failedUsd: number;
+  unpricedCalls: number;
+  trackedSince: string | null;
+  hindsightTracked: boolean;
+};
 export type AdminMetric = { value: number; previous: number; series: number[] };
 export type AdminDashboard = {
   generatedAt: string;
   from: string;
   until: string;
   period: AdminPeriod;
+  bucket: AdminBucket;
   timezone: string;
   environment: string;
   overview: AdminOverview;
@@ -97,13 +131,15 @@ export type AdminDashboard = {
     createdAt: string;
     errorMessage: string | null;
   }>;
-  daily: Array<{
-    date: string;
+  timeline: Array<{
+    /** Bucket start in Asia/Jakarta, ISO 8601 with offset. */
+    start: string;
     registrations: number;
     activeUsers: number;
     messages: number;
     costUsd: number;
   }>;
+  costs: AdminCosts;
   channels: Array<{ channel: string; messages: number }>;
   adoption: Array<{ feature: string; users: number }>;
   acquisition: Array<{ source: string; users: number; converted: number }>;

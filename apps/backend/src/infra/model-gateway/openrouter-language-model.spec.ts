@@ -11,6 +11,8 @@ import {
   OpenRouterLanguageModel,
 } from './openrouter-language-model';
 
+import { ObservabilityService } from '../observability';
+import type { ModelUsageCall, ModelUsageSink } from '../model-usage';
 import type {
   GenerationTrace,
   GenerationTraceRequest,
@@ -2124,5 +2126,166 @@ describe('OpenRouterLanguageModel', () => {
       'The assistant model could not be reached.',
     );
     expect((error as Error).message).not.toContain('secret provider response');
+  });
+
+  describe('usage ledger', () => {
+    function ledgerGateway(languageModel?: MockLanguageModelV4) {
+      const calls: ModelUsageCall[] = [];
+      const sink: ModelUsageSink = { record: (call) => calls.push(call) };
+      const gateway = new OpenRouterLanguageModel(
+        new ConfigService({ BACKEND_MODEL_API_KEY: 'test-key' }),
+        ObservabilityService.disabled(),
+        sink,
+      );
+
+      if (languageModel)
+        Object.defineProperty(gateway, 'languageModel', {
+          value: languageModel,
+        });
+
+      return { gateway, calls };
+    }
+
+    it.each([
+      { secondCost: 0.02, costUsd: 0.03, costPartial: false },
+      { secondCost: undefined, costUsd: 0.01, costPartial: true },
+    ])(
+      'records the billed cost of every step, partial when a step has none ($secondCost)',
+      async ({ secondCost, costUsd, costPartial }) => {
+        const { gateway, calls } = ledgerGateway(
+          new MockLanguageModelV4({
+            doGenerate: [
+              {
+                ...toolCallResult(
+                  [toolCallChunk('lookup-1', 'search_documents', {})],
+                  'tool-calls',
+                ),
+                providerMetadata: { openrouter: { usage: { cost: 0.01 } } },
+              },
+              {
+                content: [{ type: 'text', text: 'Found it.' }],
+                finishReason: { unified: 'stop', raw: undefined },
+                usage: streamUsage,
+                warnings: [],
+                ...(secondCost === undefined
+                  ? {}
+                  : {
+                      providerMetadata: {
+                        openrouter: { usage: { cost: secondCost } },
+                      },
+                    }),
+              },
+            ],
+          }),
+        );
+
+        await gateway.generate({
+          messages: [{ role: 'user', content: 'Find it.' }],
+          tools: fakeTools(),
+          traceName: 'assistant.reply',
+          userId: 'user-1',
+          runId: 'run-1',
+        });
+
+        expect(calls).toHaveLength(1);
+        expect(calls[0]).toMatchObject({
+          stage: 'assistant.reply',
+          model: 'qwen/qwen3.8-flash',
+          attempt: 1,
+          status: 'ok',
+          inputTokens: 6,
+          outputTokens: 8,
+          costPartial,
+          userId: 'user-1',
+          runId: 'run-1',
+        });
+        expect(calls[0]?.costUsd).toBeCloseTo(costUsd);
+      },
+    );
+
+    it('records a rejected attempt as unbilled and the retry that answered', async () => {
+      jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: { message: 'busy' } }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json', 'Retry-After': '0' },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              id: 'response-2',
+              choices: [
+                {
+                  message: { role: 'assistant', content: 'Recovered.' },
+                  finish_reason: 'stop',
+                },
+              ],
+              usage: {
+                prompt_tokens: 2,
+                completion_tokens: 1,
+                total_tokens: 3,
+                cost: 0.004,
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      const { gateway, calls } = ledgerGateway();
+
+      await gateway.generate({ messages: [{ role: 'user', content: 'Hi' }] });
+
+      expect(calls).toEqual([
+        expect.objectContaining({
+          stage: 'generation',
+          attempt: 1,
+          status: 'failed',
+          costUsd: 0,
+          costPartial: false,
+        }),
+        expect.objectContaining({
+          attempt: 2,
+          status: 'ok',
+          costUsd: 0.004,
+          costPartial: false,
+        }),
+      ]);
+    });
+
+    it('records a dropped stream as a failed attempt of unknown cost', async () => {
+      let attempts = 0;
+      const { gateway, calls } = ledgerGateway(
+        new MockLanguageModelV4({
+          doStream: () => {
+            attempts += 1;
+
+            return Promise.resolve(
+              attempts === 1
+                ? errorStream(
+                    new TypeError('terminated', {
+                      cause: Object.assign(new Error('closed'), {
+                        code: 'UND_ERR_SOCKET',
+                      }),
+                    }),
+                  )
+                : textStream('Halo.'),
+            );
+          },
+        }),
+      );
+
+      await gateway.generate({
+        messages: [{ role: 'user', content: 'Halo' }],
+        onTextDelta: jest.fn(),
+      });
+
+      expect(calls.map(({ attempt, status }) => [attempt, status])).toEqual([
+        [1, 'failed'],
+        [2, 'ok'],
+      ]);
+      expect(calls[0]?.costUsd).toBeUndefined();
+      expect(calls[0]?.costPartial).toBe(true);
+    });
   });
 });

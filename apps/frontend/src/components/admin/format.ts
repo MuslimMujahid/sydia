@@ -9,6 +9,14 @@ const USD_FORMAT = new Intl.NumberFormat("id-ID", {
   currency: "USD",
 });
 
+// Per-call and per-message model costs are fractions of a cent.
+const SMALL_USD_FORMAT = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
 const BYTE_UNITS = [
   "byte",
   "kilobyte",
@@ -28,7 +36,9 @@ export function formatDate(value: string): string {
 }
 
 export function formatUsd(value: number): string {
-  return USD_FORMAT.format(value);
+  return value !== 0 && Math.abs(value) < 1
+    ? SMALL_USD_FORMAT.format(value)
+    : USD_FORMAT.format(value);
 }
 
 export function formatBytes(bytes: number): string {

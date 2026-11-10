@@ -12,6 +12,8 @@ type AdminChartProps = {
   labels: string[];
   compact?: boolean;
   label: string;
+  /** Summary of the data-table disclosure. */
+  tableLabel?: string;
 };
 
 export function AdminChart({
@@ -19,6 +21,7 @@ export function AdminChart({
   labels,
   compact = false,
   label,
+  tableLabel = "Lihat data harian",
 }: AdminChartProps) {
   const id = useId();
   const width = 600;
@@ -133,14 +136,14 @@ export function AdminChart({
           </div>
           <details className="text-xs text-ink-muted">
             <summary className="cursor-pointer py-1 outline-none focus-visible:ring-2 focus-visible:ring-brand">
-              Lihat data harian
+              {tableLabel}
             </summary>
             <div className="mt-2 max-h-52 overflow-auto">
               <table className="w-full text-left">
                 <caption className="sr-only">{label}</caption>
                 <thead>
                   <tr>
-                    <th className="py-1 font-medium">Tanggal</th>
+                    <th className="py-1 font-medium">Waktu</th>
                     {series.map((entry) => (
                       <th key={entry.label} className="px-2 py-1 font-medium">
                         {entry.label}
@@ -150,7 +153,7 @@ export function AdminChart({
                 </thead>
                 <tbody>
                   {labels.map((day, point) => (
-                    <tr key={day}>
+                    <tr key={point}>
                       <th className="py-1 font-normal">{day}</th>
                       {series.map((entry) => (
                         <td key={entry.label} className="px-2 font-mono">

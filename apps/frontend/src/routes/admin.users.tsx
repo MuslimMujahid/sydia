@@ -19,30 +19,39 @@ import {
 export const Route = createFileRoute("/admin/users")({
   validateSearch: (
     search: Record<string, unknown>
-  ): { attention?: AdminUsersInput["attention"] } => ({
+  ): { attention?: AdminUsersInput["attention"]; q?: string } => ({
     attention:
       search.attention === "trial-expiring" ||
       search.attention === "plus-expiring"
         ? search.attention
         : undefined,
+    q: typeof search.q === "string" && search.q.trim() ? search.q : undefined,
   }),
   head: () => ({ meta: [{ title: "Pengguna · Sydia Admin" }] }),
   component: UsersRoute,
 });
 
 function UsersRoute() {
-  const { attention } = Route.useSearch();
+  const { attention, q } = Route.useSearch();
 
-  return <UsersContent key={attention ?? "all"} attention={attention} />;
+  return (
+    <UsersContent
+      key={`${attention ?? "all"}:${q ?? ""}`}
+      attention={attention}
+      q={q}
+    />
+  );
 }
 
 function UsersContent({
   attention,
+  q,
 }: {
   attention: AdminUsersInput["attention"];
+  q?: string;
 }) {
   const overview = useQuery(adminOverviewQueryOptions());
-  const list = useAdminUsersList({ attention });
+  const list = useAdminUsersList({ attention, ...(q ? { q } : {}) });
   const action = useAdminUserAction();
   const { mutateAsync: giftPlus } = useAdminGiftPlus();
   const onGiftPlus = useCallback<OnGiftPlus>(

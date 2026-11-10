@@ -39,7 +39,10 @@ const users = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin/users",
   component: () => <p>Daftar pengguna terfilter</p>,
-  validateSearch: (s: Record<string, unknown>) => ({ attention: s.attention }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    attention: s.attention,
+    q: s.q,
+  }),
 });
 
 const router = createRouter({

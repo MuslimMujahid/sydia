@@ -342,7 +342,7 @@ export function AdminPage({
                     Urutkan:
                     <select
                       aria-label="Urutkan pengguna"
-                      className="h-full w-[104px] min-w-0 appearance-none rounded-[8px] bg-transparent pr-9 pl-1 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="h-full w-[128px] min-w-0 appearance-none rounded-[8px] bg-transparent pr-9 pl-1 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       value={filters.sort ?? "newest"}
                       onChange={(event) =>
                         onFiltersChange({
@@ -353,6 +353,7 @@ export function AdminPage({
                       <option value="newest">Terbaru</option>
                       <option value="oldest">Terlama</option>
                       <option value="activity">Aktivitas terakhir</option>
+                      <option value="cost">Biaya 30 hari</option>
                     </select>
                     <ChevronDown
                       aria-hidden="true"

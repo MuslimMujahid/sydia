@@ -5,7 +5,8 @@ const dashboard = {
   generatedAt: "2026-11-07T12:00:00Z",
   from: "2026-11-01T00:00:00Z",
   until: "2026-11-07T12:00:00Z",
-  period: 30,
+  period: "30d",
+  bucket: "day",
   timezone: "Asia/Jakarta",
   environment: "production",
   overview: {
@@ -42,13 +43,55 @@ const dashboard = {
       errorMessage: "Provider timeout",
     },
   ],
-  daily: Array.from({ length: 7 }, (_, i) => ({
-    date: `2026-11-0${i + 1}`,
+  timeline: Array.from({ length: 7 }, (_, i) => ({
+    start: `2026-11-0${i + 1}T00:00:00+07:00`,
     registrations: i + 1,
     activeUsers: i + 5,
     messages: i * 8,
     costUsd: i / 10,
   })),
+  costs: {
+    byKind: [
+      { kind: "message", costUsd: 3.1, calls: 900 },
+      { kind: "background", costUsd: 0.8, calls: 300 },
+      { kind: "hindsight", costUsd: 0.3, calls: 12 },
+    ],
+    breakdown: [
+      {
+        kind: "message",
+        job: null,
+        stage: "assistant.reply",
+        costUsd: 2.9,
+        calls: 160,
+        failedCalls: 4,
+        unpricedCalls: 0,
+      },
+      {
+        kind: "background",
+        job: "memory-dreams",
+        stage: "memory-dream.extract",
+        costUsd: 0.5,
+        calls: 40,
+        failedCalls: 0,
+        unpricedCalls: 2,
+      },
+    ],
+    topAccounts: [
+      {
+        userId: "heavy",
+        name: "Budi Hemat",
+        email: "budi@example.test",
+        costUsd: 1.25,
+        calls: 300,
+        messages: 50,
+      },
+    ],
+    unattributedUsd: 0.12,
+    failedUsd: 0.05,
+    unpricedCalls: 2,
+    trackedSince: "2026-10-01T00:00:00.000Z",
+    hindsightTracked: false,
+  },
   channels: [
     { channel: "web", messages: 120 },
     { channel: "whatsapp", messages: 48 },
@@ -76,7 +119,7 @@ test("real metrics, period selection, failure details and accessible chart data"
     const period = new URL(route.request().url()).searchParams.get("period")!;
     periods.push(period);
     await route.fulfill({
-      json: { data: { ...dashboard, period: Number(period) } },
+      json: { data: { ...dashboard, period } },
     });
   });
   await page.goto("/e2e/admin-dashboard.html");
@@ -87,7 +130,7 @@ test("real metrics, period selection, failure details and accessible chart data"
   await expect(page.getByText("18", { exact: true })).toBeVisible();
   await expect(page.getByText(/review pembayaran|log audit/i)).toHaveCount(0);
   await page.getByRole("button", { name: "7 hari", exact: true }).click();
-  await expect.poll(() => periods.at(-1)).toBe("7");
+  await expect.poll(() => periods.at(-1)).toBe("7d");
   await expect(
     page.getByRole("heading", { name: "Pengguna aktif · 30 hari", exact: true })
   ).toBeVisible();
@@ -109,6 +152,64 @@ test("real metrics, period selection, failure details and accessible chart data"
       () => document.documentElement.scrollWidth <= window.innerWidth
     )
   ).toBe(true);
+});
+test("today shows hourly trends and where model cost goes", async ({
+  page,
+}) => {
+  const periods: string[] = [];
+  await page.route("**/admin/dashboard?**", async (route) => {
+    const period = new URL(route.request().url()).searchParams.get("period")!;
+    periods.push(period);
+    const hourly = period === "today" || period === "24h";
+    await route.fulfill({
+      json: {
+        data: {
+          ...dashboard,
+          period,
+          bucket: hourly ? "hour" : "day",
+          timeline: hourly
+            ? Array.from({ length: 20 }, (_, hour) => ({
+                start: `2026-11-07T${String(hour).padStart(2, "0")}:00:00+07:00`,
+                registrations: 0,
+                activeUsers: hour % 3,
+                messages: hour,
+                costUsd: hour / 100,
+              }))
+            : dashboard.timeline,
+        },
+      },
+    });
+  });
+  await page.goto("/e2e/admin-dashboard.html");
+  await page.getByRole("button", { name: "Hari ini", exact: true }).click();
+  await expect.poll(() => periods.at(-1)).toBe("today");
+  await expect(
+    page.getByRole("heading", { name: /Tren per jam/ })
+  ).toBeVisible();
+  await expect(
+    page.getByText("Hari ini vs kemarin pada jam yang sama")
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Pengguna aktif · hari ini" })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "24 jam", exact: true }).click();
+  await expect.poll(() => periods.at(-1)).toBe("24h");
+
+  const costs = page.getByRole("region", { name: /Biaya model/ });
+  await expect(costs.getByText("Proses latar", { exact: true })).toBeVisible();
+  await expect(costs.getByText("Hindsight (memori)")).toBeVisible();
+  await expect(
+    costs.getByRole("rowheader", { name: /Ekstraksi memori/ })
+  ).toContainText("Memori");
+  await expect(
+    costs.getByText(/panggilan tanpa biaya lengkap dari/)
+  ).toHaveCount(0);
+  await expect(costs.getByText(/Semua panggilan tercatat sejak/)).toHaveCount(
+    0
+  );
+  await expect(costs.getByText(/Biaya Hindsight belum dilacak/)).toBeVisible();
+  await costs.getByRole("link", { name: /Budi Hemat/ }).click();
+  await expect(page).toHaveURL(/\/admin\/users\?q=budi%40example\.test/);
 });
 test("failed loading shows retry instead of fabricated metrics", async ({
   page,

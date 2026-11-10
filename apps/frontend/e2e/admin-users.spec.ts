@@ -34,6 +34,7 @@ async function openUsers(
       lastPaymentAt: null,
       lastPaymentMethod: null,
       llmCost30DaysUsd: 0,
+      llmCost30DaysByKind: [],
       lastActivityAt: null,
       activeSessions: 0,
       storageBytes: 0,

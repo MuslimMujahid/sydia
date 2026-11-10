@@ -8,9 +8,11 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import type {
-  AdminUsersInput,
-  AdminUserStatus,
+import {
+  ADMIN_PERIODS,
+  type AdminPeriod,
+  type AdminUsersInput,
+  type AdminUserStatus,
 } from '../../database/interfaces';
 
 export class AdminUsersQueryDto {
@@ -31,10 +33,10 @@ export class AdminUsersQueryDto {
   attention?: AdminUsersInput['attention'];
 
   @IsOptional()
-  @IsIn(['newest', 'oldest', 'activity'])
+  @IsIn(['newest', 'oldest', 'activity', 'cost'])
   sort?: AdminUsersInput['sort'];
 }
 
 export class AdminDashboardQueryDto {
-  @Type(() => Number) @IsIn([7, 30, 90]) period: 7 | 30 | 90 = 30;
+  @IsIn(ADMIN_PERIODS) period: AdminPeriod = '30d';
 }

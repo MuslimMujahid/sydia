@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { setTimeout as sleep } from 'node:timers/promises';
+import {
+  ModelUsageRecorder,
+  providerUsage,
+  type ModelUsageSink,
+} from '../model-usage';
 
 const DEFAULT_CONCURRENCY = 8;
 const MAX_ATTEMPTS = 3;
@@ -39,6 +44,15 @@ function retryDelayMs(attempt: number): number {
   return Math.floor(ceiling / 2 + Math.random() * (ceiling / 2));
 }
 
+/** Spend of one `embed`/`embedMany` call across its requests and retries. */
+type EmbeddingTally = {
+  requests: number;
+  priced: number;
+  costUsd: number;
+  inputTokens: number;
+  failed: boolean;
+};
+
 @Injectable()
 export class EmbeddingsService {
   private readonly apiKey: string;
@@ -47,7 +61,12 @@ export class EmbeddingsService {
   private readonly concurrency: number;
   readonly version = 'v1';
 
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    @Optional()
+    @Inject(ModelUsageRecorder)
+    private readonly usage: ModelUsageSink = ModelUsageRecorder.disabled(),
+  ) {
     // Optional embedding overrides allow chat to use a different provider.
     this.apiKey =
       config.get<string>('BACKEND_EMBEDDING_API_KEY')?.trim() ||
@@ -70,8 +89,16 @@ export class EmbeddingsService {
 
   async embed(text: string): Promise<number[] | null> {
     if (!this.apiKey) return null;
+    const tally = this.tally();
 
-    return this.embedWithRetry(text);
+    try {
+      return await this.embedWithRetry(text, tally);
+    } catch (error) {
+      tally.failed = true;
+      throw error;
+    } finally {
+      this.recordTally(tally);
+    }
   }
 
   /**
@@ -87,18 +114,29 @@ export class EmbeddingsService {
   async embedMany(texts: string[]): Promise<Array<number[] | null>> {
     if (!this.apiKey) return texts.map(() => null);
     const embeddings = new Array<number[] | null>(texts.length);
+    const tally = this.tally();
     let cursor = 0;
 
     const worker = async (): Promise<void> => {
       while (cursor < texts.length) {
         const index = cursor++;
-        embeddings[index] = await this.embedWithRetry(texts[index]!);
+        embeddings[index] = await this.embedWithRetry(texts[index]!, tally);
       }
     };
 
-    await Promise.all(
-      Array.from({ length: Math.min(this.concurrency, texts.length) }, worker),
-    );
+    try {
+      await Promise.all(
+        Array.from(
+          { length: Math.min(this.concurrency, texts.length) },
+          worker,
+        ),
+      );
+    } catch (error) {
+      tally.failed = true;
+      throw error;
+    } finally {
+      this.recordTally(tally);
+    }
 
     return embeddings;
   }
@@ -107,12 +145,39 @@ export class EmbeddingsService {
     return this.model;
   }
 
-  private async embedWithRetry(text: string): Promise<number[]> {
+  private tally(): EmbeddingTally {
+    return {
+      requests: 0,
+      priced: 0,
+      costUsd: 0,
+      inputTokens: 0,
+      failed: false,
+    };
+  }
+
+  private recordTally(tally: EmbeddingTally): void {
+    if (tally.requests === 0) return;
+
+    this.usage.record({
+      stage: 'embedding',
+      provider: 'openrouter',
+      model: this.model,
+      status: tally.failed ? 'failed' : 'ok',
+      inputTokens: tally.inputTokens,
+      ...(tally.priced > 0 ? { costUsd: tally.costUsd } : {}),
+      costPartial: tally.priced > 0 && tally.priced < tally.requests,
+    });
+  }
+
+  private async embedWithRetry(
+    text: string,
+    tally: EmbeddingTally,
+  ): Promise<number[]> {
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.requestEmbedding(text);
+        return await this.requestEmbedding(text, tally);
       } catch (error: unknown) {
         lastError = error;
         if (attempt === MAX_ATTEMPTS || !retryableEmbeddingError(error)) break;
@@ -125,7 +190,10 @@ export class EmbeddingsService {
       : new EmbeddingRequestError('Embedding provider request failed');
   }
 
-  private async requestEmbedding(text: string): Promise<number[]> {
+  private async requestEmbedding(
+    text: string,
+    tally: EmbeddingTally,
+  ): Promise<number[]> {
     const response = await fetch(`${this.baseUrl}/embeddings`, {
       method: 'POST',
       headers: {
@@ -144,7 +212,18 @@ export class EmbeddingsService {
         `Embedding provider returned ${response.status}`,
         response.status,
       );
+    // Only an answered request is billed; a rejected one is retried or fails.
+    tally.requests += 1;
     const payload: unknown = await response.json();
+    const usage = providerUsage(payload);
+
+    tally.inputTokens += usage.inputTokens ?? 0;
+
+    if (usage.costUsd !== undefined) {
+      tally.priced += 1;
+      tally.costUsd += usage.costUsd;
+    }
+
     if (!this.isEmbeddingResponse(payload))
       throw new EmbeddingRequestError(
         'Embedding provider returned an invalid response',

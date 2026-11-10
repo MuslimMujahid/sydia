@@ -1,4 +1,5 @@
 import type { PaginationInput } from '../../shared/pagination';
+import type { ModelUsageKind } from './model-usage.repository.interface';
 
 export type AdminUserStatus = 'active' | 'banned';
 
@@ -34,6 +35,11 @@ export type AdminUser = {
   lastPaymentAt: Date | null;
   lastPaymentMethod: string | null;
   llmCost30DaysUsd: number;
+  llmCost30DaysByKind: Array<{
+    kind: ModelUsageKind;
+    costUsd: number;
+    calls: number;
+  }>;
 };
 
 export type AdminOverview = {
@@ -56,7 +62,8 @@ export type AdminUsersInput = PaginationInput & {
   attention?: 'trial-expiring' | 'plus-expiring';
   environment?: string;
   rolloutAt?: Date;
-  sort?: 'newest' | 'oldest' | 'activity';
+  /** `cost` orders by model spend in the last 30 days. */
+  sort?: 'newest' | 'oldest' | 'activity' | 'cost';
 };
 
 export type AdminUsersPage = {

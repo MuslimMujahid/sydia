@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { AdminDashboard } from '../../database/interfaces';
 import { PrismaAdminAnalyticsRepository } from '../../database/repositories/prisma-admin-analytics.repository';
+import type { HindsightUsageService } from '../../infra/model-usage';
 import type { PrismaService } from '../../infra/prisma';
 import { AdminDashboardService } from './admin-dashboard.service';
 
@@ -19,7 +20,8 @@ function dashboard(): AdminDashboard {
     generatedAt: '2026-11-07T12:00:00Z',
     from: '2026-10-09T00:00:00Z',
     until: '2026-11-07T12:00:00Z',
-    period: 30,
+    period: '30d',
+    bucket: 'day',
     timezone: 'Asia/Jakarta',
     environment: 'sandbox',
     overview: {
@@ -49,7 +51,17 @@ function dashboard(): AdminDashboard {
       activeExpiringTrials: 0,
     },
     failures: [],
-    daily: [],
+    timeline: [],
+    costs: {
+      byKind: [],
+      breakdown: [],
+      topAccounts: [],
+      unattributedUsd: 0,
+      failedUsd: 0,
+      unpricedCalls: 0,
+      trackedSince: null,
+      hindsightTracked: false,
+    },
     channels: [],
     adoption: [],
     acquisition: [],
@@ -76,6 +88,7 @@ function setup() {
     service: new AdminDashboardService(
       repository,
       new ConfigService({ MAYAR_ENVIRONMENT: 'sandbox' }),
+      { configured: true } as HindsightUsageService,
     ),
   };
 }
@@ -90,25 +103,45 @@ describe('AdminDashboardService cache', () => {
   });
   test('coalesces concurrent requests and refreshes after two minutes', async () => {
     const { query, service } = setup();
-    await Promise.all([service.dashboard(30), service.dashboard(30)]);
-    await service.dashboard(30);
+    await Promise.all([service.dashboard('30d'), service.dashboard('30d')]);
+    await service.dashboard('30d');
     expect(query).toHaveBeenCalledTimes(1);
     jest.advanceTimersByTime(120_000);
-    await service.dashboard(30);
+    await service.dashboard('30d');
     expect(query).toHaveBeenCalledTimes(2);
+  });
+  test('today and the last 24 hours refresh after thirty seconds', async () => {
+    const { query, service } = setup();
+    await service.dashboard('today');
+    jest.advanceTimersByTime(29_000);
+    await service.dashboard('today');
+    expect(query).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1_000);
+    await service.dashboard('today');
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+  test('reports whether Hindsight spend is tracked', async () => {
+    const { service } = setup();
+    await expect(service.dashboard('7d')).resolves.toMatchObject({
+      costs: { hindsightTracked: true },
+    });
   });
   test('periods cache independently', async () => {
     const { query, service } = setup();
-    await service.dashboard(7);
-    await service.dashboard(30);
-    await service.dashboard(7);
+    await service.dashboard('7d');
+    await service.dashboard('30d');
+    await service.dashboard('7d');
     expect(query).toHaveBeenCalledTimes(2);
   });
   test('failed aggregation rejects and the next request can recover', async () => {
     const { query, service } = setup();
     query.mockRejectedValueOnce(new Error('database unavailable'));
-    await expect(service.dashboard(30)).rejects.toThrow('database unavailable');
-    await expect(service.dashboard(30)).resolves.toMatchObject({ period: 30 });
+    await expect(service.dashboard('30d')).rejects.toThrow(
+      'database unavailable',
+    );
+    await expect(service.dashboard('30d')).resolves.toMatchObject({
+      period: '30d',
+    });
   });
   test('invalidating during aggregation prevents old results from repopulating the cache', async () => {
     const { query, service } = setup();
@@ -122,9 +155,9 @@ describe('AdminDashboardService cache', () => {
           resolve = done;
         }),
     );
-    const old = service.dashboard(30);
+    const old = service.dashboard('30d');
     service.invalidate();
-    await service.dashboard(30);
+    await service.dashboard('30d');
     resolve([
       {
         dashboard: { ...dashboard(), generatedAt: 'old' },
@@ -132,7 +165,7 @@ describe('AdminDashboardService cache', () => {
       },
     ]);
     await old;
-    expect((await service.dashboard(30)).generatedAt).toBe(
+    expect((await service.dashboard('30d')).generatedAt).toBe(
       '2026-11-07T12:00:00Z',
     );
     expect(query).toHaveBeenCalledTimes(2);

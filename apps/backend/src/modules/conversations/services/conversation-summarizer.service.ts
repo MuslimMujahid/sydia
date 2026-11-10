@@ -176,6 +176,7 @@ export class ConversationSummarizerService {
     const result = await this.model.generate({
       userId,
       conversationId,
+      traceName: 'conversation-summary',
       outputSchema: SUMMARY_SCHEMA,
       maxOutputTokens: SUMMARY_OUTPUT_TOKENS,
       messages: [

@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  ModelUsageRecorder,
+  providerUsage,
+  type ModelUsageSink,
+} from '../model-usage';
 
 @Injectable()
 export class OpenRouterMediaService {
@@ -8,7 +13,12 @@ export class OpenRouterMediaService {
   private readonly sttModel: string;
   private readonly visionModel: string;
 
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    @Optional()
+    @Inject(ModelUsageRecorder)
+    private readonly usage: ModelUsageSink = ModelUsageRecorder.disabled(),
+  ) {
     // Optional media overrides keep vision and transcription independent of chat.
     this.apiKey =
       config.get<string>('BACKEND_MEDIA_API_KEY')?.trim() ||
@@ -43,15 +53,18 @@ export class OpenRouterMediaService {
       new Blob([new Uint8Array(value)], { type: mimeType }),
       filename,
     );
-    const response = await fetch(`${this.baseUrl}/audio/transcriptions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.apiKey}` },
-      body: form,
-    });
+    const payload = await this.billed(
+      'media.transcription',
+      this.sttModel,
+      () =>
+        fetch(`${this.baseUrl}/audio/transcriptions`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${this.apiKey}` },
+          body: form,
+        }),
+      'Transcription',
+    );
 
-    if (!response.ok)
-      throw new Error(`Transcription provider returned ${response.status}`);
-    const payload: unknown = await response.json();
     if (
       !payload ||
       typeof payload !== 'object' ||
@@ -93,7 +106,87 @@ export class OpenRouterMediaService {
   ): Promise<string | null> {
     if (!this.apiKey) return null;
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const payload = await this.billed(
+      'media.vision',
+      this.visionModel,
+      () => this.requestVision(value, mimeType, prompt, timeoutMs),
+      'Image',
+    );
+
+    if (!payload || typeof payload !== 'object')
+      throw new Error('The image model returned an invalid response.');
+
+    const choices = (payload as Record<string, unknown>).choices;
+    if (
+      !Array.isArray(choices) ||
+      !choices[0] ||
+      typeof choices[0] !== 'object'
+    )
+      throw new Error('The image model returned an invalid response.');
+
+    const message = (choices[0] as Record<string, unknown>).message;
+    if (!message || typeof message !== 'object')
+      throw new Error('The image model returned an invalid response.');
+
+    const content = (message as Record<string, unknown>).content;
+    if (typeof content !== 'string')
+      throw new Error('The image model returned an invalid response.');
+
+    return content;
+  }
+
+  /**
+   * Sends one provider request and records it in the usage ledger, whether it
+   * succeeds or fails, then returns the parsed JSON body.
+   */
+  private async billed(
+    stage: string,
+    model: string,
+    request: () => Promise<Response>,
+    label: string,
+  ): Promise<unknown> {
+    let payload: unknown;
+    let rejected = false;
+
+    try {
+      const response = await request();
+
+      if (!response.ok) {
+        // A request the provider rejects produces no output and is not billed.
+        rejected = true;
+        throw new Error(`${label} provider returned ${response.status}`);
+      }
+
+      payload = await response.json();
+    } catch (error) {
+      this.usage.record({
+        stage,
+        provider: 'openrouter',
+        model,
+        status: 'failed',
+        ...(rejected ? { costUsd: 0 } : {}),
+      });
+      throw error;
+    }
+
+    this.usage.record({
+      stage,
+      provider: 'openrouter',
+      model,
+      status: 'ok',
+      ...providerUsage(payload),
+    });
+
+    return payload;
+  }
+
+  private requestVision(
+    value: Buffer,
+    mimeType: string,
+    prompt: string,
+    timeoutMs: number,
+  ): Promise<Response> {
+    return fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: AbortSignal.timeout(timeoutMs),
       headers: {
@@ -121,29 +214,5 @@ export class OpenRouterMediaService {
         ],
       }),
     });
-
-    if (!response.ok)
-      throw new Error(`Image provider returned ${response.status}`);
-    const payload: unknown = await response.json();
-    if (!payload || typeof payload !== 'object')
-      throw new Error('The image model returned an invalid response.');
-
-    const choices = (payload as Record<string, unknown>).choices;
-    if (
-      !Array.isArray(choices) ||
-      !choices[0] ||
-      typeof choices[0] !== 'object'
-    )
-      throw new Error('The image model returned an invalid response.');
-
-    const message = (choices[0] as Record<string, unknown>).message;
-    if (!message || typeof message !== 'object')
-      throw new Error('The image model returned an invalid response.');
-
-    const content = (message as Record<string, unknown>).content;
-    if (typeof content !== 'string')
-      throw new Error('The image model returned an invalid response.');
-
-    return content;
   }
 }

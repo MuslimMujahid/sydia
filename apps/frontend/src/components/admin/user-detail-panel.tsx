@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react";
+import { COST_KINDS } from "./dashboard-format";
 import { formatBytes, formatCount, formatDate, formatUsd } from "./format";
 import type { AdminUser } from "./types";
 import { cn } from "@/lib/utils/cn";
@@ -197,6 +198,15 @@ export function UserDetailPanel({
           <DetailRow label="Biaya 30 hari">
             {formatUsd(user.llmCost30DaysUsd)}
           </DetailRow>
+          {user.llmCost30DaysByKind.map((entry) => (
+            <DetailRow key={entry.kind} label={`· ${COST_KINDS[entry.kind]}`}>
+              {formatUsd(entry.costUsd)}
+              <span className="text-ink-muted">
+                {" "}
+                · {formatCount(entry.calls)} panggilan
+              </span>
+            </DetailRow>
+          ))}
         </dl>
       </section>
     </div>

@@ -46,7 +46,7 @@ export class AdminController {
 
   @Get('overview')
   async overview() {
-    return (await this.dashboards.dashboard(30)).overview;
+    return (await this.dashboards.dashboard('30d')).overview;
   }
 
   @Get('dashboard')

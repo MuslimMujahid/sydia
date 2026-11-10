@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import {
@@ -27,6 +27,7 @@ import {
   type GenerationTraceUpdate,
   type GenerationTracer,
 } from '../observability';
+import { ModelUsageRecorder, type ModelUsageSink } from '../model-usage';
 import type {
   GenerateRequest,
   GenerateResult,
@@ -158,6 +159,21 @@ function totalCost(costs: Array<number | undefined>): number | undefined {
     return undefined;
 
   return (costs as number[]).reduce((sum, cost) => sum + cost, 0);
+}
+
+/** Spend that is known so far, for the usage ledger, even when incomplete. */
+function knownCost(costs: Array<number | undefined>): {
+  costUsd?: number;
+  costPartial: boolean;
+} {
+  const known = costs.filter((cost): cost is number => cost !== undefined);
+
+  return {
+    ...(known.length > 0
+      ? { costUsd: known.reduce((sum, cost) => sum + cost, 0) }
+      : {}),
+    costPartial: known.length > 0 && known.length < costs.length,
+  };
 }
 
 /**
@@ -552,6 +568,9 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     config: ConfigService,
     @Inject(ObservabilityService)
     private readonly observability: GenerationTracer = ObservabilityService.disabled(),
+    @Optional()
+    @Inject(ModelUsageRecorder)
+    private readonly usage: ModelUsageSink = ModelUsageRecorder.disabled(),
   ) {
     this.apiKey =
       config.get<string>('BACKEND_MODEL_API_KEY')?.trim() || undefined;
@@ -729,8 +748,43 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
     const runAttempt = async (attempt: number): Promise<GenerateResult> => {
       let textEmitted = false;
       const executedToolNames = new Set<string>();
+      // Provider cost of every finished step, so a failed attempt still
+      // records what it was billed for.
+      const stepCosts: Array<number | undefined> = [];
+      let attemptUsage: { inputTokens?: number; outputTokens?: number } = {};
       lastTextEmitted = false;
       lastExecutedToolNames = [];
+      let usageRecorded = false;
+
+      const recordUsage = (status: 'ok' | 'failed', error?: unknown) => {
+        if (usageRecorded) return;
+        usageRecorded = true;
+        // A request the provider rejected before any step produced nothing and
+        // is not billed; anything else that failed may have been.
+        const rejected =
+          status === 'failed' &&
+          stepCosts.length === 0 &&
+          APICallError.isInstance(error);
+
+        const cost = rejected
+          ? { costUsd: 0, costPartial: false }
+          : knownCost(stepCosts);
+
+        this.usage.record({
+          stage: request.traceName ?? 'generation',
+          provider: this.provider,
+          model: this.model,
+          attempt,
+          status,
+          ...attemptUsage,
+          ...(cost.costUsd === undefined ? {} : { costUsd: cost.costUsd }),
+          // A failed attempt may also be billed for the step it was cut off in.
+          costPartial: cost.costPartial || (status === 'failed' && !rejected),
+          userId: request.userId,
+          conversationId: request.conversationId,
+          runId: request.runId,
+        });
+      };
 
       return this.observability
         .traceGeneration(
@@ -758,7 +812,6 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 let usage:
                   { inputTokens?: unknown; outputTokens?: unknown } | undefined;
 
-                const stepCosts: Array<number | undefined> = [];
                 const result = streamText({
                   ...options(terminalText, offered),
                   onError: ({ error }) => {
@@ -864,6 +917,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
 
                 const cache = cacheUsage(usage);
 
+                attemptUsage = {
+                  inputTokens: normalizedUsage.inputTokens,
+                  outputTokens: normalizedUsage.outputTokens,
+                };
+                recordUsage('ok');
                 this.logCacheUsage(request, cache);
 
                 trace.update({
@@ -904,6 +962,16 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
 
               const result = await generateText(options(terminalText, offered));
 
+              stepCosts.push(
+                ...result.steps.map((step) =>
+                  openRouterCost(step.providerMetadata),
+                ),
+              );
+              attemptUsage = {
+                inputTokens: tokenCount(result.totalUsage.inputTokens),
+                outputTokens: tokenCount(result.totalUsage.outputTokens),
+              };
+
               for (const step of result.steps)
                 for (const call of step.toolCalls)
                   executedToolNames.add(call.toolName);
@@ -927,12 +995,10 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               const normalizedUsage = {
                 inputTokens: tokenCount(result.totalUsage.inputTokens),
                 outputTokens: tokenCount(result.totalUsage.outputTokens),
-                costUsd: totalCost(
-                  result.steps.map((step) =>
-                    openRouterCost(step.providerMetadata),
-                  ),
-                ),
+                costUsd: totalCost(stepCosts),
               };
+
+              recordUsage('ok');
 
               const cache = cacheUsage(result.usage);
 
@@ -962,6 +1028,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
               };
             } catch (error) {
               trace.update({ error: traceError(error) });
+              recordUsage('failed', error);
               throw error;
             }
           },

@@ -93,6 +93,7 @@ export async function generateAssistantTurn(
     signal.throwIfAborted();
     result = await model.generate({
       ...request,
+      traceName: request.traceName ?? 'assistant.reply',
       messages,
       abortSignal: signal,
       reasoningEffort: settings.reasoningEffort,

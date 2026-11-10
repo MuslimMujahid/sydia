@@ -34,6 +34,7 @@ import { TelegramModule } from './modules/telegram';
 import { NotificationsModule } from './modules/notifications';
 import { AppController } from './app.controller';
 import { ObservabilityModule } from './infra/observability';
+import { ModelUsageModule } from './infra/model-usage';
 import { AppService } from './app.service';
 import { SecretsModule } from './modules/secrets/secrets.module';
 import { parseTimeOfDay } from './shared/date-time';
@@ -452,6 +453,7 @@ export function validateEnvironment(
     TelegramInfraModule,
     NotificationsModule,
     ObservabilityModule,
+    ModelUsageModule,
     WhatsAppModule,
     TelegramModule,
   ],

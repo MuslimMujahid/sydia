@@ -178,12 +178,12 @@ export class PrismaAdminRepository implements IAdminRepository {
           COUNT(*) FILTER (WHERE u."banned")::bigint AS "bannedUsers",
           (SELECT COUNT(*) FROM "session" s WHERE s."expiresAt" > ${now})::bigint AS "activeSessions",
           COALESCE((SELECT SUM(f."size") FROM "file_asset" f), 0)::bigint AS "storageBytes",
-          COALESCE((SELECT SUM(r."costUsd") FROM "assistant_run" r), 0)::decimal AS "llmCostUsd"
+          COALESCE((SELECT SUM(r."costUsd") FROM "model_usage" r), 0)::decimal AS "llmCostUsd"
         FROM "user" u
       `),
       this.prisma.$queryRaw<CostRow[]>(Prisma.sql`
         SELECT r."model", COALESCE(SUM(r."costUsd"), 0)::decimal AS "costUsd"
-        FROM "assistant_run" r
+        FROM "model_usage" r
         WHERE r."costUsd" IS NOT NULL
         GROUP BY r."model"
         ORDER BY "costUsd" DESC
@@ -239,12 +239,16 @@ export class PrismaAdminRepository implements IAdminRepository {
           ? Prisma.sql`AND ${paidEnd}>${now} AND ${paidEnd}<=${weekLater} AND EXISTS(SELECT 1 FROM (${verifiedPaymentsSql(input.environment ?? 'production')}) p WHERE p."userId"=u.id AND p."paidThrough">${now})`
           : Prisma.empty;
 
+    const monthAgo = new Date(now.getTime() - 30 * 86_400_000);
+    const cost30Days = Prisma.sql`(SELECT SUM(mu."costUsd") FROM model_usage mu WHERE mu."userId"=u.id AND mu."createdAt">=${monthAgo} AND mu."createdAt"<${now})`;
     const order =
-      input.sort === 'oldest'
-        ? Prisma.sql`u."createdAt" ASC, u."id" ASC`
-        : input.sort === 'activity'
-          ? Prisma.sql`${lastActivity} DESC NULLS LAST, u."id" DESC`
-          : Prisma.sql`u."createdAt" DESC, u."id" DESC`;
+      input.sort === 'cost'
+        ? Prisma.sql`${cost30Days} DESC NULLS LAST, u."id" DESC`
+        : input.sort === 'oldest'
+          ? Prisma.sql`u."createdAt" ASC, u."id" ASC`
+          : input.sort === 'activity'
+            ? Prisma.sql`${lastActivity} DESC NULLS LAST, u."id" DESC`
+            : Prisma.sql`u."createdAt" DESC, u."id" DESC`;
 
     const where = Prisma.sql`WHERE TRUE ${search} ${status} ${planFilter} ${activityFilter} ${attentionFilter}`;
     const [countRow] = await this.prisma.$queryRaw<
@@ -281,17 +285,15 @@ export class PrismaAdminRepository implements IAdminRepository {
           'paymentTotalIdr',COALESCE((SELECT SUM(p.amount) FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'}),0),
           'lastPaymentAt',(SELECT MAX(p."verifiedAt") AT TIME ZONE 'UTC' FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'}),
           'lastPaymentMethod',(SELECT o."paymentMethod" FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'} ORDER BY p."verifiedAt" DESC LIMIT 1),
-          'llmCost30DaysUsd',COALESCE((SELECT SUM(ar."costUsd") FROM assistant_run ar JOIN conversation c ON c.id=ar."conversationId" WHERE c."userId"=u.id AND ar."createdAt">=${new Date(now.getTime() - 30 * 86_400_000)} AND ar."createdAt"<${now}),0)
+          'llmCost30DaysUsd',COALESCE(${cost30Days},0),
+          'llmCost30DaysByKind',COALESCE((SELECT json_agg(x ORDER BY x."costUsd" DESC) FROM (SELECT mu.kind,COALESCE(SUM(mu."costUsd"),0) AS "costUsd",COUNT(*) AS calls FROM model_usage mu WHERE mu."userId"=u.id AND mu."createdAt">=${monthAgo} AND mu."createdAt"<${now} GROUP BY mu.kind) x),'[]'::json)
         ) AS details,
         (SELECT b."paidUntil" FROM "billing_account" b WHERE b."userId" = u."id") AS "paidUntil",
         ${lastActivity} AS "lastActivityAt",
         (SELECT COUNT(*) FROM "session" s WHERE s."userId" = u."id" AND s."expiresAt" > ${now})::bigint AS "activeSessions",
         COALESCE((SELECT SUM(x."size") FROM "file_asset" x WHERE x."userId" = u."id"), 0)::bigint AS "storageBytes",
         COALESCE((
-          SELECT SUM(ar."costUsd")
-          FROM "assistant_run" ar
-          JOIN "conversation" ac ON ac."id" = ar."conversationId"
-          WHERE ac."userId" = u."id"
+          SELECT SUM(mu."costUsd") FROM "model_usage" mu WHERE mu."userId" = u."id"
         ), 0)::decimal AS "llmCostUsd",
         (SELECT COUNT(*) FROM "conversation" x WHERE x."userId" = u."id")::bigint AS "conversations",
         (SELECT COUNT(*) FROM "document" x WHERE x."userId" = u."id")::bigint AS "documents",

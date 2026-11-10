@@ -219,6 +219,7 @@ export class MemoryDreamService {
       userId: segment.userId,
       conversationId: segment.conversationId,
       runId,
+      traceName: 'memory-dream.extract',
       outputSchema: CANDIDATES_SCHEMA,
       maxOutputTokens: EXTRACTION_OUTPUT_TOKENS,
       messages: [
@@ -369,6 +370,7 @@ export class MemoryDreamService {
       userId,
       conversationId,
       runId,
+      traceName: 'memory-dream.reconcile',
       messages: [
         {
           role: 'system',

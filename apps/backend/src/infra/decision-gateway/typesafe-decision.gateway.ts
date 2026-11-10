@@ -3,11 +3,12 @@ import {
   errorLabel,
   retryableNetworkError,
 } from '../../shared/errors';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { TypeSafeClient, APIError } from '@typesafe-ai/sdk';
 import { ObservabilityService } from '../observability';
+import { ModelUsageRecorder, type ModelUsageSink } from '../model-usage';
 import { containsDecisionCredential } from '../../shared/decision-privacy';
 import { DecisionCapacityService } from './decision-capacity.service';
 import {
@@ -141,6 +142,9 @@ export class TypeSafeDecisionGateway implements DecisionGateway {
     config: ConfigService,
     private readonly capacity: DecisionCapacityService,
     private readonly observability: ObservabilityService,
+    @Optional()
+    @Inject(ModelUsageRecorder)
+    private readonly usage: ModelUsageSink = ModelUsageRecorder.disabled(),
   ) {
     this.provider = config.get<'openrouter' | 'typesafe'>(
       'BACKEND_DECISION_PROVIDER',
@@ -268,6 +272,10 @@ export class TypeSafeDecisionGateway implements DecisionGateway {
         },
         async (trace) => {
           let result: DecisionResult;
+          // Set once a request reached the provider, which may bill for it.
+          let called = false;
+          // The provider answered with an HTTP error: nothing was generated.
+          let rejected = false;
 
           try {
             signal.throwIfAborted();
@@ -286,6 +294,8 @@ export class TypeSafeDecisionGateway implements DecisionGateway {
               );
 
             let response: unknown;
+
+            called = true;
 
             try {
               response = await call();
@@ -339,6 +349,7 @@ export class TypeSafeDecisionGateway implements DecisionGateway {
               });
             }
           } catch (error) {
+            rejected = error instanceof APIError;
             if (!signal.aborted)
               this.logger.warn(
                 `stage=${request.stage} decision failed: ${errorLabel(error)} cause=${errorCause(error) ?? 'none'}`,
@@ -354,6 +365,25 @@ export class TypeSafeDecisionGateway implements DecisionGateway {
                     : 'provider',
             );
           }
+
+          if (called)
+            this.usage.record({
+              stage: `decision.${request.stage}`,
+              provider: this.provider,
+              model: result.status === 'ok' ? result.model : this.model,
+              status: result.status === 'ok' ? 'ok' : 'failed',
+              ...(result.status === 'ok'
+                ? {
+                    inputTokens: result.inputTokens,
+                    outputTokens: result.outputTokens,
+                    ...(result.costUsd === null
+                      ? {}
+                      : { costUsd: result.costUsd }),
+                  }
+                : rejected
+                  ? { costUsd: 0 }
+                  : {}),
+            });
 
           trace.update({
             output: JSON.stringify({

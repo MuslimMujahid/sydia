@@ -7,7 +7,11 @@ import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Worker } from 'bullmq';
+import { Worker, type Job, type WorkerOptions } from 'bullmq';
+import {
+  HindsightUsageService,
+  withModelUsageScope,
+} from './infra/model-usage';
 import { AppModule } from './app.module';
 import { BillingService } from './modules/billing';
 import { processCalendarReminderJob } from './modules/notifications/calendar-reminder-job.processor';
@@ -53,6 +57,32 @@ import {
   SecretaryBackgroundService,
 } from './modules/notifications';
 
+const HINDSIGHT_USAGE_POLL_MS = 5 * 60_000;
+
+function jobUserId(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object' || !('userId' in data))
+    return undefined;
+
+  return typeof data.userId === 'string' ? data.userId : undefined;
+}
+
+/** A queue worker whose model spend is attributed to its queue and job user. */
+function backgroundWorker<T>(
+  name: string,
+  process: (job: Job<T>) => Promise<unknown>,
+  options: WorkerOptions,
+): Worker<T> {
+  return new Worker<T>(
+    name,
+    (job) =>
+      withModelUsageScope(
+        { kind: 'background', job: name, userId: jobUserId(job.data) },
+        () => process(job),
+      ),
+    options,
+  );
+}
+
 async function bootstrap(): Promise<void> {
   const context = await NestFactory.createApplicationContext(AppModule);
   const billing = context.get(BillingService);
@@ -80,7 +110,7 @@ async function bootstrap(): Promise<void> {
     url: config.getOrThrow<string>('BACKEND_REDIS_URL'),
   };
 
-  const billingWorker = new Worker('billing', () => billing.recover(), {
+  const billingWorker = backgroundWorker('billing', () => billing.recover(), {
     connection,
     concurrency: 1,
   });
@@ -98,7 +128,7 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
-  const reminderWorker = new Worker<ReminderJob>(
+  const reminderWorker = backgroundWorker<ReminderJob>(
     'reminders',
     (job) =>
       processReminderJob(
@@ -108,7 +138,7 @@ async function bootstrap(): Promise<void> {
     { connection },
   );
 
-  const calendarReminderWorker = new Worker<CalendarReminderJob>(
+  const calendarReminderWorker = backgroundWorker<CalendarReminderJob>(
     'calendar-reminders',
     (job) =>
       processCalendarReminderJob(
@@ -131,7 +161,7 @@ async function bootstrap(): Promise<void> {
     { name: 'sweep', data: { kind: 'sweep' } },
   );
 
-  const documentWorker = new Worker<DocumentJob>(
+  const documentWorker = backgroundWorker<DocumentJob>(
     'documents',
     (job) => processDocumentJob(documents, job),
     {
@@ -141,7 +171,7 @@ async function bootstrap(): Promise<void> {
   );
 
   const noteOrganization = context.get(NoteAgentCoordinatorService);
-  const noteOrganizationWorker = new Worker<NoteOrganizationJob>(
+  const noteOrganizationWorker = backgroundWorker<NoteOrganizationJob>(
     'note-organizations',
     (job) => processNoteOrganizationJob(noteOrganization, job.data),
     { connection, concurrency: 1 },
@@ -156,7 +186,7 @@ async function bootstrap(): Promise<void> {
   );
   await registerNoteOrganizationRecovery(queues.noteOrganizations);
 
-  const memoryDreamWorker = new Worker<MemoryDreamJob>(
+  const memoryDreamWorker = backgroundWorker<MemoryDreamJob>(
     'memory-dreams',
     async (job) => {
       if (job.data.kind === 'recover') {
@@ -218,7 +248,7 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
-  const memoryDeliveryWorker = new Worker<MemoryDeliveryJob>(
+  const memoryDeliveryWorker = backgroundWorker<MemoryDeliveryJob>(
     'memory-deliveries',
     async (job) => {
       if (job.data.kind === 'bank')
@@ -238,7 +268,7 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
-  const memoryIngestionWorker = new Worker<MemoryIngestionJob>(
+  const memoryIngestionWorker = backgroundWorker<MemoryIngestionJob>(
     'memory-ingestions',
     () => memoryIngestion.recover(),
     { connection },
@@ -250,7 +280,7 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
-  const dailyNoteIndexWorker = new Worker<DailyNoteIndexJob>(
+  const dailyNoteIndexWorker = backgroundWorker<DailyNoteIndexJob>(
     'daily-note-indexes',
     async (job) => {
       if (job.data.kind === 'recover')
@@ -274,7 +304,7 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
-  const calendarSyncWorker = new Worker<CalendarSyncJob>(
+  const calendarSyncWorker = backgroundWorker<CalendarSyncJob>(
     'calendar-sync',
     (job) => calendarSync.process(job.data),
     {
@@ -289,7 +319,7 @@ async function bootstrap(): Promise<void> {
     { name: 'recover', data: { kind: 'recover' } },
   );
 
-  const conversationSummaryWorker = new Worker<ConversationSummaryJob>(
+  const conversationSummaryWorker = backgroundWorker<ConversationSummaryJob>(
     'conversation-summaries',
     async (job) => {
       await conversationSummarizer.summarizeIfNeeded(
@@ -300,7 +330,7 @@ async function bootstrap(): Promise<void> {
     { connection },
   );
 
-  const briefingWorker = new Worker<BriefingJob>(
+  const briefingWorker = backgroundWorker<BriefingJob>(
     'briefings',
     async (job) =>
       job.data.kind === 'sweep'
@@ -309,7 +339,7 @@ async function bootstrap(): Promise<void> {
     { connection },
   );
 
-  const followUpWorker = new Worker<FollowUpJob>(
+  const followUpWorker = backgroundWorker<FollowUpJob>(
     'follow-ups',
     async (job) =>
       job.data.kind === 'sweep'
@@ -327,8 +357,9 @@ async function bootstrap(): Promise<void> {
   const secretaryTimer = setInterval(() => {
     if (secretarySweepRunning) return;
     secretarySweepRunning = true;
-    void secretaryBackground
-      .sweep()
+    void withModelUsageScope({ kind: 'background', job: 'secretary' }, () =>
+      secretaryBackground.sweep(),
+    )
       .catch((error: unknown) =>
         Logger.error(
           'Secretary background sweep failed; next sweep retries.',
@@ -341,8 +372,28 @@ async function bootstrap(): Promise<void> {
       });
   }, secretarySweepMs);
 
+  // Hindsight bills its own OpenRouter key; its spend is read from that key.
+  const hindsightUsage = context.get(HindsightUsageService);
+  const pollHindsightUsage = () =>
+    void hindsightUsage
+      .poll()
+      .catch((error: unknown) =>
+        Logger.error(
+          'Hindsight usage poll failed; its spend is counted on the next successful poll.',
+          error instanceof Error ? error.stack : String(error),
+          'HindsightUsage',
+        ),
+      );
+
+  const hindsightUsageTimer = hindsightUsage.configured
+    ? setInterval(pollHindsightUsage, HINDSIGHT_USAGE_POLL_MS)
+    : undefined;
+
+  if (hindsightUsage.configured) pollHindsightUsage();
+
   const close = async () => {
     clearInterval(secretaryTimer);
+    clearInterval(hindsightUsageTimer);
     // A channel turn can still enqueue and await a document. Keep its worker
     // alive until preparation and the response finish.
     await context.get(MessagingHandlerService).stopAndDrain();

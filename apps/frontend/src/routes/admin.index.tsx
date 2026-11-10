@@ -12,7 +12,7 @@ export const Route = createFileRoute("/admin/")({
 });
 
 function AdminHome() {
-  const [period, setPeriod] = useState<AdminPeriod>(30);
+  const [period, setPeriod] = useState<AdminPeriod>("30d");
   const query = useQuery(adminDashboardQueryOptions(period));
   if (query.isPending)
     return (

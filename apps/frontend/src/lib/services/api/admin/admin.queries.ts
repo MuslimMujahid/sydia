@@ -29,12 +29,16 @@ export const adminQueryKeys = {
   usersPage: (input: AdminUsersInput) => ["admin", "users", input] as const,
 };
 
+// Matches the server cache: short periods change by the minute.
+const dashboardRefreshMs = (period: AdminPeriod) =>
+  period === "today" || period === "24h" ? 30_000 : 120_000;
+
 export const adminDashboardQueryOptions = (period: AdminPeriod) =>
   queryOptions({
     queryKey: adminQueryKeys.dashboard(period),
     queryFn: () => getAdminDashboard(period),
-    staleTime: 120_000,
-    refetchInterval: 120_000,
+    staleTime: dashboardRefreshMs(period),
+    refetchInterval: dashboardRefreshMs(period),
   });
 
 export const adminOverviewQueryOptions = () =>

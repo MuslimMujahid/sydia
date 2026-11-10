@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
+import type { ModelUsageCall } from '../model-usage';
 import { OpenRouterMediaService } from './openrouter-media.service';
 
 describe('OpenRouterMediaService', () => {
@@ -198,5 +199,48 @@ describe('OpenRouterMediaService', () => {
         new ConfigService({ BACKEND_MODEL_API_KEY: 'test-key' }),
       ).describeImage(Buffer.from('image'), 'image/png'),
     ).rejects.toThrow('The image model returned an invalid response.');
+  });
+
+  it('records billed and rejected media calls in the usage ledger', async () => {
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            text: 'Halo.',
+            usage: { prompt_tokens: 40, cost: 0.0003 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(new Response('{}', { status: 500 }));
+    const usage: ModelUsageCall[] = [];
+    const media = new OpenRouterMediaService(
+      new ConfigService({ BACKEND_MODEL_API_KEY: 'key' }),
+      { record: (call) => usage.push(call) },
+    );
+
+    await media.transcribe(Buffer.from('audio'), 'a.ogg', 'audio/ogg');
+    await expect(
+      media.describeImage(Buffer.from('image'), 'image/png'),
+    ).rejects.toThrow('Image provider returned 500');
+
+    expect(usage).toEqual([
+      {
+        stage: 'media.transcription',
+        provider: 'openrouter',
+        model: 'openai/whisper-large-v3-turbo',
+        status: 'ok',
+        inputTokens: 40,
+        costUsd: 0.0003,
+      },
+      {
+        stage: 'media.vision',
+        provider: 'openrouter',
+        model: 'google/gemini-2.5-flash',
+        status: 'failed',
+        costUsd: 0,
+      },
+    ]);
   });
 });

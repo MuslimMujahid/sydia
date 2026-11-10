@@ -78,6 +78,7 @@ model User {
   billingMembers           BillingMember[]
   billingOrders            BillingOrder[]
   userAttribution          UserAttribution?
+  modelUsage               ModelUsage[]
   storageReservations      StorageReservation[]
   assistantActions         AssistantAction[]
   assistancePreference     AssistancePreference?
@@ -418,6 +419,49 @@ model AssistantRun {
   @@index([inputMessageId, createdAt])
   @@index([createdAt])
   @@map("assistant_run")
+}
+
+/// One billed provider call (each attempt, successful or not), the source of
+/// the admin cost metrics. `userId` survives account deletion as NULL so spend
+/// totals never shrink.
+model ModelUsage {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  userId         String?
+  /// message | background | hindsight | other
+  kind           String
+  /// Background queue or sweep name, e.g. conversation-summaries.
+  job            String?
+  /// Caller stage, e.g. assistant.turn, decision.turn, embedding, transcription.
+  stage          String
+  provider       String
+  model          String
+  attempt        Int      @default(1)
+  /// ok | failed
+  status         String
+  inputTokens    Int?
+  outputTokens   Int?
+  /// Known billed cost. Partial when `costMissing` is true.
+  costUsd        Decimal? @db.Decimal(18, 8)
+  /// The provider did not report the cost of all or part of this call.
+  costMissing    Boolean  @default(false)
+  conversationId String?
+  runId          String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([kind, createdAt])
+  @@map("model_usage")
+}
+
+/// Last cumulative spend read from an external billing source (for example the
+/// OpenRouter key Hindsight uses); new spend is recorded as the difference.
+model ProviderUsageSnapshot {
+  source    String   @id
+  totalUsd  Decimal  @db.Decimal(18, 8)
+  takenAt   DateTime
+  @@map("provider_usage_snapshot")
 }
 
 model ToolInvocation {

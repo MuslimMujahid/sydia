@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { withModelUsageScope } from '../../../infra/model-usage';
 import { AssistantPlanState } from './assistant-plan';
 import {
   AssistantExecutionSettings,
@@ -675,6 +676,29 @@ export class AssistantOrchestratorService {
     loadedSkills: Record<string, string>;
     preparedActionIds: string[];
   }> {
+    return withModelUsageScope(
+      {
+        kind: 'background',
+        userId: input.user.id,
+        conversationId: input.conversationId,
+      },
+      () => this.evaluateInBackground(input),
+    );
+  }
+
+  private async evaluateInBackground(input: {
+    user: TurnUser;
+    conversationId: string;
+    evaluationId: string;
+    trigger: string;
+    now: Date;
+    abortSignal?: AbortSignal;
+  }): Promise<{
+    text: string | null;
+    reason: string;
+    loadedSkills: Record<string, string>;
+    preparedActionIds: string[];
+  }> {
     const built = await this.contextBuilder.build(
       input.user,
       input.conversationId,
@@ -794,7 +818,41 @@ export class AssistantOrchestratorService {
     };
   }
 
-  private async execute(
+  /** Every model call a turn makes, including its helpers, is spent on the message. */
+  private execute(
+    user: TurnUser,
+    conversation: Conversation,
+    inputMessage: Message,
+    run: AssistantRun,
+    observer?: ExecutionObserver,
+    abortSignal?: AbortSignal,
+    toolsReady?: Promise<void>,
+    channel?: MessageProvider,
+    sendFile?: (file: AssistantFile) => Promise<{ providerMessageId: string }>,
+  ): Promise<Omit<AssistantTurnResult, 'conversation' | 'userMessage'>> {
+    return withModelUsageScope(
+      {
+        kind: 'message',
+        userId: user.id,
+        conversationId: conversation.id,
+        runId: run.id,
+      },
+      () =>
+        this.executeTurn(
+          user,
+          conversation,
+          inputMessage,
+          run,
+          observer,
+          abortSignal,
+          toolsReady,
+          channel,
+          sendFile,
+        ),
+    );
+  }
+
+  private async executeTurn(
     user: TurnUser,
     conversation: Conversation,
     inputMessage: Message,

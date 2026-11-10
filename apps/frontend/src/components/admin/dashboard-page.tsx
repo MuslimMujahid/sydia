@@ -12,7 +12,15 @@ import {
   DashboardAdoption,
   DashboardRecentUsers,
 } from "./dashboard-sections";
-import { percent, formatIdr } from "./dashboard-format";
+import {
+  PERIODS,
+  comparisonLabel,
+  formatIdr,
+  percent,
+  periodLabel,
+  timelineLabels,
+} from "./dashboard-format";
+import { DashboardCosts } from "./dashboard-costs";
 import { cn } from "@/lib/utils/cn";
 
 type DashboardPageProps = {
@@ -33,16 +41,9 @@ export function DashboardPage({
   refreshError,
 }: DashboardPageProps) {
   const [failuresOpen, setFailuresOpen] = useState(false);
-  const labels = d.daily.map((day) =>
-    new Intl.DateTimeFormat("id-ID", {
-      day: "numeric",
-      month: "short",
-      timeZone: d.timezone,
-    }).format(new Date(`${day.date}T12:00:00+07:00`))
-  );
-
+  const labels = timelineLabels(d);
   const { metrics: m, attention: a } = d;
-  const messages = d.daily.reduce((sum, day) => sum + day.messages, 0);
+  const messages = d.timeline.reduce((sum, entry) => sum + entry.messages, 0);
   const attentionCount =
     Number(a.failedRuns > 0) +
     Number(a.expiringTrials > 0) +
@@ -149,20 +150,20 @@ export function DashboardPage({
             aria-label="Periode dasbor"
             className="flex rounded-xl border border-ink/8 bg-canvas p-1"
           >
-            {([7, 30, 90] as const).map((value) => (
+            {PERIODS.map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
                 aria-pressed={value === period}
                 onClick={() => onPeriodChange(value)}
                 className={cn(
-                  "rounded-lg px-4 py-2 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                  "rounded-lg px-2.5 py-2 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-brand sm:px-4",
                   value === period
                     ? "bg-ink text-canvas"
                     : "text-ink-muted hover:bg-surface-1"
                 )}
               >
-                {value} hari
+                {label}
               </button>
             ))}
           </div>
@@ -205,7 +206,7 @@ export function DashboardPage({
             Metrik utama
           </h2>
           <span className="font-mono text-xs text-ink-muted">
-            {period} hari terakhir vs periode sebelumnya
+            {comparisonLabel(period)}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
@@ -217,7 +218,7 @@ export function DashboardPage({
             labels={labels}
           />
           <MetricCard
-            title="Pengguna aktif · 30 hari"
+            title={`Pengguna aktif · ${d.bucket === "day" ? "30 hari" : periodLabel(period).toLocaleLowerCase("id-ID")}`}
             metric={m.activeUsers}
             value={formatCount(m.activeUsers.value)}
             detail={`≥1 aktivitas bermakna · ${d.overview.totalUsers ? percent((m.activeUsers.value / d.overview.totalUsers) * 100) : "0%"} dari akun`}
@@ -256,6 +257,7 @@ export function DashboardPage({
           />
         </div>
       </section>
+      <DashboardCosts d={d} period={period} messages={messages} />
       <DashboardTrends
         d={d}
         period={period}

@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { ObservabilityService } from '../observability';
+import type { ModelUsageCall } from '../model-usage';
 import type { DecisionCapacityService } from './decision-capacity.service';
 import type { DecisionRequest } from './decision-gateway.types';
 import {
@@ -24,7 +25,10 @@ const response = {
 
 afterEach(() => jest.restoreAllMocks());
 
-function setup(extra: Record<string, unknown> = {}) {
+function setup(
+  extra: Record<string, unknown> = {},
+  usage: ModelUsageCall[] = [],
+) {
   const release = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
   const reserve = jest
     .fn<DecisionCapacityService['reserve']>()
@@ -39,6 +43,7 @@ function setup(extra: Record<string, unknown> = {}) {
     }),
     { reserve } as unknown as DecisionCapacityService,
     ObservabilityService.disabled(),
+    { record: (call) => usage.push(call) },
   );
 
   return { gateway, reserve, release };
@@ -144,6 +149,36 @@ describe('TypeSafe gateway contract', () => {
       expect(release).toHaveBeenCalledTimes(1);
     },
   );
+  test('records each provider call in the usage ledger', async () => {
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(response), { status: 200 }),
+      )
+      .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+      .mockRejectedValueOnce(new Error('unexpected client failure'));
+    const usage: ModelUsageCall[] = [];
+    const { gateway } = setup({}, usage);
+
+    await gateway.decide(request);
+    await gateway.decide(request);
+    await gateway.decide(request);
+    await gateway.decide({ ...request, state: 'x'.repeat(40_000) });
+
+    expect(usage).toEqual([
+      expect.objectContaining({
+        stage: 'decision.contract',
+        status: 'ok',
+        inputTokens: 200,
+        outputTokens: 20,
+      }),
+      // An HTTP rejection generated nothing; a client failure is unknown.
+      expect.objectContaining({ status: 'failed', costUsd: 0 }),
+      expect.objectContaining({ status: 'failed' }),
+    ]);
+    expect(usage[0]?.costUsd).toBeCloseTo(0.0000084, 12);
+    expect(usage[2]).not.toHaveProperty('costUsd');
+  });
   test('retries a connection-level failure once within the deadline', async () => {
     const fetch = jest
       .spyOn(globalThis, 'fetch')

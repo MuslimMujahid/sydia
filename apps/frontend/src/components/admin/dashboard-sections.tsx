@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { AdminDashboard, AdminPeriod } from "./types";
 import { AdminChart } from "./admin-chart";
 import { Panel } from "./dashboard-widgets";
-import { PINK, PURPLE, ORANGE, percent } from "./dashboard-format";
+import { ORANGE, PINK, PURPLE, percent, periodLabel } from "./dashboard-format";
 import { formatCount, formatDate, formatUsd } from "./format";
 
 const FEATURES: Record<string, string> = {
@@ -29,51 +29,58 @@ export function DashboardTrends({
   labels,
   messages,
 }: SectionProps & { labels: string[]; messages: number }) {
+  const hourly = d.bucket === "hour";
+  const unit = hourly ? "jam" : "hari";
+  const table = hourly ? "Lihat data per jam" : "Lihat data harian";
+
   return (
     <section aria-labelledby="trends-title">
       <h2 id="trends-title" className="mb-4 text-lg font-semibold">
-        Tren harian{" "}
+        {hourly ? "Tren per jam" : "Tren harian"}{" "}
         <span className="ml-2 font-mono text-xs font-normal text-ink-muted">
-          {period} hari
+          {periodLabel(period)}
         </span>
       </h2>
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel
-          title="Pendaftaran vs aktivitas harian"
-          description="≥1 aktivitas bermakna pada hari itu · skala tiap seri terpisah"
+          title={`Pendaftaran vs aktivitas per ${unit}`}
+          description={`≥1 aktivitas bermakna pada ${unit} itu · skala tiap seri terpisah`}
         >
           <AdminChart
-            label="Pendaftaran dan pengguna beraktivitas per hari"
+            label={`Pendaftaran dan pengguna beraktivitas per ${unit}`}
+            tableLabel={table}
             labels={labels}
             series={[
               {
                 label: "Beraktivitas",
-                values: d.daily.map((x) => x.activeUsers),
+                values: d.timeline.map((x) => x.activeUsers),
                 color: PINK,
               },
               {
                 label: "Pendaftar",
-                values: d.daily.map((x) => x.registrations),
+                values: d.timeline.map((x) => x.registrations),
                 color: "#918895",
               },
             ]}
           />
           <div className="mt-4 flex flex-wrap gap-6 border-t border-ink/6 pt-4 text-xs text-ink-muted">
             <p>
-              Rata-rata beraktivitas/hari{" "}
+              Rata-rata beraktivitas/{unit}{" "}
               <strong className="mt-1 block font-mono text-sm text-ink">
                 {new Intl.NumberFormat("id-ID", {
                   maximumFractionDigits: 1,
                 }).format(
-                  d.daily.reduce((sum, x) => sum + x.activeUsers, 0) /
-                    Math.max(1, d.daily.length)
+                  d.timeline.reduce((sum, x) => sum + x.activeUsers, 0) /
+                    Math.max(1, d.timeline.length)
                 )}
               </strong>
             </p>
             <p>
               Puncak{" "}
               <strong className="mt-1 block font-mono text-sm text-ink">
-                {formatCount(Math.max(0, ...d.daily.map((x) => x.activeUsers)))}
+                {formatCount(
+                  Math.max(0, ...d.timeline.map((x) => x.activeUsers))
+                )}
               </strong>
             </p>
           </div>
@@ -83,17 +90,18 @@ export function DashboardTrends({
           description="Deteksi lonjakan biaya yang tidak sejalan dengan aktivitas · skala tiap seri terpisah"
         >
           <AdminChart
-            label="Pesan dan biaya LLM per hari"
+            label={`Pesan dan biaya LLM per ${unit}`}
+            tableLabel={table}
             labels={labels}
             series={[
               {
                 label: "Pesan",
-                values: d.daily.map((x) => x.messages),
+                values: d.timeline.map((x) => x.messages),
                 color: PURPLE,
               },
               {
                 label: "Biaya (US$)",
-                values: d.daily.map((x) => x.costUsd),
+                values: d.timeline.map((x) => x.costUsd),
                 color: ORANGE,
                 format: formatUsd,
               },
@@ -101,10 +109,10 @@ export function DashboardTrends({
           />
           <div className="mt-4 flex flex-wrap gap-6 border-t border-ink/6 pt-4 text-xs text-ink-muted">
             <p>
-              Pesan/hari{" "}
+              Pesan/{unit}{" "}
               <strong className="mt-1 block font-mono text-sm text-ink">
                 {formatCount(
-                  Math.round(messages / Math.max(1, d.daily.length))
+                  Math.round(messages / Math.max(1, d.timeline.length))
                 )}
               </strong>
             </p>
@@ -135,7 +143,7 @@ export function DashboardAdoption({ d, period }: SectionProps) {
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel
           title="Kanal percakapan"
-          description={`Sumber pesan masuk · ${period} hari`}
+          description={`Sumber pesan masuk · ${periodLabel(period).toLocaleLowerCase("id-ID")}`}
         >
           <div className="space-y-5">
             {d.channels.length ? (

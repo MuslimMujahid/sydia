@@ -783,6 +783,7 @@ export class DocumentService {
 
     try {
       const result = await this.languageModel.generate({
+        traceName: 'document.title',
         messages: [
           {
             role: 'system',

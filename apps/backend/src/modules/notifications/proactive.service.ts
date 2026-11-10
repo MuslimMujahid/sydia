@@ -310,6 +310,7 @@ export class DailyBriefingService {
     try {
       const result = await this.model.generate({
         userId: user.id,
+        traceName: 'briefing.compose',
         messages: buildBriefingMessages({
           locale: localeOf(user.locale),
           address: user.preferredAddress,

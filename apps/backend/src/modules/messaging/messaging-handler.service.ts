@@ -1,4 +1,5 @@
 import { BillingAccessService } from '../billing';
+import { withModelUsageScope } from '../../infra/model-usage';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { DocumentProcessingPendingError } from '../../shared/documents';
 import {
@@ -284,7 +285,10 @@ export class MessagingHandlerService implements OnModuleDestroy {
         return;
       }
 
-      await this.processBatch(batch);
+      // Media transcription and attachment reading are part of the message.
+      await withModelUsageScope({ kind: 'message', userId: batch.userId }, () =>
+        this.processBatch(batch),
+      );
     }
   }
 

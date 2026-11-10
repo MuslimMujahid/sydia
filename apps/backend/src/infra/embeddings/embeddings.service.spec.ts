@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { setTimeout as sleep } from 'node:timers/promises';
+import type { ModelUsageCall } from '../model-usage';
 import { EmbeddingsService } from './embeddings.service';
 
 function service(overrides: Record<string, unknown> = {}): EmbeddingsService {
@@ -117,5 +118,42 @@ describe('EmbeddingsService', () => {
       'fetch failed',
     );
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  test('records one ledger entry per call, summing its requests and retries', async () => {
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [{ embedding: [1] }],
+            usage: { prompt_tokens: 5, cost: 0.001 },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+      .mockResolvedValueOnce(embeddingResponse([2]));
+    const usage: ModelUsageCall[] = [];
+    const embeddings = new EmbeddingsService(
+      new ConfigService({ BACKEND_MODEL_API_KEY: 'key' }),
+      { record: (call) => usage.push(call) },
+    );
+
+    Object.defineProperty(embeddings, 'concurrency', { value: 1 });
+
+    await embeddings.embedMany(['one', 'two']);
+
+    // The rejected request is not billed; the unpriced answer makes it partial.
+    expect(usage).toEqual([
+      {
+        stage: 'embedding',
+        provider: 'openrouter',
+        model: 'openai/text-embedding-3-small',
+        status: 'ok',
+        inputTokens: 5,
+        costUsd: 0.001,
+        costPartial: true,
+      },
+    ]);
   });
 });
