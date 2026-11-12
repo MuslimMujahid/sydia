@@ -5,6 +5,7 @@ import {
 import type { ActiveNoteService } from './active-note.service';
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import type {
   AssistantRun,
   Conversation,
@@ -239,6 +240,8 @@ async function runReceiptTurn(
 }
 
 describe('AssistantOrchestratorService', () => {
+  afterEach(() => jest.restoreAllMocks());
+
   it('persists a successful assistant turn', async () => {
     const completedRun = createRun('completed');
     const assistantMessage: Message = {
@@ -583,6 +586,101 @@ describe('AssistantOrchestratorService', () => {
       expect.objectContaining({ status: 'failed' }),
     );
   });
+
+  it.each(['length', 'error'])(
+    'records the %s finish reason and execution limits in the failure audit',
+    async (finishReason) => {
+      const logError = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      const repository = {
+        writeUserMessage: resolved({
+          conversation,
+          userMessage,
+          replayed: false,
+        }),
+        findLatestRunForMessage: resolved(null),
+        createRun: resolved(createRun()),
+        findExecutionPlan: resolved(null),
+        claimRun: resolved(true),
+        findFirstUserMessageId: resolved(null),
+        findRecentContexts: resolved([]),
+        findContext: resolved({
+          conversation: {
+            id: conversation.id,
+            rollingSummary: null,
+            summaryThroughMessageId: null,
+          },
+          messages: [userMessage],
+        }),
+        updateRun: resolved(createRun('failed')),
+      } as unknown as IConversationRepository;
+
+      const model: LanguageModelGateway = {
+        provider: 'openrouter',
+        model: 'test-model',
+        generate: resolved({
+          text: 'Incomplete draft that must not be published.',
+          finishReason,
+          stepCount: 3,
+          usage: { inputTokens: 100, outputTokens: 4096 },
+        }),
+      };
+
+      const record = jest
+        .fn<(event: unknown) => Promise<void>>()
+        .mockResolvedValue(undefined);
+
+      const config = new ConfigService({
+        BACKEND_ASSISTANT_MAX_OUTPUT_TOKENS: 4096,
+        BACKEND_ASSISTANT_MAX_STEPS: 16,
+        BACKEND_ASSISTANT_REASONING_EFFORT: 'medium',
+      });
+
+      const orchestrator = new AssistantOrchestratorService(
+        repository,
+        model,
+        new ContextBuilderService(repository, config),
+        new ConversationSummarizerService(repository, model, config),
+        new ToolExecutorService(repository, []),
+        { conversationSummaries: { add: resolved({}) } } as never,
+        { schedule: resolved(undefined) } as never,
+        billingTestAccess(),
+        { record },
+        undefined,
+        undefined,
+        undefined,
+        config,
+      );
+
+      const result = await orchestrator.sendAndWait(user, {
+        content: 'Update my budget note.',
+        idempotencyKey: 'incomplete-note-turn',
+      });
+
+      expect(result.assistantMessage).toBeNull();
+      expect(result.assistantRun.status).toBe('failed');
+      expect(record).toHaveBeenCalledTimes(1);
+      expect(record.mock.calls[0]?.[0]).toMatchObject({
+        eventType: 'assistant.run.failed',
+        metadata: {
+          runId: 'run-1',
+          errorName: 'ModelGatewayError',
+          failureReason: 'incomplete_output',
+          finishReason,
+          maxOutputTokens: 4096,
+          maxSteps: 16,
+          stepCount: 3,
+          reasoningEffort: 'medium',
+          attempts: null,
+        },
+      });
+      expect(logError).toHaveBeenCalledWith(
+        expect.stringContaining(`"finishReason":"${finishReason}"`),
+      );
+    },
+  );
 
   it('records sanitized generation diagnostics for a failed run', async () => {
     const failedRun = createRun('failed');

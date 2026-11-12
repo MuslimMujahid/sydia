@@ -228,28 +228,42 @@ describe('Main conversation execution', () => {
     expect(output.usage.costUsd).toBeUndefined();
   });
 
-  it('does not retry or claim success after an output-length stop', async () => {
-    const { model, generate, settings, plan } = fixture(true);
-    await plan.load();
-    const delivered = jest.fn();
-    generate.mockResolvedValue({
-      ...result('Partially generated'),
-      finishReason: 'length',
-    });
+  it.each(['length', 'error'])(
+    'preserves the %s finish diagnostics without retrying or delivering an incomplete reply',
+    async (finishReason) => {
+      const { model, generate, settings, plan } = fixture(true);
+      await plan.load();
+      const delivered = jest.fn();
+      generate.mockResolvedValue({
+        ...result('Partially generated'),
+        finishReason,
+      });
 
-    await expect(
-      generateAssistantTurn(
-        model,
-        { messages, onTextDelta: delivered },
-        settings,
-        plan,
-      ),
-    ).rejects.toThrow('ended before completing');
+      await expect(
+        generateAssistantTurn(
+          model,
+          { messages, onTextDelta: delivered },
+          settings,
+          plan,
+        ),
+      ).rejects.toMatchObject({
+        name: 'ModelGatewayError',
+        diagnostics: {
+          errorName: 'ModelGatewayError',
+          failureReason: 'incomplete_output',
+          finishReason,
+          maxOutputTokens: 4096,
+          maxSteps: 16,
+          stepCount: 3,
+          reasoningEffort: 'medium',
+        },
+      });
 
-    expect(generate).toHaveBeenCalledTimes(1);
-    expect(delivered).not.toHaveBeenCalled();
-    expect(plan.actionable()).toBe(true);
-  });
+      expect(generate).toHaveBeenCalledTimes(1);
+      expect(delivered).not.toHaveBeenCalled();
+      expect(plan.actionable()).toBe(true);
+    },
+  );
 
   it('does not continue work blocked on user information', async () => {
     const { model, generate, settings, plan } = fixture(true);
@@ -343,7 +357,14 @@ describe('Main conversation execution', () => {
 
     await expect(
       generateAssistantTurn(model, { messages }, settings, plan),
-    ).rejects.toThrow('continuation metadata');
+    ).rejects.toMatchObject({
+      diagnostics: {
+        failureReason: 'invalid_continuation_metadata',
+        finishReason: 'stop',
+        stepCount: 0,
+        maxSteps: 16,
+      },
+    });
 
     expect(generate).toHaveBeenCalledTimes(1);
   });

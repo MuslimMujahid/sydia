@@ -121,19 +121,7 @@ function stripCompleteTurn(value: unknown): unknown {
 const PRISMA_CODE_FRAME_LINE =
   /^\s*(?:→\s*)?(?:\d+\s+\S|\S*\.(?:ts|js|mjs|cjs|prisma):\d+(?::\d+)?\s*$)/;
 
-function toolErrorContent(error: unknown): string {
-  // Candidates are the point of this error, so they bypass the message cap.
-  if (error instanceof AmbiguousReferenceError)
-    return JSON.stringify({
-      error: 'ambiguous_reference',
-      message: error.message.replace(/[\p{Cc}]/gu, ' '),
-      candidates: error.candidates.map((candidate) => ({
-        ...candidate,
-        title: candidate.title.replace(/[\p{Cc}]/gu, ' '),
-      })),
-      ...(error.omitted ? { omitted: error.omitted } : {}),
-    });
-
+function toolErrorMessage(error: unknown): string {
   let message =
     error instanceof Error && error.message.trim()
       ? error.message
@@ -168,7 +156,65 @@ function toolErrorContent(error: unknown): string {
     .trim()
     .slice(0, MAX_TOOL_ERROR_LENGTH);
 
-  return JSON.stringify({ error: 'tool_failed', message: sanitized });
+  return sanitized;
+}
+
+function toolErrorContent(error: unknown): string {
+  // Candidates are the point of this error, so they bypass the message cap.
+  if (error instanceof AmbiguousReferenceError)
+    return JSON.stringify({
+      error: 'ambiguous_reference',
+      message: error.message.replace(/[\p{Cc}]/gu, ' '),
+      candidates: error.candidates.map((candidate) => ({
+        ...candidate,
+        title: candidate.title.replace(/[\p{Cc}]/gu, ' '),
+      })),
+      ...(error.omitted ? { omitted: error.omitted } : {}),
+    });
+
+  return JSON.stringify({
+    error: 'tool_failed',
+    message: toolErrorMessage(error),
+  });
+}
+
+type ToolFailureDetails = {
+  error: 'tool_failed';
+  message: string;
+  code?: string;
+  statusCode?: number;
+  reason?: string;
+};
+
+/** Persist only bounded messages and named diagnostic fields, never raw payloads. */
+function toolFailureDetails(
+  error: unknown,
+  sensitive = false,
+): ToolFailureDetails {
+  const details: ToolFailureDetails = {
+    error: 'tool_failed',
+    message: sensitive
+      ? 'Sensitive tool failed; error details were redacted.'
+      : toolErrorMessage(error),
+  };
+
+  if (error instanceof ApiException) {
+    details.code = error.code;
+    details.statusCode = error.getStatus();
+    // ApiException owns this envelope; arbitrary details may include source data.
+    const response = error.getResponse() as {
+      error: { details: Record<string, unknown> };
+    };
+
+    const reason = response.error.details.reason;
+    if (!sensitive && typeof reason === 'string')
+      details.reason = reason
+        .replace(/[\p{Cc}]/gu, ' ')
+        .trim()
+        .slice(0, 80);
+  }
+
+  return details;
 }
 
 type LocalizedToolLabel = Record<SupportedLocale, string>;
@@ -525,13 +571,16 @@ export class ToolExecutorService {
         stripCompleteTurn(call.arguments),
       );
     } catch (error) {
+      const details = toolFailureDetails(error, assistantTool.sensitive);
+
       return this.reject(
         runId,
         inputMessageId,
         call,
         assistantTool.definition.label,
-        error instanceof Error ? error.message : 'Invalid tool arguments.',
+        details.message,
         'Tool rejected: invalid arguments.',
+        details,
       );
     }
 
@@ -634,17 +683,34 @@ export class ToolExecutorService {
         ),
       };
     } catch (error) {
+      const details = toolFailureDetails(error, assistantTool.sensitive);
+      Logger.warn(
+        JSON.stringify({
+          event: 'assistant_tool_failed',
+          runId,
+          invocationId: invocation.id,
+          toolName: call.name,
+          code: details.code ?? null,
+          statusCode: details.statusCode ?? null,
+        }),
+        'ToolExecutorService',
+      );
       const failed = await this.conversations.updateToolInvocation(
         invocation.id,
         {
           status: 'failed',
-          errorMessage:
-            error instanceof Error ? error.message : 'Tool execution failed.',
+          errorMessage: details.message,
+          result: details,
           completedAt: new Date(),
         },
       );
 
-      return { invocation: failed, content: toolErrorContent(error) };
+      return {
+        invocation: failed,
+        content: assistantTool.sensitive
+          ? JSON.stringify(details)
+          : toolErrorContent(error),
+      };
     }
   }
 
@@ -656,7 +722,19 @@ export class ToolExecutorService {
     label: string,
     errorMessage: string,
     content: string,
+    details?: ToolFailureDetails,
   ): Promise<ToolExecutionResult> {
+    Logger.warn(
+      JSON.stringify({
+        event: 'assistant_tool_rejected',
+        runId,
+        toolCallId: call.id,
+        toolName: call.name,
+        code: details?.code ?? null,
+        statusCode: details?.statusCode ?? null,
+      }),
+      'ToolExecutorService',
+    );
     const invocation = await this.conversations.createToolInvocation({
       assistantRunId: runId,
       toolCallId: call.id,
@@ -668,7 +746,12 @@ export class ToolExecutorService {
 
     const rejected = await this.conversations.updateToolInvocation(
       invocation.id,
-      { status: 'rejected', errorMessage, completedAt: new Date() },
+      {
+        status: 'rejected',
+        errorMessage,
+        ...(details ? { result: details } : {}),
+        completedAt: new Date(),
+      },
     );
 
     return { invocation: rejected, content };

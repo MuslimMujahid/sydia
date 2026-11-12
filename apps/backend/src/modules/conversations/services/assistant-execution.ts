@@ -136,6 +136,15 @@ export async function generateAssistantTurn(
       );
       throw new ModelGatewayError(
         'Assistant generation ended before completing its output. Check the main-thread output budget and saved plan.',
+        {
+          errorName: 'ModelGatewayError',
+          failureReason: 'incomplete_output',
+          finishReason: result.finishReason,
+          maxOutputTokens: settings.maxOutputTokens,
+          maxSteps: remainingSteps,
+          stepCount: result.stepCount,
+          reasoningEffort: settings.reasoningEffort,
+        },
       );
     }
 
@@ -154,6 +163,15 @@ export async function generateAssistantTurn(
       );
       throw new ModelGatewayError(
         'The model gateway did not return continuation metadata.',
+        {
+          errorName: 'ModelGatewayError',
+          failureReason: 'invalid_continuation_metadata',
+          finishReason: result.finishReason,
+          maxOutputTokens: settings.maxOutputTokens,
+          maxSteps: remainingSteps,
+          stepCount: result.stepCount,
+          reasoningEffort: settings.reasoningEffort,
+        },
       );
     }
 

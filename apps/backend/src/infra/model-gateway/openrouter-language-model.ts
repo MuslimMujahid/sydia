@@ -89,13 +89,20 @@ function parseReasoningEffort(value: unknown): ReasoningEffort | undefined {
  */
 export type ModelGatewayFailure = {
   errorName: string;
-  attempts: number;
+  /** Present for gateway failures; completion checks do not know the attempt count. */
+  attempts?: number;
   statusCode?: number;
   retryable?: boolean;
   providerErrorType?: string;
   providerMessage?: string;
   /** Error names and system codes along the cause chain, e.g. "TypeError > Error(ENOTFOUND)". */
   cause?: string;
+  failureReason?: 'incomplete_output' | 'invalid_continuation_metadata';
+  finishReason?: string;
+  maxOutputTokens?: number;
+  maxSteps?: number;
+  stepCount?: number;
+  reasoningEffort?: ReasoningEffort;
 };
 
 export class ModelGatewayError extends Error {

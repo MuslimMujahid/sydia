@@ -1,16 +1,64 @@
 import { ApiException, ErrorCodes } from '../../../shared/errors';
 import { toolErrorContent } from './tool-executor.service';
-import { HttpStatus } from '@nestjs/common';
+import { HttpStatus, Logger } from '@nestjs/common';
 import { jest } from '@jest/globals';
 import type { Prisma } from '../../../generated/prisma/client';
 import type { IConversationRepository } from '../../../database/interfaces';
 import {
   ToolExecutorService,
+  type AssistantTool,
   type AssistantToolDefinition,
 } from './tool-executor.service';
 
 function resolved<T>(value: T) {
   return jest.fn<() => Promise<T>>().mockResolvedValue(value);
+}
+
+function failingTool(
+  error: Error,
+  phase: 'parse' | 'execute',
+  sensitive = false,
+) {
+  const pending = {
+    id: 'invocation-1',
+    assistantRunId: 'run-1',
+    name: 'add_record_rows',
+    status: 'pending',
+    result: null,
+  };
+
+  const updateToolInvocation = jest
+    .fn()
+    .mockImplementation((_id: unknown, update: unknown) =>
+      Promise.resolve({ ...pending, ...(update as object) }),
+    );
+
+  const repository = {
+    createToolInvocation: resolved(pending),
+    claimToolInvocation: resolved(true),
+    updateToolInvocation,
+  } as unknown as IConversationRepository;
+
+  const execute = jest.fn<AssistantTool['execute']>().mockRejectedValue(error);
+  const executor = new ToolExecutorService(repository, [
+    {
+      definition: {
+        name: 'add_record_rows',
+        label: 'Add rows',
+        description: 'Add note rows.',
+        parameters: { type: 'object' },
+      },
+      parseArguments: () => {
+        if (phase === 'parse') throw error;
+
+        return {};
+      },
+      execute,
+      sensitive,
+    },
+  ]);
+
+  return { executor, updateToolInvocation, execute };
 }
 
 function guardRecord(value: unknown): Record<string, unknown> | null {
@@ -29,6 +77,108 @@ function advertisedProperties(schema: unknown): Record<string, unknown> {
 }
 
 describe('ToolExecutorService', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    ['parse', 'rejected'],
+    ['execute', 'failed'],
+  ] as const)(
+    'persists the domain message and reason when %s fails',
+    async (phase, status) => {
+      const logWarning = jest
+        .spyOn(Logger, 'warn')
+        .mockImplementation(() => undefined);
+
+      const { executor, updateToolInvocation } = failingTool(
+        new ApiException({
+          code: ErrorCodes.BAD_REQUEST,
+          status: HttpStatus.BAD_REQUEST,
+          message:
+            'Leave out the unstated category.\nRetry with stated values.',
+          details: {
+            reason: 'UNSTATED_VALUES',
+            rawPayload: 'must not be copied',
+          },
+        }),
+        phase,
+      );
+
+      const result = await executor.execute('owner', 'run-1', 'message-1', {
+        id: 'call-1',
+        name: 'add_record_rows',
+        arguments: {},
+      });
+
+      expect(result.invocation.status).toBe(status);
+      expect(updateToolInvocation).toHaveBeenCalledWith(
+        'invocation-1',
+        expect.objectContaining({
+          status,
+          errorMessage:
+            'Leave out the unstated category. Retry with stated values.',
+          result: {
+            error: 'tool_failed',
+            message:
+              'Leave out the unstated category. Retry with stated values.',
+            code: ErrorCodes.BAD_REQUEST,
+            statusCode: 400,
+            reason: 'UNSTATED_VALUES',
+          },
+        }),
+      );
+      expect(JSON.stringify(updateToolInvocation.mock.calls)).not.toContain(
+        'rawPayload',
+      );
+      expect(logWarning).toHaveBeenCalledWith(
+        expect.stringContaining('"code":"BAD_REQUEST"'),
+        'ToolExecutorService',
+      );
+      expect(JSON.stringify(logWarning.mock.calls)).not.toContain(
+        'unstated category',
+      );
+    },
+  );
+
+  it.each(['parse', 'execute'] as const)(
+    'redacts sensitive tool errors during %s',
+    async (phase) => {
+      const logWarning = jest
+        .spyOn(Logger, 'warn')
+        .mockImplementation(() => undefined);
+
+      const { executor, updateToolInvocation } = failingTool(
+        new ApiException({
+          code: ErrorCodes.BAD_REQUEST,
+          status: HttpStatus.BAD_REQUEST,
+          message: 'Invalid secret: private-password',
+          details: { reason: 'private-password' },
+        }),
+        phase,
+        true,
+      );
+
+      const result = await executor.execute('owner', 'run-1', 'message-1', {
+        id: 'call-1',
+        name: 'add_record_rows',
+        arguments: { value: 'private-password' },
+      });
+
+      expect(updateToolInvocation).toHaveBeenCalledWith(
+        'invocation-1',
+        expect.objectContaining({
+          errorMessage: 'Sensitive tool failed; error details were redacted.',
+        }),
+      );
+      expect(JSON.stringify(updateToolInvocation.mock.calls)).not.toContain(
+        'private-password',
+      );
+      expect(result.content).not.toContain('private-password');
+      expect(JSON.stringify(logWarning.mock.calls)).not.toContain(
+        'private-password',
+      );
+    },
+  );
+
   it('persists a rejected invocation for an unknown tool', async () => {
     const pending = {
       id: 'tool-1',
@@ -304,6 +454,12 @@ describe('ToolExecutorService', () => {
     const { message } = JSON.parse(result.content) as { message: string };
 
     expect(message).toContain('Unique constraint failed');
+    expect(repository.updateToolInvocation).toHaveBeenCalledWith(
+      'tool-prisma',
+      expect.objectContaining({
+        errorMessage: message,
+      }),
+    );
     // The code frame's source lines must be gone; the one-line call name that
     // Prisma puts in the message itself is fine and keeps the origin visible.
     expect(message).not.toContain('input: ContactGroupWrite');

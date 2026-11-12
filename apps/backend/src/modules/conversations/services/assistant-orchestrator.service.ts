@@ -462,12 +462,22 @@ export class AssistantOrchestratorService {
       diagnostics?.errorName ??
       (error instanceof Error ? error.name : 'UnknownError');
 
+    const completion = {
+      failureReason: diagnostics?.failureReason ?? null,
+      finishReason: diagnostics?.finishReason ?? null,
+      maxOutputTokens: diagnostics?.maxOutputTokens ?? null,
+      maxSteps: diagnostics?.maxSteps ?? null,
+      stepCount: diagnostics?.stepCount ?? null,
+      reasoningEffort: diagnostics?.reasoningEffort ?? null,
+    };
+
     this.logger.error(
       JSON.stringify({
         event: 'assistant_generation_exhausted',
         conversationId: state.conversation.id,
         runId: state.run.id,
         errorName,
+        ...completion,
         attempts: diagnostics?.attempts ?? null,
         statusCode: diagnostics?.statusCode ?? null,
         retryable: diagnostics?.retryable ?? null,
@@ -488,6 +498,7 @@ export class AssistantOrchestratorService {
           provider: this.languageModel.provider,
           model: this.languageModel.model,
           errorName,
+          ...completion,
           attempts: diagnostics?.attempts ?? null,
           statusCode: diagnostics?.statusCode ?? null,
           retryable: diagnostics?.retryable ?? null,

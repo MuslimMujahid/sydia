@@ -34,6 +34,39 @@ Final text is buffered until the completion check resolves; tool activity still 
 
 Plans remain model-authored assertions. They can omit a requirement or mark it complete incorrectly. Existing permission, evidence, idempotency and date-scope mechanisms remain necessary. Continuation retains observed effects, but this feature does not establish exactly-once external writes or reconcile uncertain writes automatically after a process crash.
 
+## Failure diagnostics
+
+Completion checks retain `finishReason` in the `assistant.run.failed` audit
+metadata and the `assistant_generation_exhausted` backend log. `failureReason`
+distinguishes `incomplete_output` (`length` or `error`) from
+`invalid_continuation_metadata`. The same record includes `maxOutputTokens`,
+`maxSteps` (the remaining allowance for that generation), `stepCount`, and
+`reasoningEffort`. Gateway attempt counts stay unknown for completion failures;
+they are not inferred from the turn's step count. User-facing failure messages
+remain localized and generic.
+
+Tool argument-validation and execution failures save a sanitized message in
+`tool_invocation.errorMessage`. Its existing `result` JSON field retains
+`error`, `message`, and, for domain `ApiException` failures, `code`, `statusCode`,
+and an optional `reason`. Messages are capped at 240 characters and reasons at
+80 characters; Prisma source frames and control characters are removed from
+messages. Other exception details and raw payloads are not copied. Sensitive
+tools retain only a redacted message, code, and status. Backend warning events
+identify the run/tool and error code/status without copying error messages or
+tool arguments into logs.
+
+These fields require no migration and apply to new failures after deployment.
+Older records cannot recover discarded finish reasons or tool messages. A
+successful retry can change the run to `completed`; its earlier audit events
+still identify the failed attempt. A provider call recorded as `ok` can be
+followed by an application completion-check failure.
+
+Targeted regression checks from `apps/backend`:
+
+```bash
+bun run test -- --runInBand --testPathPatterns='assistant-execution.spec|assistant-orchestrator.service.spec|tool-executor.service.spec|tool-loop-guard.spec|tool-references.spec|openrouter-language-model.spec'
+```
+
 ## Verification
 
 From `apps/backend`:
