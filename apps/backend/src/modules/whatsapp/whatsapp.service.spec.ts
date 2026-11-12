@@ -12,6 +12,7 @@ import type {
   WhatsAppConnection,
   WhatsAppConnectionScope,
 } from '../../database/entities';
+import type { IWhatsAppConnectionRepository } from '../../database/interfaces';
 import type { NormalizedInboundMessage } from '../../shared/messaging';
 import type { ChannelTurnAdapter, MessagingHandlerService } from '../messaging';
 import { WhatsAppService } from './whatsapp.service';
@@ -36,6 +37,7 @@ type Setup = {
   documents: { ingest: jest.Mock; waitUntilReady: jest.Mock };
   service: WhatsAppService;
   client: {
+    sendText: jest.Mock<ConnectionClient['sendText']>;
     markRead: jest.Mock<ConnectionClient['markRead']>;
     sendChatPresence: jest.Mock<ConnectionClient['sendChatPresence']>;
   };
@@ -44,19 +46,22 @@ type Setup = {
   handle: jest.Mock<() => Promise<boolean>>;
 };
 
-async function setup(): Promise<Setup> {
+async function setup({ ownerVerified = true } = {}): Promise<Setup> {
   let adapter: ChannelTurnAdapter | undefined;
   let inbound: ScopedInboundHandler | undefined;
-  const connection = {
+  let connection = {
     id: 'connection-1',
     generation: 1,
     userId: 'user-1',
-    ownerVerifiedAt: new Date('2026-09-10T12:00:00Z'),
+    ownerVerifiedAt: ownerVerified ? new Date('2026-09-10T12:00:00Z') : null,
     ownerExternalId: '628123',
     ownerIdentityId: 'identity-1',
   } as WhatsAppConnection;
 
   const client = {
+    sendText: jest
+      .fn<ConnectionClient['sendText']>()
+      .mockResolvedValue({ message_id: 'sent-1', status: 'sent' }),
     markRead: jest
       .fn<ConnectionClient['markRead']>()
       .mockResolvedValue(undefined),
@@ -107,19 +112,23 @@ async function setup(): Promise<Setup> {
     {
       recordInbound,
       finishInbound: () => Promise.resolve(),
-      findActive: () =>
-        Promise.resolve({
-          id: 'connection-1',
-          generation: 1,
-          ownerVerifiedAt: new Date('2026-09-10T12:00:00Z'),
-          ownerExternalId: '628123',
+      findActive: () => Promise.resolve(connection),
+      verifyOwner: jest
+        .fn<IWhatsAppConnectionRepository['verifyOwner']>()
+        .mockImplementation(() => {
+          connection = {
+            ...connection,
+            ownerVerifiedAt: new Date('2026-09-10T12:00:00Z'),
+          };
+
+          return Promise.resolve(connection);
         }),
     } as never,
     {
       findById: () => Promise.resolve({ id: 'user-1', emailVerified: true }),
     } as never,
     {} as never,
-    {} as never,
+    { record: jest.fn(() => Promise.resolve()) },
     messages,
     documents as unknown as DocumentService,
     {} as OpenRouterMediaService,
@@ -153,6 +162,55 @@ async function setup(): Promise<Setup> {
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
+});
+
+describe('WhatsApp pairing messages', () => {
+  it('only sends the connection confirmation when the pairing webhook is replayed after verification', async () => {
+    const { inbound, client, handle, recordInbound } = await setup({
+      ownerVerified: false,
+    });
+
+    const proof = { ...message, kind: 'text' as const, text: 'SYDIA-053E1D9C' };
+
+    await inbound(proof);
+    await inbound(proof);
+
+    expect(client.sendText).toHaveBeenCalledTimes(1);
+    expect(client.sendText).toHaveBeenCalledWith(
+      '628123',
+      'WhatsApp terhubung. Asisten Sydia Anda siap digunakan.',
+    );
+    expect(handle).not.toHaveBeenCalled();
+    expect(recordInbound).not.toHaveBeenCalled();
+  });
+
+  it.each(['SYDIA-053E1D9C', '  sydia-053e1d9c\n'])(
+    'does not send a standalone pairing code to the assistant after linking: %p',
+    async (text) => {
+      const { inbound, handle, recordInbound, client } = await setup();
+
+      await inbound({ ...message, kind: 'text', text });
+
+      expect(handle).not.toHaveBeenCalled();
+      expect(recordInbound).not.toHaveBeenCalled();
+      expect(client.sendText).not.toHaveBeenCalled();
+    },
+  );
+
+  it('processes normal messages that mention a pairing code', async () => {
+    const { inbound, handle } = await setup();
+    const question = {
+      ...message,
+      kind: 'text' as const,
+      text: 'Apa fungsi kode SYDIA-053E1D9C?',
+    };
+
+    await inbound(question);
+
+    expect(handle).toHaveBeenCalledWith(
+      expect.objectContaining({ message: question }),
+    );
+  });
 });
 
 describe('WhatsApp read acknowledgements', () => {

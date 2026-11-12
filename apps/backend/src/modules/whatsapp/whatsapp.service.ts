@@ -386,9 +386,11 @@ export class WhatsAppService implements OnModuleInit {
     connection: WhatsAppConnection,
     message: NormalizedInboundMessage,
   ) {
+    const candidate = message.text.trim().toUpperCase();
+    const isOwnerCode = /^SYDIA-[A-Z0-9]{8}$/.test(candidate);
+
     if (!connection.ownerVerifiedAt) {
-      const candidate = message.text.trim().toUpperCase();
-      if (!/^SYDIA-[A-Z0-9]{8}$/.test(candidate)) return;
+      if (!isOwnerCode) return;
       await this.requireUser(connection.userId);
       let verified: WhatsAppConnection | null;
 
@@ -441,6 +443,9 @@ export class WhatsAppService implements OnModuleInit {
     }
 
     await this.authorize(connection.userId, message);
+    // Pairing proofs remain setup messages if GoWA replays them after verification.
+    if (isOwnerCode) return;
+
     const id = await this.connections.recordInbound(connection, {
       providerMessageId: message.providerMessageId,
       senderExternalId: message.senderExternalId,
