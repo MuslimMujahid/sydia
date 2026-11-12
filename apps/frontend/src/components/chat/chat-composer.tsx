@@ -3,6 +3,7 @@ import {
   type ChatSourceEditorHandle,
 } from "./chat-source-editor";
 import type { ChatSegment } from "./chat-source-types";
+import { ChatStarters } from "./chat-starters";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileAudio,
@@ -11,7 +12,7 @@ import {
   LoaderCircle,
   Paperclip,
   RefreshCcw,
-  SendHorizontal,
+  ArrowUp,
   X,
 } from "lucide-react";
 import {
@@ -365,7 +366,7 @@ export function ChatComposer({
   return (
     <form
       className={
-        embedded ? "bg-transparent" : "bg-canvas px-4 pt-2 pb-3 sm:px-6"
+        embedded ? "bg-transparent" : "bg-canvas px-4 pt-2 pb-4 sm:px-6"
       }
       onSubmit={handleSubmit}
     >
@@ -447,8 +448,11 @@ export function ChatComposer({
             ))}
           </ul>
         ) : null}
-        {/* 52px tall (1px border + 8px padding + 34px row) with a 26px radius gives perfect half-circle ends. */}
-        <div className="relative flex items-end gap-1 rounded-[26px] border border-hairline bg-surface-1 p-2 focus-within:border-ink/16">
+        {/* A raised card: the writing area on top, its tools on a second row. */}
+        <div
+          data-embedded={embedded}
+          className="composer-shell flex flex-col gap-1 rounded-lg p-2.5"
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -456,17 +460,6 @@ export function ChatComposer({
             accept=".pdf,.docx,.xlsx,.pptx,.odt,.ods,.odp,.rtf,.txt,.md,.csv,.html,.json,image/*,audio/*"
             className="sr-only"
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8.5 rounded-full"
-            aria-label={locale === "en" ? "Add file" : "Tambahkan file"}
-            disabled={disabled || isSending}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Paperclip />
-          </Button>
           <ChatSourceEditor
             ref={sourceEditorRef}
             locale={locale}
@@ -480,25 +473,48 @@ export function ChatComposer({
             }}
             onSubmit={() => void submit()}
           />
-          <Button
-            type="submit"
-            size="icon"
-            className="size-8.5 rounded-full"
-            aria-label={
-              isSending
-                ? locale === "en"
-                  ? "Sending message"
-                  : "Mengirim pesan"
-                : locale === "en"
-                  ? "Send message"
-                  : "Kirim pesan"
-            }
-            disabled={!canSend}
-          >
-            <SendHorizontal />
-          </Button>
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="dark-outline"
+              size="icon"
+              className="size-9 rounded-full border-hairline text-ink-muted hover:border-ink/16 hover:bg-ink/5 [&_svg]:transition-[rotate] [&_svg]:duration-200 [&_svg]:ease-out hover:[&_svg]:-rotate-12"
+              aria-label={locale === "en" ? "Add file" : "Tambahkan file"}
+              disabled={disabled || isSending}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip />
+            </Button>
+            <Button
+              type="submit"
+              size="icon"
+              className="size-9 rounded-full transition-[scale,filter] active:scale-90 [&_svg]:transition-[translate] [&_svg]:duration-200 [&_svg]:ease-out hover:[&_svg]:-translate-y-0.5"
+              aria-label={
+                isSending
+                  ? locale === "en"
+                    ? "Sending message"
+                    : "Mengirim pesan"
+                  : locale === "en"
+                    ? "Send message"
+                    : "Kirim pesan"
+              }
+              disabled={!canSend}
+            >
+              <ArrowUp />
+            </Button>
+          </div>
         </div>
         {embedded ? composerState : null}
+        {embedded ? (
+          <div className="mt-1">
+            <ChatStarters
+              locale={locale}
+              hidden={Boolean(content) || attachments.length > 0}
+              disabled={disabled || isSending || submitting}
+              onPick={(draft) => sourceEditorRef.current?.setText(draft)}
+            />
+          </div>
+        ) : null}
         <p id="composer-help" className="sr-only">
           {locale === "en"
             ? "Press Enter to send. Press Shift and Enter for a new line. Use the add file button to attach a document, image, or audio."

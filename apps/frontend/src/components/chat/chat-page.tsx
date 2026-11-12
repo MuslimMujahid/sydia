@@ -1,6 +1,6 @@
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import type {
 } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import { ChatComposer } from "./chat-composer";
+import { chatGreeting, hourInZone } from "./chat-greeting";
 import { MessageHistory } from "./message-history";
 import { TodayAgenda } from "./today-agenda";
 import {
@@ -29,6 +30,8 @@ type ChatPageProps = {
   conversationId?: string;
   initialAttachmentId?: string;
   locale: SupportedLocale;
+  /** Clock for the home greeting; injectable so rendering stays deterministic. */
+  now?: () => Date;
 };
 
 function ThreadSkeleton({ locale }: { locale: SupportedLocale }) {
@@ -106,11 +109,12 @@ function ChatPageContent({
   conversationId,
   initialAttachmentId,
   locale,
+  now = () => new Date(),
 }: ChatPageProps) {
   const navigate = useNavigate();
   const notes = useChatNotes();
   const queryClient = useQueryClient();
-  const { timezone } = useRouteContext({ from: "/_app" });
+  const { timezone, name } = useRouteContext({ from: "/_app" });
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const conversationQuery = useQuery(
     conversationQueryOptions(conversationId ?? "")
@@ -304,16 +308,26 @@ function ChatPageContent({
             className={
               isSending
                 ? "hidden"
-                : "flex min-h-full items-center justify-center px-4 py-10 sm:px-8"
+                : "aurora-stage relative isolate flex min-h-full items-center justify-center px-4 py-10 sm:px-8"
             }
           >
+            <div className="aurora-bloom" aria-hidden="true" />
             <div className="w-full max-w-3xl -translate-y-[4vh] text-center">
-              <h1 className="font-display text-[22px] leading-[1.22] font-normal tracking-[-0.018em] sm:text-[26px]">
+              <h1 className="rise-in font-display text-[28px] leading-[1.15] font-semibold tracking-[-0.03em] sm:text-[34px]">
+                {chatGreeting(hourInZone(now(), timezone), locale, name)}
+              </h1>
+              <p
+                className="rise-in mt-2 text-[17px] text-ink-muted"
+                style={{ "--i": 1 } as CSSProperties}
+              >
                 {locale === "en"
                   ? "What would you like to do today?"
                   : "Ingin melakukan apa hari ini?"}
-              </h1>
-              <div className="mt-7 text-left">
+              </p>
+              <div
+                className="rise-in mt-7 text-left"
+                style={{ "--i": 2 } as CSSProperties}
+              >
                 <ChatComposer
                   key="new-home"
                   initialAttachmentId={initialAttachmentId}

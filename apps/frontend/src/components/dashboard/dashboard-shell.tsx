@@ -1,18 +1,4 @@
-import {
-  Bell,
-  Brain,
-  CalendarDays,
-  ContactRound,
-  Ellipsis,
-  Files,
-  Menu,
-  MessageSquarePlus,
-  PanelLeftClose,
-  NotebookPen,
-  PanelLeftOpen,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +21,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  BellGlyph,
+  CalendarGlyph,
+  ChatDotsGlyph,
+  ChatSparkGlyph,
+  ContactGlyph,
+  FolderGlyph,
+  MemoryGlyph,
+  MoreGlyph,
+  NoteGlyph,
+  ShieldGlyph,
+} from "@/components/ui/glyphs";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
 import { billingStatusQueryOptions } from "@/lib/services/api/billing/billing.api";
 import {
@@ -54,11 +52,17 @@ import { cn } from "@/lib/utils/cn";
 
 const DEBUG_ENABLED = import.meta.env.VITE_DEBUG_ENABLED === "true";
 
+// Rows sit on the bone rail: a hover tint, and a raised snow surface when active.
+const NAV_ITEM_CLASS =
+  "glyph-host flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-ink-muted outline-none transition-[background-color,color,box-shadow] duration-200 hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50";
+
+const NAV_ITEM_ACTIVE_CLASS = "bg-canvas text-ink shadow-card hover:bg-canvas";
+
 // Tasks live inside the calendar page, behind its Kalender/Tugas switch.
 const NAV_ITEMS = [
-  { to: "/calendar", label: "Kalender", icon: CalendarDays },
-  { to: "/notes", label: "Catatan", icon: NotebookPen },
-  { to: "/files", label: "File", icon: Files },
+  { to: "/calendar", label: "Kalender", icon: CalendarGlyph, hue: "amber" },
+  { to: "/notes", label: "Catatan", icon: NoteGlyph, hue: "violet" },
+  { to: "/files", label: "File", icon: FolderGlyph, hue: "coral" },
 ] as const;
 
 const MORE_NAV_ITEMS = [
@@ -68,15 +72,23 @@ const MORE_NAV_ITEMS = [
         {
           to: "/chats" as const,
           label: "Pratinjau chat",
-          icon: MessageSquarePlus,
+          icon: ChatDotsGlyph,
+          hue: "coral" as const,
         },
       ]
     : []),
-  { to: "/reminders", label: "Pengingat", icon: Bell },
-  { to: "/contacts", label: "Kontak", icon: ContactRound },
-  { to: "/secrets", label: "Rahasia", icon: ShieldCheck },
+  { to: "/reminders", label: "Pengingat", icon: BellGlyph, hue: "amber" },
+  { to: "/contacts", label: "Kontak", icon: ContactGlyph, hue: "violet" },
+  { to: "/secrets", label: "Rahasia", icon: ShieldGlyph, hue: "coral" },
   ...(DEBUG_ENABLED
-    ? [{ to: "/memory" as const, label: "Memori", icon: Brain }]
+    ? [
+        {
+          to: "/memory" as const,
+          label: "Memori",
+          icon: MemoryGlyph,
+          hue: "violet" as const,
+        },
+      ]
     : []),
 ] as const;
 
@@ -174,13 +186,15 @@ export function DashboardShell({
           aria-label={collapsed ? "Bentangkan sidebar" : "Ciutkan sidebar"}
           onClick={() => setCollapsed((value) => !value)}
           className={cn(
-            "flex min-w-0 items-center gap-3 rounded-md px-2 outline-none focus-visible:outline-2 focus-visible:outline-brand/50",
+            "flex min-w-0 items-center gap-3 rounded-md px-2 outline-none focus-visible:outline-2 focus-visible:outline-brand/50 [&_img]:transition-[rotate,scale] [&_img]:duration-500 [&_img]:ease-[cubic-bezier(0.16,1,0.3,1)] hover:[&_img]:scale-110 hover:[&_img]:rotate-[24deg] motion-reduce:[&_img]:transition-none",
             collapsed && "mx-auto"
           )}
         >
-          <SydiaLogo className="h-6 shrink-0" />
+          <SydiaLogo className="h-7 shrink-0" />
           {!collapsed ? (
-            <span className="font-display text-sm font-bold">Sydia</span>
+            <span className="font-display text-base font-bold tracking-[-0.018em]">
+              Sydia
+            </span>
           ) : null}
         </button>
         {!collapsed ? (
@@ -196,7 +210,8 @@ export function DashboardShell({
         ) : null}
       </div>
 
-      <nav aria-label="Navigasi utama" className="space-y-0.5 px-3">
+      <nav aria-label="Navigasi utama" className="space-y-1 px-3">
+        {/* The one raised action on the rail: always lit, lifts on hover. */}
         <Link
           to="/"
           search={{ conversation: undefined, attachment: undefined }}
@@ -205,13 +220,13 @@ export function DashboardShell({
             chatSurface && !selectedConversationId ? "page" : undefined
           }
           aria-label={collapsed ? "Chat baru" : undefined}
+          data-active="true"
           className={cn(
-            "flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-normal outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand/50",
-            chatSurface && !selectedConversationId && "bg-surface-1 text-ink",
+            "glyph-host mb-3 flex min-h-11 items-center gap-3 rounded-md border border-hairline bg-canvas px-3 text-sm font-semibold text-ink shadow-card outline-none transition-[translate,box-shadow,border-color] duration-200 ease-out hover:-translate-y-px hover:border-ink/16 hover:shadow-button focus-visible:outline-2 focus-visible:outline-brand/50 active:translate-y-0 active:scale-[0.98] motion-reduce:transition-none",
             collapsed && "justify-center px-0"
           )}
         >
-          <MessageSquarePlus className="size-4 shrink-0" />
+          <ChatSparkGlyph />
           {!collapsed ? "Chat baru" : null}
         </Link>
         {NAV_ITEMS.map((item) => {
@@ -226,12 +241,12 @@ export function DashboardShell({
               aria-current={active ? "page" : undefined}
               aria-label={collapsed ? item.label : undefined}
               className={cn(
-                "flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-normal text-ink-muted outline-none hover:bg-surface-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
-                active && "bg-surface-1 text-ink",
+                NAV_ITEM_CLASS,
+                active && NAV_ITEM_ACTIVE_CLASS,
                 collapsed && "justify-center px-0"
               )}
             >
-              <Icon className="size-4 shrink-0" />
+              <Icon hue={item.hue} />
               {!collapsed ? item.label : null}
             </Link>
           );
@@ -243,12 +258,15 @@ export function DashboardShell({
             closeDelay={120}
             aria-label={collapsed ? "Menu lainnya" : undefined}
             className={cn(
-              "flex min-h-10 w-full items-center gap-2.5 rounded-md px-3 text-sm font-normal text-ink-muted outline-none hover:bg-surface-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50 data-[popup-open]:bg-surface-1 data-[popup-open]:text-ink",
-              moreActive && "bg-surface-1 text-ink",
+              NAV_ITEM_CLASS,
+              "data-[popup-open]:bg-ink/5 data-[popup-open]:text-ink",
+              moreActive && NAV_ITEM_ACTIVE_CLASS,
+              moreActive && "data-[popup-open]:bg-canvas",
               collapsed && "justify-center px-0"
             )}
+            data-active={moreActive}
           >
-            <Ellipsis className="size-4 shrink-0" />
+            <MoreGlyph hue="amber" />
             {!collapsed ? "Lainnya" : null}
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -271,9 +289,10 @@ export function DashboardShell({
                       }
                     />
                   }
+                  className="glyph-host"
                   onClick={() => setMobileOpen(false)}
                 >
-                  <Icon />
+                  <Icon hue={item.hue} />
                   {item.label}
                 </DropdownMenuItem>
               );
@@ -323,7 +342,7 @@ export function DashboardShell({
       >
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 hidden border-r border-ink/8 bg-canvas transition-[width] duration-200 lg:block",
+            "sidebar-rail fixed inset-y-0 left-0 z-40 hidden border-r border-ink/8 transition-[width] duration-200 lg:block",
             collapsed ? "w-18" : "w-68"
           )}
         >
@@ -395,7 +414,7 @@ export function DashboardShell({
           {mobileOpen ? (
             <aside
               id="mobile-navigation"
-              className="fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] border-r border-ink/8 bg-canvas shadow-card lg:hidden"
+              className="sidebar-rail fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] border-r border-ink/8 shadow-card lg:hidden"
             >
               <Button
                 variant="ghost"

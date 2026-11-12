@@ -66,13 +66,13 @@ export function ConversationList({
   const english = locale === "en";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-canvas">
-      <div className="flex items-center gap-2 px-5 pt-7 pb-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center gap-2 px-6 pt-7 pb-1">
         <h2 className="text-xs font-semibold text-ink-muted">
           {english ? "Conversations" : "Percakapan"}
         </h2>
         {!isLoading && !errorMessage ? (
-          <span className="font-mono text-[11px] text-ink-muted">
+          <span className="rounded-full bg-ink/6 px-1.5 font-mono text-[11px] leading-[18px] text-ink-muted">
             {conversations.length}
           </span>
         ) : null}
@@ -150,14 +150,22 @@ export function ConversationList({
                       aria-current={selected ? "page" : undefined}
                       onClick={() => onSelect(conversation.id)}
                       className={cn(
-                        "min-w-0 flex-1 rounded-md px-3 py-2 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50",
+                        "min-w-0 flex-1 rounded-md px-3 py-2 text-left outline-none transition-[background-color,color,box-shadow] duration-200 focus-visible:ring-3 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50",
                         selected
-                          ? "bg-surface-2 text-ink"
-                          : "hover:bg-surface-1"
+                          ? "bg-canvas text-ink shadow-card"
+                          : "text-ink-soft hover:bg-ink/5 hover:text-ink"
                       )}
                     >
-                      <span className="block truncate text-sm font-medium">
-                        {title}
+                      <span className="flex items-center gap-2">
+                        {selected ? (
+                          <span
+                            aria-hidden="true"
+                            className="size-1.5 shrink-0 rounded-full bg-brand"
+                          />
+                        ) : null}
+                        <span className="block truncate text-sm font-medium">
+                          {title}
+                        </span>
                       </span>
                       <span className="sr-only">
                         {time

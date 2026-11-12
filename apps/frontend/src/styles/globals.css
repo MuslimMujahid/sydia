@@ -205,6 +205,298 @@
   }
 }
 
+/*
+ * Living aurora: the gradient is Sydia's presence. It glows where Sydia is
+ * listening (chat home, a focused message box) and moves while Sydia works.
+ * See "Living aurora" in DESIGN.md.
+ */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --aurora-line: linear-gradient(120deg, #ffb27a 0%, #f06694 45%, #8c5cff 100%);
+}
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: var(--color-brand);
+}
+
+/* Soft drifting bloom behind the home message box. */
+.aurora-bloom {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 700ms var(--ease-out-expo);
+  mask-image: radial-gradient(
+    ellipse 72% 64% at 50% 45%,
+    #000 28%,
+    transparent 78%
+  );
+}
+.aurora-stage:focus-within .aurora-bloom {
+  opacity: 1;
+}
+.aurora-bloom::before,
+.aurora-bloom::after {
+  content: "";
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  border-radius: 50%;
+  filter: blur(64px);
+  will-change: transform;
+}
+.aurora-bloom::before {
+  --w: min(40rem, 110vw);
+  width: var(--w);
+  height: 18rem;
+  margin: -8rem 0 0 calc(var(--w) * -0.72);
+  background: radial-gradient(
+    closest-side,
+    #ff8a4c 0%,
+    #ff8a4c 28%,
+    #ff6b9b 64%,
+    transparent 100%
+  );
+  opacity: 0.36;
+  animation: aurora-drift-a 19s ease-in-out infinite alternate;
+}
+.aurora-bloom::after {
+  --w: min(38rem, 105vw);
+  width: var(--w);
+  height: 19rem;
+  margin: -11rem 0 0 calc(var(--w) * -0.3);
+  background: radial-gradient(
+    closest-side,
+    #c47bff 0%,
+    #8c5cff 50%,
+    transparent 100%
+  );
+  opacity: 0.3;
+  animation: aurora-drift-b 26s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift-a {
+  from {
+    transform: translate(-4%, 8%) scale(1);
+  }
+  to {
+    transform: translate(12%, -10%) scale(1.16);
+  }
+}
+@keyframes aurora-drift-b {
+  from {
+    transform: translate(6%, -8%) scale(1.1);
+  }
+  to {
+    transform: translate(-14%, 12%) scale(0.94);
+  }
+}
+
+/*
+ * Message box: a raised card (writing area over a tools row). It gains an
+ * aurora line and bloom shadow while typing.
+ */
+.composer-shell {
+  --composer-lift:
+    rgba(23, 20, 25, 0.05) 0 1px 3px, rgba(23, 20, 25, 0.1) 0 10px 28px -12px;
+  position: relative;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  box-shadow: var(--composer-lift);
+  transition:
+    box-shadow 280ms var(--ease-out-expo),
+    border-color 280ms var(--ease-out-expo);
+}
+.composer-shell[data-embedded="true"] {
+  --composer-lift:
+    rgba(23, 20, 25, 0.06) 0 2px 6px, rgba(23, 20, 25, 0.14) 0 22px 48px -18px;
+}
+.composer-shell::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--aurora-line);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms var(--ease-out-expo);
+}
+.composer-shell:focus-within {
+  border-color: transparent;
+  box-shadow: var(--composer-lift), var(--shadow-button);
+}
+.composer-shell:focus-within::before {
+  opacity: 1;
+}
+
+/* Sydia at work: a small morphing aurora orb and a light sweep on the label. */
+.sydia-orb {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 46% 54% 58% 42% / 52% 44% 56% 48%;
+  background: var(--aurora-line);
+  animation: sydia-orb 2.4s ease-in-out infinite;
+}
+@keyframes sydia-orb {
+  0%,
+  100% {
+    border-radius: 46% 54% 58% 42% / 52% 44% 56% 48%;
+    transform: rotate(0deg) scale(0.86);
+  }
+  50% {
+    border-radius: 58% 42% 44% 56% / 44% 58% 42% 56%;
+    transform: rotate(180deg) scale(1.08);
+  }
+}
+.thinking-sweep {
+  background: linear-gradient(
+    100deg,
+    var(--color-ink-muted) 35%,
+    var(--color-ink) 50%,
+    var(--color-ink-muted) 65%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: thinking-sweep 1.8s linear infinite;
+}
+@keyframes thinking-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+/* Entrances: `rise-in` staggers the home with --i; `message-in` lands a new turn. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+}
+.rise-in {
+  animation: rise-in 620ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+.message-in {
+  animation: rise-in 420ms var(--ease-out-expo) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-bloom::before,
+  .aurora-bloom::after,
+  .sydia-orb,
+  .rise-in,
+  .message-in {
+    animation: none;
+  }
+  .thinking-sweep {
+    animation: none;
+    color: var(--color-ink-muted);
+    background: none;
+  }
+}
+@media (forced-colors: active) {
+  .thinking-sweep {
+    color: CanvasText;
+    background: none;
+  }
+}
+
+/*
+ * Sydia glyphs (src/components/ui/glyphs.tsx): duotone icons whose accent
+ * shape lights up in an aurora stop when their `.glyph-host` is engaged.
+ */
+@layer components {
+  .glyph {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    overflow: visible;
+    --glyph-hue: var(--color-brand);
+  }
+  .glyph-amber {
+    --glyph-hue: #ff8a4c;
+  }
+  .glyph-violet {
+    --glyph-hue: #8c5cff;
+  }
+  .glyph-accent {
+    stroke: none;
+    fill: color-mix(in srgb, var(--glyph-hue) 50%, transparent);
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: fill 220ms var(--ease-out-expo);
+  }
+  .glyph-host:hover .glyph-accent,
+  .glyph-host:focus-visible .glyph-accent,
+  .glyph-host[aria-current="page"] .glyph-accent,
+  .glyph-host[data-active="true"] .glyph-accent,
+  .glyph-host[data-popup-open] .glyph-accent,
+  .glyph-host[data-highlighted] .glyph-accent {
+    fill: var(--glyph-hue);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .glyph-host:hover .glyph-accent,
+    .glyph-host[data-highlighted] .glyph-accent {
+      animation: glyph-pop 560ms var(--ease-out-expo);
+    }
+    .glyph-host:hover .glyph {
+      animation: glyph-lean 560ms var(--ease-out-expo);
+    }
+  }
+}
+@keyframes glyph-pop {
+  0% {
+    transform: scale(0.5) rotate(-24deg);
+  }
+  55% {
+    transform: scale(1.22) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+@keyframes glyph-lean {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  40% {
+    transform: rotate(-9deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+/* Sidebar rail: warm bone with a faint aurora wash rising from the top. */
+.sidebar-rail {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      ellipse 130% 34% at 0% 0%,
+      rgba(255, 138, 76, 0.13),
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 110% 30% at 100% 0%,
+      rgba(196, 123, 255, 0.14),
+      transparent 62%
+    );
+  background-repeat: no-repeat;
+}
+
 /* Chat Notes: split editor follows the approved Penpot layout. */
 .chat-notes-layout {
   container-type: inline-size;

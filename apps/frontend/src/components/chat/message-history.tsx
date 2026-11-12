@@ -340,7 +340,7 @@ function PendingAssistant({
 }) {
   return (
     <article
-      className="max-w-xl"
+      className="message-in max-w-xl"
       aria-label={locale === "en" ? "Sydia answer" : "Jawaban Sydia"}
     >
       {streamedText ? (
@@ -353,12 +353,12 @@ function PendingAssistant({
         />
       ) : (
         <div
-          className="flex items-center gap-2 text-sm text-ink-muted"
+          className="flex items-center gap-2.5 text-sm text-ink-muted"
           role="status"
           aria-live="polite"
         >
-          <LoaderCircle className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
-          <span>
+          <span className="sydia-orb" aria-hidden="true" />
+          <span className="thinking-sweep">
             {activity?.label ??
               (locale === "en"
                 ? "Sydia is preparing an answer…"
@@ -585,7 +585,7 @@ export function MessageHistory({
               }
               className={
                 isUser
-                  ? "max-w-[85%] rounded-md bg-surface-1 px-4 py-3 text-ink sm:max-w-[75%]"
+                  ? "max-w-[85%] rounded-md bg-brand/8 px-4 py-3 text-ink sm:max-w-[75%]"
                   : "max-w-xl"
               }
             >
@@ -737,14 +737,14 @@ export function MessageHistory({
       ) : null}
 
       {optimisticMessage ? (
-        <li className="flex justify-end">
+        <li className="message-in flex justify-end">
           <article
             aria-label={
               locale === "en"
                 ? "Your message is being sent"
                 : "Pesan Anda sedang dikirim"
             }
-            className="max-w-[85%] rounded-md bg-surface-1 px-4 py-3 text-ink opacity-70 sm:max-w-[75%]"
+            className="max-w-[85%] rounded-md bg-brand/8 px-4 py-3 text-ink opacity-70 sm:max-w-[75%]"
           >
             <p className="break-words whitespace-pre-wrap text-base leading-6 text-ink-soft">
               {optimisticMessage.sourceSegments?.length

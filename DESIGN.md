@@ -316,6 +316,19 @@ Underline 1.5px in coral. Inactive tabs in Inter 600 ink-55. Hover lifts to ink.
 - Skip the SVG noise layer — without grain the gradient reads as generic
 - Use coral anywhere except active states (chart bar, tab underline) — the gradient owns the bloom
 
+## 11. Living aurora (chat surface)
+
+An approved extension of the "gradient in exactly two places" and "motion ≤200ms" rules, scoped to the chat surface. The aurora is Sydia's presence: it glows where Sydia is listening and moves while Sydia works. Everywhere else the rules above still hold.
+
+- **Home bloom** (`.aurora-bloom`): two blurred amber/coral and violet blooms from the stop palette drift slowly behind the home message box and brighten when it has focus. No grain; never used behind a conversation thread or on other pages.
+- **Message box** (`.composer-shell`): snow surface with a hairline at rest; while focused it gains a 1.5px aurora line (`--aurora-line`) and the button shadow.
+- **Sydia at work** (`.sydia-orb`, `.thinking-sweep`): the pending-answer status uses a small morphing aurora orb and an ink light sweep on its label instead of a spinner.
+- **Entrances** (`.rise-in`, `.message-in`): the home greeting, message box, and starters rise in once with an 80ms stagger; a just-sent message and the pending answer land the same way. Exponential ease-out (`--ease-out-expo`), up to 620ms. History never animates on load.
+- **Sidebar rail** (`.sidebar-rail`): bone surface with a faint amber and violet wash at the top. "Chat baru" is the one raised snow action; the active page and the selected conversation are raised snow rows (card shadow), hover is ink at 5%.
+- **Sydia glyphs** (`src/components/ui/glyphs.tsx`): the authored icon set for navigation and chat starters. 20px grid, 1.5px rounded outline in the text colour, plus one filled accent shape in an aurora stop (amber `#ff8a4c`, coral `#ef5a8a`, or violet `#8c5cff`) at 50% at rest and full strength with a small pop when its `.glyph-host` is hovered, focused, or active. Add new glyphs to that file in the same construction; lucide remains for utility controls (close, collapse, attach, send).
+- **Coral** otherwise marks active state only: the selected conversation dot and the caret. The user's own message bubble is coral at 8% on snow.
+- All of the above stop under `prefers-reduced-motion`.
+
 ---
 
 ## Tokens

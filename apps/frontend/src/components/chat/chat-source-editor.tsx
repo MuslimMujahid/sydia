@@ -150,6 +150,8 @@ const sourceNode = Node.create({
 
 export interface ChatSourceEditorHandle {
   clear: () => void;
+  /** Replace the draft with plain text and place the caret after it. */
+  setText: (text: string) => void;
 }
 interface ChatSourceEditorProps {
   ref?: Ref<ChatSourceEditorHandle>;
@@ -214,7 +216,7 @@ export function ChatSourceEditor({
         "aria-label":
           locale === "en" ? "Message for Sydia" : "Pesan untuk Sydia",
         class:
-          "min-h-8.5 px-2 py-1.25 text-[15px] leading-6 outline-none break-words [overflow-wrap:anywhere]",
+          "px-2 pt-1.5 pb-1 text-[15px] leading-6 outline-none break-words [overflow-wrap:anywhere]",
       },
       handleKeyDown: (_view, event) => {
         if (event.isComposing) return false;
@@ -278,7 +280,23 @@ export function ChatSourceEditor({
   }, [editor, disabled]);
   useImperativeHandle(
     ref,
-    () => ({ clear: () => editor?.commands.clearContent() }),
+    () => ({
+      clear: () => editor?.commands.clearContent(),
+      setText: (text) =>
+        editor
+          ?.chain()
+          .setContent(
+            {
+              type: "doc",
+              content: [
+                { type: "paragraph", content: [{ type: "text", text }] },
+              ],
+            },
+            { emitUpdate: true }
+          )
+          .focus("end")
+          .run(),
+    }),
     [editor]
   );
 
@@ -317,13 +335,16 @@ export function ChatSourceEditor({
           editor={editor}
           className={cn(
             "[&_.tiptap_p]:m-0 [&_.tiptap_p]:min-h-6 [&_.tiptap_p.is-editor-empty:first-child]:before:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child]:before:float-left [&_.tiptap_p.is-editor-empty:first-child]:before:h-0",
-            !embedded && "max-h-[40vh] overflow-y-auto"
+            // The home box opens two lines tall; the docked box stays compact.
+            embedded
+              ? "[&_.tiptap]:min-h-16"
+              : "max-h-[40vh] overflow-y-auto [&_.tiptap]:min-h-11"
           )}
         />
         {editor?.isEmpty && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute top-1.25 left-2 text-[15px] leading-6 text-ink-muted"
+            className="pointer-events-none absolute top-1.5 left-2 text-[15px] leading-6 text-ink-muted"
           >
             {locale === "en"
               ? "Write a message or attach a file…"
