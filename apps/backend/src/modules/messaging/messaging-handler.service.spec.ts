@@ -461,6 +461,7 @@ describe('MessagingHandlerService reply recovery', () => {
       title: 'Rapat',
       occurrenceAt: '2026-11-13T07:00:00.000Z',
       status: 'awaiting_ack',
+      important: true,
     };
 
     jest

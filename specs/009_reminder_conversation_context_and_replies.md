@@ -35,7 +35,7 @@ Out of scope:
 - **No conversation yet:** if the user has never chatted on that channel, there is no address to resolve, so nothing is written. A reply still works through section 3.
 - **Failures:** a failure to write history is logged and does not fail the delivery, which has already been sent.
 - **Rendering:** when the context builder renders history, a `reminder` message is shown as an assistant message followed by a reference line:
-  `[reminder reference: reminderId=…; occurrenceId=…]`.
+  `[reminder reference: reminderId=…; occurrenceId=…]`. The metadata also stores `important`; for a regular reminder the line adds `; regular reminder, nothing to acknowledge` so a plain "oke" stays conversation. `replyTo.reminder` likewise carries `important`.
 
 ## 2. Awaiting-acknowledgement block
 

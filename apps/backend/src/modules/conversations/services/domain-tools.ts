@@ -1033,9 +1033,9 @@ Each reminder reports its id, title, its local date and time with the weekday, a
       label: 'Acknowledge reminder',
       description: `Use this tool to stop an important reminder's repeats once the user has seen it.
 
-Use it when the user signals they saw or handled an important reminder: "oke", "sudah", "noted", "siap", "done", or a reply saying so.
+Use it when the user signals they saw or handled a reminder listed as awaiting acknowledgement (or a replied-to one with status awaiting_ack): "oke", "sudah", "noted", "siap", "done".
 
-Do not use it for unrelated chatter (the reminder keeps repeating), after a regular reminder (just reply), or to postpone ('snooze_reminder').
+Do not use it for unrelated chatter (it keeps repeating), for any reminder not awaiting acknowledgement such as a regular one (just reply), or to postpone ('snooze_reminder').
 
 Pass occurrenceId, or reminderId for all its awaiting occurrences; call once per reminder the user confirms. An empty result means none was awaiting.`,
       parameters: schema({ occurrenceId: string, reminderId: string }),

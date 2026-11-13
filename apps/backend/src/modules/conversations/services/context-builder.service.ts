@@ -140,10 +140,14 @@ function historyContent(message: Message): string {
   )
     return message.content;
 
-  const { reminderId, occurrenceId } = metadata as Record<string, unknown>;
+  const { reminderId, occurrenceId, important } = metadata as Record<
+    string,
+    unknown
+  >;
 
+  // A regular reminder is done once sent; saying so keeps "oke" conversational.
   return typeof reminderId === 'string' && typeof occurrenceId === 'string'
-    ? `${message.content}\n\n[reminder reference: reminderId=${reminderId}; occurrenceId=${occurrenceId}]`
+    ? `${message.content}\n\n[reminder reference: reminderId=${reminderId}; occurrenceId=${occurrenceId}${important === false ? '; regular reminder, nothing to acknowledge' : ''}]`
     : message.content;
 }
 

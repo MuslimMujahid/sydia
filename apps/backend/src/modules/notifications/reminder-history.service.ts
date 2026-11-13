@@ -59,6 +59,7 @@ export class ReminderHistoryService {
           occurrenceId: reminder.occurrenceId,
           deliveryId: delivery.id,
           kind: job.kind,
+          important: reminder.important,
         },
         at,
       });

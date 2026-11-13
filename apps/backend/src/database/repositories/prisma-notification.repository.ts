@@ -65,6 +65,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         reminderId: true,
         occurrenceAt: true,
         status: true,
+        important: true,
         reminder: { select: { title: true } },
       },
     });
@@ -76,6 +77,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
           title: row.reminder.title,
           occurrenceAt: row.occurrenceAt.toISOString(),
           status: row.status,
+          important: row.important,
         }
       : null;
   }

@@ -48,6 +48,7 @@ export type ChannelReminderMessageWrite = {
     occurrenceId: string;
     deliveryId: string;
     kind: string;
+    important: boolean;
   };
   at: Date;
 };

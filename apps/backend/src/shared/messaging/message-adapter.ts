@@ -6,6 +6,8 @@ export type ReminderReference = {
   title: string;
   occurrenceAt: string;
   status: string;
+  /** Only important occurrences await acknowledgement. */
+  important: boolean;
 };
 
 export type MessageKind = 'text' | 'image' | 'document' | 'voice' | 'unknown';

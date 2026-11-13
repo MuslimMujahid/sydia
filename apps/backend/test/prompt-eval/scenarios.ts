@@ -81,10 +81,16 @@ const IMPORTANT_MEDICINE_DELIVERY = {
     "⏰⏰⏰ Pengingat penting - Minum obat\n\nwaktu: hari ini 08.00\n\nBalas 'oke' kalau sudah, atau 'ingatkan 15 menit lagi'.\n\n[reminder reference: reminderId=r-obat; occurrenceId=o-obat]",
 };
 
+const IMPORTANT_MEDICINE_DELIVERY_EN = {
+  role: 'assistant' as const,
+  content:
+    "⏰⏰⏰ Important reminder - Take medicine\n\ntime: today 8:00 AM\n\nReply 'ok' once done, or 'remind me in 15 minutes'.\n\n[reminder reference: reminderId=r-obat; occurrenceId=o-obat]",
+};
+
 const REGULAR_BILL_DELIVERY = {
   role: 'assistant' as const,
   content:
-    '⏰ Pengingat - Bayar listrik\n\nwaktu: hari ini 09.00\n\n[reminder reference: reminderId=r-listrik; occurrenceId=o-listrik]',
+    '⏰ Pengingat - Bayar listrik\n\nwaktu: hari ini 09.00\n\n[reminder reference: reminderId=r-listrik; occurrenceId=o-listrik; regular reminder, nothing to acknowledge]',
 };
 
 const REMINDER_FOLLOW_UP_TOOLS: Record<string, ToolScript> = {
@@ -889,8 +895,9 @@ export const SCENARIOS: Scenario[] = [
       noErrors(),
       called(
         'acknowledge_reminder',
-        (args) => JSON.stringify(args).includes('o-obat'),
-        'the delivered occurrence',
+        (args) =>
+          args.occurrenceId === 'o-obat' || args.reminderId === 'r-obat',
+        'the delivered reminder',
       ),
       notCalled('snooze_reminder', 'delete_reminder', 'update_reminder'),
     ],
@@ -900,7 +907,7 @@ export const SCENARIOS: Scenario[] = [
     area: 'reminders',
     channel: 'telegram',
     user: { locale: 'en' },
-    history: [IMPORTANT_MEDICINE_DELIVERY],
+    history: [IMPORTANT_MEDICINE_DELIVERY_EN],
     message: 'ok, done',
     tools: REMINDER_FOLLOW_UP_TOOLS,
     checks: [
@@ -933,8 +940,11 @@ export const SCENARIOS: Scenario[] = [
       noErrors(),
       called(
         'snooze_reminder',
-        (args) => args.minutes === 15 && args.occurrenceId === 'o-listrik',
-        '15 minutes, the delivered occurrence',
+        (args) =>
+          args.minutes === 15 &&
+          (args.occurrenceId === 'o-listrik' ||
+            args.reminderId === 'r-listrik'),
+        '15 minutes, the delivered reminder',
       ),
       notCalled('update_reminder', 'create_reminder', 'delete_reminder'),
       contains('Bayar listrik'),
@@ -982,6 +992,7 @@ export const SCENARIOS: Scenario[] = [
           title: 'Minum obat',
           occurrenceAt: at(0, '08:00'),
           status: 'awaiting_ack',
+          important: true,
         },
       },
     )}\n\nCurrent message:\nIngatkan saya 15 menit lagi`,
@@ -990,8 +1001,10 @@ export const SCENARIOS: Scenario[] = [
       noErrors(),
       called(
         'snooze_reminder',
-        (args) => args.occurrenceId === 'o-obat' && args.minutes === 15,
-        'the replied-to occurrence, 15 minutes',
+        (args) =>
+          (args.occurrenceId === 'o-obat' || args.reminderId === 'r-obat') &&
+          args.minutes === 15,
+        'the replied-to reminder, 15 minutes',
       ),
       notCalled('acknowledge_reminder'),
       contains('Minum obat'),
