@@ -5,10 +5,12 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import {
+  acknowledgeReminder,
   createReminder,
   deleteReminder,
   getReminder,
   getReminders,
+  snoozeReminder,
   updateReminder,
   type Reminder,
   type ReminderFilters,
@@ -98,13 +100,7 @@ export function useSnoozeReminder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      reminderId,
-      until,
-    }: {
-      reminderId: string;
-      until: string;
-    }) => updateReminder({ reminderId, values: { snoozeUntil: until } }),
+    mutationFn: snoozeReminder,
     onSuccess: (reminder) => cacheReminder(queryClient, reminder),
     meta: {
       invalidateQueries: [
@@ -132,6 +128,19 @@ export function useRescheduleReminder() {
         values: { scheduledAt },
       }),
     onSuccess: (reminder) => cacheReminder(queryClient, reminder),
+    meta: {
+      invalidateQueries: [
+        reminderQueryKeys.all,
+        todayQueryKeys.all,
+        conversationQueryKeys.all,
+      ],
+    },
+  });
+}
+
+export function useAcknowledgeReminder() {
+  return useMutation({
+    mutationFn: acknowledgeReminder,
     meta: {
       invalidateQueries: [
         reminderQueryKeys.all,

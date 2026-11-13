@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   AlarmClock,
   CalendarClock,
+  Check,
   LoaderCircle,
   MoreHorizontal,
   Pencil,
@@ -23,6 +24,7 @@ import {
   SelectField,
   TextField,
 } from "@/components/forms/form-fields";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,6 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppForm } from "@/lib/hooks/forms";
 import type {
@@ -48,6 +51,7 @@ import type {
 import {
   reminderQueryOptions,
   remindersQueryOptions,
+  useAcknowledgeReminder,
   useCreateReminder,
   useDeleteReminder,
   useRescheduleReminder,
@@ -79,7 +83,36 @@ const reminderSchema = z.object({
   recurrenceInterval: z.string(),
   recurrenceDays: z.array(z.number().int().min(0).max(6)),
   recurrenceEndsAt: z.string(),
+  important: z.boolean(),
+  repeatInterval: z.string(),
 });
+
+/** Dashboard choices; chat may set any 5–60 minute value, shown as custom. */
+const REPEAT_INTERVAL_CHOICES = ["5", "10", "15"] as const;
+
+function repeatIntervalOptions(current: string) {
+  const options = REPEAT_INTERVAL_CHOICES.map((value) => ({
+    value: value as string,
+    label: `${value} menit`,
+  }));
+
+  return REPEAT_INTERVAL_CHOICES.includes(
+    current as (typeof REPEAT_INTERVAL_CHOICES)[number]
+  )
+    ? options
+    : [...options, { value: current, label: `${current} menit (custom)` }];
+}
+
+/** Local HH:mm of the occurrence a snooze copy postponed. */
+function snoozedFromLabel(reminder: Reminder): string | null {
+  if (!reminder.snoozedFrom) return null;
+
+  return new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(reminder.snoozedFrom.occurrenceAt));
+}
 
 const FREQUENCY_LABELS: Record<RecurrenceFrequency | "none", string> = {
   none: "Tidak berulang",
@@ -96,6 +129,8 @@ const SCHEDULE_LABELS: Record<ReminderScheduleFilter | "all", string> = {
   past: "Sudah lewat",
 };
 
+const SNOOZE_DEFAULT_MS = 15 * 60_000;
+
 // Reminder dialogs are bottom sheets on phones and roomy centered dialogs from `sm`.
 const REMINDER_SHEET_CLASS = "sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto";
 
@@ -108,6 +143,8 @@ function reminderValues(reminder?: Reminder) {
     recurrenceInterval: String(reminder?.recurrence?.interval ?? 1),
     recurrenceDays: reminder?.recurrence?.daysOfWeek ?? [],
     recurrenceEndsAt: toDateTimeLocal(reminder?.recurrence?.endsAt ?? null),
+    important: reminder?.important ?? false,
+    repeatInterval: String(reminder?.repeatIntervalMinutes ?? 5),
   };
 }
 
@@ -154,6 +191,8 @@ function ReminderEditor({
                 ...(daysOfWeek.length ? { daysOfWeek } : {}),
                 ...(endsAt ? { endsAt } : {}),
               },
+        important: value.important,
+        repeatIntervalMinutes: Number.parseInt(value.repeatInterval, 10) || 5,
       };
 
       if (reminder)
@@ -363,6 +402,57 @@ function ReminderEditor({
             )
           }
         </form.Subscribe>
+        <form.Field name="important">
+          {(field) => (
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-surface-1 p-4">
+              <div className="min-w-0">
+                <label
+                  htmlFor="reminder-important"
+                  className="font-display text-sm font-semibold"
+                >
+                  Penting
+                </label>
+                <p
+                  id="reminder-important-description"
+                  className="mt-1 text-sm text-ink-muted"
+                >
+                  Diingatkan terus sampai kamu konfirmasi.
+                </p>
+              </div>
+              <Switch
+                id="reminder-important"
+                aria-describedby="reminder-important-description"
+                checked={field.state.value}
+                onCheckedChange={(checked) => field.handleChange(checked)}
+              />
+            </div>
+          )}
+        </form.Field>
+        <form.Subscribe selector={(state) => state.values.important}>
+          {(important) =>
+            important ? (
+              <form.Field name="repeatInterval">
+                {(field) => (
+                  <FieldShell
+                    id="reminder-repeat-interval"
+                    label="Ulangi setiap"
+                  >
+                    {({ describedBy }) => (
+                      <SelectField
+                        id="reminder-repeat-interval"
+                        value={field.state.value}
+                        aria-describedby={describedBy}
+                        onBlur={field.handleBlur}
+                        onValueChange={field.handleChange}
+                        options={repeatIntervalOptions(field.state.value)}
+                      />
+                    )}
+                  </FieldShell>
+                )}
+              </form.Field>
+            ) : null
+          }
+        </form.Subscribe>
         <FormError
           message={mutation.error?.message ?? deleteMutation.error?.message}
         />
@@ -455,7 +545,15 @@ function QuickTimeDialog({
   mode: "snooze" | "reschedule";
   onClose: () => void;
 }) {
-  const [value, setValue] = useState(toDateTimeLocal(reminder.scheduledAt));
+  // A snooze starts from now: the fired time is already past.
+  const [value, setValue] = useState(() =>
+    toDateTimeLocal(
+      mode === "snooze"
+        ? new Date(Date.now() + SNOOZE_DEFAULT_MS).toISOString()
+        : reminder.scheduledAt
+    )
+  );
+
   const snoozeMutation = useSnoozeReminder();
   const rescheduleMutation = useRescheduleReminder();
   const mutation = mode === "snooze" ? snoozeMutation : rescheduleMutation;
@@ -465,7 +563,11 @@ function QuickTimeDialog({
     const iso = fromDateTimeLocal(value);
     if (!iso) return;
     if (mode === "snooze")
-      await snoozeMutation.mutateAsync({ reminderId: reminder.id, until: iso });
+      await snoozeMutation.mutateAsync({
+        reminderId: reminder.id,
+        occurrenceId: reminder.latestOccurrence?.id,
+        until: iso,
+      });
     else
       await rescheduleMutation.mutateAsync({
         reminderId: reminder.id,
@@ -480,7 +582,9 @@ function QuickTimeDialog({
         {mode === "snooze" ? "Tunda pengingat" : "Jadwalkan ulang"}
       </DialogTitle>
       <DialogDescription className="mt-2">
-        Pilih waktu baru untuk “{reminder.title}”.
+        {mode === "snooze"
+          ? `Pengingat “${reminder.title}” akan dikirim lagi pada waktu ini. Jadwal aslinya tidak berubah.`
+          : `Pilih waktu baru untuk “${reminder.title}”.`}
       </DialogDescription>
       <form className="mt-6 space-y-5" onSubmit={(event) => void submit(event)}>
         <FieldShell id="quick-reminder-time" label="Waktu baru">
@@ -523,6 +627,7 @@ function ReminderRow({
   onQuickTime: (mode: "snooze" | "reschedule") => void;
 }) {
   const deleteMutation = useDeleteReminder();
+  const acknowledgeMutation = useAcknowledgeReminder();
 
   function remove() {
     if (
@@ -534,6 +639,20 @@ function ReminderRow({
   }
 
   const recurrence = formatRecurrence(reminder.recurrence);
+  const latest = reminder.latestOccurrence;
+  const awaiting = latest?.status === "awaiting_ack";
+  // Only a fired occurrence can be snoozed; before that the time is changed.
+  const timeAction = latest ? "snooze" : "reschedule";
+  const snoozedFrom = snoozedFromLabel(reminder);
+  const actionError = deleteMutation.error ?? acknowledgeMutation.error;
+
+  function acknowledge() {
+    if (!latest) return;
+    acknowledgeMutation.mutate({
+      reminderId: reminder.id,
+      occurrenceId: latest.id,
+    });
+  }
 
   return (
     <li className="flex items-start gap-2 py-5 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
@@ -542,6 +661,12 @@ function ReminderRow({
           <h2 className="font-display text-base font-semibold">
             {reminder.title}
           </h2>
+          {reminder.important ? (
+            <Badge>
+              <span aria-hidden="true">⏰⏰⏰</span> Pengingat penting
+            </Badge>
+          ) : null}
+          {awaiting ? <Badge dot="warn">Menunggu konfirmasi</Badge> : null}
         </div>
         {reminder.notes ? (
           <p className="mt-1 line-clamp-2 text-sm text-ink-muted">
@@ -559,10 +684,11 @@ function ReminderRow({
               {recurrence}
             </span>
           ) : null}
+          {snoozedFrom ? <span>Ditunda dari {snoozedFrom}</span> : null}
         </div>
-        {deleteMutation.error ? (
+        {actionError ? (
           <p className="mt-2 text-sm text-destructive" role="alert">
-            {deleteMutation.error.message}
+            {actionError.message}
           </p>
         ) : null}
       </div>
@@ -581,14 +707,23 @@ function ReminderRow({
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-48">
-          <>
+          {awaiting ? (
+            <DropdownMenuItem
+              disabled={acknowledgeMutation.isPending}
+              onClick={acknowledge}
+            >
+              <Check /> Konfirmasi
+            </DropdownMenuItem>
+          ) : null}
+          {timeAction === "snooze" ? (
             <DropdownMenuItem onClick={() => onQuickTime("snooze")}>
               <AlarmClock /> Tunda
             </DropdownMenuItem>
+          ) : (
             <DropdownMenuItem onClick={() => onQuickTime("reschedule")}>
               <CalendarClock /> Ubah waktu
             </DropdownMenuItem>
-          </>
+          )}
           <DropdownMenuItem
             disabled={deleteMutation.isPending}
             onClick={remove}
@@ -602,22 +737,41 @@ function ReminderRow({
         </DropdownMenuContent>
       </DropdownMenu>
       <div className="hidden flex-wrap items-start gap-2 sm:flex">
-        <>
+        {awaiting ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={acknowledgeMutation.isPending}
+            aria-label={`Konfirmasi pengingat ${reminder.title}`}
+            onClick={acknowledge}
+          >
+            {acknowledgeMutation.isPending ? (
+              <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Check />
+            )}
+            Konfirmasi
+          </Button>
+        ) : null}
+        {timeAction === "snooze" ? (
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`Tunda pengingat ${reminder.title}`}
             onClick={() => onQuickTime("snooze")}
           >
             <AlarmClock /> Tunda
           </Button>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`Ubah waktu pengingat ${reminder.title}`}
             onClick={() => onQuickTime("reschedule")}
           >
             <CalendarClock /> Ubah waktu
           </Button>
-        </>
+        )}
         <Button
           variant="ghost"
           size="sm"
