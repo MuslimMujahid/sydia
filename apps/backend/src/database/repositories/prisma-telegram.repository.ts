@@ -83,9 +83,8 @@ export class PrismaTelegramRepository implements ITelegramRepository {
   }
 
   /**
-   * Consumes the token and binds the identity in one transaction. The previous
-   * binding is released only after the new one exists, so a failure anywhere in
-   * between rolls the whole swap back instead of stranding the user unlinked.
+   * Consumes the token and replaces previous bindings in one transaction, so a
+   * failed transfer restores both accounts' identities and leaves the token usable.
    */
   async commitLink(input: {
     tokenHash: string;
@@ -113,10 +112,6 @@ export class PrismaTelegramRepository implements ITelegramRepository {
         select: identitySelect,
       });
 
-      // One Telegram account belongs to at most one Sydia account.
-      if (existing && existing.userId !== token.userId)
-        return { status: 'identity_conflict' };
-
       const consumed = await transaction.telegramLinkToken.updateMany({
         where: {
           id: token.id,
@@ -128,17 +123,28 @@ export class PrismaTelegramRepository implements ITelegramRepository {
 
       if (consumed.count !== 1) return { status: 'token_unavailable' };
 
+      const sameOwner = existing?.userId === token.userId;
+
+      if (existing && !sameOwner) {
+        // Create a fresh identity so the previous owner's channel conversation
+        // is never reused by the new account. Deletion also frees the unique claim.
+        await transaction.externalIdentity.deleteMany({
+          where: { id: existing.id },
+        });
+      }
+
       const identity =
-        existing ??
-        (await transaction.externalIdentity.create({
-          data: {
-            userId: token.userId,
-            provider: 'telegram',
-            externalId: input.externalId,
-            verifiedAt: input.now,
-          },
-          select: identitySelect,
-        }));
+        existing && sameOwner
+          ? existing
+          : await transaction.externalIdentity.create({
+              data: {
+                userId: token.userId,
+                provider: 'telegram',
+                externalId: input.externalId,
+                verifiedAt: input.now,
+              },
+              select: identitySelect,
+            });
 
       await transaction.externalIdentity.deleteMany({
         where: {

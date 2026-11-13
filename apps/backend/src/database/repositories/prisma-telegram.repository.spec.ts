@@ -100,11 +100,56 @@ describe('PrismaTelegramRepository commitLink', () => {
     expect(transaction.externalIdentity.deleteMany).not.toHaveBeenCalled();
   });
 
-  it('leaves the token and current identity untouched when the account conflicts', async () => {
+  it('disconnects the previous owner and creates a fresh identity for the token owner', async () => {
+    const previousIdentity = {
+      ...identity,
+      id: 'previous-identity',
+      userId: 'user-2',
+    };
+
     const transaction = {
       telegramLinkToken: {
         findFirst: jest.fn(() => Promise.resolve(token)),
-        updateMany: jest.fn(),
+        updateMany: jest.fn(() => Promise.resolve({ count: 1 })),
+      },
+      externalIdentity: {
+        findFirst: jest.fn(() => Promise.resolve(previousIdentity)),
+        create: jest.fn(() => Promise.resolve(identity)),
+        deleteMany: jest.fn(() => Promise.resolve({ count: 1 })),
+      },
+    };
+
+    await expect(
+      repositoryWith(transaction).commitLink(input),
+    ).resolves.toEqual({ status: 'linked', identity });
+
+    expect(transaction.externalIdentity.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'previous-identity' },
+    });
+    expect(transaction.externalIdentity.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          userId: 'user-1',
+          provider: 'telegram',
+          externalId: 'telegram-1',
+          verifiedAt: now,
+        },
+      }),
+    );
+    expect(transaction.externalIdentity.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-1',
+        provider: 'telegram',
+        id: { not: 'identity-1' },
+      },
+    });
+  });
+
+  it('preserves the previous owner when another request already consumed the token', async () => {
+    const transaction = {
+      telegramLinkToken: {
+        findFirst: jest.fn(() => Promise.resolve(token)),
+        updateMany: jest.fn(() => Promise.resolve({ count: 0 })),
       },
       externalIdentity: {
         findFirst: jest.fn(() =>
@@ -117,10 +162,31 @@ describe('PrismaTelegramRepository commitLink', () => {
 
     await expect(
       repositoryWith(transaction).commitLink(input),
-    ).resolves.toEqual({ status: 'identity_conflict' });
+    ).resolves.toEqual({ status: 'token_unavailable' });
 
-    expect(transaction.telegramLinkToken.updateMany).not.toHaveBeenCalled();
     expect(transaction.externalIdentity.deleteMany).not.toHaveBeenCalled();
+    expect(transaction.externalIdentity.create).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a failed transfer instead of reporting a successful link', async () => {
+    const failure = new Error('Identity insert failed');
+    const transaction = {
+      telegramLinkToken: {
+        findFirst: jest.fn(() => Promise.resolve(token)),
+        updateMany: jest.fn(() => Promise.resolve({ count: 1 })),
+      },
+      externalIdentity: {
+        findFirst: jest.fn(() =>
+          Promise.resolve({ ...identity, userId: 'user-2' }),
+        ),
+        deleteMany: jest.fn(() => Promise.resolve({ count: 1 })),
+        create: jest.fn(() => Promise.reject(failure)),
+      },
+    };
+
+    await expect(repositoryWith(transaction).commitLink(input)).rejects.toThrow(
+      failure,
+    );
   });
 
   it('refuses an expired or already consumed token without binding anything', async () => {

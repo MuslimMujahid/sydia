@@ -8,13 +8,12 @@ import type {
 /**
  * Outcome of atomically consuming a link token into a verified identity.
  *
- * `identity_conflict` and `token_unavailable` are decided before any write, so
- * a refused link never consumes the token or releases the current identity.
+ * An unavailable token never releases an existing identity. A valid token
+ * transfers the Telegram account to its owner, disconnecting any previous owner.
  */
 export type TelegramLinkCommit =
   | { status: 'linked'; identity: ExternalIdentity }
-  | { status: 'token_unavailable' }
-  | { status: 'identity_conflict' };
+  | { status: 'token_unavailable' };
 
 export interface ITelegramRepository {
   findIdentity(userId: string): Promise<ExternalIdentity | null>;
@@ -30,8 +29,9 @@ export interface ITelegramRepository {
   /**
    * Consumes the token matching `tokenHash` and binds `externalId` to the token's
    * owner in one transaction. The token's `userId` is resolved inside that
-   * transaction, and the user's previous identity is only released once the new
-   * binding is written, so a mid-flight failure cannot leave the user unlinked.
+   * transaction. Previous bindings are replaced atomically, with a fresh identity
+   * when ownership changes so the accounts' channel conversations stay separate.
+   * A mid-flight failure restores the previous bindings and token.
    */
   commitLink(input: {
     tokenHash: string;

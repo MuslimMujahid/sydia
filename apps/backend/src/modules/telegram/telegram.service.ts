@@ -287,15 +287,6 @@ export class TelegramService implements OnModuleInit {
       return null;
     }
 
-    if (outcome.status === 'identity_conflict') {
-      await this.send(
-        message,
-        'Akun Telegram ini sudah tertaut ke akun Sydia lain. Putuskan tautan lama terlebih dahulu.',
-      );
-
-      return null;
-    }
-
     const identity = outcome.identity;
     await this.telegram.associateInbound(inboundId, identity.id);
     await this.updateProfile(identity.id, ctx, message.receivedAt);
