@@ -29,8 +29,9 @@ Prerequisites:
 `update_reminder` must not be used for snoozing; its description says so.
 `delete_reminder` keeps its rule that it is not for snoozing.
 
-`list_reminders` results include `important`, `repeatIntervalMinutes` and
-`latestOccurrence.status`, plus `recentDeliveries` ([009](./009_reminder_conversation_context_and_replies.md)).
+`list_reminders` reminder entries include `important` (and `repeatIntervalMinutes`
+when important) but, as before, no lifecycle status. Occurrence statuses appear only
+in `recentDeliveries` ([009](./009_reminder_conversation_context_and_replies.md)).
 
 ## New tools (reminders group)
 
@@ -59,6 +60,12 @@ Prerequisites:
   - `needs_confirmation`: the snooze passes the next recurring occurrence, so the assistant asks the user and retries with `confirmPastNextOccurrence: true` once they confirm.
 - **Confirmation:** the assistant always names the reminder and the new local time, e.g. "Oke, pengingat 'rapat' aku tunda ke 14:15", so a wrong pick is easy to notice.
 - **Result:** `{ reminder: <copy>, snoozedOccurrenceId, until: { date, time } }`.
+
+## Prompt size
+
+The tool-definition size budget (`advertised-tool-schema.spec.ts`) rises from
+89,000 to 92,500 bytes to fit the two new tools; existing reminder tool text is
+not reworded. Run `bun run eval:prompts` before release to confirm no regressions.
 
 ## Registration
 

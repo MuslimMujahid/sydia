@@ -22,7 +22,7 @@ A snooze never moves the original reminder's schedule. Snoozing a dispatched
 occurrence does the following, in one transaction:
 
 1. The occurrence is moved to `snoozed`.
-   - It can come from `awaiting_ack`, `delivered`, `acknowledged`, `expired` or `superseded`. An occurrence that is already `snoozed` stays `snoozed`.
+   - It can come from `awaiting_ack`, `delivered`, `acknowledged`, `expired`, `superseded` or `cancelled`. An occurrence that is already `snoozed` stays `snoozed`.
    - Its pending repeat and final jobs are removed. They would also drop themselves on the status check.
 2. A **new one-time reminder** is created at the snooze time.
    - It copies `title`, `notes`, `important`, `repeatIntervalMinutes` and `timezone`.
@@ -86,5 +86,5 @@ Errors are `SnoozeError` with codes `not_found | not_dispatched | too_soon | nee
 5. Snoozing a never-dispatched reminder returns `not_dispatched`.
 6. `until` 30 seconds away returns `too_soon`.
 7. For a daily reminder, snoozing to after tomorrow's occurrence without confirmation returns `needs_confirmation`, and with confirmation it succeeds.
-8. `PATCH snoozeUntil` is rejected by validation because the field is gone.
+8. `PATCH` no longer accepts `snoozeUntil`: the global validation whitelist strips it, so it never moves `scheduledAt`.
 9. Unit tests cover 1–7. A controller test covers the HTTP status mapping.

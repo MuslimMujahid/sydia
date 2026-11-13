@@ -44,6 +44,12 @@ Prerequisites:
 - **Copy hint:** a copy shows a muted hint, "Ditunda dari HH:mm", from `snoozedFrom.occurrenceAt`, in the user's local time.
 - **Errors:** the existing toast pattern shows the backend's message, e.g. `needs_confirmation` or `too_soon`.
 
+## Chat reminder popover
+
+- The chat entity popover offers "Tunda 1 jam" only when the reminder has fired (`latestOccurrence` is set).
+- It snoozes that occurrence to one hour from now and shows "Ditunda sampai …" with the copy's time. The original's details stay unchanged.
+- Before the first firing, the popover offers only "Atur pengingat".
+
 ## Accessibility
 
 - The toggle is a labelled switch.
