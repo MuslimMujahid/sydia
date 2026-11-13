@@ -31,19 +31,54 @@ async function data<T>(response: APIResponse): Promise<T> {
 }
 
 async function account(page: Page, origin: string) {
+  const email = `notes-${randomUUID()}@example.com`;
   const response = await page.request.post(
     `${backendURL}/api/auth/sign-up/email`,
     {
       headers: { Origin: origin },
       data: {
         name: "Notes workspace test",
-        email: `notes-${randomUUID()}@example.com`,
+        email,
         password,
       },
     }
   );
 
   expect(response.ok()).toBe(true);
+  const delivery = await page.request.post(
+    `${backendURL}/api/auth/email-otp/send-verification-otp`,
+    {
+      headers: { Origin: origin },
+      data: { email, type: "email-verification" },
+    }
+  );
+
+  expect(delivery.ok()).toBe(true);
+  let code: string | undefined;
+  await expect
+    .poll(async () => {
+      const inbox = await page.request.get("http://127.0.0.1:8026/messages");
+      expect(inbox.ok()).toBe(true);
+      const mail = (await inbox.json()) as {
+        messages: Array<{ to: string[]; text: string }>;
+      };
+
+      code = mail.messages
+        .find((message) => message.to.includes(email))
+        ?.text.match(/Kode Anda: (\d{6})/)?.[1];
+
+      return code;
+    })
+    .toMatch(/^\d{6}$/);
+  const verified = await page.request.post(
+    `${backendURL}/api/auth/email-otp/verify-email`,
+    {
+      headers: { Origin: origin },
+      data: { email, otp: code },
+    }
+  );
+
+  expect(verified.ok()).toBe(true);
   await data(
     await page.request.patch(`${backendURL}/users/me`, {
       data: {
@@ -105,6 +140,56 @@ async function open(page: Page, id: string) {
   await expect(
     page.getByRole("textbox", { name: "Judul catatan", exact: true })
   ).toBeVisible({ timeout: 15_000 });
+}
+
+async function recoverDeletedDraft(page: Page) {
+  const note = await create(
+    page.request,
+    "Draf pemulihan saya",
+    null,
+    "note",
+    "Versi tersimpan"
+  );
+
+  await open(page, note.id);
+  await page.route(`**/notes/items/${note.id}`, (route) =>
+    route.request().method() === "PATCH"
+      ? route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: { message: "Penyimpanan dijeda untuk pengujian." },
+          }),
+        })
+      : route.continue()
+  );
+  const body = page.getByRole("textbox", {
+    name: "Isi catatan",
+    exact: true,
+  });
+
+  await body.fill("Draf lokal yang harus selamat");
+  await body.press("ControlOrMeta+a");
+  await body.press("ControlOrMeta+b");
+  await expect(page.getByRole("alert")).toContainText(
+    "Penyimpanan dijeda untuk pengujian."
+  );
+  await data(
+    await page.request.post(`${backendURL}/notes/items/${note.id}/trash`, {
+      data: { revision: note.revision },
+    })
+  );
+
+  const recovery = page.getByRole("region", {
+    name: "Pemulihan draf",
+    exact: true,
+  });
+
+  await expect(recovery).toContainText("Draf lokal yang harus selamat", {
+    timeout: 15_000,
+  });
+
+  return { note, body, recovery };
 }
 
 test.describe("Notes workspace with the real backend", () => {
@@ -536,6 +621,413 @@ test.describe("Notes workspace with the real backend", () => {
     await expect
       .poll(async () => (await read(page.request, note.id)).text)
       .toBe("Draf lokal saya");
+  });
+
+  test("deleting the active note clears its editor and remembered selection", async ({
+    page,
+  }) => {
+    const note = await create(
+      page.request,
+      "Catatan aktif",
+      null,
+      "note",
+      "Isi tersimpan"
+    );
+
+    await open(page, note.id);
+    await page
+      .getByRole("button", { name: "Tindakan Catatan aktif", exact: true })
+      .last()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Pindahkan ke Sampah", exact: true })
+      .click();
+
+    await expect(
+      page.getByRole("heading", { name: "Pilih catatan untuk dibuka" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveCount(0);
+    await expect(page).toHaveURL(/\/notes$/);
+    await expect(
+      page.getByRole("heading", { name: "Folder", exact: true })
+    ).toBeFocused();
+    expect(
+      await page.evaluate(() => {
+        const key = Object.keys(localStorage).find((value) =>
+          value.startsWith("sydia:notes:last:")
+        );
+
+        if (!key) throw new Error("Expected a remembered workspace selection.");
+
+        return JSON.parse(localStorage.getItem(key)!).ref;
+      })
+    ).toBeNull();
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Pilih catatan untuk dibuka" })
+    ).toBeVisible();
+  });
+
+  test("undoing active-note deletion restores the note without reopening its editor", async ({
+    page,
+  }) => {
+    const note = await create(page.request, "Pulihkan saya");
+    await open(page, note.id);
+    await page
+      .getByRole("button", { name: "Tindakan Pulihkan saya", exact: true })
+      .last()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Pindahkan ke Sampah", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Urungkan", exact: true }).click();
+
+    await expect(
+      page.getByRole("button", { name: "Pulihkan saya", exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Pilih catatan untuk dibuka" })
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Pulihkan saya", exact: true })
+      .click();
+    await expect(
+      page.getByRole("textbox", { name: "Judul catatan", exact: true })
+    ).toHaveValue("Pulihkan saya");
+  });
+
+  test("deleting the active note's ancestor folder closes its editor", async ({
+    page,
+  }) => {
+    const folder = await create(page.request, "Folder aktif", null, "folder");
+    const nested = await create(page.request, "Subfolder", folder.id, "folder");
+    const note = await create(page.request, "Anak aktif", nested.id);
+    await open(page, note.id);
+    await page
+      .getByRole("button", { name: "Tindakan Folder aktif", exact: true })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Pindahkan ke Sampah", exact: true })
+      .click();
+
+    await expect(
+      page.getByRole("heading", { name: "Pilih catatan untuk dibuka" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveCount(0);
+    await expect(page).toHaveURL(/\/notes$/);
+  });
+
+  test("deleting an unrelated note keeps the active editor open", async ({
+    page,
+  }) => {
+    const active = await create(
+      page.request,
+      "Tetap terbuka",
+      null,
+      "note",
+      "Tetap di sini"
+    );
+
+    await create(page.request, "Catatan lain");
+    await open(page, active.id);
+    await page
+      .getByRole("button", { name: "Tindakan Catatan lain", exact: true })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Pindahkan ke Sampah", exact: true })
+      .click();
+
+    await expect(
+      page.getByText("Catatan dipindahkan ke Sampah.", { exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveText("Tetap di sini");
+    await expect(page).toHaveURL(new RegExp(`note=${active.id}$`));
+  });
+
+  test("failed active-note deletion keeps the editor and surfaces the failure", async ({
+    page,
+  }) => {
+    const note = await create(
+      page.request,
+      "Gagal dihapus",
+      null,
+      "note",
+      "Jangan hilang"
+    );
+
+    await open(page, note.id);
+    await page.route(`**/notes/items/${note.id}/trash`, (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: { message: "Penghapusan belum tersedia." },
+        }),
+      })
+    );
+    await page
+      .getByRole("button", { name: "Tindakan Gagal dihapus", exact: true })
+      .last()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Pindahkan ke Sampah", exact: true })
+      .click();
+
+    await expect(page.getByRole("alert")).toContainText(
+      "Penghapusan belum tersedia."
+    );
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveText("Jangan hilang");
+    await expect(page).toHaveURL(new RegExp(`note=${note.id}$`));
+  });
+
+  test("an old link to a deleted note offers browsing and Trash instead of retrying", async ({
+    page,
+  }) => {
+    const note = await create(page.request, "Sudah dihapus");
+    await data(
+      await page.request.post(`${backendURL}/notes/items/${note.id}/trash`, {
+        data: { revision: note.revision },
+      })
+    );
+    await page.goto(`/notes?note=${note.id}`);
+
+    await expect(
+      page.getByRole("heading", { name: "Catatan tidak tersedia", exact: true })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Jelajahi catatan", exact: true })
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Buka Sampah", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Sampah", exact: true })
+    ).toBeVisible();
+  });
+
+  test("external deletion of a clean note closes its editor after polling", async ({
+    page,
+  }) => {
+    const note = await create(page.request, "Dihapus di tempat lain");
+    await open(page, note.id);
+    await data(
+      await page.request.post(`${backendURL}/notes/items/${note.id}/trash`, {
+        data: { revision: note.revision },
+      })
+    );
+
+    await expect(
+      page.getByRole("heading", { name: "Pilih catatan untuk dibuka" })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveCount(0);
+    await expect(page).toHaveURL(/\/notes$/);
+    await expect(
+      page.getByRole("button", { name: "Hubungkan kembali", exact: true })
+    ).toHaveCount(0);
+  });
+
+  test("external deletion preserves an unsaved rich-text draft across navigation and reload", async ({
+    page,
+  }) => {
+    const other = await create(page.request, "Catatan aman");
+    const { note, body, recovery } = await recoverDeletedDraft(page);
+    await expect(body).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Catatan aman", exact: true })
+      .click();
+    await expect(page).toHaveURL(new RegExp(`note=${other.id}$`));
+    await page.reload();
+    await page
+      .getByRole("button", { name: "Draf pemulihan saya", exact: true })
+      .click();
+    await expect(recovery).toContainText("Draf lokal yang harus selamat");
+    await recovery
+      .getByRole("button", { name: "Simpan sebagai catatan baru", exact: true })
+      .click();
+    await expect(body).toHaveText("Draf lokal yang harus selamat");
+    await expect(body.locator("strong")).toHaveText(
+      "Draf lokal yang harus selamat"
+    );
+    await expect(
+      page.getByRole("heading", { name: "Draf pemulihan", exact: true })
+    ).toHaveCount(0);
+    expect(
+      (await workspace(page.request)).items.filter(
+        (item) => !item.trashedAt && item.title === note.title
+      )
+    ).toHaveLength(1);
+  });
+
+  test("a deleted note's recovery draft can be copied", async ({ page }) => {
+    const { recovery } = await recoverDeletedDraft(page);
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"]);
+    await recovery
+      .getByRole("button", { name: "Salin draf", exact: true })
+      .click();
+
+    await expect(
+      recovery.getByRole("status").filter({ hasText: "Draf disalin." })
+    ).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(
+      "Draf lokal yang harus selamat"
+    );
+  });
+
+  test("retrying recovery after a lost creation response creates only one replacement note", async ({
+    page,
+  }) => {
+    const { note, recovery, body } = await recoverDeletedDraft(page);
+    await page.route(
+      "**/notes/items",
+      async (route) => {
+        await route.fetch();
+        await route.abort("failed");
+      },
+      { times: 1 }
+    );
+    await recovery
+      .getByRole("button", { name: "Simpan sebagai catatan baru", exact: true })
+      .click();
+    await expect(recovery.getByRole("alert")).toBeVisible();
+    await expect(recovery).toContainText("Draf lokal yang harus selamat");
+    await recovery
+      .getByRole("button", { name: "Simpan sebagai catatan baru", exact: true })
+      .click();
+
+    await expect(body).toHaveText("Draf lokal yang harus selamat");
+    expect(
+      (await workspace(page.request)).items.filter(
+        (item) => !item.trashedAt && item.title === note.title
+      )
+    ).toHaveLength(1);
+  });
+
+  test("a temporary note refresh failure leaves the editor open", async ({
+    page,
+  }) => {
+    const note = await create(
+      page.request,
+      "Tetap tersedia",
+      null,
+      "note",
+      "Isi tetap tersedia"
+    );
+
+    await open(page, note.id);
+    await page.route(`**/notes/items/${note.id}`, (route) =>
+      route.request().method() === "GET"
+        ? route.fulfill({
+            status: 503,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: { message: "Layanan sementara tidak tersedia." },
+            }),
+          })
+        : route.continue()
+    );
+
+    await expect(page.getByRole("alert")).toContainText(
+      "Catatan belum dapat diperbarui",
+      { timeout: 15_000 }
+    );
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveText("Isi tetap tersedia");
+    await expect(
+      page.getByRole("heading", { name: "Catatan tidak tersedia", exact: true })
+    ).toHaveCount(0);
+  });
+
+  test("deleting the active note on mobile clears the editor and focuses navigation", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const note = await create(page.request, "Catatan ponsel");
+    await open(page, note.id);
+    await page
+      .getByRole("button", { name: "Tindakan Catatan ponsel", exact: true })
+      .last()
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Pindahkan ke Sampah", exact: true })
+      .click();
+
+    await expect(
+      page.getByRole("heading", { name: "Pilih catatan untuk dibuka" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Buka navigasi catatan", exact: true })
+    ).toBeFocused();
+    await expect(
+      page.getByRole("textbox", { name: "Isi catatan", exact: true })
+    ).toHaveCount(0);
+  });
+
+  test("external deletion retains unsaved table context in a readable recovery draft", async ({
+    page,
+  }) => {
+    const record = await data<{ id: string; revision: number }>(
+      await page.request.post(`${backendURL}/record-notes`, {
+        data: {
+          title: "Tabel pemulihan",
+          parentId: null,
+          requestKey: randomUUID(),
+          columns: [
+            { id: "item", name: "Barang", type: "text", required: false },
+          ],
+        },
+      })
+    );
+
+    await open(page, record.id);
+    const description = page.getByRole("textbox", {
+      name: "Deskripsi catatan",
+      exact: true,
+    });
+
+    await description.fill("Keterangan tabel yang belum tersimpan");
+    await data(
+      await page.request.post(`${backendURL}/notes/items/${record.id}/trash`, {
+        data: { revision: record.revision },
+      })
+    );
+
+    const recovery = page.getByRole("region", {
+      name: "Pemulihan draf",
+      exact: true,
+    });
+
+    await expect(recovery).toContainText(
+      "Keterangan tabel yang belum tersimpan",
+      { timeout: 15_000 }
+    );
+    await expect(recovery).toContainText("Barang");
+    await expect(recovery).toContainText("Simpan sebagai catatan teks");
+    await expect(description).toHaveCount(0);
+    await recovery
+      .getByRole("button", { name: "Buang draf", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Pilih catatan untuk dibuka" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Draf pemulihan", exact: true })
+    ).toHaveCount(0);
   });
 
   test("folder deletion and restoration preserve the subtree before explicit permanent deletion", async ({

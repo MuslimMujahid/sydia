@@ -170,6 +170,7 @@ export function createWorkspaceItem(input: {
   parentId: string | null;
   title?: string;
   requestKey: string;
+  content?: TiptapDoc;
 }) {
   return request<WorkspaceItem>("post", "/notes/items", input);
 }

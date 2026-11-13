@@ -37,6 +37,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { ApiClientError } from "@/lib/services/api/api";
+import { isInWorkspaceSubtree } from "./note-availability";
+import { noteRecoveryStore } from "./note-recovery-store";
+import { NoteRecoveryPanel } from "./note-recovery-panel";
 import {
   createWorkspaceItem,
   mutateWorkspaceItem,
@@ -69,7 +73,10 @@ type NotesWorkspacePageProps = {
   userId: string;
   today: string;
   selectedRef?: string;
-  onNavigate: (ref: string) => Promise<void>;
+  onNavigate: (
+    ref: string | null,
+    options?: { replace?: boolean }
+  ) => Promise<void>;
 };
 
 export function NotesWorkspacePage({
@@ -92,13 +99,13 @@ export function NotesWorkspacePage({
 
   const mounted = stored.mounted;
   const [view, setView] = useState<{
-    mode: "note" | "search" | "trash";
+    mode: "note" | "search" | "trash" | "recovery";
     selectedRef?: string;
   }>({ mode: "note", selectedRef });
 
   const mode = view.selectedRef === selectedRef ? view.mode : "note";
 
-  function setMode(next: "note" | "search" | "trash") {
+  function setMode(next: "note" | "search" | "trash" | "recovery") {
     setView({ mode: next, selectedRef });
   }
 
@@ -108,6 +115,18 @@ export function NotesWorkspacePage({
   const [dialog, setDialog] = useState<WorkspaceDialogTarget | null>(null);
   const [freshRef, setFreshRef] = useState<string | null>(null);
   const editor = useRef<WorkspaceEditorHandle>(null);
+  const recoveryStore = useMemo(() => noteRecoveryStore(userId), [userId]);
+  const recoveries = useSyncExternalStore(
+    recoveryStore.subscribe,
+    recoveryStore.getSnapshot,
+    recoveryStore.getServerSnapshot
+  );
+
+  const [recoveryRef, setRecoveryRef] = useState<string | null>(null);
+  const [retiredRef, setRetiredRef] = useState<string | null>(null);
+  const [trashNotice, setTrashNotice] = useState<WorkspaceItem | null>(null);
+  const mobileNavigation = useRef<HTMLButtonElement>(null);
+  const sidebarHeading = useRef<HTMLHeadingElement>(null);
   const pendingCreation = useRef<
     | ({ parentId: string | null; requestKey: string } & (
         { format: "rich-text" } | { format: "record"; columns: RecordColumn[] }
@@ -125,23 +144,31 @@ export function NotesWorkspacePage({
   const workspace = useQuery({ ...workspaceQueryOptions(), enabled: mounted });
   const requestedRef = selectedRef ?? stored.ref;
   const note = useQuery({
-    ...workspaceNoteQueryOptions(requestedRef),
-    enabled: mounted && mode === "note",
+    ...workspaceNoteQueryOptions(requestedRef ?? ""),
+    enabled:
+      mounted &&
+      mode === "note" &&
+      requestedRef !== null &&
+      retiredRef !== requestedRef,
   });
 
-  const missingStored =
-    !selectedRef &&
-    !note.data &&
-    workspace.isSuccess &&
-    requestedRef.startsWith("custom:") &&
-    !workspace.data.items.some(
-      (item) =>
-        `custom:${item.id}` === requestedRef &&
-        item.kind === "note" &&
-        !item.trashedAt
-    );
+  const unavailable =
+    requestedRef?.startsWith("custom:") &&
+    ((note.error instanceof ApiClientError &&
+      note.error.status === 404 &&
+      !note.isFetching) ||
+      (note.data &&
+        workspace.isSuccess &&
+        workspace.dataUpdatedAt >= note.dataUpdatedAt &&
+        !workspace.data.items.some(
+          (item) =>
+            `custom:${item.id}` === requestedRef &&
+            item.kind === "note" &&
+            !item.trashedAt
+        )));
 
-  const activeRef = missingStored ? `daily:${today}` : requestedRef;
+  const activeRef = requestedRef;
+  const recovery = recoveries.drafts.find((draft) => draft.ref === recoveryRef);
 
   const items = workspace.data?.items ?? [];
   const entries = workspace.data?.notes ?? [];
@@ -162,14 +189,76 @@ export function NotesWorkspacePage({
   const folderCreation = useFolderCreation({ onCreated: refresh });
 
   useEffect(() => {
-    if (missingStored)
-      navigation.save(
-        `daily:${today}`,
-        "Catatan sebelumnya sudah tidak tersedia. Catatan hari ini dibuka."
-      );
-    else if (selectedRef && stored.ref !== selectedRef)
+    if (selectedRef && stored.ref !== selectedRef && retiredRef !== selectedRef)
       navigation.save(selectedRef);
-  }, [missingStored, selectedRef, stored.ref, navigation, today]);
+  }, [selectedRef, stored.ref, navigation, retiredRef]);
+
+  const focusNavigation = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (window.matchMedia("(min-width: 1024px)").matches)
+        sidebarHeading.current?.focus();
+      else mobileNavigation.current?.focus();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!unavailable || !requestedRef || retiredRef === requestedRef) return;
+    // Let the editor apply read-only mode, then capture its imperative draft
+    // before retiring it. Keeping the same mounted editor preserves its state.
+    const retirement = requestAnimationFrame(() => {
+      const draft = editor.current?.recoveryDraft();
+
+      if (draft) {
+        recoveryStore.add({
+          ...draft,
+          ref: requestedRef,
+          requestKey: crypto.randomUUID(),
+        });
+        setRecoveryRef(requestedRef);
+      }
+
+      editor.current?.discard();
+      setRetiredRef(requestedRef);
+      navigation.save(null);
+
+      if (note.data) {
+        setView({ mode: draft ? "recovery" : "note", selectedRef: undefined });
+
+        if (!draft) {
+          setNotice("Catatan ini sudah dihapus.");
+          focusNavigation();
+        }
+
+        void onNavigate(null, { replace: true }).catch((error: unknown) => {
+          console.warn(
+            "Deleted note selection could not be cleared from the URL.",
+            error
+          );
+          setNotice(
+            "Catatan sudah dihapus. Alamat halaman belum dapat diperbarui; pilih catatan lain."
+          );
+        });
+      }
+    });
+
+    return () => cancelAnimationFrame(retirement);
+  }, [
+    unavailable,
+    requestedRef,
+    retiredRef,
+    note.data,
+    recoveryStore,
+    navigation,
+    onNavigate,
+    focusNavigation,
+  ]);
+
+  useEffect(() => {
+    if (!trashNotice) return;
+    const timer = setTimeout(() => setTrashNotice(null), 8000);
+
+    return () => clearTimeout(timer);
+  }, [trashNotice]);
 
   const guard = useCallback(
     async () => (editor.current ? editor.current.flush() : true),
@@ -178,6 +267,7 @@ export function NotesWorkspacePage({
 
   async function open(ref: string) {
     if (!(await guard())) return;
+    setRetiredRef(null);
     setMode("note");
     navigation.save(ref);
     setNavOpen(false);
@@ -322,13 +412,48 @@ export function NotesWorkspacePage({
           "Item sudah tidak tersedia. Muat ulang daftar catatan."
         );
       if (type === "trash") {
-        await mutateWorkspaceItem({
+        const trashed = await mutateWorkspaceItem({
           id: source.id,
           revision: source.revision,
           action: "trash",
         });
+
+        setTrashNotice(trashed);
+
+        if (isInWorkspaceSubtree(activeRef, source.id, latest.items)) {
+          editor.current?.discard();
+          setRetiredRef(activeRef);
+          navigation.save(null);
+          setView({ mode: "note", selectedRef: undefined });
+          await onNavigate(null, { replace: true });
+          focusNavigation();
+        }
+
         await refresh();
       } else setDialog({ action: type, item: source });
+    },
+  });
+
+  const undoTrash = useMutation({
+    mutationFn: async () => {
+      if (!trashNotice) return;
+      const latest = await client.fetchQuery({
+        ...workspaceQueryOptions(),
+        staleTime: 0,
+      });
+
+      const item = latest.items.find((entry) => entry.id === trashNotice.id);
+      if (!item?.trashedAt || item.trashBatchId !== trashNotice.trashBatchId)
+        throw new Error(
+          "Item sudah berubah. Buka Sampah untuk memeriksa atau memulihkannya."
+        );
+      await mutateWorkspaceItem({
+        id: item.id,
+        revision: item.revision,
+        action: "restore",
+      });
+      setTrashNotice(null);
+      await refresh();
     },
   });
 
@@ -388,7 +513,9 @@ export function NotesWorkspacePage({
     void client.invalidateQueries({ queryKey: ["notes", "backlinks"] });
   }
 
-  const error = create.error ?? move.error ?? action.error ?? copy.error;
+  const error =
+    create.error ?? move.error ?? action.error ?? copy.error ?? undoTrash.error;
+
   const trash = items.filter(
     (item) =>
       item.trashedAt &&
@@ -505,14 +632,22 @@ export function NotesWorkspacePage({
         <WorkspaceDailyNavigation
           today={today}
           selectedDate={
-            mode === "note" && activeRef.startsWith("daily:") ? dailyDate : null
+            mode === "note" && activeRef?.startsWith("daily:")
+              ? dailyDate
+              : null
           }
           entries={entries}
           loading={workspace.isPending}
           onSelectDate={(date) => void open(`daily:${date}`)}
         />
         <div className="mt-4 mb-1 flex items-center justify-between">
-          <h2 className="px-2 text-xs font-semibold text-ink-muted">Folder</h2>
+          <h2
+            ref={sidebarHeading}
+            tabIndex={-1}
+            className="px-2 text-xs font-semibold text-ink-muted focus-visible:outline-2 focus-visible:outline-brand"
+          >
+            Folder
+          </h2>
           {renderCreationMenu(false)}
         </div>
       </div>
@@ -544,6 +679,27 @@ export function NotesWorkspacePage({
           />
         )}
       </div>
+      {recoveries.drafts.length ? (
+        <div className="mt-3 space-y-1 border-t border-ink/8 pt-3">
+          <h2 className="px-3 text-xs font-semibold text-ink-muted">
+            Draf pemulihan
+          </h2>
+          {recoveries.drafts.map((draft) => (
+            <button
+              key={draft.ref}
+              className="block min-h-11 w-full truncate rounded-sm px-3 text-left text-sm hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand"
+              onClick={async () => {
+                if (!(await guard())) return;
+                setRecoveryRef(draft.ref);
+                setMode("recovery");
+                setNavOpen(false);
+              }}
+            >
+              {draft.draft.title}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <button
         className={cn(
           "mt-3 flex min-h-11 w-full items-center gap-3 border-t border-ink/8 px-3 pt-3 text-left text-sm outline-none focus-visible:outline-2 focus-visible:outline-brand",
@@ -563,6 +719,7 @@ export function NotesWorkspacePage({
       <TopbarTitle heading={false}>Catatan</TopbarTitle>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b border-ink/8 bg-background px-4 lg:h-20 lg:px-6">
         <Button
+          ref={mobileNavigation}
           variant="ghost"
           size="icon"
           className="lg:hidden"
@@ -578,6 +735,39 @@ export function NotesWorkspacePage({
           {renderCreationMenu(true)}
         </div>
       </header>
+      {trashNotice ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 border-b border-ink/8 px-5 py-3 text-sm"
+        >
+          <p className="flex-1">
+            {trashNotice.kind === "folder"
+              ? "Folder beserta isinya dipindahkan ke Sampah."
+              : "Catatan dipindahkan ke Sampah."}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={undoTrash.isPending}
+            onClick={() => undoTrash.mutate()}
+          >
+            Urungkan
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Tutup pemberitahuan penghapusan"
+            onClick={() => setTrashNotice(null)}
+          >
+            <X />
+          </Button>
+        </div>
+      ) : null}
+      {recoveries.warning ? (
+        <p role="alert" className="px-5 py-3 text-sm">
+          {recoveries.warning}
+        </p>
+      ) : null}
       {notice || stored.warning || error ? (
         <div
           className="flex items-start gap-3 border-b border-ink/8 bg-canvas px-5 py-3 text-sm"
@@ -595,6 +785,7 @@ export function NotesWorkspacePage({
               move.reset();
               action.reset();
               copy.reset();
+              undoTrash.reset();
             }}
           >
             <X />
@@ -610,113 +801,164 @@ export function NotesWorkspacePage({
           {sidebar}
         </aside>
         <section className="flex min-w-0 flex-1 flex-col bg-canvas">
-          {mode === "note" ? (
+          {mode === "recovery" && recovery ? (
+            <div className="overflow-y-auto">
+              <NoteRecoveryPanel
+                key={recovery.ref}
+                recovery={recovery}
+                onDiscard={() => {
+                  recoveryStore.remove(recovery.ref);
+                  setMode("note");
+                }}
+                onSaved={async (ref) => {
+                  await refresh();
+                  await open(ref);
+                  recoveryStore.remove(recovery.ref);
+                }}
+              />
+            </div>
+          ) : mode === "note" ? (
             <>
-              <div className="flex h-12 shrink-0 items-center gap-2 border-b border-ink/8 px-4 text-xs text-ink-muted sm:h-11 sm:px-6">
-                {activeRef?.startsWith("daily:") ? (
-                  <span className="min-w-0 truncate">Catatan harian</span>
-                ) : noteParentId ? (
-                  <span className="min-w-0 truncate">
-                    {items.find((item) => item.id === noteParentId)?.path}
-                  </span>
-                ) : null}
-                <div ref={setStatusSlot} className="ml-auto shrink-0" />
-                {currentItem ? (
-                  <ItemMenu
-                    item={currentItem}
-                    onAction={(type, item) => action.mutate({ type, item })}
-                  />
-                ) : activeRef.startsWith("daily:") ? (
-                  <div className="flex shrink-0 items-center gap-1">
+              {!activeRef || (retiredRef === activeRef && !unavailable) ? (
+                <div className="p-8 text-center text-sm text-ink-muted">
+                  <h2>Pilih catatan untuk dibuka</h2>
+                </div>
+              ) : unavailable ? (
+                <div className="space-y-4 p-8">
+                  <h2 className="text-xl font-semibold">
+                    Catatan tidak tersedia
+                  </h2>
+                  <p className="text-sm text-ink-muted">
+                    Catatan ini sudah dihapus atau tidak lagi tersedia.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="sm:size-8"
-                      aria-label="Hari sebelumnya"
-                      onClick={() =>
-                        void open(`daily:${shiftDayKey(dailyDate, -1)}`)
-                      }
+                      variant="dark-outline"
+                      onClick={() => setNavOpen(true)}
                     >
-                      <ChevronLeft />
+                      Jelajahi catatan
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="sm:size-8"
-                      aria-label="Hari berikutnya"
-                      onClick={() =>
-                        void open(`daily:${shiftDayKey(dailyDate, 1)}`)
-                      }
-                    >
-                      <ChevronRight />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="sm:size-8"
-                      aria-label="Salin tautan catatan"
-                      disabled={copy.isPending}
-                      onClick={() => copy.mutate(activeRef)}
-                    >
-                      <Link2 />
+                    <Button variant="ghost" onClick={() => void show("trash")}>
+                      Buka Sampah
                     </Button>
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
               <div
                 className={cn(
-                  "min-h-0 flex-1 overflow-y-auto",
-                  note.data?.format === "record" &&
-                    "overscroll-contain [scrollbar-color:var(--color-ink-muted)_var(--color-canvas)] [color-scheme:light]"
+                  "flex min-h-0 flex-1 flex-col",
+                  (!activeRef || unavailable || retiredRef === activeRef) &&
+                    "hidden"
                 )}
               >
-                {note.isError && note.data ? (
-                  <div
-                    className="border-b border-ink/8 px-6 py-3 text-sm"
-                    role="alert"
-                  >
-                    Catatan belum dapat diperbarui. Draf Anda tetap tersedia.
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void note.refetch()}
+                <div className="flex h-12 shrink-0 items-center gap-2 border-b border-ink/8 px-4 text-xs text-ink-muted sm:h-11 sm:px-6">
+                  {activeRef?.startsWith("daily:") ? (
+                    <span className="min-w-0 truncate">Catatan harian</span>
+                  ) : noteParentId ? (
+                    <span className="min-w-0 truncate">
+                      {items.find((item) => item.id === noteParentId)?.path}
+                    </span>
+                  ) : null}
+                  <div ref={setStatusSlot} className="ml-auto shrink-0" />
+                  {currentItem ? (
+                    <ItemMenu
+                      item={currentItem}
+                      onAction={(type, item) => action.mutate({ type, item })}
+                    />
+                  ) : activeRef?.startsWith("daily:") ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="sm:size-8"
+                        aria-label="Hari sebelumnya"
+                        onClick={() =>
+                          void open(`daily:${shiftDayKey(dailyDate, -1)}`)
+                        }
+                      >
+                        <ChevronLeft />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="sm:size-8"
+                        aria-label="Hari berikutnya"
+                        onClick={() =>
+                          void open(`daily:${shiftDayKey(dailyDate, 1)}`)
+                        }
+                      >
+                        <ChevronRight />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="sm:size-8"
+                        aria-label="Salin tautan catatan"
+                        disabled={copy.isPending}
+                        onClick={() => copy.mutate(activeRef)}
+                      >
+                        <Link2 />
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+                <div
+                  className={cn(
+                    "min-h-0 flex-1 overflow-y-auto",
+                    note.data?.format === "record" &&
+                      "overscroll-contain [scrollbar-color:var(--color-ink-muted)_var(--color-canvas)] [color-scheme:light]"
+                  )}
+                >
+                  {note.isError && note.data ? (
+                    <div
+                      className="border-b border-ink/8 px-6 py-3 text-sm"
+                      role="alert"
                     >
-                      Coba lagi
-                    </Button>
-                  </div>
-                ) : null}
-                {note.isPending || !activeRef ? (
-                  <WorkspaceEditorSkeleton />
-                ) : note.isError && !note.data ? (
-                  <div role="alert" className="p-8">
-                    <h2 className="text-xl font-semibold">
-                      Catatan tidak dapat dimuat
-                    </h2>
-                    <p className="mt-3 text-sm text-ink-muted">
-                      {note.error.message}
-                    </p>
-                    <Button
-                      className="mt-4"
-                      variant="dark-outline"
-                      onClick={() => void note.refetch()}
-                    >
-                      Coba lagi
-                    </Button>
-                  </div>
-                ) : (
-                  <WorkspaceEditor
-                    key={activeRef}
-                    ref={editor}
-                    note={note.data}
-                    statusSlot={statusSlot}
-                    entries={entries}
-                    today={today}
-                    fresh={freshRef === activeRef}
-                    onSaved={saved}
-                    onOpen={(ref) => void open(ref)}
-                    onCreateLink={createLinked}
-                  />
-                )}
+                      Catatan belum dapat diperbarui. Draf Anda tetap tersedia.
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void note.refetch()}
+                      >
+                        Coba lagi
+                      </Button>
+                    </div>
+                  ) : null}
+                  {!activeRef ||
+                  retiredRef === activeRef ? null : note.isPending ? (
+                    <WorkspaceEditorSkeleton />
+                  ) : note.isError && !note.data ? (
+                    <div role="alert" className="p-8">
+                      <h2 className="text-xl font-semibold">
+                        Catatan tidak dapat dimuat
+                      </h2>
+                      <p className="mt-3 text-sm text-ink-muted">
+                        {note.error.message}
+                      </p>
+                      <Button
+                        className="mt-4"
+                        variant="dark-outline"
+                        onClick={() => void note.refetch()}
+                      >
+                        Coba lagi
+                      </Button>
+                    </div>
+                  ) : (
+                    <WorkspaceEditor
+                      key={activeRef}
+                      ref={editor}
+                      note={note.data}
+                      available={!unavailable}
+                      statusSlot={statusSlot}
+                      entries={entries}
+                      today={today}
+                      fresh={freshRef === activeRef}
+                      onSaved={saved}
+                      onOpen={(ref) => void open(ref)}
+                      onCreateLink={createLinked}
+                    />
+                  )}
+                </div>
               </div>
             </>
           ) : mode === "search" ? (

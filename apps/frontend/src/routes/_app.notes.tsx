@@ -44,11 +44,15 @@ function NotesRoute() {
             ? `daily:${search.date}`
             : undefined
       }
-      onNavigate={async (ref) => {
+      onNavigate={async (ref, options) => {
         await navigate({
-          search: ref.startsWith("daily:")
-            ? { date: ref.slice(6) }
-            : { note: ref.slice(7) },
+          search:
+            ref === null
+              ? {}
+              : ref.startsWith("daily:")
+                ? { date: ref.slice(6) }
+                : { note: ref.slice(7) },
+          replace: options?.replace,
         });
       }}
     />

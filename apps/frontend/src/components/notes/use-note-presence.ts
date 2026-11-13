@@ -10,7 +10,7 @@ const RENEW_INTERVAL_MS = 30_000;
 const RENEW_MARGIN_MS = 60_000;
 
 /** Shared by workspace and chat editors; local drafts survive a lost connection. */
-export function useNotePresence(note: WorkspaceNote) {
+export function useNotePresence(note: WorkspaceNote, enabled = true) {
   const [current, setCurrent] = useState<WorkspaceNote>();
   const [error, setError] = useState<string>();
   const [ready, setReady] = useState(false);
@@ -25,6 +25,7 @@ export function useNotePresence(note: WorkspaceNote) {
   }, [note]);
 
   useEffect(() => {
+    if (!enabled) return;
     const sessionId = crypto.randomUUID();
     let disposed = false;
     let expiresAt = 0;
@@ -138,7 +139,7 @@ export function useNotePresence(note: WorkspaceNote) {
 
       void release();
     };
-  }, [note.ref]);
+  }, [note.ref, enabled]);
 
   const ensure = useCallback(async () => {
     const live = connection.current;

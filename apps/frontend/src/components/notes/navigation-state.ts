@@ -1,10 +1,10 @@
 export type NavigationStateResult =
-  | { kind: "stored"; ref: string }
+  | { kind: "stored"; ref: string | null }
   | { kind: "empty" }
   | { kind: "unavailable"; message: string };
 type NotesStorage = Pick<Storage, "getItem" | "setItem">;
 type NavigationSnapshot = {
-  ref: string;
+  ref: string | null;
   warning: string | null;
   mounted: boolean;
 };
@@ -56,7 +56,7 @@ export function createNotesNavigationStore(userId: string, today: string) {
         listeners.delete(listener);
       };
     },
-    save: (ref: string, warning: string | null = null) => {
+    save: (ref: string | null, warning: string | null = null) => {
       try {
         warning = storeLastNote(window.localStorage, userId, ref) ?? warning;
       } catch (error) {
@@ -107,7 +107,7 @@ export function readLastNote(
       !("version" in data) ||
       data.version !== 1 ||
       !("ref" in data) ||
-      !isNoteRef(data.ref)
+      (data.ref !== null && !isNoteRef(data.ref))
     )
       throw new Error("Invalid saved notes navigation.");
 
@@ -129,7 +129,7 @@ export function readLastNote(
 export function storeLastNote(
   storage: NotesStorage,
   userId: string,
-  ref: string
+  ref: string | null
 ): string | null {
   try {
     storage.setItem(

@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { TiptapDoc } from "@/lib/services/api/daily-notes/daily-notes.api";
 import type {
   NoteEntry,
+  NoteDraft,
   WorkspaceNote,
 } from "@/lib/services/api/notes/notes.api";
 import { cn } from "@/lib/utils/cn";
@@ -34,6 +35,11 @@ export type WorkspaceEditorHandle = {
   focusTitle: () => void;
   discard: () => void;
   draftText: () => string;
+  recoveryDraft: () => {
+    draft: NoteDraft;
+    text: string;
+    format?: "record";
+  } | null;
 };
 type WorkspaceEditorProps = {
   note: WorkspaceNote;
@@ -92,7 +98,7 @@ export function WorkspaceEditor(props: WorkspaceEditorProps) {
 }
 
 function ProtectedWorkspaceEditor(props: WorkspaceEditorProps) {
-  const presence = useNotePresence(props.note);
+  const presence = useNotePresence(props.note, props.available !== false);
   if (!presence.note)
     return (
       <div className={cn(presence.error && "p-6")} aria-busy={!presence.error}>
@@ -231,9 +237,16 @@ function WorkspaceEditorContent({
       discard: autosave.discard,
       draftText: () =>
         `${autosave.draft.current.title}\n\n${readableText(autosave.draft.current.content)}`,
+      recoveryDraft: () =>
+        autosave.dirty.current
+          ? {
+              draft: autosave.draft.current,
+              text: `${autosave.draft.current.title}\n\n${readableText(autosave.draft.current.content)}`,
+            }
+          : null,
       focusTitle: () => document.getElementById("note-title")?.focus(),
     }),
-    [autosave.flush, autosave.discard, autosave.draft]
+    [autosave.flush, autosave.discard, autosave.draft, autosave.dirty]
   );
   useEffect(() => {
     if (fresh && !daily) document.getElementById("note-title")?.focus();

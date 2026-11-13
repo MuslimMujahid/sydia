@@ -17,6 +17,7 @@ import {
   type WorkspaceNote,
 } from "@/lib/services/api/notes/notes.api";
 import { useNotePresence } from "./use-note-presence";
+import { recordRecoveryText } from "./record-recovery";
 
 type CellDraft = {
   rowId: string;
@@ -54,10 +55,11 @@ type Pending = {
 export function useRecordEditor(
   note: WorkspaceNote,
   onSaved: (note: WorkspaceNote) => void,
-  onDirtyChange?: (dirty: boolean) => void
+  onDirtyChange?: (dirty: boolean) => void,
+  available = true
 ) {
   const id = note.ref.slice(7);
-  const presence = useNotePresence(note);
+  const presence = useNotePresence(note, available);
   const client = useQueryClient();
   const metaQuery = useQuery({
     ...recordMetadataOptions(id),
@@ -240,6 +242,8 @@ export function useRecordEditor(
   }
 
   const commit = async (operation: Pending): Promise<boolean> => {
+    if (!available) return false;
+
     try {
       await presence.ensure();
       const sessionId = presence.getSessionId();
@@ -303,6 +307,7 @@ export function useRecordEditor(
 
     const work = async () => {
       if (discarded.current) return true;
+      if (!available) return false;
 
       if (pending.current) {
         const operation = pending.current;
@@ -699,5 +704,19 @@ export function useRecordEditor(
       contextDraft.current.title !== undefined ||
       contextDraft.current.description !== undefined ||
       !!pending.current,
+    recoveryText: () =>
+      recordRecoveryText({
+        title:
+          contextDraft.current.title ?? current.current?.title ?? note.title,
+        description:
+          contextDraft.current.description ??
+          current.current?.description ??
+          "",
+        columns: current.current?.columns ?? [],
+        rows: pageRef.current?.rows ?? [],
+        rowCount: current.current?.rowCount ?? 0,
+        drafts: draftRef.current,
+        change: pending.current?.change,
+      }),
   };
 }

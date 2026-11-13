@@ -52,6 +52,7 @@ interface RecordNoteEditorProps {
   fresh?: boolean;
   presentation?: "workspace" | "drawer";
   onDirtyChange?: (dirty: boolean) => void;
+  available?: boolean;
 }
 type ActiveCell = { rowId: string; columnId: string };
 
@@ -86,8 +87,9 @@ export function RecordNoteEditor({
   onSaved,
   fresh = false,
   onDirtyChange,
+  available = true,
 }: RecordNoteEditorProps) {
-  const editor = useRecordEditor(note, onSaved, onDirtyChange);
+  const editor = useRecordEditor(note, onSaved, onDirtyChange, available);
   const [active, setActive] = useState<ActiveCell>();
   const [editing, setEditing] = useState<ActiveCell>();
   const [anchor, setAnchor] = useState<ActiveCell>();
@@ -135,13 +137,31 @@ export function RecordNoteEditor({
   const editorReady = Boolean(meta);
   const toast = editor.toast;
   const setToast = editor.setToast;
-  const disabled = !editor.presence.ready || editor.busy || !!editor.conflict;
+  const disabled =
+    !available || !editor.presence.ready || editor.busy || !!editor.conflict;
+
   useImperativeHandle(ref, () => ({
     flush: editor.flush,
     focusTitle: () => titleInput.current?.focus(),
     discard: editor.discard,
     draftText: () =>
       JSON.stringify({ title, description, cells: editor.drafts }),
+    recoveryDraft: () => {
+      if (!editor.hasDraft()) return null;
+      const text = editor.recoveryText();
+
+      return {
+        format: "record" as const,
+        draft: {
+          title,
+          content: {
+            type: "doc",
+            content: [{ type: "codeBlock", content: [{ type: "text", text }] }],
+          },
+        },
+        text,
+      };
+    },
   }));
   useEffect(() => {
     if (fresh && editorReady) titleInput.current?.focus();
@@ -641,6 +661,7 @@ export function RecordNoteEditor({
                   aria-label="Judul catatan"
                   className="block w-full min-w-0 rounded-sm bg-transparent p-0 font-display text-[26px] leading-tight font-normal tracking-[-0.03em] outline-none placeholder:text-ink-muted focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-[28px]"
                   value={title}
+                  readOnly={!available}
                   onChange={(e) => {
                     setTitle(e.target.value);
                     editor.changeTitle(e.target.value);
@@ -659,6 +680,7 @@ export function RecordNoteEditor({
                   placeholder="Tambahkan deskripsi…"
                   className="block max-h-28 w-full resize-none [field-sizing:content] rounded-none border-b-2 border-transparent bg-transparent px-0 pt-0 pb-1 text-sm leading-5 text-ink-muted outline-none focus:border-ink-muted focus:text-ink sm:text-[13px]"
                   value={description ?? meta.description}
+                  readOnly={!available}
                   onChange={(e) => {
                     setDescription(e.target.value);
                     editor.changeDescription(e.target.value);
