@@ -22,6 +22,19 @@ const reminder = {
   recurrence: { frequency: "weekly", interval: 1, daysOfWeek: [2, 4] },
   notes: null,
   source: null,
+  important: false,
+  repeatIntervalMinutes: 5,
+  snoozedFrom: null,
+  // It already fired once, so it can be snoozed.
+  latestOccurrence: {
+    id: "occurrence-1",
+    occurrenceAt: "2026-10-07T09:00:00.000Z",
+    status: "delivered",
+    messagesSent: 1,
+    lastSentAt: "2026-10-07T09:00:00.000Z",
+    deliveredAt: "2026-10-07T09:00:00.000Z",
+    acknowledgedAt: null,
+  },
   createdAt: timestamp,
   updatedAt: timestamp,
 };
@@ -312,25 +325,63 @@ test("keeps a failed task action visible without changing status", async ({
   ).toBeEnabled();
 });
 
-test("snoozes an active reminder and updates its details", async ({ page }) => {
+test("snoozes a fired reminder into a one-time copy an hour from now", async ({
+  page,
+}) => {
   await page.clock.setFixedTime(new Date("2026-10-10T00:00:00.000Z"));
-  let current = { ...reminder };
-  await page.route("**/reminders/reminder-1", async (route) => {
-    if (route.request().method() === "PATCH") {
-      expect(route.request().postDataJSON()).toEqual({
-        snoozeUntil: "2026-10-10T01:00:00.000Z",
-      });
-      current = { ...reminder, scheduledAt: "2026-10-10T01:00:00.000Z" };
-      await route.fulfill({ json: { data: current } });
-    } else await route.fulfill({ json: { data: current } });
+  let snoozeBody: unknown;
+  await page.route("**/reminders/reminder-1/snooze", async (route) => {
+    snoozeBody = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        data: {
+          ...reminder,
+          id: "reminder-copy",
+          recurrence: null,
+          scheduledAt: "2026-10-10T01:00:00.000Z",
+          snoozedFrom: {
+            occurrenceId: "occurrence-1",
+            occurrenceAt: "2026-10-07T09:00:00.000Z",
+          },
+          latestOccurrence: null,
+        },
+      },
+    });
   });
+  await page.route("**/reminders/reminder-1", (route) =>
+    route.fulfill({ json: { data: reminder } })
+  );
   await page.goto("/e2e/entity-renderer.html");
   await page.getByRole("button", { name: "Pengingat: Minum obat" }).click();
   await expect(
     page.getByText("Berulang mingguan pada Selasa, Kamis")
   ).toBeVisible();
   await page.getByRole("button", { name: "Tunda 1 jam" }).click();
-  await expect(page.getByText(/10 Okt 2026.*09[.:]00/)).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText(
+    /Ditunda sampai 10 Okt 2026.*09[.:]00/
+  );
+  expect(snoozeBody).toEqual({
+    occurrenceId: "occurrence-1",
+    until: "2026-10-10T01:00:00.000Z",
+  });
+  // The recurring original keeps its schedule.
+  await expect(page.getByText(/9 Okt 2026.*17[.:]00/)).toBeVisible();
+});
+
+test("offers no snooze for a reminder that has not fired yet", async ({
+  page,
+}) => {
+  await page.route("**/reminders/reminder-1", (route) =>
+    route.fulfill({ json: { data: { ...reminder, latestOccurrence: null } } })
+  );
+  await page.goto("/e2e/entity-renderer.html");
+  await page.getByRole("button", { name: "Pengingat: Minum obat" }).click();
+  await expect(
+    page.getByRole("link", { name: "Atur pengingat" })
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tunda 1 jam" })).toHaveCount(
+    0
+  );
 });
 
 test("offers authenticated file open and download links", async ({ page }) => {
@@ -555,6 +606,146 @@ test("removes a hard deleted reminder from the list on desktop and mobile", asyn
     0
   );
   expect(deleted).toBe(true);
+});
+
+const awaitingReminder = {
+  ...reminder,
+  important: true,
+  repeatIntervalMinutes: 5,
+  latestOccurrence: {
+    ...reminder.latestOccurrence,
+    status: "awaiting_ack",
+    messagesSent: 3,
+  },
+};
+
+test("confirms an important reminder that awaits acknowledgement", async ({
+  page,
+}, testInfo) => {
+  let acknowledgedBody: unknown;
+  await page.route(/\/reminders(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          acknowledgedBody
+            ? {
+                ...awaitingReminder,
+                latestOccurrence: {
+                  ...awaitingReminder.latestOccurrence,
+                  status: "acknowledged",
+                },
+              }
+            : awaitingReminder,
+        ],
+      },
+    })
+  );
+  await page.route("**/reminders/reminder-1/acknowledge", async (route) => {
+    acknowledgedBody = route.request().postDataJSON();
+    await route.fulfill({ json: { data: { acknowledged: [{ id: "x" }] } } });
+  });
+  await page.goto("/e2e/entity-renderer.html?mode=reminders");
+  await expect(page.getByText("Pengingat penting")).toBeVisible();
+  await expect(page.getByText("Menunggu konfirmasi")).toBeVisible();
+  if (testInfo.project.name === "mobile") {
+    await page
+      .getByRole("button", { name: `Tindakan untuk ${reminder.title}` })
+      .click();
+    await page.getByRole("menuitem", { name: "Konfirmasi" }).click();
+  } else
+    await page
+      .getByRole("button", { name: `Konfirmasi pengingat ${reminder.title}` })
+      .click();
+  await expect(page.getByText("Menunggu konfirmasi")).toHaveCount(0);
+  expect(acknowledgedBody).toEqual({ occurrenceId: "occurrence-1" });
+  await expect(page.getByText("Pengingat penting")).toBeVisible();
+});
+
+test("offers Tunda only after a reminder fired and Ubah waktu before", async ({
+  page,
+}, testInfo) => {
+  const upcoming = {
+    ...reminder,
+    id: "reminder-2",
+    title: "Rapat",
+    latestOccurrence: null,
+  };
+
+  await page.route(/\/reminders(?:\?.*)?$/, (route) =>
+    route.fulfill({ json: { data: [reminder, upcoming] } })
+  );
+  await page.goto("/e2e/entity-renderer.html?mode=reminders");
+  await expect(page.getByRole("heading", { name: "Rapat" })).toBeVisible();
+  test.skip(
+    testInfo.project.name === "mobile",
+    "The same actions are covered by the menu on mobile."
+  );
+  await expect(
+    page.getByRole("button", { name: `Tunda pengingat ${reminder.title}` })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `Ubah waktu pengingat ${reminder.title}` })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Ubah waktu pengingat Rapat" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Tunda pengingat Rapat" })
+  ).toHaveCount(0);
+});
+
+test("shows where a snooze copy came from", async ({ page }) => {
+  await page.route(/\/reminders(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          {
+            ...reminder,
+            recurrence: null,
+            latestOccurrence: null,
+            snoozedFrom: {
+              occurrenceId: "occurrence-1",
+              occurrenceAt: "2026-10-07T09:00:00.000Z",
+            },
+          },
+        ],
+      },
+    })
+  );
+  await page.goto("/e2e/entity-renderer.html?mode=reminders");
+  await expect(page.getByText(/^Ditunda dari \d{2}[.:]\d{2}$/)).toBeVisible();
+});
+
+test("keeps a custom repeat interval set from chat when saving", async ({
+  page,
+}, testInfo) => {
+  const custom = { ...awaitingReminder, repeatIntervalMinutes: 7 };
+  let patched: unknown;
+  await page.route(/\/reminders(?:\?.*)?$/, (route) =>
+    route.fulfill({ json: { data: [custom] } })
+  );
+  await page.route("**/reminders/reminder-1", async (route) => {
+    if (route.request().method() === "PATCH")
+      patched = route.request().postDataJSON();
+    await route.fulfill({ json: { data: custom } });
+  });
+  await page.goto("/e2e/entity-renderer.html?mode=reminders");
+  if (testInfo.project.name === "mobile") {
+    await page
+      .getByRole("button", { name: `Tindakan untuk ${reminder.title}` })
+      .click();
+    await page.getByRole("menuitem", { name: "Rincian" }).click();
+  } else
+    await page.getByRole("button", { name: "Rincian", exact: true }).click();
+  await expect(page.getByRole("switch", { name: "Penting" })).toBeChecked();
+  await expect(page.getByText("7 menit (custom)")).toBeVisible();
+  await page.getByRole("button", { name: "Simpan pengingat" }).click();
+  await expect
+    .poll(() => patched)
+    .toMatchObject({
+      important: true,
+      repeatIntervalMinutes: 7,
+    });
 });
 
 test("hard deletes a reminder from Today", async ({ page }) => {

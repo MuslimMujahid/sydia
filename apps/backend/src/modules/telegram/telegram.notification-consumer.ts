@@ -4,6 +4,7 @@ import {
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
@@ -12,6 +13,7 @@ import {
   type IReminderRepository,
 } from '../../database/interfaces';
 import type { NotificationJob } from '../../infra/queue';
+import { ReminderHistoryService } from '../notifications/reminder-history.service';
 import { TelegramService } from './telegram.service';
 
 @Injectable()
@@ -25,6 +27,7 @@ export class TelegramNotificationConsumer
     private readonly telegram: TelegramService,
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
+    @Optional() private readonly history?: ReminderHistoryService,
   ) {}
 
   onModuleInit(): void {
@@ -53,6 +56,7 @@ export class TelegramNotificationConsumer
           await this.reminders.markOccurrenceDelivered(
             job.data.reminderOccurrenceKey,
           );
+          await this.history?.recordDelivered(job.data);
         }
 
         return result;

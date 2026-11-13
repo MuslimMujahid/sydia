@@ -80,6 +80,7 @@ function setup(options: { linked?: boolean } = {}) {
     findByIdempotencyKey: jest.fn(() => Promise.resolve(notificationDelivery)),
     claimDelivery: jest.fn(() => Promise.resolve(true)),
     recordOutcome: jest.fn(() => Promise.resolve(notificationDelivery)),
+    reminderFollowUpIsCurrent: jest.fn(() => Promise.resolve(true)),
   } as unknown as NotificationService;
 
   const documents = {

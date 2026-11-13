@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { User, SupportedLocale } from '../../database/entities';
 import {
+  CHANNEL_CONVERSATION_ACTIVE_MS,
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
   NOTIFICATION_REPOSITORY,
@@ -163,7 +164,7 @@ export class MessagingHandlerService implements OnModuleDestroy {
       chatExternalId: channelAddress(input.message),
       userId: input.user.id,
       title: input.message.text,
-      activeAfter: new Date(now.getTime() - 24 * 60 * 60_000),
+      activeAfter: new Date(now.getTime() - CHANNEL_CONVERSATION_ACTIVE_MS),
       receivedAt: now,
     });
 
@@ -534,42 +535,64 @@ export class MessagingHandlerService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Resolves a quoted message against Sydia's own deliveries. A delivered
+   * notification restores missing quote text, and a reminder delivery names
+   * its exact occurrence so "ingatkan 15 menit lagi" targets that reminder.
+   */
   private async resolveReply(
     userId: string,
     message: NormalizedInboundMessage,
   ): Promise<NormalizedInboundMessage> {
     const reply = message.replyTo;
-    if (!reply || reply.text.trim() || reply.quoteText?.trim()) return message;
+    if (!reply) return message;
+    const missingText = !reply.text.trim() && !reply.quoteText?.trim();
 
-    this.logger.warn(
-      `Referenced message unavailable from provider: provider=${message.provider} messageId=${reply.providerMessageId}`,
-    );
+    if (missingText)
+      this.logger.warn(
+        `Referenced message unavailable from provider: provider=${message.provider} messageId=${reply.providerMessageId}`,
+      );
 
-    if (reply.isFromMe) {
-      const delivery = message.whatsappConnection
-        ? await this.notifications.findDeliveryByProviderMessageId(
-            userId,
-            message.provider,
-            reply.providerMessageId,
-            message.whatsappConnection,
-          )
-        : await this.notifications.findDeliveryByProviderMessageId(
-            userId,
-            message.provider,
-            reply.providerMessageId,
-          );
-
-      if (delivery?.content.trim()) {
-        this.logger.log(
-          `Recovered referenced notification: provider=${message.provider} messageId=${reply.providerMessageId}`,
+    // WhatsApp cannot tell whether the quoted message was ours; the lookup is
+    // scoped to this user's deliveries, so it is safe either way.
+    if (!reply.isFromMe && message.provider !== 'whatsapp') return message;
+    const delivery = message.whatsappConnection
+      ? await this.notifications.findDeliveryByProviderMessageId(
+          userId,
+          message.provider,
+          reply.providerMessageId,
+          message.whatsappConnection,
+        )
+      : await this.notifications.findDeliveryByProviderMessageId(
+          userId,
+          message.provider,
+          reply.providerMessageId,
         );
 
-        return { ...message, replyTo: { ...reply, text: delivery.content } };
-      }
-    }
+    if (!delivery) return message;
+    const reminder = delivery.reminderOccurrenceId
+      ? await this.notifications.findReminderReference(
+          userId,
+          delivery.reminderOccurrenceId,
+        )
+      : null;
 
-    // The caller surfaces missingReference and skips the assistant for this batch.
-    return message;
+    if (missingText && delivery.content.trim())
+      this.logger.log(
+        `Recovered referenced notification: provider=${message.provider} messageId=${reply.providerMessageId}`,
+      );
+
+    return {
+      ...message,
+      replyTo: {
+        ...reply,
+        isFromMe: true,
+        ...(missingText && delivery.content.trim()
+          ? { text: delivery.content }
+          : {}),
+        ...(reminder ? { reminder } : {}),
+      },
+    };
   }
 
   private async sendFor(

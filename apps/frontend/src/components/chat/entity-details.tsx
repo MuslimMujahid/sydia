@@ -231,9 +231,17 @@ function ReminderDetails({ entity, locale, timezone }: DetailsProps) {
       {recurrence ? (
         <p className="mt-1 text-sm text-ink-muted">{recurrence}</p>
       ) : null}
+      {snoozeMutation.isSuccess ? (
+        <p className="mt-2 text-sm text-ink-muted" role="status">
+          {locale === "en" ? "Snoozed until " : "Ditunda sampai "}
+          {when(snoozeMutation.data.scheduledAt, locale, timezone)}.
+        </p>
+      ) : null}
       <MutationError error={deleteMutation.error ?? snoozeMutation.error} />
       <div className="mt-4 flex flex-wrap gap-2">
-        <>
+        {/* Only a reminder that already fired can be snoozed (a one-time copy
+            is created); before that its time is changed on the reminders page. */}
+        {reminder.latestOccurrence && !snoozeMutation.isSuccess ? (
           <Button
             size="sm"
             variant="ghost"
@@ -241,18 +249,14 @@ function ReminderDetails({ entity, locale, timezone }: DetailsProps) {
             onClick={() =>
               snoozeMutation.mutate({
                 reminderId: reminder.id,
-                until: new Date(
-                  Math.max(
-                    Date.now(),
-                    new Date(reminder.scheduledAt).getTime()
-                  ) + 3_600_000
-                ).toISOString(),
+                occurrenceId: reminder.latestOccurrence?.id,
+                until: new Date(Date.now() + 3_600_000).toISOString(),
               })
             }
           >
             {locale === "en" ? "Snooze 1 hour" : "Tunda 1 jam"}
           </Button>
-        </>
+        ) : null}
         <Button
           size="sm"
           variant="ghost"

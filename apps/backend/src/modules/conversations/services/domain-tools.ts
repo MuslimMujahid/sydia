@@ -6,11 +6,12 @@ import type {
   ITaskRepository,
   IUserRepository,
 } from '../../../database/interfaces';
-import type {
-  Reminder,
-  ReminderRecurrence,
-  Task,
-  TaskStatus,
+import {
+  clampRepeatInterval,
+  type Reminder,
+  type ReminderRecurrence,
+  type Task,
+  type TaskStatus,
 } from '../../../database/entities';
 import {
   dayWindow,
@@ -21,6 +22,10 @@ import type { AssistantTool } from './tool-executor.service';
 import { AmbiguousReferenceError, closestReferences } from './tool-references';
 import { MemoryAccessService } from '../../memories/memory-access.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
+import {
+  ReminderActionError,
+  type ReminderLifecycleService,
+} from '../../reminders/reminder-lifecycle.service';
 
 import { SecretsService } from '../../secrets/secrets.service';
 
@@ -94,6 +99,16 @@ function schema(
     color: 'Category color selected from the allowed color values.',
     iconKey: 'Category icon selected from the allowed icon values.',
     taskCount: 'Non-negative number of tasks associated with the category.',
+    important:
+      'Only on an explicit request to keep reminding until the user confirms ("penting", "ingatkan terus"); never inferred.',
+    repeatIntervalMinutes:
+      'Minutes between repeats of an important reminder, 5-60 (default 5); clamped, so state the applied value.',
+    occurrenceId:
+      'Fired occurrence id from replyTo.reminder, a reminder reference, or recentDeliveries.',
+    reminderId: 'Reminder id; targets its latest fired occurrence.',
+    minutes: 'Minutes from now.',
+    confirmPastNextOccurrence:
+      'True only after the user confirms going past the next recurring occurrence.',
     label: 'Human-readable label for the secret.',
     value:
       'Secret value to store exactly. For multiple values, separate with \\n; never slashes, labels, bullets, or other separators.',
@@ -140,6 +155,11 @@ function schema(
 
 const string = { type: 'string' } as const;
 const nullableString: JSONSchema7 = { type: ['string', 'null'] };
+const boolean = { type: 'boolean' } as const;
+const integer = { type: 'integer' } as const;
+
+const RECENT_DELIVERY_WINDOW_MS = 7 * 24 * 60 * 60_000;
+const RECENT_DELIVERY_LIMIT = 20;
 
 const WEEKDAY_NAMES = [
   'Sunday',
@@ -186,6 +206,31 @@ function recurrenceSchema(): JSONSchema7 {
 
 function invalid(key: string, expected: string): Error {
   return new Error(`${key} ${expected}`);
+}
+
+/** Reads the optional importance settings of a reminder write tool. */
+function importance(record: Record<string, unknown>): {
+  important?: boolean;
+  repeatIntervalMinutes?: number;
+  adjusted?: { requested: number; applied: number };
+} {
+  const important = record.important;
+  if (important !== undefined && typeof important !== 'boolean')
+    throw invalid('important', 'must be true or false.');
+  const interval = record.repeatIntervalMinutes;
+  if (interval === undefined)
+    return important === undefined ? {} : { important };
+  if (typeof interval !== 'number' || !Number.isFinite(interval))
+    throw invalid('repeatIntervalMinutes', 'must be a number of minutes.');
+  const applied = clampRepeatInterval(interval);
+
+  return {
+    ...(important === undefined ? {} : { important }),
+    repeatIntervalMinutes: applied,
+    ...(applied !== interval
+      ? { adjusted: { requested: interval, applied } }
+      : {}),
+  };
 }
 
 /** Reads the optional recurrence rule supplied to a reminder write tool. */
@@ -382,6 +427,7 @@ export function createDomainTools(deps: {
   scheduler: ReminderSchedulerService;
   users: IUserRepository;
   secrets?: SecretsService;
+  lifecycle?: ReminderLifecycleService;
 }): AssistantTool[] {
   const ownerTimezone = async (userId: string): Promise<string> =>
     (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
@@ -723,6 +769,8 @@ Call this tool once per reminder.`,
         {
           title: string,
           notes: nullableString,
+          important: boolean,
+          repeatIntervalMinutes: integer,
           schedules: {
             type: 'array',
             minItems: 1,
@@ -747,6 +795,7 @@ Call this tool once per reminder.`,
       const a = object(raw);
       const title = text(a, 'title')!;
       const notes = text(a, 'notes', false) ?? null;
+      const { adjusted, ...importanceWrite } = importance(a);
       const timezone =
         (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
 
@@ -781,13 +830,17 @@ Call this tool once per reminder.`,
           recurrence: schedule.recurrence,
           sourceType: 'chat',
           sourceMessageId,
+          ...importanceWrite,
         });
 
         await deps.scheduler.schedule(reminder);
         reminders.push(reminder);
       }
 
-      return { reminders };
+      return {
+        reminders,
+        ...(adjusted ? { repeatIntervalAdjusted: adjusted } : {}),
+      };
     },
   };
 
@@ -797,9 +850,9 @@ Call this tool once per reminder.`,
       label: 'Update reminder',
       description: `Use this tool to update an existing reminder.
 
-Use it when the user asks to change a reminder's title, notes, scheduled time, or recurrence.
+Use it when the user asks to change a reminder's title, notes, scheduled time, recurrence, importance, or repeat interval.
 
-Do not use it to create or delete a reminder, modify a task, or search reminders without changing them. Use 'delete_reminder' when the user asks to remove the reminder or stop future notifications.
+Do not use it to create or delete a reminder, modify a task, search reminders without changing them, or snooze a fired reminder ('snooze_reminder'). Use 'delete_reminder' when the user asks to remove the reminder or stop future notifications.
 
 Identify the reminder with id or query. Only supplied fields change. recurrence may be set to change the rule or null to clear it.
 
@@ -814,15 +867,23 @@ A request that fits the existing rule is an update; one that cannot be expressed
         date: string,
         time: string,
         recurrence: recurrenceSchema(),
+        important: boolean,
+        repeatIntervalMinutes: integer,
       }),
     },
     parseArguments: (value) => object(value) as Prisma.InputJsonValue,
     execute: async ({ userId, arguments: raw }) => {
       const a = object(raw);
       if (
-        !['title', 'notes', 'date', 'time', 'recurrence'].some(
-          (key) => a[key] !== undefined,
-        )
+        ![
+          'title',
+          'notes',
+          'date',
+          'time',
+          'recurrence',
+          'important',
+          'repeatIntervalMinutes',
+        ].some((key) => a[key] !== undefined)
       )
         throw invalid('reminder update', 'must include a change.');
       const current = await findReminder(userId, a);
@@ -845,19 +906,24 @@ A request that fits the existing rule is an update; one that cannot be expressed
         ? reminderStart(effective, requestedAt, timezone)
         : undefined;
 
+      const { adjusted, ...importanceWrite } = importance(a);
       const reminder = await deps.reminders.update(userId, current.id, {
         title: text(a, 'title', false),
         notes: a.notes === null ? null : text(a, 'notes', false),
         scheduledAt,
         recurrence: rule,
+        ...importanceWrite,
       });
 
       if (!reminder) throw new Error('The specified reminder was not found.');
-      await deps.scheduler.schedule(reminder);
+      if (deps.lifecycle)
+        await deps.lifecycle.afterUpdate(userId, current, reminder);
+      else await deps.scheduler.schedule(reminder);
 
       return {
         objectType: 'reminder',
         object: reminder,
+        ...(adjusted ? { repeatIntervalAdjusted: adjusted } : {}),
       };
     },
   };
@@ -896,7 +962,7 @@ Use it when the user asks what reminders exist, or before changing a recurring s
 
 Do not use it to create or change a reminder.
 
-Each reminder reports its id, title, its local date and time with the weekday, and its recurrence. Read the recurrence before editing it; a request that cannot be expressed by the existing recurrence must become more than one reminder. The date and time fields are ready to pass straight back to 'update_reminder'.`,
+Each reminder reports its id, title, its local date and time with the weekday, and its recurrence. Read the recurrence before editing it; a request that cannot be expressed by the existing recurrence must become more than one reminder. The date and time fields are ready to pass straight back to 'update_reminder'. recentDeliveries lists occurrences sent in the last 7 days (newest first, max 20) for snooze/acknowledge.`,
       parameters: schema({
         query: string,
       }),
@@ -908,9 +974,13 @@ Each reminder reports its id, title, its local date and time with the weekday, a
       const timezone =
         (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
 
-      const reminders = await deps.reminders.list(userId, {
-        search: text(a, 'query', false),
-      });
+      const [reminders, recent] = await Promise.all([
+        deps.reminders.list(userId, { search: text(a, 'query', false) }),
+        deps.reminders.listRecentlyDispatched(userId, {
+          since: new Date(Date.now() - RECENT_DELIVERY_WINDOW_MS),
+          limit: RECENT_DELIVERY_LIMIT,
+        }),
+      ]);
 
       return {
         reminders: reminders.map((reminder) => ({
@@ -921,7 +991,149 @@ Each reminder reports its id, title, its local date and time with the weekday, a
           time: localTime(reminder.scheduledAt, timezone),
           weekday: localWeekday(reminder.scheduledAt, timezone),
           recurrence: reminder.recurrence,
+          important: reminder.important,
+          ...(reminder.important
+            ? { repeatIntervalMinutes: reminder.repeatIntervalMinutes }
+            : {}),
         })),
+        recentDeliveries: recent.map((occurrence) => ({
+          reminderId: occurrence.reminderId,
+          occurrenceId: occurrence.id,
+          title: occurrence.title,
+          date: localDate(occurrence.occurrenceAt, timezone),
+          time: localTime(occurrence.occurrenceAt, timezone),
+          status: occurrence.status,
+          messagesSent: occurrence.messagesSent,
+        })),
+      };
+    },
+  };
+
+  const lifecycle = (): ReminderLifecycleService => {
+    if (!deps.lifecycle)
+      throw new Error('Reminder acknowledgement and snooze are unavailable.');
+
+    return deps.lifecycle;
+  };
+
+  /** Surfaces lifecycle rule failures to the model as readable tool errors. */
+  const reminderAction = async <T>(run: () => Promise<T>): Promise<T> => {
+    try {
+      return await run();
+    } catch (error) {
+      if (error instanceof ReminderActionError)
+        throw new Error(`${error.code}: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const acknowledgeReminder: AssistantTool = {
+    definition: {
+      name: 'acknowledge_reminder',
+      label: 'Acknowledge reminder',
+      description: `Use this tool to stop an important reminder's repeats once the user has seen it.
+
+Use it when the user signals they saw or handled an important reminder: "oke", "sudah", "noted", "siap", "done", or a reply saying so.
+
+Do not use it for unrelated chatter (the reminder keeps repeating), after a regular reminder (just reply), or to postpone ('snooze_reminder').
+
+Pass occurrenceId, or reminderId for all its awaiting occurrences; call once per reminder the user confirms. An empty result means none was awaiting.`,
+      parameters: schema({ occurrenceId: string, reminderId: string }),
+    },
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, arguments: raw }) => {
+      const a = object(raw);
+      const occurrenceId = text(a, 'occurrenceId', false);
+      const reminderId = text(a, 'reminderId', false);
+      if (!occurrenceId && !reminderId)
+        throw invalid('occurrenceId or reminderId', 'is required.');
+
+      const acknowledged = await reminderAction(() =>
+        lifecycle().acknowledge(userId, { occurrenceId, reminderId }),
+      );
+
+      return {
+        acknowledged: acknowledged.map((occurrence) => ({
+          occurrenceId: occurrence.id,
+          reminderId: occurrence.reminderId,
+          title: occurrence.title,
+        })),
+      };
+    },
+  };
+
+  const snoozeReminder: AssistantTool = {
+    definition: {
+      name: 'snooze_reminder',
+      label: 'Snooze reminder',
+      description: `Use this tool to remind the user again later about a fired reminder of any kind.
+
+Use it when the user asks to be reminded later: "ingatkan saya 15 menit lagi", "nanti jam 3 sore", "besok pagi" (09:00), "remind me in an hour", often as a reply to the reminder. A bare "nanti"/"later" is minutes 10.
+
+Do not use it for a reminder that has not fired (update_reminder) or to change a recurring schedule.
+
+Give minutes, or local date and time together. It creates a one-time copy at the new time; the original schedule never moves. On needs_confirmation ask the user, then retry with confirmPastNextOccurrence. Confirm with the reminder title and new local time.`,
+      parameters: schema({
+        occurrenceId: string,
+        reminderId: string,
+        minutes: integer,
+        date: string,
+        time: string,
+        confirmPastNextOccurrence: boolean,
+      }),
+    },
+    parseArguments: (value) => object(value) as Prisma.InputJsonValue,
+    execute: async ({ userId, sourceMessageId, arguments: raw }) => {
+      const a = object(raw);
+      const occurrenceId = text(a, 'occurrenceId', false);
+      const reminderId = text(a, 'reminderId', false);
+      if (!occurrenceId && !reminderId)
+        throw invalid('occurrenceId or reminderId', 'is required.');
+
+      const minutes = a.minutes;
+      const date = text(a, 'date', false);
+      const time = text(a, 'time', false);
+      const timezone = await ownerTimezone(userId);
+      let until: Date;
+
+      if (minutes !== undefined) {
+        if (date !== undefined || time !== undefined)
+          throw invalid('minutes', 'cannot be combined with date and time.');
+        if (
+          typeof minutes !== 'number' ||
+          !Number.isInteger(minutes) ||
+          minutes < 1
+        )
+          throw invalid('minutes', 'must be a whole number of at least 1.');
+        until = new Date(Date.now() + minutes * 60_000);
+      } else {
+        if (date === undefined || time === undefined)
+          throw invalid('minutes', 'or date and time together are required.');
+        until = localInstant(date, time, timezone);
+      }
+
+      const confirm = a.confirmPastNextOccurrence;
+      if (confirm !== undefined && typeof confirm !== 'boolean')
+        throw invalid('confirmPastNextOccurrence', 'must be true or false.');
+
+      const result = await reminderAction(() =>
+        lifecycle().snooze(userId, {
+          occurrenceId,
+          reminderId,
+          until,
+          confirmPastNextOccurrence: confirm === true,
+          source: { type: 'chat', messageId: sourceMessageId },
+        }),
+      );
+
+      return {
+        objectType: 'reminder',
+        object: result.reminder,
+        snoozedOccurrenceId: result.snoozed.id,
+        until: {
+          date: localDate(result.reminder.scheduledAt, timezone),
+          time: localTime(result.reminder.scheduledAt, timezone),
+        },
       };
     },
   };
@@ -1352,6 +1564,8 @@ Returns reveal-link metadata without the value. Secret storage must be configure
     updateReminder,
     deleteReminder,
     listReminders,
+    acknowledgeReminder,
+    snoozeReminder,
     createMemory,
     updateMemory,
     deleteMemory,

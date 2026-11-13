@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -15,6 +16,7 @@ import {
 } from 'class-validator';
 import {
   RECURRENCE_FREQUENCIES,
+  REMINDER_REPEAT_INTERVAL,
   type RecurrenceFrequency,
 } from '../../database/entities';
 
@@ -40,6 +42,13 @@ export class CreateReminderDto {
   @ValidateNested()
   @Type(() => RecurrenceDto)
   recurrence?: RecurrenceDto | null;
+
+  @IsOptional() @IsBoolean() important?: boolean;
+  @IsOptional()
+  @IsInt()
+  @Min(REMINDER_REPEAT_INTERVAL.min)
+  @Max(REMINDER_REPEAT_INTERVAL.max)
+  repeatIntervalMinutes?: number;
 }
 export class UpdateReminderDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(240) title?: string;
@@ -50,7 +59,20 @@ export class UpdateReminderDto {
   @Type(() => RecurrenceDto)
   recurrence?: RecurrenceDto | null;
 
-  @IsOptional() @IsDateString() snoozeUntil?: string;
+  @IsOptional() @IsBoolean() important?: boolean;
+  @IsOptional()
+  @IsInt()
+  @Min(REMINDER_REPEAT_INTERVAL.min)
+  @Max(REMINDER_REPEAT_INTERVAL.max)
+  repeatIntervalMinutes?: number;
+}
+export class SnoozeReminderDto {
+  @IsDateString() until!: string;
+  @IsOptional() @IsString() occurrenceId?: string;
+  @IsOptional() @IsBoolean() confirmPastNextOccurrence?: boolean;
+}
+export class AcknowledgeReminderDto {
+  @IsOptional() @IsString() occurrenceId?: string;
 }
 export class ReminderFiltersDto {
   @IsOptional() @IsIn(['today', 'upcoming', 'past']) schedule?:

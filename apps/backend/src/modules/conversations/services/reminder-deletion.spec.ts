@@ -14,6 +14,10 @@ const reminder = {
   createdAt: new Date(0),
   updatedAt: new Date(0),
   source: { type: 'dashboard', label: null, messageId: null },
+  important: false,
+  repeatIntervalMinutes: 5,
+  snoozedFrom: null,
+  latestOccurrence: null,
 } satisfies Reminder;
 
 function setup() {
@@ -43,6 +47,9 @@ function setup() {
       list,
       delete: remove,
       update,
+      listRecentlyDispatched: jest
+        .fn<IReminderRepository['listRecentlyDispatched']>()
+        .mockResolvedValue([]),
     } as unknown as IReminderRepository,
     scheduler: { cancel } as unknown as Parameters<
       typeof createDomainTools
@@ -184,8 +191,10 @@ describe('reminder deletion', () => {
           time: '19:00',
           weekday: 6,
           recurrence: null,
+          important: false,
         },
       ],
+      recentDeliveries: [],
     });
   });
 });

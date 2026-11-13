@@ -140,6 +140,23 @@ export class TelegramService implements OnModuleInit {
     }
 
     if (
+      !(await this.notifications.reminderFollowUpIsCurrent({
+        kind: input.kind,
+        userId: input.userId,
+        deliveryId: existing.id,
+      }))
+    ) {
+      await this.notifications.recordOutcome({
+        userId: input.userId,
+        deliveryId: existing.id,
+        status: 'skipped_obsolete',
+        policyOutcome: 'blocked',
+      });
+
+      return { status: 'skipped_obsolete' };
+    }
+
+    if (
       !(await this.notifications.claimDelivery(input.userId, existing.id, {
         createdAt: existing.createdAt,
         occurrenceAt:

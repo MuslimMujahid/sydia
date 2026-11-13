@@ -90,6 +90,11 @@ export function normalizeInboundEvent(
   const kind = kindFromPayload(payload);
   const text = textFromPayload(payload);
   const mediaMessage = mediaFor(payload, kind);
+  // GoWA reports a quoted message's id and text but not its author.
+  const repliedToId =
+    typeof payload.replied_to_id === 'string'
+      ? payload.replied_to_id.trim()
+      : '';
 
   return {
     provider: 'whatsapp',
@@ -102,6 +107,14 @@ export function normalizeInboundEvent(
     text,
     kind,
     caption: text || undefined,
+    replyTo: repliedToId
+      ? {
+          providerMessageId: repliedToId,
+          text:
+            typeof payload.quoted_body === 'string' ? payload.quoted_body : '',
+          isFromMe: false,
+        }
+      : undefined,
     mediaMessage,
     raw: payload,
   };

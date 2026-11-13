@@ -53,7 +53,11 @@ export type Message = Pick<
 } & Partial<
     Pick<
       PrismaMessage,
-      'activeNoteRef' | 'sourceSegments' | 'sourceDocumentIds'
+      | 'activeNoteRef'
+      | 'sourceSegments'
+      | 'sourceDocumentIds'
+      | 'type'
+      | 'metadata'
     >
   >;
 

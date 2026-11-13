@@ -14,6 +14,10 @@ import type {
 } from '../../../database/interfaces';
 import type { MemoryAccessService } from '../../memories/memory-access.service';
 import type { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
+import {
+  ReminderActionError,
+  type ReminderLifecycleService,
+} from '../../reminders/reminder-lifecycle.service';
 import type { SecretsService } from '../../secrets/secrets.service';
 import { createDomainTools } from './domain-tools';
 
@@ -608,6 +612,202 @@ describe('domain assistant tools', () => {
     },
   );
 
+  test('stores an explicitly important reminder and clamps its interval into range', async () => {
+    const create = jest.fn<
+      (userId: string, input: unknown) => Promise<{ id: string }>
+    >((_userId, input) =>
+      Promise.resolve({ id: 'reminder-1', ...(input as object) }),
+    );
+
+    const tools = createDomainTools({
+      tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: { create } as unknown as IReminderRepository,
+      memoryService: {} as MemoryAccessService,
+      scheduler: {
+        schedule: resolved(undefined),
+      } as unknown as ReminderSchedulerService,
+      users: {
+        findById: resolved({ timezone: 'Asia/Jakarta' }),
+      } as unknown as IUserRepository,
+    });
+
+    const createReminder = tools.find(
+      (tool) => tool.definition.name === 'create_reminder',
+    )!;
+
+    const low = await createReminder.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      arguments: {
+        title: 'Minum obat',
+        important: true,
+        repeatIntervalMinutes: 3,
+        schedules: [{ date: '2026-09-15', time: '20:00' }],
+      },
+      idempotencyKey: 'important-low',
+    });
+
+    const high = await createReminder.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-2',
+      arguments: {
+        title: 'Minum obat',
+        important: true,
+        repeatIntervalMinutes: 90,
+        schedules: [{ date: '2026-09-15', time: '20:00' }],
+      },
+      idempotencyKey: 'important-high',
+    });
+
+    expect(create.mock.calls.map(([, input]) => input)).toEqual([
+      expect.objectContaining({ important: true, repeatIntervalMinutes: 5 }),
+      expect.objectContaining({ important: true, repeatIntervalMinutes: 60 }),
+    ]);
+    expect(low).toMatchObject({
+      repeatIntervalAdjusted: { requested: 3, applied: 5 },
+    });
+    expect(high).toMatchObject({
+      repeatIntervalAdjusted: { requested: 90, applied: 60 },
+    });
+  });
+
+  test('snoozes by minutes or by the local clock through the lifecycle service', async () => {
+    const snooze = jest.fn<ReminderLifecycleService['snooze']>(
+      (_userId, input) =>
+        Promise.resolve({
+          reminder: { id: 'copy-1', scheduledAt: input.until },
+          snoozed: { id: 'occurrence-1' },
+        } as Awaited<ReturnType<ReminderLifecycleService['snooze']>>),
+    );
+
+    const tools = createDomainTools({
+      tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: {} as IReminderRepository,
+      memoryService: {} as MemoryAccessService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {
+        findById: resolved({ timezone: 'Asia/Jakarta' }),
+      } as unknown as IUserRepository,
+      lifecycle: { snooze } as unknown as ReminderLifecycleService,
+    });
+
+    const tool = tools.find(
+      (candidate) => candidate.definition.name === 'snooze_reminder',
+    )!;
+
+    const byMinutes = await tool.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      arguments: { occurrenceId: 'occurrence-1', minutes: 15 },
+      idempotencyKey: 'snooze-minutes',
+    });
+
+    await tool.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-2',
+      arguments: {
+        occurrenceId: 'occurrence-1',
+        date: '2026-09-15',
+        time: '15:00',
+      },
+      idempotencyKey: 'snooze-clock',
+    });
+
+    expect(snooze.mock.calls.map(([, input]) => input.until)).toEqual([
+      new Date(NOW.getTime() + 15 * 60_000),
+      new Date('2026-09-15T08:00:00.000Z'),
+    ]);
+    expect(snooze.mock.calls[0]?.[1]).toMatchObject({
+      occurrenceId: 'occurrence-1',
+      confirmPastNextOccurrence: false,
+      source: { type: 'chat', messageId: 'message-1' },
+    });
+    expect(byMinutes).toMatchObject({
+      snoozedOccurrenceId: 'occurrence-1',
+      until: { date: '2026-09-15', time: '10:15' },
+    });
+  });
+
+  test('surfaces lifecycle rule failures as readable tool errors', async () => {
+    const tools = createDomainTools({
+      tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: {} as IReminderRepository,
+      memoryService: {} as MemoryAccessService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {
+        findById: resolved({ timezone: 'Asia/Jakarta' }),
+      } as unknown as IUserRepository,
+      lifecycle: {
+        snooze: () =>
+          Promise.reject(new ReminderActionError('needs_confirmation')),
+      } as unknown as ReminderLifecycleService,
+    });
+
+    const tool = tools.find(
+      (candidate) => candidate.definition.name === 'snooze_reminder',
+    )!;
+
+    await expect(
+      tool.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        arguments: { reminderId: 'reminder-1', minutes: 30 },
+        idempotencyKey: 'snooze-confirm',
+      }),
+    ).rejects.toThrow(/^needs_confirmation: .*confirmPastNextOccurrence/);
+  });
+
+  test('acknowledges an awaiting occurrence and reports an empty list when none awaited', async () => {
+    const acknowledge = jest
+      .fn<ReminderLifecycleService['acknowledge']>()
+      .mockResolvedValueOnce([
+        {
+          id: 'occurrence-1',
+          reminderId: 'reminder-1',
+          title: 'Rapat',
+        } as Awaited<
+          ReturnType<ReminderLifecycleService['acknowledge']>
+        >[number],
+      ])
+      .mockResolvedValueOnce([]);
+
+    const tools = createDomainTools({
+      tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: {} as IReminderRepository,
+      memoryService: {} as MemoryAccessService,
+      scheduler: {} as ReminderSchedulerService,
+      users: {} as IUserRepository,
+      lifecycle: { acknowledge } as unknown as ReminderLifecycleService,
+    });
+
+    const tool = tools.find(
+      (candidate) => candidate.definition.name === 'acknowledge_reminder',
+    )!;
+
+    const call = (key: string) =>
+      tool.execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        arguments: { occurrenceId: 'occurrence-1' },
+        idempotencyKey: key,
+      });
+
+    await expect(call('ack-1')).resolves.toEqual({
+      acknowledged: [
+        {
+          occurrenceId: 'occurrence-1',
+          reminderId: 'reminder-1',
+          title: 'Rapat',
+        },
+      ],
+    });
+    await expect(call('ack-2')).resolves.toEqual({ acknowledged: [] });
+  });
+
   test('documents every domain tool and parameter in English', () => {
     const available = createDomainTools({
       tasks: {} as ITaskRepository,
@@ -634,7 +834,7 @@ describe('domain assistant tools', () => {
       if (schema.items) visit(schema.items);
     };
 
-    expect(available).toHaveLength(18);
+    expect(available).toHaveLength(20);
 
     for (const assistantTool of available) {
       expect(assistantTool.definition.description).toMatch(

@@ -142,7 +142,7 @@ test.each([
   ],
   [
     'group_reminders',
-    'Does responding to the latest message in this conversation require any of these tools: create_reminder, update_reminder, delete_reminder, list_reminders?',
+    'Does responding to the latest message in this conversation require any of these tools: create_reminder, update_reminder, delete_reminder, list_reminders, acknowledge_reminder, snooze_reminder?',
   ],
   [
     'group_documents',
@@ -388,7 +388,7 @@ test.each([
 );
 test('registry covers note clarification tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(63);
+  expect(names).toHaveLength(65);
   expect(TOOL_GROUPS.planning).toEqual(['update_plan']);
   expect(TOOL_GROUPS.notes).toEqual(
     expect.arrayContaining(['list_note_questions', 'respond_to_note_question']),

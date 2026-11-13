@@ -21,6 +21,7 @@ import { NotificationComposerService } from './notification-composer.service';
 import { ProactiveSchedulerService } from './proactive-scheduler.service';
 import { DailyBriefingService, FollowUpService } from './proactive.service';
 import { DevNotificationsController } from './dev-notifications.controller';
+import { ReminderHistoryService } from './reminder-history.service';
 
 @Module({
   imports: [
@@ -48,8 +49,10 @@ import { DevNotificationsController } from './dev-notifications.controller';
     DailyBriefingService,
     FollowUpService,
     SecretaryBackgroundService,
+    ReminderHistoryService,
   ],
   exports: [
+    ReminderHistoryService,
     SecretaryBackgroundService,
     NOTIFICATION_REPOSITORY,
     NotificationService,

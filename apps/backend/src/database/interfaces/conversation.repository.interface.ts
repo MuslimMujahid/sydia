@@ -34,6 +34,24 @@ export type UserMessageWriteResult = {
   replayed: boolean;
 };
 
+/** Channel conversations stay active this long after their last inbound message. */
+export const CHANNEL_CONVERSATION_ACTIVE_MS = 24 * 60 * 60_000;
+
+export type ChannelReminderMessageWrite = {
+  userId: string;
+  provider: 'whatsapp' | 'telegram';
+  deliveryId: string;
+  title: string;
+  content: string;
+  metadata: {
+    reminderId: string;
+    occurrenceId: string;
+    deliveryId: string;
+    kind: string;
+  };
+  at: Date;
+};
+
 export type ChannelConversationInput = {
   provider: 'whatsapp' | 'telegram';
   externalIdentityId: string;
@@ -168,6 +186,14 @@ export interface IConversationRepository {
     conversationId: string,
     content: string,
   ): Promise<Message>;
+  /**
+   * Records a delivered reminder in the channel's active conversation (a stale
+   * one is rotated exactly like an inbound message would). Null when the user
+   * never chatted on that channel. Idempotent per delivery.
+   */
+  appendChannelReminderMessage(
+    input: ChannelReminderMessageWrite,
+  ): Promise<Message | null>;
   /** The owner's most recently active web conversation, if any. */
   findLatestConversationId(userId: string): Promise<string | null>;
   findUserMemoryEvidence(

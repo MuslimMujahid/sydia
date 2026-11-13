@@ -5,6 +5,8 @@ export const TOOL_GROUPS = {
     'update_reminder',
     'delete_reminder',
     'list_reminders',
+    'acknowledge_reminder',
+    'snooze_reminder',
   ],
   memory: ['save_memory', 'update_memory', 'forget_memory', 'search_memories'],
   documents: [

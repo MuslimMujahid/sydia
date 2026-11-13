@@ -3,7 +3,7 @@ import { toolNamesForGroups } from '../../src/modules/conversations/services/too
 
 test('real schemas cover domain and note clarification tools without any executable function', () => {
   const tools = schemaOnlyTools();
-  expect(Object.keys(tools)).toHaveLength(57);
+  expect(Object.keys(tools)).toHaveLength(59);
   expect(Object.keys(tools)).toEqual(
     expect.arrayContaining([
       'list_note_questions',

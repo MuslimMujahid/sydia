@@ -24,10 +24,24 @@ import { ApiException, ErrorCodes } from '../../shared/errors';
 import { firstOccurrence } from '../../shared/date-time';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
 import {
+  ReminderActionError,
+  ReminderLifecycleService,
+} from './reminder-lifecycle.service';
+import {
+  AcknowledgeReminderDto,
   CreateReminderDto,
   ReminderFiltersDto,
+  SnoozeReminderDto,
   UpdateReminderDto,
 } from './reminder.dto';
+
+const ACTION_MESSAGES = {
+  not_dispatched:
+    'Pengingat ini belum berbunyi. Ubah waktunya alih-alih menunda.',
+  too_soon: 'Waktu tunda minimal 1 menit dari sekarang.',
+  needs_confirmation:
+    'Waktu tunda melewati jadwal berikutnya dari pengingat berulang ini. Konfirmasi untuk melanjutkan.',
+} as const;
 
 @Roles(['user'])
 @Controller('reminders')
@@ -36,6 +50,7 @@ export class RemindersController {
     @Inject(REMINDER_REPOSITORY)
     private readonly reminders: IReminderRepository,
     private readonly scheduler: ReminderSchedulerService,
+    private readonly lifecycle: ReminderLifecycleService,
     @Inject(AUDIT_EVENT_REPOSITORY)
     private readonly audit: IAuditEventRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
@@ -90,7 +105,6 @@ export class RemindersController {
     @Param('id') id: string,
     @Body() input: UpdateReminderDto,
   ) {
-    const requested = input.snoozeUntil ?? input.scheduledAt;
     const current = this.required(await this.reminders.findById(s.user.id, id));
     const recurrence =
       input.recurrence === undefined || input.recurrence === null
@@ -107,11 +121,14 @@ export class RemindersController {
           };
 
     // A later recurrence replaces the rule, so the requested instant must be
-    // snapped onto it; a snooze keeps its absolute instant.
+    // snapped onto it. Snoozing is a separate endpoint (specs/008).
     const effective = recurrence ?? current.recurrence;
-    const requestedAt = requested ? new Date(requested) : undefined;
+    const requestedAt = input.scheduledAt
+      ? new Date(input.scheduledAt)
+      : undefined;
+
     const scheduledAt =
-      requestedAt && !input.snoozeUntil && effective
+      requestedAt && effective
         ? firstOccurrence(effective, requestedAt, current.timezone)
         : requestedAt;
 
@@ -122,10 +139,58 @@ export class RemindersController {
     });
 
     const value = this.required(reminder);
-    await this.scheduler.schedule(value);
+    await this.lifecycle.afterUpdate(s.user.id, current, value);
     await this.record(s.user.id, 'reminder.updated', id);
 
-    return value;
+    return this.required(await this.reminders.findById(s.user.id, id));
+  }
+
+  @Post(':id/snooze') async snooze(
+    @Session() s: UserSession,
+    @Param('id') id: string,
+    @Body() input: SnoozeReminderDto,
+  ) {
+    const result = await this.action(() =>
+      this.lifecycle.snooze(s.user.id, {
+        reminderId: input.occurrenceId ? undefined : id,
+        occurrenceId: input.occurrenceId,
+        until: new Date(input.until),
+        confirmPastNextOccurrence: input.confirmPastNextOccurrence,
+        source: { type: 'dashboard' },
+      }),
+    );
+
+    if (result.snoozed.reminderId !== id) throw this.notFound();
+    await this.record(s.user.id, 'reminder.snoozed', id);
+
+    return result.reminder;
+  }
+
+  @Post(':id/acknowledge') @HttpCode(HttpStatus.OK) async acknowledge(
+    @Session() s: UserSession,
+    @Param('id') id: string,
+    @Body() input: AcknowledgeReminderDto,
+  ) {
+    if (input.occurrenceId) {
+      const occurrence = await this.reminders.findOccurrence(
+        s.user.id,
+        input.occurrenceId,
+      );
+
+      if (occurrence?.reminderId !== id) throw this.notFound();
+    }
+
+    const acknowledged = await this.action(() =>
+      this.lifecycle.acknowledge(s.user.id, {
+        reminderId: input.occurrenceId ? undefined : id,
+        occurrenceId: input.occurrenceId,
+      }),
+    );
+
+    if (acknowledged.length)
+      await this.record(s.user.id, 'reminder.acknowledged', id);
+
+    return { acknowledged };
   }
 
   @Delete(':id') @HttpCode(HttpStatus.NO_CONTENT) async remove(
@@ -135,6 +200,22 @@ export class RemindersController {
     if (!(await this.reminders.delete(s.user.id, id))) throw this.notFound();
     await this.scheduler.cancel(id);
     await this.record(s.user.id, 'reminder.deleted', id);
+  }
+
+  private async action<T>(run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (!(error instanceof ReminderActionError)) throw error;
+      if (error.code === 'not_found') throw this.notFound();
+
+      throw new ApiException({
+        code: ErrorCodes.BAD_REQUEST,
+        message: ACTION_MESSAGES[error.code],
+        status: HttpStatus.BAD_REQUEST,
+        details: { reason: error.code },
+      });
+    }
   }
 
   private required<T>(value: T | null): T {

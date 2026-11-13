@@ -469,6 +469,10 @@ function briefingReminder(title: string, scheduledAt: string): Reminder {
     createdAt: now,
     updatedAt: now,
     source: { type: 'dashboard', label: null, messageId: null },
+    important: false,
+    repeatIntervalMinutes: 5,
+    snoozedFrom: null,
+    latestOccurrence: null,
   };
 }
 

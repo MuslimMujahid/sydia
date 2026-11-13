@@ -21,6 +21,27 @@ export type ReminderSource = {
   messageId?: string | null;
 };
 
+export type ReminderOccurrenceStatus =
+  | "pending"
+  | "delivered"
+  | "awaiting_ack"
+  | "acknowledged"
+  | "snoozed"
+  | "superseded"
+  | "expired"
+  | "cancelled"
+  | "obsolete";
+
+export type ReminderOccurrence = {
+  id: string;
+  occurrenceAt: string;
+  status: ReminderOccurrenceStatus;
+  messagesSent: number;
+  lastSentAt: string | null;
+  deliveredAt: string | null;
+  acknowledgedAt: string | null;
+};
+
 export type Reminder = {
   id: string;
   title: string;
@@ -28,6 +49,13 @@ export type Reminder = {
   scheduledAt: string;
   recurrence: ReminderRecurrence | null;
   source: ReminderSource | null;
+  /** Repeats until acknowledged, every `repeatIntervalMinutes`. */
+  important: boolean;
+  repeatIntervalMinutes: number;
+  /** Set on a snooze copy: the fired occurrence it postponed. */
+  snoozedFrom: { occurrenceId: string; occurrenceAt: string } | null;
+  /** The newest occurrence already sent; null until the reminder first fires. */
+  latestOccurrence: ReminderOccurrence | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -42,10 +70,17 @@ export type CreateReminderInput = {
   notes?: string | null;
   scheduledAt: string;
   recurrence?: ReminderRecurrence | null;
+  important?: boolean;
+  repeatIntervalMinutes?: number;
 };
 
-export type UpdateReminderInput = Partial<CreateReminderInput> & {
-  snoozeUntil?: string;
+export type UpdateReminderInput = Partial<CreateReminderInput>;
+
+export type SnoozeReminderInput = {
+  reminderId: string;
+  until: string;
+  occurrenceId?: string;
+  confirmPastNextOccurrence?: boolean;
 };
 
 const reminderFiltersSchema = z.object({
@@ -164,5 +199,43 @@ export async function deleteReminder(reminderId: string): Promise<void> {
     await api.delete(`/reminders/${encodeURIComponent(reminderId)}`);
   } catch (error) {
     throw toApiError(error, "Pengingat tidak dapat dihapus.");
+  }
+}
+
+/** Creates a one-time copy at `until`; the original schedule never moves. */
+export async function snoozeReminder({
+  reminderId,
+  ...values
+}: SnoozeReminderInput): Promise<Reminder> {
+  try {
+    const response = await api.post<ApiResponse<Reminder>>(
+      `/reminders/${encodeURIComponent(reminderId)}/snooze`,
+      values
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw toApiError(error, "Pengingat tidak dapat ditunda.");
+  }
+}
+
+/** Stops the repeats of an important reminder that awaits confirmation. */
+export async function acknowledgeReminder({
+  reminderId,
+  occurrenceId,
+}: {
+  reminderId: string;
+  occurrenceId?: string;
+}): Promise<{ acknowledged: Array<{ id: string }> }> {
+  try {
+    const response = await api.post<
+      ApiResponse<{ acknowledged: Array<{ id: string }> }>
+    >(`/reminders/${encodeURIComponent(reminderId)}/acknowledge`, {
+      ...(occurrenceId ? { occurrenceId } : {}),
+    });
+
+    return response.data.data;
+  } catch (error) {
+    throw toApiError(error, "Pengingat tidak dapat dikonfirmasi.");
   }
 }

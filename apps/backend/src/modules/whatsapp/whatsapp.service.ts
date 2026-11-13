@@ -738,6 +738,14 @@ export class WhatsAppService implements OnModuleInit {
       !(await this.connections.reminderIsCurrent(input.userId, existing.id))
     )
       return outcome('skipped_obsolete');
+    if (
+      !(await this.notifications.reminderFollowUpIsCurrent({
+        kind: input.kind,
+        userId: input.userId,
+        deliveryId: existing.id,
+      }))
+    )
+      return outcome('skipped_obsolete');
 
     if (
       !(await this.notifications.claimDelivery(input.userId, existing.id, {

@@ -46,6 +46,10 @@ function reminder(
     createdAt: new Date(0),
     updatedAt: new Date(0),
     source: { type: 'chat', label: null, messageId: null },
+    important: false,
+    repeatIntervalMinutes: 5,
+    snoozedFrom: null,
+    latestOccurrence: null,
     ...overrides,
   };
 }

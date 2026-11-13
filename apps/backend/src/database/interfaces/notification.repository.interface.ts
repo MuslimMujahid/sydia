@@ -4,8 +4,18 @@ import type {
   UserPreference,
   UserPreferenceUpdate,
 } from '../entities';
+import type { ReminderReference } from '../../shared/messaging';
 
 export interface INotificationRepository {
+  findReminderReference(
+    userId: string,
+    occurrenceId: string,
+  ): Promise<ReminderReference | null>;
+  /** The current status of the reminder occurrence a delivery belongs to. */
+  findDeliveryOccurrenceStatus(
+    userId: string,
+    deliveryId: string,
+  ): Promise<string | null>;
   findDeliveryByProviderMessageId(
     userId: string,
     channel: string,

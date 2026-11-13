@@ -33,6 +33,9 @@ export type GoWaWebhookMessage = {
     timestamp?: string;
     is_from_me?: boolean;
     body?: string;
+    /** Provider id of the message this one replies to. */
+    replied_to_id?: string;
+    quoted_body?: string;
     image?: string | Record<string, unknown>;
     video?: string | Record<string, unknown>;
     audio?: string | Record<string, unknown>;

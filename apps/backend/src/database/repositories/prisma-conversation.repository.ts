@@ -31,7 +31,9 @@ import type {
   ToolInvocationStatus,
 } from '../entities';
 import {
+  CHANNEL_CONVERSATION_ACTIVE_MS,
   ConversationNotFoundError,
+  type ChannelReminderMessageWrite,
   type ChannelConversationInput,
   type ChannelConversationResolution,
   type ChannelTurnRecord,
@@ -55,6 +57,8 @@ const messageSelect = {
   id: true,
   conversationId: true,
   role: true,
+  type: true,
+  metadata: true,
   content: true,
   activeNoteRef: true,
   sourceSegments: true,
@@ -1050,6 +1054,74 @@ export class PrismaConversationRepository implements IConversationRepository {
 
       return message;
     });
+  }
+
+  async appendChannelReminderMessage(
+    input: ChannelReminderMessageWrite,
+  ): Promise<Message | null> {
+    const idempotencyKey = `reminder-delivery:${input.deliveryId}`;
+    const existing = await this.prisma.message.findFirst({
+      where: { userId: input.userId, idempotencyKey },
+      select: messageSelect,
+    });
+
+    if (existing) return existing;
+    const mapping = await this.prisma.channelConversation.findFirst({
+      where: {
+        provider: input.provider,
+        externalIdentity: { userId: input.userId, releasedAt: null },
+      },
+      orderBy: [{ lastInboundAt: 'desc' }, { id: 'desc' }],
+      select: { externalIdentityId: true, chatExternalId: true },
+    });
+
+    // Without a prior chat there is no channel address to attach history to.
+    if (!mapping) return null;
+    const { conversation } = await this.resolveChannelConversation({
+      provider: input.provider,
+      externalIdentityId: mapping.externalIdentityId,
+      chatExternalId: mapping.chatExternalId,
+      userId: input.userId,
+      title: input.title,
+      activeAfter: new Date(
+        input.at.getTime() - CHANNEL_CONVERSATION_ACTIVE_MS,
+      ),
+      receivedAt: input.at,
+    });
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const message = await transaction.message.create({
+          data: {
+            conversationId: conversation.id,
+            userId: input.userId,
+            role: 'assistant',
+            type: 'reminder',
+            content: input.content,
+            metadata: input.metadata,
+            idempotencyKey,
+          },
+          select: messageSelect,
+        });
+
+        await transaction.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: message.createdAt },
+        });
+
+        return message;
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      )
+        return this.prisma.message.findFirst({
+          where: { userId: input.userId, idempotencyKey },
+          select: messageSelect,
+        });
+      throw error;
+    }
   }
 
   async findLatestConversationId(userId: string): Promise<string | null> {
