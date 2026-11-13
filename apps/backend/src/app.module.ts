@@ -106,23 +106,6 @@ function parsePositiveInteger(
   return value;
 }
 
-function parseUnitInterval(
-  config: Record<string, unknown>,
-  name: 'BACKEND_MEMORY_MAX_COSINE_DISTANCE',
-  defaultValue: number,
-): number {
-  const value =
-    config[name] === undefined || config[name] === ''
-      ? defaultValue
-      : Number(config[name]);
-
-  if (!Number.isFinite(value) || value < 0 || value > 2) {
-    throw new Error(`${name} must be a number between 0 and 2`);
-  }
-
-  return value;
-}
-
 function parseFrontendUrl(
   config: Record<string, unknown>,
   frontendPort: number,
@@ -385,11 +368,6 @@ export function validateEnvironment(
       config,
       'BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS',
       6 * 60 * 60 * 1000,
-    ),
-    BACKEND_MEMORY_MAX_COSINE_DISTANCE: parseUnitInterval(
-      config,
-      'BACKEND_MEMORY_MAX_COSINE_DISTANCE',
-      0.3,
     ),
     BACKEND_WHATSAPP_GOWA_URL:
       typeof config.BACKEND_WHATSAPP_GOWA_URL === 'string' &&

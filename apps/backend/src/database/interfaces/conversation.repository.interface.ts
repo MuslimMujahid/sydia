@@ -10,8 +10,6 @@ import type {
   ConversationDetail,
   ConversationSummary,
   RecentConversationContext,
-  MemoryDreamRun,
-  MemoryDreamSegment,
   Message,
   NewAssistantRun,
   NewToolInvocation,
@@ -257,27 +255,6 @@ export interface IConversationRepository {
     throughMessageId: string,
     expectedPreviousThroughMessageId: string | null,
   ): Promise<boolean>;
-  findMemoryDreamSegment(
-    userId: string,
-    conversationId: string,
-    throughMessageId: string,
-  ): Promise<MemoryDreamSegment | null>;
-  beginMemoryDream(
-    segment: MemoryDreamSegment,
-    dreamerVersion: string,
-  ): Promise<MemoryDreamRun | null>;
-  completeMemoryDream(
-    runId: string,
-    segment: MemoryDreamSegment,
-    candidateCount: number,
-    mutationCount: number,
-  ): Promise<boolean>;
-  failMemoryDream(runId: string, errorMessage: string): Promise<void>;
-  findPendingMemoryDreams(
-    idleBefore: Date,
-  ): Promise<
-    Array<{ userId: string; conversationId: string; throughMessageId: string }>
-  >;
   delete(userId: string, conversationId: string): Promise<boolean>;
 }
 

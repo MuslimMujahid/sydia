@@ -28,7 +28,6 @@ import {
   ChatSparkGlyph,
   ContactGlyph,
   FolderGlyph,
-  MemoryGlyph,
   MoreGlyph,
   NoteGlyph,
   ShieldGlyph,
@@ -49,8 +48,6 @@ import {
   type UserProfile,
 } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
-
-const DEBUG_ENABLED = import.meta.env.VITE_DEBUG_ENABLED === "true";
 
 // Rows sit on the bone rail: a hover tint, and a raised snow surface when active.
 const NAV_ITEM_CLASS =
@@ -80,16 +77,6 @@ const MORE_NAV_ITEMS = [
   { to: "/reminders", label: "Pengingat", icon: BellGlyph, hue: "amber" },
   { to: "/contacts", label: "Kontak", icon: ContactGlyph, hue: "violet" },
   { to: "/secrets", label: "Rahasia", icon: ShieldGlyph, hue: "coral" },
-  ...(DEBUG_ENABLED
-    ? [
-        {
-          to: "/memory" as const,
-          label: "Memori",
-          icon: MemoryGlyph,
-          hue: "violet" as const,
-        },
-      ]
-    : []),
 ] as const;
 
 export function DashboardShell({

@@ -270,12 +270,13 @@ async function main(): Promise<void> {
   const prepare = process.argv.includes('--prepare-memory');
   if (
     prepare &&
-    (process.env.BACKEND_MEMORY_ENGINE !== 'hindsight' ||
-      process.env.BACKEND_HINDSIGHT_COHORT?.trim())
+    !(
+      process.env.BACKEND_HINDSIGHT_URL?.trim() &&
+      process.env.BACKEND_HINDSIGHT_API_KEY?.trim() &&
+      process.env.BACKEND_HINDSIGHT_NAMESPACE?.trim()
+    )
   )
-    throw new Error(
-      '--prepare-memory requires the local all-user Hindsight configuration.',
-    );
+    throw new Error('--prepare-memory requires a configured Hindsight engine.');
   await mkdir(outputDirectory, { recursive: true, mode: 0o700 });
   const pool = new Pool({ connectionString: databaseUrl });
   const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });

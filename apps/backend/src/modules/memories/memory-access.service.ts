@@ -7,18 +7,14 @@ import {
 } from '@nestjs/common';
 import {
   CONVERSATION_REPOSITORY,
-  MEMORY_REPOSITORY,
   HINDSIGHT_REPOSITORY,
   USER_REPOSITORY,
   type IConversationRepository,
-  type IMemoryRepository,
   type IHindsightRepository,
   type IUserRepository,
   type EnqueueMemorySource,
 } from '../../database/interfaces';
 import type {
-  Memory,
-  MemoryWrite,
   MemorySourceSnapshot,
   ResolvedMemoryReference,
 } from '../../database/entities';
@@ -29,11 +25,11 @@ import {
 } from '../../infra/hindsight';
 import { QueueService } from '../../infra/queue';
 import { ApiException, ErrorCodes } from '../../shared/errors';
-import { MemoryService } from './memory.service';
 import { MemoryEngineService } from './memory-engine.service';
 import { canonicalMemorySubject } from './memory-subject';
 import { containsMemoryCredential, memoryChecksum } from './memory-admission';
 import type {
+  MemoryInput,
   MemorySearchHit,
   MemoryMutationReceipt,
   MemoryWriteContext,
@@ -71,8 +67,6 @@ export class MemoryAccessService {
 
   constructor(
     private readonly engine: MemoryEngineService,
-    private readonly legacy: MemoryService,
-    @Inject(MEMORY_REPOSITORY) private readonly memories: IMemoryRepository,
     @Inject(HINDSIGHT_REPOSITORY) private readonly ledger: IHindsightRepository,
     @Inject(HINDSIGHT_GATEWAY) private readonly gateway: HindsightGateway,
     @Inject(CONVERSATION_REPOSITORY)
@@ -84,9 +78,10 @@ export class MemoryAccessService {
 
   async create(
     userId: string,
-    input: MemoryWrite,
+    input: MemoryInput,
     context: MemoryWriteContext,
-  ): Promise<Memory | MemoryMutationReceipt> {
+  ): Promise<MemoryMutationReceipt> {
+    this.requireConfigured();
     const content = this.validContent(input.content);
     const requestKey = this.requestKey(context, 'save');
     const requestFingerprint = memoryChecksum(
@@ -95,27 +90,6 @@ export class MemoryAccessService {
         sourceMessageId: context.sourceMessageId ?? null,
       }),
     );
-
-    if (this.engine.modeFor(userId) !== 'hindsight') {
-      const retired = await this.ledger.findBank(userId, this.engine.namespace);
-
-      if (
-        retired &&
-        retired.state !== 'active' &&
-        (await this.users.findById(userId))
-      ) {
-        const replay = await this.ledger.findMutation(
-          userId,
-          retired.id,
-          requestKey,
-        );
-
-        if (replay.length)
-          return this.replayed(replay, requestKey, requestFingerprint);
-      }
-
-      return this.legacy.create(userId, input);
-    }
 
     const bank = await this.ledger.ensureBank(
       userId,
@@ -195,44 +169,11 @@ export class MemoryAccessService {
   async update(
     userId: string,
     id: string,
-    input: Partial<MemoryWrite>,
+    input: Partial<MemoryInput>,
     context: MemoryWriteContext,
-  ): Promise<Memory | MemoryMutationReceipt | null> {
+  ): Promise<MemoryMutationReceipt> {
+    this.requireConfigured();
     const requestedId = id;
-
-    if (!id.startsWith('hm:') && !id.startsWith('hs:')) {
-      if (this.engine.modeFor(userId) !== 'hindsight') {
-        if (!context.sourceMessageId)
-          return this.legacy.update(userId, id, input);
-        const evidence = await this.conversations.findUserMemoryEvidence(
-          userId,
-          context.sourceMessageId,
-        );
-
-        if (!evidence)
-          throw fail(
-            'A user-owned message is required for this memory correction.',
-            HttpStatus.BAD_REQUEST,
-          );
-        const current = await this.memories.findById(userId, id);
-        if (!current) return null;
-
-        return this.legacy.update(userId, id, {
-          ...input,
-          sourceMessageId: context.sourceMessageId,
-          sourceMessageIds: [
-            ...new Set([
-              ...current.sourceMessageIds,
-              ...(current.source.messageId ? [current.source.messageId] : []),
-              context.sourceMessageId,
-            ]),
-          ],
-        });
-      }
-
-      id = await this.importedReference(userId, id);
-    }
-
     const content = this.validContent(input.content ?? '');
     const bank = await this.ledger.findBank(userId, this.engine.namespace);
     if (!bank || !(await this.users.findById(userId)))
@@ -342,25 +283,8 @@ export class MemoryAccessService {
     userId: string,
     id: string,
     context?: MemoryWriteContext,
-  ): Promise<MemoryMutationReceipt | null> {
-    if (!id.startsWith('hm:') && !id.startsWith('hs:')) {
-      if (this.engine.modeFor(userId) === 'hindsight')
-        return this.delete(
-          userId,
-          await this.importedReference(userId, id),
-          context,
-        );
-      if (!(await this.memories.delete(userId, id, context?.sourceMessageId)))
-        return null;
-
-      return {
-        engine: 'legacy',
-        status: 'completed',
-        id,
-        message: 'Memory forgotten.',
-      };
-    }
-
+  ): Promise<MemoryMutationReceipt> {
+    this.requireConfigured();
     const targets = await this.targets(userId, id, true);
     const result = await this.ledger.forgetSources(
       userId,
@@ -392,7 +316,6 @@ export class MemoryAccessService {
     const completed = (await this.ledger.pendingErasureCount(userId)) === 0;
 
     return {
-      engine: 'hindsight',
       status: completed ? 'completed' : 'queued',
       id,
       sourceIds: snapshots.map(({ source }) => source.id),
@@ -414,8 +337,7 @@ export class MemoryAccessService {
         'Credential material cannot be used for memory search.',
         HttpStatus.BAD_REQUEST,
       );
-    if (this.engine.modeFor(userId) !== 'hindsight')
-      return this.legacy.search(userId, query, limit);
+    if (!this.engine.configured) return [];
     const bank = await this.ledger.findBank(userId, this.engine.namespace);
     if (!bank || bank.state !== 'active') return [];
     const boundedLimit = Math.max(1, Math.min(10, limit));
@@ -652,6 +574,14 @@ export class MemoryAccessService {
     return [...grouped.values()];
   }
 
+  private requireConfigured(): void {
+    if (!this.engine.configured)
+      throw fail(
+        'Memory is not configured for this deployment; nothing was saved or changed.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+  }
+
   private validContent(value: string): string {
     const content = value.trim();
     if (!content || content.length > 8_000)
@@ -777,23 +707,6 @@ export class MemoryAccessService {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
-  }
-
-  private async importedReference(
-    userId: string,
-    legacyId: string,
-  ): Promise<string> {
-    const bank = await this.ledger.findBank(userId, this.engine.namespace);
-    const source = bank
-      ? await this.ledger.findSource(userId, bank.id, `legacy:${legacyId}`)
-      : null;
-
-    if (!source)
-      throw fail(
-        'This legacy memory has not been migrated. Search again after backfill.',
-      );
-
-    return `hs:${source.source.id}:${source.source.generation}`;
   }
 
   private async evidence(
@@ -943,7 +856,6 @@ export class MemoryAccessService {
         : 'queued';
 
     return {
-      engine: 'hindsight',
       status,
       id: `hs:${snapshots.map(({ source }, index) => `${source.id}:${deliveries[index]!.generation}`).join(',')}`,
       sourceIds: snapshots.map(({ source }) => source.id),

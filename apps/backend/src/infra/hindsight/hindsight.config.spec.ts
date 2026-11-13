@@ -2,7 +2,6 @@ import { describe, expect, test } from '@jest/globals';
 import { validateHindsightEnvironment } from './hindsight.config';
 
 const enabled = {
-  BACKEND_MEMORY_ENGINE: 'hindsight',
   BACKEND_HINDSIGHT_URL: 'http://127.0.0.1:8888/',
   BACKEND_HINDSIGHT_API_KEY: 'test-key',
   BACKEND_HINDSIGHT_NAMESPACE: 'sydia-test',
@@ -11,7 +10,7 @@ const enabled = {
 describe('Hindsight environment validation', () => {
   test('keeps ingestion and automatic recall off by default', () => {
     expect(validateHindsightEnvironment({})).toMatchObject({
-      BACKEND_MEMORY_ENGINE: 'legacy',
+      BACKEND_HINDSIGHT_URL: '',
       BACKEND_HINDSIGHT_INGESTION_ENABLED: false,
       BACKEND_MEMORY_AUTO_RECALL_ENABLED: false,
       BACKEND_HINDSIGHT_RECALL_MIN_SIMILARITY: undefined,
@@ -38,10 +37,40 @@ describe('Hindsight environment validation', () => {
     'BACKEND_HINDSIGHT_URL',
     'BACKEND_HINDSIGHT_API_KEY',
     'BACKEND_HINDSIGHT_NAMESPACE',
-  ])('requires %s outside legacy mode', (key) => {
+  ])('requires %s once Hindsight is partly configured', (key) => {
     expect(() =>
       validateHindsightEnvironment({ ...enabled, [key]: '' }),
     ).toThrow(/require/);
+  });
+
+  test.each(['legacy', 'shadow'])(
+    'refuses the removed %s memory engine instead of running without it',
+    (engine) => {
+      expect(() =>
+        validateHindsightEnvironment({
+          ...enabled,
+          BACKEND_MEMORY_ENGINE: engine,
+        }),
+      ).toThrow(/no longer supported/);
+    },
+  );
+
+  test('refuses a Hindsight cohort because every user is served', () => {
+    expect(() =>
+      validateHindsightEnvironment({
+        ...enabled,
+        BACKEND_HINDSIGHT_COHORT: 'some-user',
+      }),
+    ).toThrow(/COHORT/);
+  });
+
+  test('still accepts the old hindsight engine value', () => {
+    expect(() =>
+      validateHindsightEnvironment({
+        ...enabled,
+        BACKEND_MEMORY_ENGINE: 'hindsight',
+      }),
+    ).not.toThrow();
   });
 
   test.each([

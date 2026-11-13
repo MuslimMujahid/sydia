@@ -7,7 +7,7 @@ import './worker-runtime';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Worker, type Job, type WorkerOptions } from 'bullmq';
+import { Queue, Worker, type Job, type WorkerOptions } from 'bullmq';
 import {
   HindsightUsageService,
   withModelUsageScope,
@@ -31,7 +31,6 @@ import {
   type FollowUpJob,
   type CalendarSyncJob,
   type CalendarReminderJob,
-  type MemoryDreamJob,
   type MemoryDeliveryJob,
   type MemoryIngestionJob,
   type NoteOrganizationJob,
@@ -39,11 +38,8 @@ import {
 import { DocumentService, processDocumentJob } from './modules/documents';
 import { MessagingHandlerService } from './modules/messaging';
 import { DocumentArtifactCleanupService } from './modules/document-artifacts/document-artifact-cleanup.service';
-import { MemoryDreamService } from './modules/memories/memory-dream.service';
-import { MemoryDreamSchedulerService } from './modules/memories/memory-dream-scheduler.service';
 import { HindsightDeliveryService } from './modules/memories/hindsight-delivery.service';
 import { HindsightIngestionService } from './modules/memories/hindsight-ingestion.service';
-import { MemoryEngineService } from './modules/memories/memory-engine.service';
 import { CalendarSyncService } from './modules/calendar/calendar-sync.service';
 import { DailyNoteService } from './modules/daily-notes/daily-note.service';
 import { NotesService } from './modules/notes/notes.service';
@@ -58,6 +54,22 @@ import {
 } from './modules/notifications';
 
 const HINDSIGHT_USAGE_POLL_MS = 5 * 60_000;
+
+/**
+ * The legacy memory dreamer is gone; Hindsight ingestion recovery now finds
+ * idle conversations itself. Drop the old queue's daily scheduler and stranded
+ * jobs so Redis does not keep collecting work nothing will process.
+ */
+async function removeLegacyMemoryQueue(connection: { url: string }) {
+  const queue = new Queue('memory-dreams', { connection });
+
+  try {
+    await queue.removeJobScheduler('memory-dream-recovery');
+    await queue.obliterate({ force: true });
+  } finally {
+    await queue.close();
+  }
+}
 
 function jobUserId(data: unknown): string | undefined {
   if (!data || typeof data !== 'object' || !('userId' in data))
@@ -89,13 +101,10 @@ async function bootstrap(): Promise<void> {
   const config = context.get(ConfigService);
   const memoryDeliveries = context.get(HindsightDeliveryService);
   const memoryIngestion = context.get(HindsightIngestionService);
-  const memoryEngine = context.get(MemoryEngineService);
   const reminders = context.get<IReminderRepository>(REMINDER_REPOSITORY);
   const queues = context.get(QueueService);
   const documents = context.get(DocumentService);
   context.get(DocumentArtifactCleanupService).start();
-  const memoryDream = context.get(MemoryDreamService);
-  const memoryDreamScheduler = context.get(MemoryDreamSchedulerService);
   const dailyNotes = context.get(DailyNoteService);
   const notes = context.get(NotesService);
   const conversationSummarizer = context.get(ConversationSummarizerService);
@@ -186,67 +195,7 @@ async function bootstrap(): Promise<void> {
   );
   await registerNoteOrganizationRecovery(queues.noteOrganizations);
 
-  const memoryDreamWorker = backgroundWorker<MemoryDreamJob>(
-    'memory-dreams',
-    async (job) => {
-      if (job.data.kind === 'recover') {
-        await memoryDreamScheduler.recover();
-
-        return;
-      }
-
-      if (
-        !job.data.userId ||
-        !job.data.conversationId ||
-        !job.data.throughMessageId
-      ) {
-        throw new Error('Memory dream job is missing its segment boundary.');
-      }
-
-      const mode = memoryEngine.modeFor(job.data.userId);
-
-      if (mode === 'shadow') {
-        try {
-          await memoryIngestion.run(
-            job.data.userId,
-            job.data.conversationId,
-            job.data.throughMessageId,
-            job.data.allowShortSegment,
-          );
-        } catch {
-          Logger.warn(
-            'Shadow memory ingestion deferred; the legacy writer continues.',
-            'MemoryWorker',
-          );
-        }
-      }
-
-      if (mode === 'hindsight') {
-        await memoryIngestion.run(
-          job.data.userId,
-          job.data.conversationId,
-          job.data.throughMessageId,
-          job.data.allowShortSegment,
-        );
-
-        return;
-      }
-
-      await memoryDream.run(
-        job.data.userId,
-        job.data.conversationId,
-        job.data.throughMessageId,
-        job.data.allowShortSegment,
-      );
-    },
-    { connection },
-  );
-
-  await queues.memoryDreams.upsertJobScheduler(
-    'memory-dream-recovery',
-    { every: 24 * 60 * 60 * 1000 },
-    { name: 'recover', data: { kind: 'recover' } },
-  );
+  await removeLegacyMemoryQueue(connection);
 
   const memoryDeliveryWorker = backgroundWorker<MemoryDeliveryJob>(
     'memory-deliveries',
@@ -403,7 +352,6 @@ async function bootstrap(): Promise<void> {
       reminderWorker.close(),
       calendarReminderWorker.close(),
       documentWorker.close(),
-      memoryDreamWorker.close(),
       memoryDeliveryWorker.close(),
       memoryIngestionWorker.close(),
       dailyNoteIndexWorker.close(),

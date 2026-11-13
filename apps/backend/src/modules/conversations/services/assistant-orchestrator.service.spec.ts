@@ -95,7 +95,6 @@ describe('AssistantOrchestratorService expired access', () => {
         new ConversationSummarizerService(repository, model, config),
         new ToolExecutorService(repository, []),
         { conversationSummaries: { add: resolved({}) } } as never,
-        { schedule: resolved(undefined) } as never,
         billingAccountTestAccess({
           userId: 'user-1',
           trialStartsAt: new Date('2026-10-22T00:00:00Z'),
@@ -215,7 +214,6 @@ async function runReceiptTurn(
     new ConversationSummarizerService(repository, model, config),
     new ToolExecutorService(repository, []),
     { conversationSummaries: { add: resolved({}) } } as never,
-    { schedule: resolved(undefined) } as never,
     billingTestAccess(),
   );
 
@@ -305,7 +303,6 @@ describe('AssistantOrchestratorService', () => {
     );
 
     const toolExecutor = new ToolExecutorService(repository, []);
-    const scheduleMemoryDream = resolved(undefined);
     const addConversationSummary = resolved({});
     const orchestrator = new AssistantOrchestratorService(
       repository,
@@ -314,7 +311,6 @@ describe('AssistantOrchestratorService', () => {
       summarizer,
       toolExecutor,
       { conversationSummaries: { add: addConversationSummary } } as never,
-      { schedule: scheduleMemoryDream } as never,
       billingTestAccess(),
     );
 
@@ -336,11 +332,6 @@ describe('AssistantOrchestratorService', () => {
         runId: 'run-1',
         content: assistantMessage.content,
       }),
-    );
-    expect(scheduleMemoryDream).toHaveBeenCalledWith(
-      user.id,
-      conversation.id,
-      assistantMessage.id,
     );
     expect(addConversationSummary).toHaveBeenCalledWith(
       'summarize',
@@ -404,7 +395,6 @@ describe('AssistantOrchestratorService', () => {
     };
 
     const config = new ConfigService();
-    const scheduleMemoryDream = resolved(undefined);
     const addConversationSummary = resolved({});
     const orchestrator = new AssistantOrchestratorService(
       repository,
@@ -413,7 +403,6 @@ describe('AssistantOrchestratorService', () => {
       new ConversationSummarizerService(repository, model, config),
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: addConversationSummary } } as never,
-      { schedule: scheduleMemoryDream } as never,
       billingTestAccess(),
     );
 
@@ -429,7 +418,7 @@ describe('AssistantOrchestratorService', () => {
 
     expect(generate).toHaveBeenCalledTimes(1);
     expect(completeRun).toHaveBeenCalledTimes(1);
-    expect(scheduleMemoryDream).toHaveBeenCalledTimes(1);
+    expect(addConversationSummary).toHaveBeenCalledTimes(1);
   });
 
   it('streams only the final model text while preserving the completed turn', async () => {
@@ -487,7 +476,6 @@ describe('AssistantOrchestratorService', () => {
       new ConversationSummarizerService(repository, model, config),
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: resolved({}) } } as never,
-      { schedule: resolved(undefined) } as never,
       billingTestAccess(),
     );
 
@@ -569,7 +557,6 @@ describe('AssistantOrchestratorService', () => {
       new ConversationSummarizerService(repository, model, config),
       toolExecutor,
       { conversationSummaries: { add: resolved({}) } } as never,
-      { schedule: resolved(undefined) } as never,
       billingTestAccess(),
     );
 
@@ -645,7 +632,6 @@ describe('AssistantOrchestratorService', () => {
         new ConversationSummarizerService(repository, model, config),
         new ToolExecutorService(repository, []),
         { conversationSummaries: { add: resolved({}) } } as never,
-        { schedule: resolved(undefined) } as never,
         billingTestAccess(),
         { record },
         undefined,
@@ -745,7 +731,6 @@ describe('AssistantOrchestratorService', () => {
       new ConversationSummarizerService(repository, model, config),
       toolExecutor,
       { conversationSummaries: { add: resolved({}) } } as never,
-      { schedule: resolved(undefined) } as never,
       billingTestAccess(),
       { record },
     );
@@ -800,7 +785,6 @@ describe('AssistantOrchestratorService', () => {
     };
 
     const config = new ConfigService();
-    const scheduleMemoryDream = resolved(undefined);
     const addConversationSummary = resolved({});
     const orchestrator = new AssistantOrchestratorService(
       repository,
@@ -809,7 +793,6 @@ describe('AssistantOrchestratorService', () => {
       new ConversationSummarizerService(repository, model, config),
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: addConversationSummary } } as never,
-      { schedule: scheduleMemoryDream } as never,
       billingTestAccess(),
     );
 
@@ -820,7 +803,7 @@ describe('AssistantOrchestratorService', () => {
 
     expect(generate).not.toHaveBeenCalled();
     expect('createRun' in repository).toBe(false);
-    expect(scheduleMemoryDream).not.toHaveBeenCalled();
+    expect(addConversationSummary).not.toHaveBeenCalled();
   });
   it('passes a locale-aware acknowledger and persists its deterministic text', async () => {
     const indonesian = await runReceiptTurn('id');
@@ -926,7 +909,6 @@ describe('AssistantOrchestratorService', () => {
       new ConversationSummarizerService(repository, model, new ConfigService()),
       new ToolExecutorService(repository, []),
       { conversationSummaries: { add: resolved({}) } } as never,
-      { schedule: resolved(undefined) } as never,
       billingTestAccess(),
     );
 
@@ -983,7 +965,6 @@ describe('active-note message idempotency', () => {
         new ConversationSummarizerService(repository, model, config),
         new ToolExecutorService(repository, []),
         { assistantTurns: { add: resolved({}) } } as never,
-        { schedule: resolved(undefined) } as never,
         billingTestAccess(),
         undefined,
         { validate } as unknown as ActiveNoteService,

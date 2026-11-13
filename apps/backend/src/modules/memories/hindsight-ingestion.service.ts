@@ -58,15 +58,10 @@ export class HindsightIngestionService {
     throughMessageId: string,
     allowShortSegment = false,
   ): Promise<MemoryIngestionResult> {
-    const mode = this.engine.modeFor(userId);
-    if (mode === 'legacy' || !this.engine.ingestionEnabled)
-      return { status: 'skipped' };
+    if (!this.engine.ingestionEnabled) return { status: 'skipped' };
     const user = await this.users.findById(userId);
     if (!user?.automaticMemoryEnabled) return { status: 'skipped' };
-    const shadow = mode === 'shadow';
-    const namespace = shadow
-      ? this.engine.shadowNamespace()
-      : this.engine.namespace;
+    const namespace = this.engine.namespace;
 
     const segment = await this.ledger.ingestionSegment(
       userId,
@@ -87,6 +82,25 @@ export class HindsightIngestionService {
           : 'queued',
         sourceCount: segment.checkpoint.pendingSourceIds.length,
       };
+
+    // Only assistant turns (proactive messages, reminders) arrived since the
+    // checkpoint. Nothing needs review, so advance past them; deferring would
+    // leave the conversation in every recovery sweep forever.
+    if (!segment.messages.length) {
+      if (!(await this.ledger.stageCheckpoint(segment, [])))
+        return { status: 'deferred' };
+
+      return {
+        status: (await this.ledger.completeCheckpoint(
+          userId,
+          segment.checkpoint.id,
+        ))
+          ? 'completed'
+          : 'deferred',
+        sourceCount: 0,
+      };
+    }
+
     const estimatedTokens = Math.ceil(
       segment.messages.reduce((sum, { content }) => sum + content.length, 0) /
         4,
@@ -101,7 +115,7 @@ export class HindsightIngestionService {
     const bank = await this.ledger.ensureBank(
       userId,
       namespace,
-      this.engine.bankId(userId, shadow),
+      this.engine.bankId(userId),
     );
 
     if (!bank) return { status: 'skipped' };
@@ -200,7 +214,7 @@ export class HindsightIngestionService {
     }
 
     this.logger.debug(
-      `Memory ingestion namespace=${shadow ? 'shadow' : 'active'} messages=${segment.messages.length} sources=${sourceIds.length} status=${completed ? 'completed' : 'queued'}`,
+      `Memory ingestion messages=${segment.messages.length} sources=${sourceIds.length} status=${completed ? 'completed' : 'queued'}`,
     );
 
     return {
@@ -210,10 +224,8 @@ export class HindsightIngestionService {
   }
 
   async recover(): Promise<number> {
-    const mode = this.engine.configuredMode();
-    if (mode === 'legacy' || !this.engine.ingestionEnabled) return 0;
-    const namespace =
-      mode === 'shadow' ? this.engine.shadowNamespace() : this.engine.namespace;
+    if (!this.engine.ingestionEnabled) return 0;
+    const namespace = this.engine.namespace;
 
     const pending = await this.ledger.pendingCheckpoints(namespace, 20);
     let completed = 0;
@@ -226,7 +238,6 @@ export class HindsightIngestionService {
       namespace,
       MEMORY_POLICY_VERSION,
       new Date(Date.now() - this.idleMs),
-      this.engine.cohortUserIds(),
       20,
     );
 

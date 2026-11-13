@@ -51,24 +51,16 @@ export class MemoryEligibilityReplayService {
       new Set(messageIds).size !== messageIds.length
     )
       throw new Error('Eligibility replay requires 1–24 distinct message IDs');
-    const mode = this.engine.modeFor(userId);
     const user = await this.users.findById(userId);
-    if (
-      mode === 'legacy' ||
-      !this.engine.ingestionEnabled ||
-      !user?.automaticMemoryEnabled
-    )
+    if (!this.engine.ingestionEnabled || !user?.automaticMemoryEnabled)
       return messageIds.map((messageId) => ({ messageId, status: 'excluded' }));
-    const shadow = mode === 'shadow';
-    const namespace = shadow
-      ? this.engine.shadowNamespace()
-      : this.engine.namespace;
+    const namespace = this.engine.namespace;
 
     const bank = apply
       ? await this.ledger.ensureBank(
           userId,
           namespace,
-          this.engine.bankId(userId, shadow),
+          this.engine.bankId(userId),
         )
       : await this.ledger.findBank(userId, namespace);
 

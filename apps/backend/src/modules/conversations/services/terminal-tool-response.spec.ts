@@ -21,7 +21,7 @@ describe('memory tools continue the conversation', () => {
     'lets the model answer after %s in every receipt state and channel',
     (toolName) => {
       for (const status of ['queued', 'completed', 'withdrawn']) {
-        const receipt = { engine: 'hindsight', status };
+        const receipt = { status };
         const result = { memory: receipt, deleted: true, receipt };
         expect(web('en', [execution(toolName, result)])).toBeNull();
         expect(web('id', [execution(toolName, result)])).toBeNull();
@@ -55,7 +55,7 @@ describe('memory tools continue the conversation', () => {
     'streams the model reply after %s instead of a storage receipt',
     async (toolName) => {
       const reply = 'Baik, aku pahami preferensimu.';
-      const receipt = { engine: 'hindsight', status: 'queued' };
+      const receipt = { status: 'queued' };
       const execute = jest.fn(() =>
         Promise.resolve(
           JSON.stringify({ memory: receipt, deleted: true, receipt }),
@@ -155,7 +155,7 @@ describe('memory tools continue the conversation', () => {
 
   it('continues when a memory mutation accompanies a terminal action', () => {
     const save = execution('save_memory', {
-      memory: { engine: 'hindsight', status: 'queued' },
+      memory: { status: 'queued' },
     });
 
     const task = execution('create_task', {

@@ -6,29 +6,7 @@ import type {
   ResolvedMemoryReference,
   MemoryCheckpoint,
   MemoryIngestionSegment,
-  MemoryRollback,
-  MemoryRollbackBoundary,
 } from '../entities';
-
-export type ReconcileMemoryRollback = {
-  userId: string;
-  bankId: string;
-  namespace: string;
-  boundary: MemoryRollbackBoundary;
-  facts: Array<{
-    sourceId: string;
-    remoteFactId: string;
-    text: string;
-    occurredAt: string | null;
-    embedding: number[];
-  }>;
-  embeddingModel: string;
-  embeddingVersion: string;
-};
-
-export type MemoryRollbackResult =
-  | { status: 'written' | 'unchanged'; record: MemoryRollback }
-  | { status: 'stale' | 'unavailable' | 'busy' };
 
 export type EnqueueMemorySource = {
   userId: string;
@@ -44,7 +22,6 @@ export type EnqueueMemorySource = {
   expectedGeneration?: number;
   requestKey?: string;
   requestFingerprint?: string;
-  legacySnapshot?: { id: string; updatedAt: Date };
 };
 
 export type MemorySourcesWriteResult =
@@ -56,17 +33,6 @@ export type MemorySourceWriteResult =
   | { status: 'unavailable' | 'suppressed' | 'stale' };
 
 export interface IHindsightRepository {
-  rollbackRecord(
-    userId: string,
-    bankId: string,
-  ): Promise<MemoryRollback | null>;
-  rollbackBoundary(
-    userId: string,
-    bankId: string,
-  ): Promise<MemoryRollbackBoundary | null>;
-  reconcileRollback(
-    input: ReconcileMemoryRollback,
-  ): Promise<MemoryRollbackResult>;
   /** Creation verifies the owner still exists; retired mappings never reactivate. */
   ensureBank(
     userId: string,
@@ -160,7 +126,6 @@ export interface IHindsightRepository {
   markBankErased(bankId: string, token: string): Promise<boolean>;
   suppressedMessageIds(userId: string, ids: string[]): Promise<string[]>;
   pendingErasureCount(userId: string): Promise<number>;
-  retireStaleImports(bankId: string, token: string): Promise<number>;
   ingestionSegment(
     userId: string,
     namespace: string,
@@ -182,7 +147,6 @@ export interface IHindsightRepository {
     namespace: string,
     policyVersion: string,
     idleBefore: Date,
-    userIds: string[],
     limit: number,
   ): Promise<
     Array<{

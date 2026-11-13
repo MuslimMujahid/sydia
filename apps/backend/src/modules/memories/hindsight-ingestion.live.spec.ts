@@ -38,7 +38,6 @@ live('Direct Hindsight ingestion live contract', () => {
     const namespace = `contract-${randomUUID()}`;
     const config = new ConfigService({
       BACKEND_DB_URL: databaseUrl,
-      BACKEND_MEMORY_ENGINE: 'hindsight',
       BACKEND_HINDSIGHT_INGESTION_ENABLED: true,
       BACKEND_HINDSIGHT_URL: url,
       BACKEND_HINDSIGHT_API_KEY: key,

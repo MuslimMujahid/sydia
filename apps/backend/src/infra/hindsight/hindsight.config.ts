@@ -1,5 +1,3 @@
-export type MemoryEngineMode = 'legacy' | 'shadow' | 'hindsight';
-
 function stringValue(config: Record<string, unknown>, key: string): string {
   const value = config[key];
   if (value === undefined || value === '') return '';
@@ -56,10 +54,16 @@ function optionalSimilarity(
 export function validateHindsightEnvironment(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
-  const mode = stringValue(config, 'BACKEND_MEMORY_ENGINE') || 'legacy';
-  if (!['legacy', 'shadow', 'hindsight'].includes(mode))
+  // Hindsight is the only memory engine. Refuse the removed engine switches
+  // rather than silently running a deployment that expects legacy memory.
+  const engine = stringValue(config, 'BACKEND_MEMORY_ENGINE');
+  if (engine && engine !== 'hindsight')
     throw new Error(
-      'BACKEND_MEMORY_ENGINE must be legacy, shadow, or hindsight',
+      `BACKEND_MEMORY_ENGINE=${engine} is no longer supported; legacy memory was removed. Configure Hindsight and delete BACKEND_MEMORY_ENGINE.`,
+    );
+  if (stringValue(config, 'BACKEND_HINDSIGHT_COHORT'))
+    throw new Error(
+      'BACKEND_HINDSIGHT_COHORT is no longer supported; Hindsight serves every user. Delete it.',
     );
 
   const baseUrl = stringValue(config, 'BACKEND_HINDSIGHT_URL');
@@ -107,18 +111,17 @@ export function validateHindsightEnvironment(
     throw new Error(
       'BACKEND_HINDSIGHT_NAMESPACE must contain 1–48 lowercase letters, digits, or hyphens',
     );
-  if (mode !== 'legacy' && (!baseUrl || !apiKey || !namespace))
+  const configured = [baseUrl, apiKey, namespace].filter(Boolean).length;
+  if (configured && configured < 3)
     throw new Error(
-      'Hindsight modes require BACKEND_HINDSIGHT_URL, BACKEND_HINDSIGHT_API_KEY, and an environment-specific BACKEND_HINDSIGHT_NAMESPACE',
+      'Hindsight requires BACKEND_HINDSIGHT_URL, BACKEND_HINDSIGHT_API_KEY, and an environment-specific BACKEND_HINDSIGHT_NAMESPACE together; leave all three blank to run without memory',
     );
 
   return {
-    BACKEND_MEMORY_ENGINE: mode,
     BACKEND_HINDSIGHT_URL: baseUrl.replace(/\/$/, ''),
     BACKEND_HINDSIGHT_API_KEY: apiKey,
     BACKEND_HINDSIGHT_NAMESPACE: namespace,
     BACKEND_HINDSIGHT_RETIRED_NAMESPACES: retiredNamespaces.join(','),
-    BACKEND_HINDSIGHT_COHORT: stringValue(config, 'BACKEND_HINDSIGHT_COHORT'),
     BACKEND_HINDSIGHT_INGESTION_ENABLED: booleanValue(
       config,
       'BACKEND_HINDSIGHT_INGESTION_ENABLED',

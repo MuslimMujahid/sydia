@@ -17,19 +17,16 @@ import type { QueueService } from '../../src/infra/queue';
 import {
   PrismaConversationRepository,
   PrismaHindsightRepository,
-  PrismaMemoryRepository,
   PrismaUserPrivacyRepository,
   PrismaUserRepository,
 } from '../../src/database/repositories';
 import { HindsightDeliveryService } from '../../src/modules/memories/hindsight-delivery.service';
 import { MemoryAccessService } from '../../src/modules/memories/memory-access.service';
-import type { MemoryMutationReceipt } from '../../src/modules/memories/memory-access.types';
 import { MemoryEngineService } from '../../src/modules/memories/memory-engine.service';
 import {
   MemoryPolicyService,
   MEMORY_POLICY_VERSION,
 } from '../../src/modules/memories/memory-policy.service';
-import type { MemoryService } from '../../src/modules/memories/memory.service';
 
 const execute = promisify(execFile);
 const enabled = process.env.HINDSIGHT_RESTORE_CONTRACT_ENABLED === 'true';
@@ -481,7 +478,6 @@ type Runtime = {
     function config(db: string, url: string): ConfigService {
       return new ConfigService({
         BACKEND_DB_URL: db,
-        BACKEND_MEMORY_ENGINE: 'hindsight',
         BACKEND_HINDSIGHT_URL: url,
         BACKEND_HINDSIGHT_API_KEY: apiKey,
         BACKEND_HINDSIGHT_NAMESPACE: namespace,
@@ -519,8 +515,6 @@ type Runtime = {
         ),
         access: new MemoryAccessService(
           new MemoryEngineService(settings),
-          {} as MemoryService,
-          new PrismaMemoryRepository(prisma),
           ledger,
           gateway,
           new PrismaConversationRepository(prisma),
@@ -554,11 +548,11 @@ type Runtime = {
         },
       });
 
-      const receipt = (await source.access.create(
+      const receipt = await source.access.create(
         userId,
-        { content, sourceType: 'chat' },
+        { content },
         { sourceMessageId: message.id, idempotencyKey: randomUUID() },
-      )) as MemoryMutationReceipt;
+      );
 
       expect(receipt.status).toBe('queued');
 

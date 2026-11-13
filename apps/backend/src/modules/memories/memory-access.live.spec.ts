@@ -12,16 +12,11 @@ import type { QueueService } from '../../infra/queue';
 import {
   PrismaConversationRepository,
   PrismaHindsightRepository,
-  PrismaMemoryRepository,
   PrismaUserRepository,
 } from '../../database/repositories';
 import { HindsightDeliveryService } from './hindsight-delivery.service';
 import { MemoryAccessService } from './memory-access.service';
 import { MemoryEngineService } from './memory-engine.service';
-import type { MemoryMutationReceipt } from './memory-access.types';
-import { MemoryService } from './memory.service';
-import { EmbeddingsService } from '../../infra/embeddings';
-import { MemoryRollbackService } from './memory-rollback.service';
 import { MemoryPolicyService } from './memory-policy.service';
 import { MemoryArchiveService } from './memory-archive.service';
 import { OpenRouterLanguageModel } from '../../infra/model-gateway';
@@ -41,12 +36,11 @@ if (
 const live = databaseUrl && url && key && policyKey ? describe : describe.skip;
 
 live('Chat memory adapter live contract', () => {
-  test('retains compound user evidence, corrects one fact, reconciles rollback, and forgets recovered facts', async () => {
+  test('retains compound user evidence, corrects one fact, and forgets it for good', async () => {
     const userId = `synthetic-${randomUUID()}`;
     const namespace = `contract-${randomUUID()}`;
     const config = new ConfigService({
       BACKEND_DB_URL: databaseUrl,
-      BACKEND_MEMORY_ENGINE: 'hindsight',
       BACKEND_HINDSIGHT_URL: url,
       BACKEND_HINDSIGHT_API_KEY: key,
       BACKEND_HINDSIGHT_NAMESPACE: namespace,
@@ -94,8 +88,6 @@ live('Chat memory adapter live contract', () => {
 
     const access = new MemoryAccessService(
       engine,
-      {} as MemoryService,
-      new PrismaMemoryRepository(prisma),
       ledger,
       gateway,
       new PrismaConversationRepository(prisma),
@@ -138,27 +130,16 @@ live('Chat memory adapter live contract', () => {
       const input = {
         content:
           'The user prefers replies in Indonesian. The user lives in Makassar.',
-        sourceType: 'chat' as const,
       };
 
-      const accepted = (await access.create(
-        userId,
-        input,
-        saveContext,
-      )) as MemoryMutationReceipt;
+      const accepted = await access.create(userId, input, saveContext);
 
       expect(accepted.status).toBe('queued');
       const sourceId = accepted.sourceIds![0]!;
       await settle(sourceId, 'admitted');
-      expect(
-        (
-          (await access.create(
-            userId,
-            input,
-            saveContext,
-          )) as MemoryMutationReceipt
-        ).status,
-      ).toBe('completed');
+      expect((await access.create(userId, input, saveContext)).status).toBe(
+        'completed',
+      );
       const first = await ledger.snapshot(userId, sourceId);
       const firstDocument = first!.deliveries[0]!.documentId;
       const raw = await gateway.listFacts(bankId, firstDocument);
@@ -202,22 +183,22 @@ live('Chat memory adapter live contract', () => {
       };
 
       const reference = `hm:${languageRef.reference.id}`;
-      const corrected = (await access.update(
+      const corrected = await access.update(
         userId,
         reference,
         correctionInput,
         correctionContext,
-      )) as MemoryMutationReceipt;
+      );
 
       expect(corrected.status).toBe('queued');
       expect(
         (
-          (await access.update(
+          await access.update(
             userId,
             reference,
             correctionInput,
             correctionContext,
-          )) as MemoryMutationReceipt
+          )
         ).id,
       ).toBe(corrected.id);
       await settle(sourceId, 'admitted');
@@ -262,96 +243,6 @@ live('Chat memory adapter live contract', () => {
 
       expect(hits.some(({ content }) => /Makassar/i.test(content))).toBe(true);
       expect(hits.every(({ type }) => type === 'world')).toBe(true);
-      const memories = new PrismaMemoryRepository(prisma);
-      const embeddings = new EmbeddingsService(
-        new ConfigService({
-          BACKEND_MODEL_API_KEY: policyKey,
-          // A dedicated embedding key wins, as in the app configuration.
-          BACKEND_EMBEDDING_API_KEY: process.env.BACKEND_EMBEDDING_API_KEY,
-          BACKEND_MODEL_BASE_URL:
-            process.env.HINDSIGHT_EMBEDDING_CONTRACT_BASE_URL ??
-            'https://openrouter.ai/api/v1',
-        }),
-      );
-
-      const rollback = new MemoryRollbackService(
-        ledger,
-        new PrismaUserRepository(prisma),
-        new MemoryArchiveService(ledger, gateway),
-        embeddings,
-        engine,
-      );
-
-      expect((await rollback.reconcile(userId)).status).toBe('ready');
-      expect(await prisma.memory.count({ where: { userId } })).toBe(0);
-      expect((await rollback.reconcile(userId, { dryRun: false })).status).toBe(
-        'written',
-      );
-      await settle(sourceId, 'erased');
-      expect((await ledger.findBank(userId, namespace))?.state).toBe('erased');
-      const legacyEngine = new MemoryEngineService(
-        new ConfigService({
-          BACKEND_MEMORY_ENGINE: 'legacy',
-          BACKEND_HINDSIGHT_NAMESPACE: namespace,
-        }),
-      );
-
-      const legacyAccess = new MemoryAccessService(
-        legacyEngine,
-        new MemoryService(memories, embeddings, config),
-        memories,
-        ledger,
-        gateway,
-        new PrismaConversationRepository(prisma),
-        {
-          memoryDeliveries: { add: () => Promise.resolve() },
-        } as unknown as QueueService,
-        new PrismaUserRepository(prisma),
-      );
-
-      const vague = await legacyAccess.search(userId, 'preferred language', 5);
-      const recovered = await legacyAccess.search(
-        userId,
-        'The user prefers replies in English.',
-        5,
-      );
-
-      const languageHit = recovered.find(({ content }) =>
-        /English/i.test(content),
-      )!;
-
-      expect(languageHit).toBeDefined();
-      process.stdout.write(
-        `Synthetic rollback retrieval vagueMatches=${vague.length} concreteMatches=${recovered.length}\n`,
-      );
-      expect(
-        (
-          await legacyAccess.search(userId, 'The user lives in Makassar.', 5)
-        ).some(({ content }) => /Makassar/i.test(content)),
-      ).toBe(true);
-      const postRollbackCorrection = await prisma.message.create({
-        data: {
-          conversationId: conversation.id,
-          userId,
-          role: 'user',
-          content: 'I now prefer Spanish replies. Remember that instead.',
-        },
-      });
-
-      await legacyAccess.update(
-        userId,
-        languageHit.id,
-        { content: 'The user now prefers Spanish replies.' },
-        {
-          sourceMessageId: postRollbackCorrection.id,
-          idempotencyKey: randomUUID(),
-        },
-      );
-      expect(
-        (await legacyAccess.search(userId, 'Spanish', 5)).some(({ content }) =>
-          /Spanish/i.test(content),
-        ),
-      ).toBe(true);
       const forget = await prisma.message.create({
         data: {
           conversationId: conversation.id,
@@ -368,36 +259,10 @@ live('Chat memory adapter live contract', () => {
       };
 
       expect(
-        (await legacyAccess.delete(userId, corrected.id, forgetContext))!
-          .status,
-      ).toBe('completed');
-      expect(await legacyAccess.search(userId, 'language and city')).toEqual(
-        [],
-      );
-      expect((await rollback.reconcile(userId, { dryRun: false })).status).toBe(
-        'unchanged',
-      );
-      expect(await prisma.memory.count({ where: { userId } })).toBe(0);
-      expect(
-        (
-          (await legacyAccess.create(
-            userId,
-            input,
-            saveContext,
-          )) as MemoryMutationReceipt
-        ).status,
-      ).toBe('withdrawn');
-      expect(
-        (
-          (await legacyAccess.update(
-            userId,
-            reference,
-            correctionInput,
-            correctionContext,
-          )) as MemoryMutationReceipt
-        ).status,
-      ).toBe('withdrawn');
-      expect(await prisma.memory.count({ where: { userId } })).toBe(0);
+        ['completed', 'queued'].includes(
+          (await access.delete(userId, corrected.id, forgetContext)).status,
+        ),
+      ).toBe(true);
       expect(await access.search(userId, 'language and city')).toEqual([]);
       expect(
         (await new MemoryArchiveService(ledger, gateway).export(userId))
@@ -407,24 +272,27 @@ live('Chat memory adapter live contract', () => {
         await ledger.suppressedMessageIds(userId, [
           original.id,
           correction.id,
-          postRollbackCorrection.id,
           forget.id,
         ]),
-      ).toHaveLength(4);
+      ).toHaveLength(3);
       await settle(sourceId, 'erased');
       expect(
-        (await access.delete(userId, corrected.id, forgetContext))!.status,
+        (await access.delete(userId, corrected.id, forgetContext)).status,
       ).toBe('completed');
+      // Replaying the original save or correction cannot revive forgotten facts.
+      expect((await access.create(userId, input, saveContext)).status).toBe(
+        'withdrawn',
+      );
       expect(
         (
-          (await access.create(
+          await access.update(
             userId,
-            input,
-            saveContext,
-          )) as MemoryMutationReceipt
+            reference,
+            correctionInput,
+            correctionContext,
+          )
         ).status,
       ).toBe('withdrawn');
-      expect((await ledger.findBank(userId, namespace))?.state).toBe('erased');
       await expect(
         gateway.listFacts(bankId, latest.documentId),
       ).rejects.toMatchObject({ status: 404 });
@@ -435,7 +303,6 @@ live('Chat memory adapter live contract', () => {
       );
       throw error;
     } finally {
-      await prisma.hindsightRollback.deleteMany({ where: { userId } });
       await gateway.deleteBank(bankId);
       await prisma.hindsightReference.deleteMany({
         where: { delivery: { source: { bankId } } },

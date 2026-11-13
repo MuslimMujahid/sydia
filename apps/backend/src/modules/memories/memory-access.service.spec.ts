@@ -7,7 +7,6 @@ import type {
 } from '../../database/entities';
 import type {
   IHindsightRepository,
-  IMemoryRepository,
   IConversationRepository,
   IUserRepository,
 } from '../../database/interfaces';
@@ -18,7 +17,6 @@ import type { LanguageModelGateway } from '../../infra/model-gateway';
 import type { QueueService } from '../../infra/queue';
 import { MemoryAccessService } from './memory-access.service';
 import { MemoryEngineService } from './memory-engine.service';
-import type { MemoryService } from './memory.service';
 
 const sourceId = '11111111-1111-4111-a111-111111111111';
 const referenceId = '22222222-2222-4222-a222-222222222222';
@@ -116,7 +114,8 @@ function setup(
 ) {
   const engine = new MemoryEngineService(
     new ConfigService({
-      BACKEND_MEMORY_ENGINE: 'hindsight',
+      BACKEND_HINDSIGHT_URL: 'http://127.0.0.1:8888',
+      BACKEND_HINDSIGHT_API_KEY: 'test-key',
       BACKEND_HINDSIGHT_NAMESPACE: 'test',
       ...settings,
     }),
@@ -201,16 +200,6 @@ function setup(
       .mockResolvedValue(1),
   };
 
-  const legacy = {
-    search: jest.fn<MemoryService['search']>().mockResolvedValue([]),
-    create: jest.fn<MemoryService['create']>(),
-    update: jest.fn<MemoryService['update']>(),
-  };
-
-  const memories = {
-    delete: jest.fn<IMemoryRepository['delete']>().mockResolvedValue(true),
-  };
-
   const gateway = {
     recall: jest.fn<HindsightGateway['recall']>().mockResolvedValue({
       results: [fact('language', 'The user prefers Indonesian.')],
@@ -268,8 +257,6 @@ function setup(
 
   const service = new MemoryAccessService(
     engine,
-    legacy as unknown as MemoryService,
-    memories as unknown as IMemoryRepository,
     ledger as unknown as IHindsightRepository,
     gateway as unknown as HindsightGateway,
     conversationEvidence as unknown as IConversationRepository,
@@ -282,8 +269,6 @@ function setup(
     service,
     engine,
     ledger,
-    legacy,
-    memories,
     gateway,
     conversations: conversationEvidence,
     add,
@@ -291,16 +276,36 @@ function setup(
 }
 
 describe('MemoryAccessService', () => {
-  test('legacy and excluded cohorts use existing retrieval and writes', async () => {
-    const { service, gateway, legacy } = setup({
-      BACKEND_HINDSIGHT_COHORT: 'other-user',
-    });
+  test('without Hindsight configured, search is empty and writes refuse without touching storage', async () => {
+    const { service, gateway, ledger } = setup({ BACKEND_HINDSIGHT_URL: '' });
 
-    await service.search('user', 'language');
-    await service.create('user', { content: 'Prefers Indonesian.' }, context);
-    expect(legacy.search).toHaveBeenCalledWith('user', 'language', 5);
-    expect(legacy.create).toHaveBeenCalled();
+    expect(await service.search('user', 'language')).toEqual([]);
+    await expect(
+      service.create('user', { content: 'Prefers Indonesian.' }, context),
+    ).rejects.toThrow(/not configured/);
+    await expect(
+      service.update(
+        'user',
+        `hm:${referenceId}`,
+        { content: 'Prefers English.' },
+        context,
+      ),
+    ).rejects.toThrow(/not configured/);
+    await expect(
+      service.delete('user', `hm:${referenceId}`, context),
+    ).rejects.toThrow(/not configured/);
     expect(gateway.recall).not.toHaveBeenCalled();
+    expect(ledger.ensureBank).not.toHaveBeenCalled();
+    expect(ledger.enqueue).not.toHaveBeenCalled();
+  });
+
+  test('ids that are not Hindsight references are refused', async () => {
+    const { service, ledger } = setup();
+
+    await expect(
+      service.delete('user', 'legacy-memory-id', context),
+    ).rejects.toThrow(/Invalid memory reference/);
+    expect(ledger.forgetSources).not.toHaveBeenCalled();
   });
 
   test('new saves return queued receipts and preserve evidence/event time/timezone', async () => {
@@ -311,7 +316,7 @@ describe('MemoryAccessService', () => {
       context,
     );
 
-    expect(result).toMatchObject({ engine: 'hindsight', status: 'queued' });
+    expect(result).toMatchObject({ status: 'queued' });
     const write = ledger.enqueue.mock.calls[0]![0];
     expect(write.eventAt.toISOString()).toBe('2026-10-01T00:00:00.000Z');
     expect(write.sourceMessageIds).toEqual(['current-message']);
@@ -345,15 +350,14 @@ describe('MemoryAccessService', () => {
     expect(ledger.enqueue).toHaveBeenCalledTimes(1);
   });
 
-  test('a saved request replay after switching to legacy cannot recreate reconciled or forgotten facts', async () => {
+  test('a saved request replay against a retired bank cannot recreate reconciled or forgotten facts', async () => {
     const original = setup();
     const input = { content: 'Prefers English.' };
     await original.service.create('user', input, context);
     const write = original.ledger.enqueue.mock.calls[0]![0];
-    const { service, ledger, legacy } = setup({
-      BACKEND_MEMORY_ENGINE: 'legacy',
-    });
+    const { service, ledger } = setup();
 
+    ledger.ensureBank.mockResolvedValue(null);
     ledger.findBank.mockResolvedValue({ ...snapshot.bank, state: 'erased' });
     ledger.findMutation.mockResolvedValue([
       {
@@ -373,11 +377,11 @@ describe('MemoryAccessService', () => {
     expect(await service.create('user', input, context)).toMatchObject({
       status: 'withdrawn',
     });
-    expect(legacy.create).not.toHaveBeenCalled();
+    expect(ledger.enqueue).not.toHaveBeenCalled();
     await expect(
       service.create('user', { content: 'Prefers French.' }, context),
     ).rejects.toThrow(/different input/);
-    expect(legacy.create).not.toHaveBeenCalled();
+    expect(ledger.enqueue).not.toHaveBeenCalled();
   });
 
   test('credential material and missing/foreign user evidence are rejected before dispatch', async () => {
@@ -750,13 +754,12 @@ describe('MemoryAccessService', () => {
     });
   });
 
-  test('retrieval outages are honest and never fall back to unsynchronized legacy facts', async () => {
-    const { service, gateway, legacy } = setup();
+  test('retrieval outages are reported instead of returning unverified facts', async () => {
+    const { service, gateway } = setup();
     gateway.recall.mockRejectedValue(new Error('Provider unavailable'));
     await expect(service.search('user', 'language')).rejects.toThrow(
       /temporarily unavailable/,
     );
-    expect(legacy.search).not.toHaveBeenCalled();
   });
 
   test('old references can forget only owned retired banks in configured retired namespaces', async () => {

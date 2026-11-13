@@ -30,9 +30,6 @@ const {
 const {
   createPhaseTools,
 } = require('../../dist/src/modules/conversations/services/phase-tools');
-const {
-  MemoryDreamSchedulerService,
-} = require('../../dist/src/modules/memories/memory-dream-scheduler.service');
 
 async function createConversationAcceptance({
   prisma,
@@ -79,8 +76,7 @@ async function createConversationAcceptance({
   const summaries = new Queue('sydia-parser-answer-summary-fixture', {
     connection,
   });
-  const dreams = new Queue('sydia-parser-answer-dream-fixture', { connection });
-  const queues = { conversationSummaries: summaries, memoryDreams: dreams };
+  const queues = { conversationSummaries: summaries };
   const results = [];
   let calls = [];
   let generations = [];
@@ -152,7 +148,6 @@ async function createConversationAcceptance({
     new ConversationSummarizerService(conversations, privateModel, config),
     executor,
     queues,
-    new MemoryDreamSchedulerService(conversations, queues, config, users),
     new PrismaAuditEventRepository(prisma),
   );
   return {
@@ -235,11 +230,8 @@ async function createConversationAcceptance({
       return check;
     },
     async close() {
-      await Promise.all([
-        summaries.obliterate({ force: true }),
-        dreams.obliterate({ force: true }),
-      ]);
-      await Promise.all([summaries.close(), dreams.close()]);
+      await summaries.obliterate({ force: true });
+      await summaries.close();
     },
   };
 }

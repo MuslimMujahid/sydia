@@ -954,8 +954,6 @@ content is required; category is an optional classification hint. Never treat sa
         {
           content: text(a, 'content')!,
           category: text(a, 'category', false) ?? null,
-          sourceType: 'chat',
-          sourceMessageId,
         },
         { idempotencyKey, sourceMessageId },
       );
@@ -1017,8 +1015,6 @@ content is required. Identify the memory with id or query; without an id, the fi
         { idempotencyKey, sourceMessageId },
       );
 
-      if (!memory) throw new Error('The specified memory was not found.');
-
       return { memory };
     },
   };
@@ -1064,8 +1060,6 @@ Identify the memory with id or query; a query removes the first search match and
         sourceMessageId,
         idempotencyKey,
       });
-
-      if (!receipt) throw new Error('The specified memory was not found.');
 
       return { deleted: true, memoryId: id, receipt };
     },

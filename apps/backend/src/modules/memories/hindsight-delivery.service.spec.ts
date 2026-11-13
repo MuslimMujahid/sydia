@@ -65,9 +65,6 @@ function setup(
   settings: Record<string, unknown> = {},
 ) {
   const ledger = {
-    retireStaleImports: jest
-      .fn<IHindsightRepository['retireStaleImports']>()
-      .mockResolvedValue(0),
     claimBank: jest
       .fn<IHindsightRepository['claimBank']>()
       .mockResolvedValue(snapshot.bank),
@@ -148,7 +145,7 @@ function setup(
 }
 
 describe('HindsightDeliveryService', () => {
-  test('recovery selects configured retired namespaces for erasure only', async () => {
+  test('recovery selects configured retired namespaces and the removed shadow namespace for erasure only', async () => {
     const { service, ledger, gateway } = setup(source, undefined, {
       BACKEND_HINDSIGHT_RETIRED_NAMESPACES: 'previous, previous, test',
     });
@@ -157,7 +154,7 @@ describe('HindsightDeliveryService', () => {
     expect(await service.recover()).toBe(0);
     expect(ledger.pendingBanks.mock.calls).toEqual([
       ['test', expect.any(Date), 20],
-      ['test-shadow', expect.any(Date), 20],
+      ['test-shadow', expect.any(Date), 20, true],
       ['previous', expect.any(Date), 20, true],
       ['previous-shadow', expect.any(Date), 20, true],
     ]);

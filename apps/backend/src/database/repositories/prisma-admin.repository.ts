@@ -297,7 +297,7 @@ export class PrismaAdminRepository implements IAdminRepository {
         ), 0)::decimal AS "llmCostUsd",
         (SELECT COUNT(*) FROM "conversation" x WHERE x."userId" = u."id")::bigint AS "conversations",
         (SELECT COUNT(*) FROM "document" x WHERE x."userId" = u."id")::bigint AS "documents",
-        (SELECT COUNT(*) FROM "memory" x WHERE x."userId" = u."id")::bigint AS "memories",
+        (SELECT COUNT(*) FROM hindsight_source x JOIN hindsight_bank b ON b."id" = x."bankId" WHERE b."userId" = u."id" AND b."state" = 'active' AND x."state" = 'active')::bigint AS "memories",
         (SELECT COUNT(*) FROM "reminder" x WHERE x."userId" = u."id")::bigint AS "reminders",
         (SELECT COUNT(*) FROM "task" x WHERE x."userId" = u."id")::bigint AS "tasks",
         (SELECT COUNT(*) FROM "contact" x WHERE x."userId" = u."id")::bigint AS "contacts",

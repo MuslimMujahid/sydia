@@ -51,19 +51,15 @@ import {
   PrismaDailyNoteRepository,
   PrismaDocumentRepository,
   PrismaHindsightRepository,
-  PrismaMemoryRepository,
   PrismaReminderRepository,
   PrismaSecretRepository,
   PrismaTaskRepository,
   PrismaUserRepository,
 } from '../../src/database/repositories';
-import { MemoryService } from '../../src/modules/memories/memory.service';
 import { MemoryEngineService } from '../../src/modules/memories/memory-engine.service';
 import { MemoryAccessService } from '../../src/modules/memories/memory-access.service';
 import { MemoryPolicyService } from '../../src/modules/memories/memory-policy.service';
-import { HindsightBackfillService } from '../../src/modules/memories/hindsight-backfill.service';
 import { HindsightDeliveryService } from '../../src/modules/memories/hindsight-delivery.service';
-import { MemoryDreamSchedulerService } from '../../src/modules/memories/memory-dream-scheduler.service';
 import { CalendarService } from '../../src/modules/calendar/calendar.service';
 import { CalendarReadService } from '../../src/modules/calendar/calendar-read.service';
 import { CalendarSyncService } from '../../src/modules/calendar/calendar-sync.service';
@@ -140,7 +136,6 @@ type Turn = {
         BACKEND_HINDSIGHT_URL: url,
         BACKEND_HINDSIGHT_API_KEY: key,
         BACKEND_HINDSIGHT_NAMESPACE: namespace,
-        BACKEND_MEMORY_ENGINE: 'hindsight',
         BACKEND_HINDSIGHT_TIMEOUT_MS: 30000,
         BACKEND_HINDSIGHT_RECALL_TIMEOUT_MS: 1500,
         BACKEND_HINDSIGHT_RECALL_TOKENS: 800,
@@ -157,7 +152,6 @@ type Turn = {
 
       const prisma = new PrismaService(config);
       const ledger = new PrismaHindsightRepository(prisma);
-      const memories = new PrismaMemoryRepository(prisma);
       const conversations = new PrismaConversationRepository(prisma);
       const users = new PrismaUserRepository(prisma);
       const documents = new PrismaDocumentRepository(prisma);
@@ -175,7 +169,6 @@ type Turn = {
         }),
       );
 
-      const legacy = new MemoryService(memories, embeddings, config);
       const model = new OpenRouterLanguageModel(
         config,
         ObservabilityService.disabled(),
@@ -252,30 +245,15 @@ type Turn = {
       const queues = {
         memoryDeliveries: { add: () => Promise.resolve() },
         conversationSummaries: { add: () => Promise.resolve() },
-        memoryDreams: {
-          add: () => Promise.resolve(),
-          getJobs: () => Promise.resolve([]),
-        },
       } as unknown as QueueService;
 
       const access = new MemoryAccessService(
         engine,
-        legacy,
-        memories,
         ledger,
         gateway,
         conversations,
         queues,
         users,
-        policy,
-      );
-
-      const backfill = new HindsightBackfillService(
-        memories,
-        ledger,
-        users,
-        engine,
-        conversations,
         policy,
       );
 
@@ -430,24 +408,16 @@ type Turn = {
             },
           });
 
-          await legacy.create(owner, {
-            content: fixture.fact,
-            sourceType: 'chat',
-            sourceMessageId: message.id,
-            sourceMessageIds: [message.id],
-          });
+          // Seed through the same explicit save the assistant uses.
+          const saved = await access.create(
+            owner,
+            { content: fixture.fact },
+            { idempotencyKey: randomUUID(), sourceMessageId: message.id },
+          );
+
+          expect(saved.status).toBe('queued');
         }
 
-        const imported = await backfill.batch(owner, {
-          dryRun: false,
-          limit: 100,
-        });
-
-        expect(imported.interrupted).toBe(false);
-        expect(imported.outcomes).toHaveLength(10);
-        expect(
-          imported.outcomes.every(({ status }) => status === 'written'),
-        ).toBe(true);
         await settle();
         expect(
           await prisma.hindsightDelivery.count({
@@ -712,7 +682,8 @@ type Turn = {
       ): Promise<Turn> {
         const contextEngine = new MemoryEngineService(
           new ConfigService({
-            BACKEND_MEMORY_ENGINE: 'hindsight',
+            BACKEND_HINDSIGHT_URL: url,
+            BACKEND_HINDSIGHT_API_KEY: key,
             BACKEND_HINDSIGHT_NAMESPACE: namespace,
             BACKEND_MEMORY_AUTO_RECALL_ENABLED: autoRecall,
             BACKEND_HINDSIGHT_RECALL_TOKENS: 800,
@@ -723,7 +694,6 @@ type Turn = {
           conversations,
           config,
           documents,
-          memories,
           access,
           contextEngine,
         );
@@ -739,7 +709,6 @@ type Turn = {
           ),
           toolExecutor,
           queues,
-          new MemoryDreamSchedulerService(conversations, queues, config, users),
           billingTestAccess(),
           audit,
         );

@@ -4,44 +4,7 @@ import type {
   HindsightDelivery as PrismaDelivery,
   HindsightReference as PrismaReference,
   HindsightCheckpoint as PrismaCheckpoint,
-  HindsightRollback as PrismaRollback,
 } from '../../generated/prisma/client';
-
-export type MemoryRollback = Pick<
-  PrismaRollback,
-  | 'bankId'
-  | 'userId'
-  | 'namespace'
-  | 'boundaryChecksum'
-  | 'sourceCount'
-  | 'factCount'
-  | 'createdAt'
->;
-
-/** Stable current-state manifest checked again inside the reconciliation transaction. */
-export type MemoryRollbackBoundary = {
-  sources: Array<{
-    id: string;
-    sourceKey: string;
-    kind: string;
-    generation: number;
-    state: string;
-    checksum: string;
-    eventAt: string;
-    sourceMessageIds: string[];
-    legacyMemoryId: string | null;
-    legacyUpdatedAt: string | null;
-    deliveries: Array<{
-      id: string;
-      generation: number;
-      state: string;
-      checksum: string;
-      factIds: string[];
-    }>;
-  }>;
-  conversations: Array<{ id: string; throughMessageId: string | null }>;
-  legacy: Array<{ id: string; updatedAt: string }>;
-};
 
 export type MemoryBank = Pick<
   PrismaBank,

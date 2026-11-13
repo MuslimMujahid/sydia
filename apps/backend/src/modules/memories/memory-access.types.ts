@@ -11,8 +11,13 @@ export type MemorySearchHit = {
   type?: 'world' | 'observation';
 };
 
+export type MemoryInput = {
+  content: string;
+  /** A hint for extraction only; Hindsight decides the stored shape. */
+  category?: string | null;
+};
+
 export type MemoryMutationReceipt = {
-  engine: 'legacy' | 'hindsight';
   status: 'completed' | 'queued' | 'withdrawn';
   id: string;
   sourceIds?: string[];

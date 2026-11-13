@@ -48,7 +48,6 @@ import type {
 } from '../../../infra/model-gateway/model-gateway.types';
 import { QueueService } from '../../../infra/queue';
 import type { AssistantFile } from './tool-executor.service';
-import { MemoryDreamSchedulerService } from '../../memories/memory-dream-scheduler.service';
 import {
   ContextBuilderService,
   type ContextTokenUsage,
@@ -212,7 +211,6 @@ export class AssistantOrchestratorService {
     private readonly summarizer: ConversationSummarizerService,
     private readonly toolExecutor: ToolExecutorService,
     private readonly queues: QueueService,
-    private readonly memoryDreamScheduler: MemoryDreamSchedulerService,
     private readonly billing: BillingAccessService,
     @Optional()
     @Inject(AUDIT_EVENT_REPOSITORY)
@@ -1106,19 +1104,6 @@ export class AssistantOrchestratorService {
           } catch (error) {
             this.logger.error(
               `Conversation summary enqueue failed for ${state.conversation.id}`,
-              error instanceof Error ? error.stack : undefined,
-            );
-          }
-
-          try {
-            await this.memoryDreamScheduler.schedule(
-              state.user.id,
-              state.conversation.id,
-              assistantMessage.id,
-            );
-          } catch (error) {
-            this.logger.error(
-              `Memory dream enqueue failed for ${state.conversation.id}`,
               error instanceof Error ? error.stack : undefined,
             );
           }

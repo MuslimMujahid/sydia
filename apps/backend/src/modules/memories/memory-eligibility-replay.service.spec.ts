@@ -64,7 +64,8 @@ function setup() {
 
   const engine = new MemoryEngineService(
     new ConfigService({
-      BACKEND_MEMORY_ENGINE: 'hindsight',
+      BACKEND_HINDSIGHT_URL: 'http://127.0.0.1:8888',
+      BACKEND_HINDSIGHT_API_KEY: 'test-key',
       BACKEND_HINDSIGHT_NAMESPACE: 'test',
       BACKEND_HINDSIGHT_INGESTION_ENABLED: true,
     }),

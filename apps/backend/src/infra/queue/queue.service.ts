@@ -17,13 +17,6 @@ export type ReminderJob = {
   occurrenceId: string;
 };
 export type DocumentJob = { documentId: string; userId: string; hint?: string };
-export type MemoryDreamJob = {
-  kind: 'dream' | 'recover';
-  userId?: string;
-  conversationId?: string;
-  throughMessageId?: string;
-  allowShortSegment?: boolean;
-};
 export type ConversationSummaryJob = {
   userId: string;
   conversationId: string;
@@ -66,7 +59,6 @@ export class QueueService implements OnModuleDestroy {
   readonly billing: Queue<{ kind: 'recover' }>;
   readonly reminders: Queue<ReminderJob>;
   readonly documents: Queue<DocumentJob>;
-  readonly memoryDreams: Queue<MemoryDreamJob>;
   readonly memoryDeliveries: Queue<MemoryDeliveryJob>;
   readonly memoryIngestions: Queue<MemoryIngestionJob>;
   readonly conversationSummaries: Queue<ConversationSummaryJob>;
@@ -100,10 +92,6 @@ export class QueueService implements OnModuleDestroy {
       defaultJobOptions,
     });
     this.documents = new Queue<DocumentJob>('documents', {
-      connection,
-      defaultJobOptions,
-    });
-    this.memoryDreams = new Queue<MemoryDreamJob>('memory-dreams', {
       connection,
       defaultJobOptions,
     });
@@ -162,7 +150,6 @@ export class QueueService implements OnModuleDestroy {
       this.noteOrganizations.close(),
       this.reminders.close(),
       this.documents.close(),
-      this.memoryDreams.close(),
       this.memoryDeliveries.close(),
       this.memoryIngestions.close(),
       this.conversationSummaries.close(),

@@ -2,9 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { ConfigService } from '@nestjs/config';
-import { Queue } from 'bullmq';
 import { PrismaService } from '../../src/infra/prisma';
-import type { MemoryDreamJob } from '../../src/infra/queue';
 
 const enabled = process.env.OPTIMIZATION_CUTOVER_E2E === 'true';
 const base = process.env.OPTIMIZATION_CUTOVER_URL ?? 'http://127.0.0.1:5000';
@@ -42,10 +40,6 @@ type Archive = {
       }> = [];
 
       const prisma = new PrismaService(new ConfigService(process.env));
-      const queue = new Queue<MemoryDreamJob>('memory-dreams', {
-        connection: { url: process.env.BACKEND_REDIS_URL! },
-      });
-
       let cookie = '';
       let userId = '';
       let bankId = '';
@@ -93,6 +87,17 @@ type Archive = {
         }
 
         throw new Error(`Timed out: ${label}`);
+      }
+
+      /**
+       * Ingestion recovery (every minute) picks up conversations idle past
+       * the short-segment age. Back-date one so the next sweep reviews it.
+       */
+      async function makeIdle(conversationId: string): Promise<void> {
+        await prisma.conversation.update({
+          where: { id: conversationId },
+          data: { lastMessageAt: new Date(Date.now() - 7 * 60 * 60 * 1000) },
+        });
       }
 
       async function turn(
@@ -241,35 +246,16 @@ type Archive = {
           'I practice watercolor painting every Sunday morning. Just acknowledge this.',
         );
 
-        const continuation = await turn(
+        await turn(
           'automatic segment continuation',
           'Thanks!',
           automatic.sent.conversation.id,
         );
-
-        const messageId = continuation.detail.messages.at(-1)!.id;
-
-        await queue.add(
-          'dream',
-          {
-            kind: 'dream',
-            userId,
-            conversationId: automatic.sent.conversation.id,
-            throughMessageId: messageId,
-            allowShortSegment: true,
-          },
-          {
-            jobId: `optimization-e2e-${id}`,
-            removeOnComplete: true,
-            removeOnFail: true,
-          },
-        );
+        await makeIdle(automatic.sent.conversation.id);
         await waitFor(
           async () => (await facts()).some((text) => /watercolor/i.test(text)),
           'automatic fact admitted through eligibility and fact review',
         );
-        expect(await prisma.memory.count({ where: { userId } })).toBe(0);
-        checks.push('legacy memory writer remains inactive');
         const recall = await turn(
           'recall in new conversation',
           'What kind of tea do I prefer, and what do I practice on Sunday mornings?',
@@ -314,31 +300,9 @@ type Archive = {
           'I enjoy origami every Saturday. Just acknowledge.',
         );
 
-        const optedOutJob = await queue.add(
-          'dream',
-          {
-            kind: 'dream',
-            userId,
-            conversationId: optedOut.sent.conversation.id,
-            throughMessageId: optedOut.detail.messages.find(
-              ({ role }) => role === 'user',
-            )!.id,
-            allowShortSegment: true,
-          },
-          {
-            jobId: `optimization-e2e-optout-${id}`,
-            removeOnComplete: false,
-            removeOnFail: false,
-          },
-        );
-
-        await waitFor(async () => {
-          const state = await optedOutJob.getState();
-          if (state === 'failed') throw new Error('Opt-out worker job failed');
-
-          return state === 'completed';
-        }, 'worker completed opt-out job');
-        await optedOutJob.remove();
+        await makeIdle(optedOut.sent.conversation.id);
+        // Two recovery sweeps: long enough for an ingestion to have started.
+        await sleep(130_000);
         expect(
           await prisma.hindsightSource.count({
             where: { bankId, conversationId: optedOut.sent.conversation.id },
@@ -362,12 +326,8 @@ type Archive = {
                 )?.state === 'erased',
               'deleted account bank erased and session rejected',
             );
-          const jobs = await queue.getJobs(['waiting', 'delayed']);
-          for (const job of jobs)
-            if (job.data.userId === userId) await job.remove();
         }
 
-        await queue.close();
         await prisma.$disconnect();
         writeFileSync(
           '/tmp/sydia-optimization-cutover-e2e.json',

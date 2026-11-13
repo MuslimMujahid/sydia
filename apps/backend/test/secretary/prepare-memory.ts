@@ -54,10 +54,8 @@ async function main() {
 
   try {
     const prisma = app.get(PrismaService);
-    if (app.get(MemoryEngineService).modeFor(owner.id) !== 'hindsight')
-      throw new Error(
-        'QA readiness requires the configured active Hindsight engine.',
-      );
+    if (!app.get(MemoryEngineService).configured)
+      throw new Error('QA readiness requires a configured Hindsight engine.');
     const source = await prisma.message.findFirst({
       where: { userId: owner.id, role: 'user', content: raw.preferences },
       orderBy: { createdAt: 'asc' },
@@ -72,8 +70,6 @@ async function main() {
       {
         content: raw.preferences,
         category: 'preferensi',
-        sourceType: 'chat',
-        sourceMessageId: source.id,
       },
       {
         sourceMessageId: source.id,

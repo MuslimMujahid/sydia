@@ -962,7 +962,6 @@ import { ContextBuilderService } from '../../src/modules/conversations/services/
         undefined,
         undefined,
         undefined,
-        undefined,
         work,
       ).build(user, original.conversationId, answer.id);
 

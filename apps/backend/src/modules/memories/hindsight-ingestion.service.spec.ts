@@ -46,7 +46,8 @@ function setup(
   eligibility?: MemoryEligibilityService,
 ) {
   const config = new ConfigService({
-    BACKEND_MEMORY_ENGINE: 'hindsight',
+    BACKEND_HINDSIGHT_URL: 'http://127.0.0.1:8888',
+    BACKEND_HINDSIGHT_API_KEY: 'test-key',
     BACKEND_HINDSIGHT_NAMESPACE: 'test',
     BACKEND_HINDSIGHT_INGESTION_ENABLED: true,
     ...settings,
@@ -216,9 +217,8 @@ describe('HindsightIngestionService', () => {
 
   test('opt-out and rollout flags stop scheduling work before evidence reaches a provider', async () => {
     for (const settings of [
-      { BACKEND_MEMORY_ENGINE: 'legacy' },
+      { BACKEND_HINDSIGHT_URL: '' },
       { BACKEND_HINDSIGHT_INGESTION_ENABLED: false },
-      { BACKEND_HINDSIGHT_COHORT: 'different-user' },
     ]) {
       const { service, ledger, policy } = setup(settings);
       expect(
@@ -236,23 +236,50 @@ describe('HindsightIngestionService', () => {
     expect(ledger.ingestionSegment).not.toHaveBeenCalled();
   });
 
-  test('isolates shadow namespaces and preserves durable work when queue publication fails', async () => {
-    const { service, ledger, add } = setup({ BACKEND_MEMORY_ENGINE: 'shadow' });
+  test('preserves durable work when queue publication fails', async () => {
+    const { service, ledger, add } = setup();
     add.mockRejectedValue(new Error('Redis unavailable'));
     expect((await service.run('user', 'conversation', 'boundary')).status).toBe(
       'queued',
     );
-    expect(ledger.ingestionSegment).toHaveBeenCalledWith(
-      'user',
-      'test-shadow',
-      'sydia-admission-v1',
-      'conversation',
-      'boundary',
-    );
     expect(ledger.ensureBank).toHaveBeenCalledWith(
       'user',
-      'test-shadow',
-      expect.stringMatching(/^test-shadow-/),
+      'test',
+      expect.stringMatching(/^test-/),
+    );
+  });
+
+  test('a segment with only assistant turns advances the checkpoint without review', async () => {
+    const { service, ledger, policy } = setup();
+    const assistantOnly = { ...segment, messages: [] };
+    ledger.ingestionSegment.mockResolvedValue(assistantOnly);
+    ledger.completeCheckpoint.mockResolvedValue(true);
+
+    // Even without the short-segment allowance: deferring here used to keep
+    // the conversation in every recovery sweep forever.
+    expect(await service.run('user', 'conversation', 'boundary')).toEqual({
+      status: 'completed',
+      sourceCount: 0,
+    });
+    expect(ledger.stageCheckpoint).toHaveBeenCalledWith(assistantOnly, []);
+    expect(ledger.completeCheckpoint).toHaveBeenCalledWith(
+      'user',
+      'checkpoint',
+    );
+    expect(ledger.ensureBank).not.toHaveBeenCalled();
+    expect(policy.approveEvidence).not.toHaveBeenCalled();
+  });
+
+  test('recovery passes idle candidates from every user to ingestion', async () => {
+    const { service, ledger } = setup();
+    ledger.recoverableIngestion.mockResolvedValue([]);
+
+    await service.recover();
+    expect(ledger.recoverableIngestion).toHaveBeenCalledWith(
+      'test',
+      'sydia-admission-v1',
+      expect.any(Date),
+      20,
     );
   });
 });

@@ -6,15 +6,9 @@ import type { MemorySourceSnapshot } from '../entities';
 import type {
   EnqueueMemorySource,
   MemorySourceWriteResult,
-  ReconcileMemoryRollback,
 } from '../interfaces';
 import { PrismaHindsightRepository } from './prisma-hindsight.repository';
 import { PrismaUserPrivacyRepository } from './prisma-user-privacy.repository';
-import { PrismaMemoryRepository } from './prisma-memory.repository';
-import { PrismaConversationRepository } from './prisma-conversation.repository';
-import { PrismaUserRepository } from './prisma-user.repository';
-import { HindsightBackfillService } from '../../modules/memories/hindsight-backfill.service';
-import { MemoryEngineService } from '../../modules/memories/memory-engine.service';
 
 // Opt-in only, and require an explicitly dedicated database (never the app DB).
 const url = process.env.HINDSIGHT_LEDGER_CONTRACT_URL;
@@ -44,9 +38,6 @@ live('Hindsight coordination PostgreSQL contract', () => {
 
   afterAll(async () => {
     // Only identities created by this run, on the dedicated contract database.
-    await prisma.hindsightRollback.deleteMany({
-      where: { userId: { in: owners } },
-    });
     await prisma.hindsightReference.deleteMany({
       where: { delivery: { source: { bank: { userId: { in: owners } } } } },
     });
@@ -137,255 +128,6 @@ live('Hindsight coordination PostgreSQL contract', () => {
     )[0]!;
   }
 
-  async function rollbackFixture() {
-    const fixtureData = await fixture();
-    const { userId, bankId, namespace, input } = fixtureData;
-    const memories = new PrismaMemoryRepository(prisma);
-    const saved = await memories.create(userId, {
-      content: 'The user prefers Indonesian.',
-      sourceType: 'dashboard',
-    });
-
-    const original = snapshot(
-      await repository.enqueue({
-        ...input,
-        kind: 'import',
-        sourceKey: `legacy:${saved.id}`,
-        sourceMessageIds: [],
-        conversationId: null,
-        legacySnapshot: { id: saved.id, updatedAt: saved.updatedAt },
-      }),
-    );
-
-    const token = randomUUID();
-    await repository.claimBank(bankId, token, new Date(Date.now() + 60_000));
-    await admit(original, token, 'old-language');
-    const corrected = snapshot(
-      await repository.enqueue({
-        ...input,
-        kind: 'explicit',
-        sourceKey: original.source.sourceKey,
-        sourceMessageIds: [],
-        conversationId: null,
-        expectedGeneration: 1,
-        content: 'The user now prefers English.',
-        checksum: 'new-language',
-      }),
-    );
-
-    await repository.transitionDelivery(
-      bankId,
-      token,
-      original.deliveries[0]!.id,
-      'erased',
-    );
-    const reference = await admit(corrected, token, 'new-language');
-    await repository.releaseBank(bankId, token, new Date());
-    const boundary = (await repository.rollbackBoundary(userId, bankId))!;
-    const reconcile: ReconcileMemoryRollback = {
-      userId,
-      bankId,
-      namespace,
-      boundary,
-      facts: [
-        {
-          sourceId: corrected.source.id,
-          remoteFactId: 'new-language',
-          text: 'The user now prefers English.',
-          occurredAt: input.eventAt.toISOString(),
-          embedding: [1, ...Array<number>(1535).fill(0)],
-        },
-      ],
-      embeddingModel: 'synthetic-vector',
-      embeddingVersion: 'contract-v1',
-    };
-
-    return { ...fixtureData, saved, corrected, reference, memories, reconcile };
-  }
-
-  test('rollback atomically preserves corrected facts, indexes them, fences the bank, advances the legacy watermark, and is idempotent', async () => {
-    const { userId, bankId, namespace, saved, message, memories, reconcile } =
-      await rollbackFixture();
-
-    const unrelated = await memories.create(userId, {
-      content: 'Unrelated legacy fact',
-    });
-
-    const result = await repository.reconcileRollback(reconcile);
-    expect(result.status).toBe('written');
-    expect(await memories.findById(userId, saved.id)).toBeNull();
-    expect(await memories.findById(userId, unrelated.id)).not.toBeNull();
-    const recovered = (await memories.searchKeyword(userId, 'English', 5))[0]!;
-    expect(recovered).toBeDefined();
-    expect(
-      (
-        await memories.searchVector(
-          userId,
-          reconcile.facts[0]!.embedding,
-          5,
-          0.3,
-        )
-      )[0]?.memory.id,
-    ).toBe(recovered.id);
-    expect(await repository.ensureBank(userId, namespace, bankId)).toBeNull();
-    expect((await repository.findBank(userId, namespace))?.state).toBe(
-      'erasing',
-    );
-    expect(
-      (
-        await prisma.conversation.findUniqueOrThrow({
-          where: { id: message.conversationId },
-        })
-      ).memoryDreamThroughMessageId,
-    ).toBe(message.id);
-    expect((await repository.reconcileRollback(reconcile)).status).toBe(
-      'unchanged',
-    );
-    expect(
-      await prisma.memory.count({
-        where: { userId, content: recovered.content },
-      }),
-    ).toBe(1);
-    expect((await repository.rollbackRecord(userId, bankId))?.factCount).toBe(
-      1,
-    );
-  });
-
-  test('rollback rejects raced messages, live leases, incomplete selections, duplicates, and invalid vectors without changing either corpus', async () => {
-    const { userId, bankId, saved, message, memories, reconcile } =
-      await rollbackFixture();
-
-    expect(
-      (await repository.reconcileRollback({ ...reconcile, facts: [] })).status,
-    ).toBe('stale');
-    expect(
-      (
-        await repository.reconcileRollback({
-          ...reconcile,
-          facts: [reconcile.facts[0]!, reconcile.facts[0]!],
-        })
-      ).status,
-    ).toBe('stale');
-    expect(
-      (
-        await repository.reconcileRollback({
-          ...reconcile,
-          facts: [{ ...reconcile.facts[0]!, embedding: [1] }],
-        })
-      ).status,
-    ).toBe('stale');
-    const token = randomUUID();
-    await repository.claimBank(bankId, token, new Date(Date.now() + 60_000));
-    expect((await repository.reconcileRollback(reconcile)).status).toBe('busy');
-    await repository.releaseBank(bankId, token, new Date());
-    await prisma.message.create({
-      data: {
-        userId,
-        conversationId: message.conversationId,
-        role: 'user',
-        content: 'A concurrent new message',
-      },
-    });
-    expect((await repository.reconcileRollback(reconcile)).status).toBe(
-      'stale',
-    );
-    expect(await repository.rollbackRecord(userId, bankId)).toBeNull();
-    expect(await memories.findById(userId, saved.id)).not.toBeNull();
-    expect(
-      (await repository.findBank(userId, reconcile.namespace))?.state,
-    ).toBe('active');
-  });
-
-  test('old Hindsight references can forget recovered and subsequently corrected legacy facts without message evidence', async () => {
-    const { userId, bankId, corrected, reference, memories, reconcile } =
-      await rollbackFixture();
-
-    await repository.reconcileRollback(reconcile);
-    const recovered = (await memories.searchKeyword(userId, 'English', 5))[0]!;
-    const newer = await memories.supersede(userId, recovered.id, {
-      content: 'The user now prefers Spanish.',
-      sourceMessageIds: [],
-    });
-
-    expect(newer).not.toBeNull();
-    expect(
-      (await repository.resolveReference(userId, reference.reference.id, true))
-        ?.source.id,
-    ).toBe(corrected.source.id);
-    expect(
-      await repository.forgetSources(userId, [
-        { sourceId: corrected.source.id, generation: 2 },
-      ]),
-    ).toBe('deleted');
-    expect(await memories.findById(userId, recovered.id)).toBeNull();
-    expect(await memories.findById(userId, newer!.id)).toBeNull();
-    expect((await repository.reconcileRollback(reconcile)).status).toBe(
-      'unchanged',
-    );
-    expect(await prisma.memory.count({ where: { userId } })).toBe(0);
-    expect(await repository.rollbackRecord('other-owner', bankId)).toBeNull();
-  });
-
-  test('forgetting through a recovered legacy ID withdraws the retired source and does not resurrect on reconciliation replay', async () => {
-    const { userId, corrected, memories, reconcile } = await rollbackFixture();
-    await repository.reconcileRollback(reconcile);
-    const recovered = (await memories.searchKeyword(userId, 'English', 5))[0]!;
-    expect(await memories.delete(userId, recovered.id)).toBe(true);
-    expect(await repository.forget(userId, corrected.source.id, 2)).toBe(
-      'deleted',
-    );
-    expect((await repository.reconcileRollback(reconcile)).status).toBe(
-      'unchanged',
-    );
-    expect(await prisma.memory.count({ where: { userId } })).toBe(0);
-  });
-
-  test('rollback rejects a legacy revision changed after the verified boundary', async () => {
-    const { userId, bankId, saved, reconcile } = await rollbackFixture();
-    await prisma.memory.update({
-      where: { id: saved.id },
-      data: {
-        content: 'Concurrent local correction',
-        updatedAt: new Date(saved.updatedAt.getTime() + 1000),
-      },
-    });
-    expect((await repository.reconcileRollback(reconcile)).status).toBe(
-      'stale',
-    );
-    expect(await repository.rollbackRecord(userId, bankId)).toBeNull();
-    expect(
-      await prisma.memory.findUnique({ where: { id: saved.id } }),
-    ).toMatchObject({ content: 'Concurrent local correction' });
-    expect(
-      (await repository.findBank(userId, reconcile.namespace))?.state,
-    ).toBe('active');
-  });
-
-  test('a prepared rollback cannot cross ownership or recreate facts after account deletion', async () => {
-    const { userId, bankId, reconcile } = await rollbackFixture();
-    const other = await fixture();
-    expect(
-      (
-        await repository.reconcileRollback({
-          ...reconcile,
-          userId: other.userId,
-        })
-      ).status,
-    ).toBe('unavailable');
-    expect(await repository.rollbackRecord(userId, bankId)).toBeNull();
-    expect(
-      await new PrismaUserPrivacyRepository(prisma).deleteAccount(userId),
-    ).toBe(true);
-    expect((await repository.reconcileRollback(reconcile)).status).toBe(
-      'unavailable',
-    );
-    expect(await prisma.memory.count({ where: { userId } })).toBe(0);
-    expect(await repository.rollbackRecord(userId, bankId)).toBeNull();
-    expect(
-      (await repository.findBank(userId, reconcile.namespace))?.state,
-    ).toBe('erasing');
-  });
-
   test('erasure-only recovery excludes active banks and keeps retired bank rechecks', async () => {
     const { input, userId, namespace, bankId } = await fixture();
     await repository.enqueue(input);
@@ -408,117 +150,7 @@ live('Hindsight coordination PostgreSQL contract', () => {
     );
   });
 
-  test('saved-fact backfill is dry by default, resumable, opt-out safe, and fenced against legacy edits and deletion', async () => {
-    const { userId, bankId, namespace, message } = await fixture();
-    await prisma.user.update({
-      where: { id: userId },
-      data: { automaticMemoryEnabled: false },
-    });
-    const memories = new PrismaMemoryRepository(prisma);
-    const saved = await memories.create(userId, {
-      content: 'The user lives in Makassar.',
-      pinned: true,
-      sourceType: 'dashboard',
-    });
-
-    const suppressed = await memories.create(userId, {
-      content: 'A previously forgotten preference',
-      sourceType: 'chat',
-      sourceMessageIds: [message.id],
-    });
-
-    await prisma.hindsightSuppression.create({
-      data: { userId, messageId: message.id },
-    });
-    const backfill = new HindsightBackfillService(
-      memories,
-      repository,
-      new PrismaUserRepository(prisma),
-      new MemoryEngineService(
-        new ConfigService({
-          BACKEND_MEMORY_ENGINE: 'hindsight',
-          BACKEND_HINDSIGHT_NAMESPACE: namespace,
-        }),
-      ),
-      new PrismaConversationRepository(prisma),
-    );
-
-    const dry = await backfill.batch(userId);
-    expect(dry.dryRun).toBe(true);
-    expect(
-      dry.outcomes.find(({ legacyId }) => legacyId === saved.id)?.status,
-    ).toBe('eligible');
-    expect(
-      dry.outcomes.find(({ legacyId }) => legacyId === suppressed.id)?.status,
-    ).toBe('suppressed');
-    expect(
-      await repository.findSource(userId, bankId, `legacy:${saved.id}`),
-    ).toBeNull();
-    const written = await backfill.batch(userId, { dryRun: false, limit: 1 });
-    expect(written.nextCursor).toBe(saved.id);
-    expect(written.outcomes[0]?.status).toBe('written');
-    const source = (await repository.findSource(
-      userId,
-      bankId,
-      `legacy:${saved.id}`,
-    ))!;
-
-    expect(source.source.legacyMemoryId).toBe(saved.id);
-    expect(source.source.kind).toBe('import');
-    expect(
-      (
-        await backfill.batch(userId, {
-          dryRun: false,
-          afterId: written.nextCursor!,
-        })
-      ).outcomes[0]?.status,
-    ).toBe('suppressed');
-    expect(
-      (await backfill.batch(userId, { dryRun: false })).outcomes[0]?.status,
-    ).toBe('unchanged');
-    const token = randomUUID();
-    await repository.claimBank(bankId, token, new Date(Date.now() + 60_000));
-    const refs = await admit(source, token);
-    expect(refs).toBeDefined();
-    await memories.update(userId, saved.id, { pinned: false });
-    expect(
-      await repository.resolveReference(userId, refs.reference.id),
-    ).toBeNull();
-    expect(
-      (await repository.snapshot(userId, source.source.id))!.deliveries[0]!
-        .state,
-    ).toBe('erase_pending');
-    await repository.retireStaleImports(bankId, token);
-    expect(
-      (await repository.snapshot(userId, source.source.id))!.source.state,
-    ).toBe('active');
-    expect(
-      (await backfill.batch(userId, { dryRun: false })).outcomes[0]?.status,
-    ).toBe('written');
-    expect(
-      (await repository.snapshot(userId, source.source.id))!.source.generation,
-    ).toBe(2);
-    await memories.delete(userId, saved.id);
-    expect(
-      (await repository.snapshot(userId, source.source.id))!.source.state,
-    ).toBe('deleted');
-    expect(
-      await repository.enqueue({
-        userId,
-        bankId,
-        sourceKey: 'legacy:deleted-retry',
-        kind: 'import',
-        content: saved.content,
-        checksum: 'retry',
-        sourceMessageIds: [],
-        conversationId: null,
-        eventAt: saved.createdAt,
-        legacySnapshot: { id: saved.id, updatedAt: saved.updatedAt },
-      }),
-    ).toEqual({ status: 'stale' });
-  });
-
-  test('ingestion checkpoints advance after verified admission, stay independent from legacy/shadow, and disappear with the account', async () => {
+  test('ingestion checkpoints advance after verified admission, stay independent per namespace, and disappear with the account', async () => {
     const { userId, bankId, namespace, input, message } = await fixture();
 
     for (const content of [
@@ -611,22 +243,24 @@ live('Hindsight coordination PostgreSQL contract', () => {
       data: { lastMessageAt: new Date(0) },
     });
     expect(
-      await repository.recoverableIngestion(
-        namespace,
-        'policy-v1',
-        new Date(),
-        [userId],
-        20,
-      ),
+      (
+        await repository.recoverableIngestion(
+          namespace,
+          'policy-v1',
+          new Date(),
+          100,
+        )
+      ).filter((candidate) => candidate.userId === userId),
     ).toEqual([]);
     expect(
-      await repository.recoverableIngestion(
-        `${namespace}-shadow`,
-        'policy-v1',
-        new Date(),
-        [userId],
-        20,
-      ),
+      (
+        await repository.recoverableIngestion(
+          `${namespace}-shadow`,
+          'policy-v1',
+          new Date(),
+          100,
+        )
+      ).filter((candidate) => candidate.userId === userId),
     ).toHaveLength(1);
     await prisma.user.update({
       where: { id: userId },
@@ -642,13 +276,14 @@ live('Hindsight coordination PostgreSQL contract', () => {
       ),
     ).toBeNull();
     expect(
-      await repository.recoverableIngestion(
-        `${namespace}-shadow`,
-        'policy-v1',
-        new Date(),
-        [userId],
-        20,
-      ),
+      (
+        await repository.recoverableIngestion(
+          `${namespace}-shadow`,
+          'policy-v1',
+          new Date(),
+          100,
+        )
+      ).filter((candidate) => candidate.userId === userId),
     ).toEqual([]);
     await new PrismaUserPrivacyRepository(prisma).deleteAccount(userId);
     expect(await prisma.hindsightCheckpoint.count({ where: { userId } })).toBe(
@@ -866,7 +501,6 @@ live('Hindsight coordination PostgreSQL contract', () => {
         kind: 'import',
         sourceKey: `legacy:${legacy.id}`,
         sourceMessageIds: [],
-        legacySnapshot: { id: legacy.id, updatedAt: legacy.updatedAt },
       }),
     );
 

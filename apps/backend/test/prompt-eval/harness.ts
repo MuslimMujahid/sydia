@@ -16,13 +16,11 @@ import type {
   AssistancePreference,
   AssistantPersona,
   ChatSource,
-  Memory,
   ToolInvocation,
 } from '../../src/database/entities';
 import type {
   IConversationRepository,
   IDocumentRepository,
-  IMemoryRepository,
 } from '../../src/database/interfaces';
 import { DecisionSettings } from '../../src/infra/decision-gateway';
 import { DecisionCapacityService } from '../../src/infra/decision-gateway/decision-capacity.service';
@@ -43,6 +41,8 @@ import {
   type AssistantTool,
 } from '../../src/modules/conversations/services/tool-executor.service';
 import { TurnDecisionService } from '../../src/modules/conversations/services/turn-decision.service';
+import type { MemoryAccessService } from '../../src/modules/memories/memory-access.service';
+import { MemoryEngineService } from '../../src/modules/memories/memory-engine.service';
 import { activeTurnTools } from '../../src/modules/conversations/services/turn-tool-discovery';
 import {
   ALWAYS_AVAILABLE_TOOLS,
@@ -66,7 +66,7 @@ export type Scenario = {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   summary?: string;
   message: string;
-  /** Pinned memory facts available as reference context. */
+  /** Memory facts that automatic recall returns for this turn. */
   memories?: string[];
   /** Sources the user selected for this message (notes use custom:ID refs). */
   sources?: ChatSource[];
@@ -499,15 +499,10 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
           : null
       ) as AssistancePreference | null;
 
-      const memories: Memory[] = (scenario.memories ?? []).map(
-        (content, index) =>
-          ({
-            id: `memory-${index}`,
-            content,
-            category: null,
-            updatedAt: now,
-          }) as unknown as Memory,
-      );
+      const memories = (scenario.memories ?? []).map((content, index) => ({
+        id: `hm:memory-${index}`,
+        content,
+      }));
 
       const conversations = conversationRepository(scenario, now);
       const builder = new ContextBuilderService(
@@ -518,10 +513,16 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
           listMetadata: () => Promise.resolve([]),
         } as unknown as IDocumentRepository,
         {
-          list: () => Promise.resolve(memories),
-        } as unknown as IMemoryRepository,
-        undefined,
-        undefined,
+          search: () => Promise.resolve(memories),
+        } as unknown as MemoryAccessService,
+        new MemoryEngineService(
+          new ConfigService({
+            BACKEND_HINDSIGHT_URL: 'http://127.0.0.1:1',
+            BACKEND_HINDSIGHT_API_KEY: 'prompt-eval',
+            BACKEND_HINDSIGHT_NAMESPACE: 'prompt-eval',
+            BACKEND_MEMORY_AUTO_RECALL_ENABLED: memories.length > 0,
+          }),
+        ),
         decisions,
         undefined,
         skills,

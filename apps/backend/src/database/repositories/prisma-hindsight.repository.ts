@@ -1,4 +1,4 @@
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { withdrawConnectedMemorySources } from './prisma-memory-coordination';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
@@ -12,16 +12,12 @@ import type {
   ResolvedMemoryReference,
   MemoryCheckpoint,
   MemoryIngestionSegment,
-  MemoryRollback,
-  MemoryRollbackBoundary,
 } from '../entities';
 import type {
   IHindsightRepository,
   EnqueueMemorySource,
   MemorySourceWriteResult,
   MemorySourcesWriteResult,
-  ReconcileMemoryRollback,
-  MemoryRollbackResult,
 } from '../interfaces';
 
 const bankSelect = {
@@ -151,304 +147,6 @@ function presentReference(row: ReferenceRow): ResolvedMemoryReference {
 @Injectable()
 export class PrismaHindsightRepository implements IHindsightRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  rollbackRecord(
-    userId: string,
-    bankId: string,
-  ): Promise<MemoryRollback | null> {
-    return this.prisma.hindsightRollback.findFirst({
-      where: { bankId, userId },
-    });
-  }
-
-  async rollbackBoundary(
-    userId: string,
-    bankId: string,
-  ): Promise<MemoryRollbackBoundary | null> {
-    return this.prisma.$transaction(async (tx) => {
-      if (!(await this.lockOwner(tx, userId))) return null;
-      await this.lockBank(tx, bankId);
-
-      return this.readRollbackBoundary(tx, userId, bankId);
-    });
-  }
-
-  private async readRollbackBoundary(
-    tx: Transaction,
-    userId: string,
-    bankId: string,
-  ): Promise<MemoryRollbackBoundary | null> {
-    const bank = await tx.hindsightBank.findFirst({
-      where: { id: bankId, userId, state: 'active' },
-      select: { leaseUntil: true },
-    });
-
-    if (!bank || (bank.leaseUntil && bank.leaseUntil > new Date())) return null;
-    const sources = await tx.hindsightSource.findMany({
-      where: { bankId },
-      orderBy: { id: 'asc' },
-      select: {
-        ...sourceSelect,
-        deliveries: {
-          orderBy: { generation: 'asc' },
-          select: {
-            id: true,
-            generation: true,
-            checksum: true,
-            state: true,
-            references: {
-              orderBy: { remoteFactId: 'asc' },
-              select: { remoteFactId: true },
-            },
-          },
-        },
-      },
-    });
-
-    for (const source of sources) {
-      if (
-        source.deliveries.some((delivery) =>
-          delivery.generation === source.generation
-            ? !['admitted', 'erased'].includes(delivery.state)
-            : delivery.state !== 'erased',
-        )
-      )
-        return null;
-      const latest = source.deliveries.find(
-        ({ generation }) => generation === source.generation,
-      );
-
-      if (
-        latest?.state === 'admitted' &&
-        (source.state !== 'active' ||
-          !(await this.validImport(tx, userId, source)) ||
-          (await this.suppression(tx, userId, source.sourceMessageIds)).length)
-      )
-        return null;
-    }
-
-    const conversations = await tx.conversation.findMany({
-      where: { userId },
-      orderBy: { id: 'asc' },
-      select: {
-        id: true,
-        messages: {
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          take: 1,
-          select: { id: true },
-        },
-      },
-    });
-
-    const legacyIds = [
-      ...new Set(
-        sources.flatMap((source) => [
-          ...(source.legacyMemoryId ? [source.legacyMemoryId] : []),
-          ...(source.sourceKey.startsWith('legacy:')
-            ? [source.sourceKey.slice(7)]
-            : []),
-        ]),
-      ),
-    ];
-
-    const legacy = await tx.memory.findMany({
-      where: { userId, id: { in: legacyIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, updatedAt: true },
-    });
-
-    return {
-      legacy: legacy.map(({ id, updatedAt }) => ({
-        id,
-        updatedAt: updatedAt.toISOString(),
-      })),
-      sources: sources.map((source) => ({
-        id: source.id,
-        sourceKey: source.sourceKey,
-        kind: source.kind,
-        generation: source.generation,
-        state: source.state,
-        checksum: source.checksum,
-        eventAt: source.eventAt.toISOString(),
-        sourceMessageIds: source.sourceMessageIds,
-        legacyMemoryId: source.legacyMemoryId,
-        legacyUpdatedAt: source.legacyUpdatedAt?.toISOString() ?? null,
-        deliveries: source.deliveries.map((delivery) => ({
-          id: delivery.id,
-          generation: delivery.generation,
-          state: delivery.state,
-          checksum: delivery.checksum,
-          factIds: delivery.references.map(({ remoteFactId }) => remoteFactId),
-        })),
-      })),
-      conversations: conversations.map(({ id, messages }) => ({
-        id,
-        throughMessageId: messages[0]?.id ?? null,
-      })),
-    };
-  }
-
-  async reconcileRollback(
-    input: ReconcileMemoryRollback,
-  ): Promise<MemoryRollbackResult> {
-    return this.prisma.$transaction(
-      async (tx) => {
-        if (!(await this.lockOwner(tx, input.userId)))
-          return { status: 'unavailable' };
-        await this.lockBank(tx, input.bankId);
-        const existing = await tx.hindsightRollback.findFirst({
-          where: { bankId: input.bankId, userId: input.userId },
-        });
-
-        if (existing) return { status: 'unchanged', record: existing };
-        const bank = await tx.hindsightBank.findFirst({
-          where: {
-            id: input.bankId,
-            userId: input.userId,
-            namespace: input.namespace,
-            state: 'active',
-          },
-          select: { leaseUntil: true },
-        });
-
-        if (!bank) return { status: 'unavailable' };
-        if (bank.leaseUntil && bank.leaseUntil > new Date())
-          return { status: 'busy' };
-        const fresh = await this.readRollbackBoundary(
-          tx,
-          input.userId,
-          input.bankId,
-        );
-
-        if (!fresh || JSON.stringify(fresh) !== JSON.stringify(input.boundary))
-          return { status: 'stale' };
-        const expected = new Set(
-          fresh.sources.flatMap((source) => {
-            const delivery = source.deliveries.find(
-              ({ generation }) => generation === source.generation,
-            );
-
-            return source.state === 'active' && delivery?.state === 'admitted'
-              ? delivery.factIds.map((id) => `${source.id}:${id}`)
-              : [];
-          }),
-        );
-
-        if (
-          input.facts.length !== expected.size ||
-          input.facts.some(
-            (fact) =>
-              !expected.delete(`${fact.sourceId}:${fact.remoteFactId}`) ||
-              !fact.text.trim() ||
-              fact.embedding.length !== 1536 ||
-              fact.embedding.some((value) => !Number.isFinite(value)),
-          )
-        )
-          return { status: 'stale' };
-
-        // Replace imported originals with current verified facts; unrelated legacy rows remain.
-        const legacyIds = [
-          ...new Set(
-            fresh.sources.flatMap((source) => [
-              ...(source.legacyMemoryId ? [source.legacyMemoryId] : []),
-              ...(source.sourceKey.startsWith('legacy:')
-                ? [source.sourceKey.slice(7)]
-                : []),
-            ]),
-          ),
-        ];
-
-        await tx.memory.updateMany({
-          where: { userId: input.userId, supersedesId: { in: legacyIds } },
-          data: { supersedesId: null },
-        });
-        await tx.memory.updateMany({
-          where: { userId: input.userId, supersededById: { in: legacyIds } },
-          data: { supersededById: null },
-        });
-        await tx.memory.deleteMany({
-          where: { userId: input.userId, id: { in: legacyIds } },
-        });
-        const rows = input.facts.map((fact) => {
-          const source = fresh.sources.find(({ id }) => id === fact.sourceId)!;
-          const key = `rollback:${source.id}:${source.generation}:${fact.remoteFactId}`;
-
-          return {
-            id: `hr-${createHash('sha256').update(key).digest('hex')}`,
-            key,
-            source,
-            fact,
-          };
-        });
-
-        for (let offset = 0; offset < rows.length; offset += 100) {
-          const batch = rows.slice(offset, offset + 100);
-          await tx.memory.createMany({
-            data: batch.map(({ id, key, source, fact }) => ({
-              id,
-              userId: input.userId,
-              content: fact.text,
-              sourceKey: key,
-              sourceType: 'chat',
-              sourceMessageIds: source.sourceMessageIds,
-              sourceMessageId: source.sourceMessageIds[0] ?? null,
-              extractorVersion: 'hindsight-rollback-v1',
-              embeddingModel: input.embeddingModel,
-              embeddingVersion: input.embeddingVersion,
-              createdAt:
-                fact.occurredAt && Number.isFinite(Date.parse(fact.occurredAt))
-                  ? new Date(fact.occurredAt)
-                  : new Date(source.eventAt),
-            })),
-          });
-          await tx.$executeRaw(
-            Prisma.sql`UPDATE memory AS m SET embedding = v.embedding::vector FROM (VALUES ${Prisma.join(batch.map(({ id, fact }) => Prisma.sql`(${id}, ${`[${fact.embedding.join(',')}]`})`))}) AS v(id, embedding) WHERE m.id = v.id AND m."userId" = ${input.userId}`,
-          );
-        }
-
-        for (const conversation of fresh.conversations)
-          await tx.conversation.update({
-            where: { id: conversation.id },
-            data: {
-              memoryDreamThroughMessageId: conversation.throughMessageId,
-            },
-          });
-        // Permanently fence this bank before switching readers. Recovery keeps erasing it.
-        await tx.hindsightSource.updateMany({
-          where: { bankId: input.bankId },
-          data: { state: 'deleted' },
-        });
-        await tx.hindsightDelivery.updateMany({
-          where: { source: { bankId: input.bankId }, state: { not: 'erased' } },
-          data: { state: 'erase_pending', content: null },
-        });
-        await tx.hindsightBank.update({
-          where: { id: input.bankId },
-          data: {
-            state: 'erasing',
-            leaseToken: null,
-            leaseUntil: null,
-            nextAttemptAt: new Date(),
-          },
-        });
-        const record = await tx.hindsightRollback.create({
-          data: {
-            bankId: input.bankId,
-            userId: input.userId,
-            namespace: input.namespace,
-            boundaryChecksum: createHash('sha256')
-              .update(JSON.stringify(fresh))
-              .digest('hex'),
-            sourceCount: fresh.sources.length,
-            factCount: input.facts.length,
-          },
-        });
-
-        return { status: 'written', record };
-      },
-      { timeout: 120_000 },
-    );
-  }
 
   private async lockOwner(tx: Transaction, userId: string) {
     const rows = await tx.$queryRaw<
@@ -734,7 +432,6 @@ export class PrismaHindsightRepository implements IHindsightRepository {
     namespace: string,
     policyVersion: string,
     idleBefore: Date,
-    userIds: string[],
     limit: number,
   ): Promise<
     Array<{
@@ -750,7 +447,6 @@ export class PrismaHindsightRepository implements IHindsightRepository {
       JOIN LATERAL (SELECT id, "createdAt" FROM message WHERE "conversationId" = c.id AND "userId" = c."userId" ORDER BY "createdAt" DESC, id DESC LIMIT 1) latest ON TRUE
       LEFT JOIN hindsight_checkpoint cp ON cp."conversationId" = c.id AND cp.namespace = ${namespace} AND cp."policyVersion" = ${policyVersion}
       WHERE c."lastMessageAt" <= ${idleBefore} AND cp."pendingMessageId" IS NULL
-        ${userIds.length ? Prisma.sql`AND c."userId" IN (${Prisma.join(userIds)})` : Prisma.empty}
         AND (cp.id IS NULL OR cp."throughCreatedAt" IS NULL OR (latest."createdAt", latest.id) > (cp."throughCreatedAt", cp."throughMessageId"))
       ORDER BY c."lastMessageAt" ASC, c.id ASC LIMIT ${Math.max(1, Math.min(100, limit))}`);
   }
@@ -778,19 +474,6 @@ export class PrismaHindsightRepository implements IHindsightRepository {
     const user = await this.lockOwner(tx, input.userId);
     if (!user || (input.kind === 'automatic' && !user.automaticMemoryEnabled))
       return { status: 'unavailable' };
-    if (
-      input.legacySnapshot &&
-      !(await tx.memory.findFirst({
-        where: {
-          id: input.legacySnapshot.id,
-          userId: input.userId,
-          status: 'active',
-          updatedAt: input.legacySnapshot.updatedAt,
-        },
-        select: { id: true },
-      }))
-    )
-      return { status: 'stale' };
     await this.lockBank(tx, input.bankId);
     const bank = await tx.hindsightBank.findFirst({
       where: { id: input.bankId, userId: input.userId, state: 'active' },
@@ -870,8 +553,9 @@ export class PrismaHindsightRepository implements IHindsightRepository {
       sourceMessageIds,
       conversationId: input.conversationId,
       eventAt: input.eventAt,
-      legacyMemoryId: input.legacySnapshot?.id ?? null,
-      legacyUpdatedAt: input.legacySnapshot?.updatedAt ?? null,
+      // A rewritten source no longer mirrors an imported legacy memory.
+      legacyMemoryId: null,
+      legacyUpdatedAt: null,
     };
 
     if (previous) {
@@ -1524,43 +1208,6 @@ export class PrismaHindsightRepository implements IHindsightRepository {
         where: { id: { in: ids }, userId, role: 'user' },
       })) === ids.length
     );
-  }
-
-  async retireStaleImports(bankId: string, token: string): Promise<number> {
-    return this.prisma.$transaction(async (tx) => {
-      const bank = await tx.hindsightBank.findFirst({
-        where: { ...this.liveLease(bankId, token), state: 'active' },
-        select: { userId: true },
-      });
-
-      if (!bank || !(await this.lockOwner(tx, bank.userId))) return 0;
-      await this.lockBank(tx, bankId);
-      const stale = await tx.$queryRaw<
-        Array<{ id: string; retired: boolean }>
-      >(Prisma.sql`
-        SELECT s.id, (m.id IS NULL OR m.status <> 'active') AS retired FROM hindsight_source s LEFT JOIN memory m
-          ON m.id = s."legacyMemoryId" AND m."userId" = ${bank.userId}
-        WHERE s."bankId" = ${bankId} AND s.state = 'active' AND s."legacyMemoryId" IS NOT NULL
-          AND (m.id IS NULL OR m.status <> 'active' OR m."updatedAt" <> s."legacyUpdatedAt")
-        ORDER BY s.id LIMIT 50`);
-
-      const ids = stale.map(({ id }) => id);
-      if (!ids.length) return 0;
-      await tx.hindsightSource.updateMany({
-        where: {
-          id: {
-            in: stale.filter(({ retired }) => retired).map(({ id }) => id),
-          },
-        },
-        data: { state: 'deleted' },
-      });
-      await tx.hindsightDelivery.updateMany({
-        where: { sourceId: { in: ids }, state: { not: 'erased' } },
-        data: { state: 'erase_pending', content: null },
-      });
-
-      return ids.length;
-    });
   }
 
   async resolveReference(

@@ -114,7 +114,6 @@ const saved: DocumentMetadata = {
           documents,
           undefined,
           undefined,
-          undefined,
           decisions,
         );
 

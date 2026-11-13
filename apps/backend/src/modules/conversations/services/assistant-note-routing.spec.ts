@@ -12,7 +12,6 @@ import {
 } from '../../../infra/model-gateway';
 import { QueueService } from '../../../infra/queue';
 import { BillingAccessService } from '../../billing';
-import { MemoryDreamSchedulerService } from '../../memories/memory-dream-scheduler.service';
 import { NoteOrganizationService } from '../../notes/note-organization.service';
 import { NoteOrganizationSchedulerService } from '../../notes/note-organization-scheduler.service';
 import { AssistantOrchestratorService } from './assistant-orchestrator.service';
@@ -139,12 +138,6 @@ test('the main agent receives a record without depending on a separate capture p
           conversationSummaries: {
             add: jest.fn<() => Promise<unknown>>().mockResolvedValue({}),
           },
-        },
-      },
-      {
-        provide: MemoryDreamSchedulerService,
-        useValue: {
-          schedule: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
         },
       },
       { provide: BillingAccessService, useValue: billingTestAccess() },

@@ -53,16 +53,18 @@ export class HindsightDeliveryService {
     @Optional() private readonly engine?: MemoryEngineService,
   ) {
     this.namespace = config.get<string>('BACKEND_HINDSIGHT_NAMESPACE', '');
-    this.activeNamespaces = [this.namespace, `${this.namespace}-shadow`];
+    this.activeNamespaces = [this.namespace];
+    // Banks left in the removed shadow namespace are only ever erased.
     this.retiredNamespaces = [
-      ...new Set(
-        config
+      ...new Set([
+        `${this.namespace}-shadow`,
+        ...config
           .get<string>('BACKEND_HINDSIGHT_RETIRED_NAMESPACES', '')
           .split(',')
           .map((value) => value.trim())
           .filter(Boolean)
           .flatMap((value) => [value, `${value}-shadow`]),
-      ),
+      ]),
     ].filter((value) => !this.activeNamespaces.includes(value));
     this.configured = Boolean(
       this.namespace &&
@@ -125,8 +127,6 @@ export class HindsightDeliveryService {
         throw new HindsightError('Incompatible Hindsight API version', false);
 
       if (bank.state === 'active') {
-        await this.ledger.retireStaleImports(bankId, token);
-        await this.renew(bankId, token);
         await this.gateway.configureBank(bankId, HINDSIGHT_RETAIN_MISSION);
       }
 
@@ -151,16 +151,9 @@ export class HindsightDeliveryService {
           latest &&
           ['pending', 'submitted', 'retained'].includes(latest.state)
         ) {
-          const mode = this.engine.modeFor(bank.userId);
-          const allowedNamespace =
-            mode === 'shadow'
-              ? this.engine.shadowNamespace()
-              : this.engine.namespace;
-
           if (
             !this.engine.ingestionEnabled ||
-            mode === 'legacy' ||
-            bank.namespace !== allowedNamespace
+            bank.namespace !== this.engine.namespace
           ) {
             await this.ledger.rejectDelivery(bankId, token, latest.id);
             continue;
