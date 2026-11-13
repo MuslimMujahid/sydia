@@ -1,5 +1,6 @@
 import type { PaginationInput } from '../../shared/pagination';
 import type { ModelUsageKind } from './model-usage.repository.interface';
+import type { AdminPeriod } from './admin-analytics.repository.interface';
 
 export type AdminUserStatus = 'active' | 'banned';
 
@@ -40,6 +41,13 @@ export type AdminUser = {
     costUsd: number;
     calls: number;
   }>;
+  /** Actions per bucket of the requested period (days, or hours for short periods). */
+  periodActivity: number[];
+  periodActions: number;
+  periodActiveDays: number;
+  /** Distinct features the user acted in during the period. */
+  periodFeatures: number;
+  periodCostUsd: number;
 };
 
 export type AdminOverview = {
@@ -62,8 +70,10 @@ export type AdminUsersInput = PaginationInput & {
   attention?: 'trial-expiring' | 'plus-expiring';
   environment?: string;
   rolloutAt?: Date;
-  /** `cost` orders by model spend in the last 30 days. */
+  /** `cost` orders by model spend in `period`. */
   sort?: 'newest' | 'oldest' | 'activity' | 'cost';
+  /** Window of the period activity and cost columns; 7 days when omitted. */
+  period?: AdminPeriod;
 };
 
 export type AdminUsersPage = {

@@ -3,7 +3,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AdminPage } from "@/components/admin/admin-page";
 import { DomainInlineError } from "@/components/domain/domain-page";
+import {
+  DEFAULT_PERIOD,
+  periodSearch,
+} from "@/components/admin/analytics/meta";
 import type {
+  AdminPeriod,
   AdminUser,
   AdminUserAction,
   AdminUsersInput,
@@ -19,7 +24,15 @@ import {
 export const Route = createFileRoute("/admin/users")({
   validateSearch: (
     search: Record<string, unknown>
-  ): { attention?: AdminUsersInput["attention"]; q?: string } => ({
+  ): {
+    attention?: AdminUsersInput["attention"];
+    q?: string;
+    period?: AdminPeriod;
+    user?: string;
+  } => ({
+    ...periodSearch(search),
+    user:
+      typeof search.user === "string" && search.user ? search.user : undefined,
     attention:
       search.attention === "trial-expiring" ||
       search.attention === "plus-expiring"
@@ -32,13 +45,24 @@ export const Route = createFileRoute("/admin/users")({
 });
 
 function UsersRoute() {
-  const { attention, q } = Route.useSearch();
+  const { attention, q, period = DEFAULT_PERIOD, user } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   return (
     <UsersContent
-      key={`${attention ?? "all"}:${q ?? ""}`}
+      key={`${attention ?? "all"}:${q ?? ""}:${period}`}
       attention={attention}
       q={q}
+      period={period}
+      onPeriodChange={(next) =>
+        void navigate({ search: (prev) => ({ ...prev, period: next }) })
+      }
+      selectedUserId={user ?? null}
+      onSelectUser={(userId) =>
+        void navigate({
+          search: (prev) => ({ ...prev, user: userId ?? undefined }),
+        })
+      }
     />
   );
 }
@@ -46,12 +70,20 @@ function UsersRoute() {
 function UsersContent({
   attention,
   q,
+  period,
+  onPeriodChange,
+  selectedUserId,
+  onSelectUser,
 }: {
   attention: AdminUsersInput["attention"];
   q?: string;
+  period: AdminPeriod;
+  onPeriodChange: (period: AdminPeriod) => void;
+  selectedUserId: string | null;
+  onSelectUser: (userId: string | null) => void;
 }) {
   const overview = useQuery(adminOverviewQueryOptions());
-  const list = useAdminUsersList({ attention, ...(q ? { q } : {}) });
+  const list = useAdminUsersList({ attention, period, ...(q ? { q } : {}) });
   const action = useAdminUserAction();
   const { mutateAsync: giftPlus } = useAdminGiftPlus();
   const onGiftPlus = useCallback<OnGiftPlus>(
@@ -87,6 +119,10 @@ function UsersContent({
 
   return (
     <AdminPage
+      period={period}
+      onPeriodChange={onPeriodChange}
+      selectedUserId={selectedUserId}
+      onSelectUser={onSelectUser}
       overview={overview.data}
       users={list.query.data.data}
       pagination={list.query.data.pagination}

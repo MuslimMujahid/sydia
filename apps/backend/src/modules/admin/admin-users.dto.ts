@@ -9,7 +9,9 @@ import {
   Min,
 } from 'class-validator';
 import {
+  ACTIVITY_FEATURES,
   ADMIN_PERIODS,
+  type ActivityFeatureKey,
   type AdminPeriod,
   type AdminUsersInput,
   type AdminUserStatus,
@@ -35,8 +37,15 @@ export class AdminUsersQueryDto {
   @IsOptional()
   @IsIn(['newest', 'oldest', 'activity', 'cost'])
   sort?: AdminUsersInput['sort'];
+
+  /** Window of the activity and cost columns. */
+  @IsOptional() @IsIn(ADMIN_PERIODS) period: AdminPeriod = '7d';
 }
 
-export class AdminDashboardQueryDto {
-  @IsIn(ADMIN_PERIODS) period: AdminPeriod = '30d';
+export class AdminPeriodQueryDto {
+  @IsIn(ADMIN_PERIODS) period: AdminPeriod = '7d';
+}
+
+export class AdminFeatureParamsDto {
+  @IsIn(ACTIVITY_FEATURES) feature!: ActivityFeatureKey;
 }

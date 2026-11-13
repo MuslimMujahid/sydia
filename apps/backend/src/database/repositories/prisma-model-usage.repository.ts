@@ -13,7 +13,12 @@ export class PrismaModelUsageRepository implements IModelUsageRepository {
   async record(entry: ModelUsageEntry): Promise<void> {
     // Always the root client: spend is final even when the caller's own
     // transaction later rolls back.
-    await this.prisma.modelUsage.create({ data: entry });
+    await this.prisma.modelUsage.create({
+      data: {
+        ...entry,
+        featureCosts: entry.featureCosts ?? Prisma.DbNull,
+      },
+    });
   }
 
   async recordCumulative({
@@ -25,7 +30,10 @@ export class PrismaModelUsageRepository implements IModelUsageRepository {
     source: string;
     totalUsd: number;
     takenAt: Date;
-    entry: Omit<ModelUsageEntry, 'costUsd' | 'costMissing'>;
+    entry: Omit<
+      ModelUsageEntry,
+      'costUsd' | 'costMissing' | 'featureCosts' | 'cachedInputTokens'
+    >;
   }): Promise<number> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`

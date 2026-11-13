@@ -1,9 +1,14 @@
 import { api, toApiError } from "../api";
 import type { ApiListResponse, ApiResponse } from "../api.types";
 import type {
+  ActivityFeature,
+  AdminCostReport,
+  AdminFeatureDetail,
   AdminOverview,
-  AdminDashboard,
   AdminPeriod,
+  AdminSummary,
+  AdminUsageReport,
+  AdminUserInsights,
   AdminUser,
   AdminUserAction,
   AdminUsersInput,
@@ -76,17 +81,58 @@ export async function updateAdminUser(
   }
 }
 
-export async function getAdminDashboard(
-  period: AdminPeriod
-): Promise<AdminDashboard> {
+async function getAnalytics<T>(
+  path: string,
+  period: AdminPeriod,
+  fallback: string
+): Promise<T> {
   try {
-    return (
-      await api.get<ApiResponse<AdminDashboard>>("/admin/dashboard", {
-        params: { period },
-      })
-    ).data.data;
+    return (await api.get<ApiResponse<T>>(path, { params: { period } })).data
+      .data;
   } catch (error) {
-    console.error("Admin dashboard request failed", error);
-    throw toApiError(error, "Dasbor belum dapat dimuat. Coba lagi.");
+    console.error(`Admin analytics request failed: ${path}`, error);
+    throw toApiError(error, fallback);
   }
+}
+
+export function getAdminSummary(period: AdminPeriod): Promise<AdminSummary> {
+  return getAnalytics(
+    "/admin/summary",
+    period,
+    "Ringkasan tidak dapat dimuat."
+  );
+}
+
+export function getAdminUsage(period: AdminPeriod): Promise<AdminUsageReport> {
+  return getAnalytics(
+    "/admin/usage",
+    period,
+    "Data penggunaan tidak dapat dimuat."
+  );
+}
+
+export function getAdminFeatureDetail(
+  period: AdminPeriod,
+  feature: ActivityFeature
+): Promise<AdminFeatureDetail> {
+  return getAnalytics(
+    `/admin/usage/features/${feature}`,
+    period,
+    "Rincian fitur tidak dapat dimuat."
+  );
+}
+
+export function getAdminCosts(period: AdminPeriod): Promise<AdminCostReport> {
+  return getAnalytics("/admin/costs", period, "Data biaya tidak dapat dimuat.");
+}
+
+export function getAdminUserInsights(
+  period: AdminPeriod,
+  userId: string
+): Promise<AdminUserInsights> {
+  return getAnalytics(
+    `/admin/users/${encodeURIComponent(userId)}/insights`,
+    period,
+    "Rincian pengguna tidak dapat dimuat."
+  );
 }

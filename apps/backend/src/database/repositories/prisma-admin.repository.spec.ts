@@ -62,6 +62,9 @@ function usersRepository(total: bigint) {
   return {
     repository: new PrismaAdminRepository({
       $queryRaw: queryRaw,
+      // Report queries run in a batch transaction after `SET LOCAL jit = off`.
+      $executeRaw: () => Promise.resolve(0),
+      $transaction: (operations: Promise<unknown>[]) => Promise.all(operations),
     } as unknown as PrismaService),
     queryRaw,
   };

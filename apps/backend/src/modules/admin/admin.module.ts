@@ -1,4 +1,4 @@
-import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminAnalyticsService } from './admin-analytics.service';
 import { Module } from '@nestjs/common';
 import {
   ADMIN_ANALYTICS_REPOSITORY,
@@ -23,7 +23,7 @@ import { AdminGiftPlusService } from './admin-gift-plus.service';
       provide: ADMIN_ANALYTICS_REPOSITORY,
       useClass: PrismaAdminAnalyticsRepository,
     },
-    AdminDashboardService,
+    AdminAnalyticsService,
     AdminService,
     AdminGiftPlusService,
   ],

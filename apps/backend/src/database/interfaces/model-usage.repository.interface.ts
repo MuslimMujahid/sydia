@@ -1,3 +1,5 @@
+import type { UsageFeature } from '../../shared/activity/usage-features';
+
 export type ModelUsageKind = 'message' | 'background' | 'hindsight' | 'other';
 
 export type ModelUsageEntry = {
@@ -16,6 +18,12 @@ export type ModelUsageEntry = {
   costMissing: boolean;
   conversationId: string | null;
   runId: string | null;
+  /** Product feature the call's whole cost belongs to. */
+  feature: UsageFeature;
+  /** Per-feature split of a multi-step generation; null when `feature` holds all of it. */
+  featureCosts: Partial<Record<UsageFeature, number>> | null;
+  /** Input tokens served from the provider's prompt cache. */
+  cachedInputTokens: number | null;
 };
 
 export interface IModelUsageRepository {
@@ -30,7 +38,10 @@ export interface IModelUsageRepository {
     source: string;
     totalUsd: number;
     takenAt: Date;
-    entry: Omit<ModelUsageEntry, 'costUsd' | 'costMissing'>;
+    entry: Omit<
+      ModelUsageEntry,
+      'costUsd' | 'costMissing' | 'featureCosts' | 'cachedInputTokens'
+    >;
   }): Promise<number>;
 }
 

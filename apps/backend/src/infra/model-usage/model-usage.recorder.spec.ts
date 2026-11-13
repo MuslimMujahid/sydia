@@ -65,6 +65,81 @@ describe('ModelUsageRecorder', () => {
       costMissing: false,
       conversationId: null,
       runId: 'run-1',
+      feature: 'overhead',
+      featureCosts: null,
+      cachedInputTokens: null,
+    });
+  });
+
+  it('splits a multi-step reply across the features its steps served', async () => {
+    const usage = repository();
+    const recorder = new ModelUsageRecorder(usage);
+
+    withModelUsageScope({ kind: 'message', userId: 'user-1' }, () =>
+      recorder.record({
+        stage: 'assistant.reply',
+        provider: 'openrouter',
+        model: 'm',
+        status: 'ok',
+        costUsd: 0.06,
+        cachedInputTokens: 120,
+        steps: [
+          { costUsd: 0.02, tools: ['create_task'] },
+          { costUsd: 0.01, tools: [] },
+          { costUsd: 0.03, tools: ['save_memory'] },
+        ],
+      }),
+    );
+
+    expect(await recorded(recorder, usage)).toMatchObject({
+      feature: 'chat',
+      featureCosts: { tasks: 0.03, memory: 0.03 },
+      cachedInputTokens: 120,
+    });
+  });
+
+  it('stores a split that served one feature as that feature', async () => {
+    const usage = repository();
+    const recorder = new ModelUsageRecorder(usage);
+
+    withModelUsageScope({ kind: 'message', userId: 'user-1' }, () =>
+      recorder.record({
+        stage: 'assistant.reply',
+        provider: 'openrouter',
+        model: 'm',
+        status: 'ok',
+        costUsd: 0.03,
+        steps: [
+          { costUsd: 0.02, tools: ['search_notes'] },
+          { costUsd: 0.01, tools: [] },
+        ],
+      }),
+    );
+
+    expect(await recorded(recorder, usage)).toMatchObject({
+      feature: 'notes',
+      featureCosts: null,
+    });
+  });
+
+  it('charges a reply without tool calls to chat', async () => {
+    const usage = repository();
+    const recorder = new ModelUsageRecorder(usage);
+
+    withModelUsageScope({ kind: 'message', userId: 'user-1' }, () =>
+      recorder.record({
+        stage: 'assistant.reply',
+        provider: 'openrouter',
+        model: 'm',
+        status: 'ok',
+        costUsd: 0.01,
+        steps: [{ costUsd: 0.01, tools: [] }],
+      }),
+    );
+
+    expect(await recorded(recorder, usage)).toMatchObject({
+      feature: 'chat',
+      featureCosts: null,
     });
   });
 

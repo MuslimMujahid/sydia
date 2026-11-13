@@ -448,11 +448,19 @@ model ModelUsage {
   costMissing    Boolean  @default(false)
   conversationId String?
   runId          String?
+  /// Product feature the whole cost belongs to (chat, notes, memory, …).
+  feature        String   @default("other")
+  /// Per-feature cost split of a multi-step generation; null when `feature`
+  /// holds all of it.
+  featureCosts   Json?
+  /// Input tokens served from the provider's prompt cache.
+  cachedInputTokens Int?
   user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([userId, createdAt])
   @@index([kind, createdAt])
+  @@index([feature, createdAt])
   @@map("model_usage")
 }
 

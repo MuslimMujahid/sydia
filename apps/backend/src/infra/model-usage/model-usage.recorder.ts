@@ -9,6 +9,12 @@ import {
   MODEL_USAGE_REPOSITORY,
   type IModelUsageRepository,
 } from '../../database/interfaces';
+import {
+  USAGE_FEATURES,
+  allocateStepCosts,
+  usageFeature,
+  type GenerationStep,
+} from '../../shared/activity/usage-features';
 import { currentModelUsageScope } from './model-usage.scope';
 
 /** One provider call as a gateway saw it. */
@@ -25,6 +31,10 @@ export type ModelUsageCall = {
   costUsd?: number;
   /** Set when `costUsd` covers only part of the call. */
   costPartial?: boolean;
+  /** Input tokens read from the provider's prompt cache. */
+  cachedInputTokens?: number;
+  /** Per-step cost and tool calls of a multi-step generation. */
+  steps?: readonly GenerationStep[];
   userId?: string;
   conversationId?: string;
   runId?: string;
@@ -67,12 +77,30 @@ export class ModelUsageRecorder implements ModelUsageSink, OnModuleDestroy {
   record(call: ModelUsageCall): void {
     if (!this.usage) return;
     const scope = currentModelUsageScope();
+    const kind = scope?.kind ?? 'other';
+    const job = scope?.job ?? null;
+    const stage = normalizeStage(call.stage);
+    const feature = usageFeature({ stage, job, kind });
+    // A generation that called tools is split per step; otherwise the call's
+    // stage decides. A split with a single feature is stored as that feature.
+    const split =
+      call.steps && call.steps.some((step) => step.tools.length)
+        ? allocateStepCosts(call.steps)
+        : null;
+
+    const splitFeatures = split
+      ? USAGE_FEATURES.filter((name) => split[name] !== undefined)
+      : [];
+
     const write = this.usage
       .record({
         userId: call.userId ?? scope?.userId ?? null,
-        kind: scope?.kind ?? 'other',
-        job: scope?.job ?? null,
-        stage: normalizeStage(call.stage),
+        kind,
+        job,
+        stage,
+        feature: splitFeatures.length === 1 ? splitFeatures[0]! : feature,
+        featureCosts: splitFeatures.length > 1 ? split : null,
+        cachedInputTokens: count(call.cachedInputTokens),
         provider: call.provider,
         model: call.model,
         attempt: call.attempt ?? 1,

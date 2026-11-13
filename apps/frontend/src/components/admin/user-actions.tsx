@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Ban,
+  ChevronDown,
   Ellipsis,
   LogOut,
   Trash2,
@@ -83,30 +84,52 @@ export type PendingUserAction = {
   action: AdminUserAction;
 };
 
+type UserActionsMenuProps = {
+  user: AdminUser;
+  disabled: boolean;
+  onAction: (user: AdminUser, action: AdminUserAction) => void;
+  /** An icon button in table rows, a labelled "Aksi" button in the drawer. */
+  trigger?: "icon" | "button";
+};
+
 export function UserActionsMenu({
   user,
   disabled,
   onAction,
-}: {
-  user: AdminUser;
-  disabled: boolean;
-  onAction: (user: AdminUser, action: AdminUserAction) => void;
-}) {
+  trigger = "icon",
+}: UserActionsMenuProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-8 rounded-[8px] hover:bg-ink/5"
-            aria-label={`Aksi untuk ${user.name}`}
-            disabled={disabled}
-          />
-        }
-      >
-        <Ellipsis aria-hidden="true" />
-      </DropdownMenuTrigger>
+      {trigger === "icon" ? (
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-8 rounded-[8px] hover:bg-ink/5"
+              aria-label={`Aksi untuk ${user.name}`}
+              disabled={disabled}
+            />
+          }
+        >
+          <Ellipsis aria-hidden="true" />
+        </DropdownMenuTrigger>
+      ) : (
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="dark-outline"
+              size="sm"
+              className="min-h-9 rounded-[10px] px-3 py-1.5"
+              aria-label={`Aksi untuk ${user.name}`}
+              disabled={disabled}
+            />
+          }
+        >
+          Aksi
+          <ChevronDown aria-hidden="true" className="text-ink-muted" />
+        </DropdownMenuTrigger>
+      )}
       <DropdownMenuContent align="end">
         {user.status === "active" ? (
           <DropdownMenuItem onClick={() => onAction(user, "ban")}>

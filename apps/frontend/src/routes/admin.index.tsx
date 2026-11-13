@@ -1,42 +1,31 @@
-import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { DashboardPage } from "@/components/admin/dashboard-page";
-import { DomainInlineError } from "@/components/domain/domain-page";
-import { adminDashboardQueryOptions } from "@/lib/services/api/admin/admin.queries";
-import type { AdminPeriod } from "@/components/admin/types";
+import { SummaryPage } from "@/components/admin/summary/summary-page";
+import {
+  DEFAULT_PERIOD,
+  periodSearch,
+} from "@/components/admin/analytics/meta";
+import { adminSummaryQueryOptions } from "@/lib/services/api/admin/admin.queries";
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Beranda · Sydia Admin" }] }),
-  component: AdminHome,
+  validateSearch: periodSearch,
+  head: () => ({ meta: [{ title: "Ringkasan · Sydia Admin" }] }),
+  component: SummaryRoute,
 });
 
-function AdminHome() {
-  const [period, setPeriod] = useState<AdminPeriod>("30d");
-  const query = useQuery(adminDashboardQueryOptions(period));
-  if (query.isPending)
-    return (
-      <p aria-busy="true" role="status">
-        Memuat dasbor…
-      </p>
-    );
-  if (!query.data)
-    return (
-      <DomainInlineError
-        title="Gagal memuat dasbor"
-        message={query.error.message}
-        onRetry={() => void query.refetch()}
-      />
-    );
+function SummaryRoute() {
+  const { period = DEFAULT_PERIOD } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const query = useQuery(adminSummaryQueryOptions(period));
 
   return (
-    <DashboardPage
-      dashboard={query.data}
+    <SummaryPage
       period={period}
-      onPeriodChange={setPeriod}
-      onRefresh={() => void query.refetch()}
+      onPeriodChange={(next) => void navigate({ search: { period: next } })}
+      data={query.data}
+      error={query.error}
       isFetching={query.isFetching}
-      refreshError={query.error?.message ?? null}
+      onRetry={() => void query.refetch()}
     />
   );
 }

@@ -1,32 +1,24 @@
-import type { OnGiftPlus } from "./types";
 import { useCallback, useState } from "react";
+import { Download } from "lucide-react";
+import { PeriodBar } from "./analytics/widgets";
 import { exportAdminUsers } from "./export-users";
-import { ChevronDown, Clock3, Download, Search, X } from "lucide-react";
+import type {
+  AdminOverview,
+  AdminPeriod,
+  AdminUser,
+  AdminUserAction,
+  AdminUsersInput,
+  OnGiftPlus,
+} from "./types";
+import { UserActionDialog, type PendingUserAction } from "./user-actions";
+import { UserDrawer } from "./users/user-drawer";
+import { periodPhrase } from "./users/user-metrics";
+import { UsersToolbar, type StatusFilter } from "./users/users-toolbar";
+import { UsersPagination } from "./users-pagination";
+import { UsersTable } from "./users-table";
 import { EmptyState } from "@/components/app-states";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-import {
-  UserActionDialog,
-  type PendingUserAction,
-} from "@/components/admin/user-actions";
-import { UsersPagination } from "@/components/admin/users-pagination";
-import { UsersTable } from "@/components/admin/users-table";
-import type {
-  AdminOverview,
-  AdminUser,
-  AdminUserAction,
-  AdminUserStatus,
-  AdminUsersInput,
-} from "@/components/admin/types";
-import { cn } from "@/lib/utils/cn";
 
 export type AdminPageProps = {
   overview: AdminOverview;
@@ -34,6 +26,12 @@ export type AdminPageProps = {
   pagination: { offset: number; limit: number; total: number };
   query: string;
   statusFilter: StatusFilter;
+  /** Window of the activity, cost and margin columns. */
+  period: AdminPeriod;
+  onPeriodChange: (period: AdminPeriod) => void;
+  /** User whose detail drawer is open; may be outside the current page. */
+  selectedUserId: string | null;
+  onSelectUser: (userId: string | null) => void;
   filters?: Partial<AdminUsersInput>;
   onFiltersChange?: (filters: Partial<AdminUsersInput>) => void;
   onQueryChange: (query: string) => void;
@@ -51,39 +49,21 @@ export type AdminPageProps = {
   onGiftPlus: OnGiftPlus;
 };
 
-type StatusFilter = AdminUserStatus | "all";
-
-const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: "all", label: "Semua" },
-  { value: "active", label: "Diizinkan" },
-  { value: "banned", label: "Diblokir" },
-];
-
 const DEFAULT_ERROR_MESSAGE = "Aksi gagal dijalankan. Coba lagi.";
 
 function AdminSkeleton() {
   return (
     <div
-      className="space-y-8"
+      className="space-y-3 rounded-2xl border border-ink/6 bg-canvas p-5 shadow-card"
       aria-busy="true"
       aria-label="Memuat data pengguna"
     >
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        {[0, 1, 2, 3, 4, 5].map((index) => (
-          <span
-            key={index}
-            className="h-16 animate-pulse rounded-sm bg-surface-1 motion-reduce:animate-none"
-          />
-        ))}
-      </div>
-      <div className="space-y-3">
-        {[0, 1, 2, 3, 4].map((index) => (
-          <span
-            key={index}
-            className="block h-12 animate-pulse rounded-sm bg-surface-1 motion-reduce:animate-none"
-          />
-        ))}
-      </div>
+      {[0, 1, 2, 3, 4, 5].map((index) => (
+        <span
+          key={index}
+          className="block h-12 animate-pulse rounded-sm bg-surface-1 motion-reduce:animate-none"
+        />
+      ))}
     </div>
   );
 }
@@ -94,6 +74,10 @@ export function AdminPage({
   pagination,
   query,
   statusFilter,
+  period,
+  onPeriodChange,
+  selectedUserId,
+  onSelectUser,
   filters = {},
   onFiltersChange,
   onQueryChange,
@@ -112,7 +96,6 @@ export function AdminPage({
 }: AdminPageProps) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [expandedUserIds, setExpandedUserIds] = useState<string[]>([]);
   const [now] = useState(Date.now);
   const [confirm, setConfirm] = useState<{
     user: AdminUser;
@@ -122,20 +105,17 @@ export function AdminPage({
   const [pending, setPending] = useState<PendingUserAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const handleToggleDetail = useCallback((userId: string) => {
-    setExpandedUserIds((current) =>
-      current.includes(userId)
-        ? current.filter((id) => id !== userId)
-        : [...current, userId]
-    );
-  }, []);
-
   const handleAction = useCallback(
     (user: AdminUser, action: AdminUserAction) => {
       setActionError(null);
       setConfirm({ user, action });
     },
     []
+  );
+
+  const handleSelectUser = useCallback(
+    (userId: string) => onSelectUser(userId),
+    [onSelectUser]
   );
 
   const isFiltering =
@@ -160,6 +140,9 @@ export function AdminPage({
 
     try {
       await actionHandlers[confirm.action](confirm.user);
+      // A deleted account has nothing left to show in its drawer.
+      if (confirm.action === "delete" && confirm.user.id === selectedUserId)
+        onSelectUser(null);
       setConfirm(null);
     } catch (caught) {
       console.error("Admin user action failed", caught);
@@ -184,6 +167,7 @@ export function AdminPage({
         ...filters,
         q: query,
         status: statusFilter,
+        period,
       });
     } catch (error) {
       console.error("Admin CSV export failed", error);
@@ -195,34 +179,46 @@ export function AdminPage({
     }
   }
 
+  const actionsDisabled = pending !== null || isFetching;
+
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
             Pengguna
           </h1>
           <p className="text-[15px] leading-[1.5] text-ink-muted">
-            Pantau status dan aktivitas pengguna, lalu kelola akses akun dengan
-            aman.
+            Pantau aktivitas, biaya dan margin tiap pengguna, lalu kelola akses
+            akun dengan aman.
           </p>
         </div>
-        <Button
-          variant="dark-outline"
-          size="sm"
-          className="rounded-[12px] bg-canvas px-4"
-          disabled={exporting || isLoading || isFetching || !!error}
-          onClick={() => void handleExport()}
-        >
-          <Download aria-hidden="true" />
-          {exporting ? "Mengekspor…" : "Ekspor CSV"}
-        </Button>
-        {exportError && (
-          <p role="alert" className="text-sm text-destructive">
-            {exportError}
-          </p>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          <Button
+            variant="dark-outline"
+            size="sm"
+            className="rounded-[12px] bg-canvas px-4"
+            disabled={exporting || isLoading || isFetching || !!error}
+            onClick={() => void handleExport()}
+          >
+            <Download aria-hidden="true" />
+            {exporting ? "Mengekspor…" : "Ekspor CSV"}
+          </Button>
+          {exportError && (
+            <p role="alert" className="text-sm text-destructive">
+              {exportError}
+            </p>
+          )}
+        </div>
       </header>
+      <PeriodBar
+        period={period}
+        onPeriodChange={onPeriodChange}
+        onRefresh={() => onRetry?.()}
+        isFetching={isFetching}
+        comparison={`Aktivitas, biaya dan margin dihitung untuk ${periodPhrase(period)} terakhir`}
+        status="Margin = nilai paket pada periode − biaya model"
+      />
       {isLoading ? (
         <AdminSkeleton />
       ) : error ? (
@@ -232,195 +228,19 @@ export function AdminPage({
           onRetry={onRetry ?? (() => undefined)}
         />
       ) : (
-        <>
-          <section aria-label="Daftar pengguna" className="space-y-7">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
-              <div
-                role="group"
-                aria-label="Filter status pengguna"
-                className="mr-auto flex items-center gap-6"
-              >
-                {STATUS_FILTERS.map((filter) => {
-                  const active = statusFilter === filter.value;
-                  const count =
-                    filter.value === "all"
-                      ? overview.totalUsers
-                      : filter.value === "active"
-                        ? overview.allowedUsers
-                        : overview.bannedUsers;
-
-                  return (
-                    <button
-                      key={filter.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onStatusChange(filter.value)}
-                      className={cn(
-                        "-mb-px border-b-2 px-0 pb-2 font-sans text-[15px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50",
-                        active
-                          ? "border-brand text-ink"
-                          : "border-transparent text-ink-muted hover:text-ink"
-                      )}
-                    >
-                      {filter.label}{" "}
-                      <span className="font-mono text-[13px] font-medium">
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              {onFiltersChange && (
-                <>
-                  <Popover>
-                    <PopoverTrigger
-                      render={
-                        <Button
-                          variant="dark-outline"
-                          size="sm"
-                          className="h-[42px] rounded-[8px] bg-canvas px-3 text-sm font-normal"
-                        />
-                      }
-                    >
-                      Paket:{" "}
-                      {filters.plan === "plus"
-                        ? "Sydia Plus"
-                        : filters.plan === "trial"
-                          ? "Trial"
-                          : filters.plan === "expired"
-                            ? "Kedaluwarsa"
-                            : "Semua"}
-                      <ChevronDown
-                        aria-hidden="true"
-                        className="text-ink-muted"
-                      />
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 space-y-4">
-                      <PopoverTitle>Filter pengguna</PopoverTitle>
-                      <label className="block text-sm text-ink-muted">
-                        Paket
-                        <select
-                          aria-label="Filter paket"
-                          className="mt-1 block h-10 w-full rounded-[8px] border border-ink/16 bg-canvas px-3 text-sm text-ink focus-visible:outline-brand"
-                          value={filters.plan ?? ""}
-                          onChange={(event) =>
-                            onFiltersChange({
-                              plan: (event.target.value ||
-                                undefined) as AdminUsersInput["plan"],
-                            })
-                          }
-                        >
-                          <option value="">Semua paket</option>
-                          <option value="trial">Trial</option>
-                          <option value="plus">Sydia Plus</option>
-                          <option value="expired">Kedaluwarsa</option>
-                        </select>
-                      </label>
-                      <label className="block text-sm text-ink-muted">
-                        Aktivitas
-                        <select
-                          aria-label="Filter aktivitas"
-                          className="mt-1 block h-10 w-full rounded-[8px] border border-ink/16 bg-canvas px-3 text-sm text-ink focus-visible:outline-brand"
-                          value={filters.activity ?? ""}
-                          onChange={(event) =>
-                            onFiltersChange({
-                              activity: (event.target.value ||
-                                undefined) as AdminUsersInput["activity"],
-                            })
-                          }
-                        >
-                          <option value="">Semua aktivitas</option>
-                          <option value="active">Aktif · 30 hari</option>
-                          <option value="inactive">
-                            Tidak aktif · 30 hari
-                          </option>
-                        </select>
-                      </label>
-                    </PopoverContent>
-                  </Popover>
-                  <label className="relative flex h-[42px] items-center rounded-[8px] border border-ink/16 bg-canvas pl-3 text-sm">
-                    Urutkan:
-                    <select
-                      aria-label="Urutkan pengguna"
-                      className="h-full w-[128px] min-w-0 appearance-none rounded-[8px] bg-transparent pr-9 pl-1 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                      value={filters.sort ?? "newest"}
-                      onChange={(event) =>
-                        onFiltersChange({
-                          sort: event.target.value as AdminUsersInput["sort"],
-                        })
-                      }
-                    >
-                      <option value="newest">Terbaru</option>
-                      <option value="oldest">Terlama</option>
-                      <option value="activity">Aktivitas terakhir</option>
-                      <option value="cost">Biaya 30 hari</option>
-                    </select>
-                    <ChevronDown
-                      aria-hidden="true"
-                      className="pointer-events-none absolute right-3 size-4 text-ink-muted"
-                    />
-                  </label>
-                </>
-              )}
-              <div className="relative w-full min-[1400px]:w-72">
-                <Search
-                  aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-                />
-                <Input
-                  type="search"
-                  aria-label="Cari pengguna"
-                  placeholder="Cari nama atau email"
-                  value={query}
-                  onChange={(event) => onQueryChange(event.target.value)}
-                  className="h-[42px] rounded-[8px] border-ink/16 bg-canvas pl-9"
-                />
-              </div>
-            </div>
-            {(filters.attention || filters.activity) && (
-              <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-muted">
-                <span>Filter aktif:</span>
-                {filters.attention && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1.5 text-brand focus-visible:outline-brand"
-                    onClick={() => onFiltersChange?.({ attention: undefined })}
-                    aria-label="Hapus filter perhatian"
-                  >
-                    <Clock3 className="size-3.5" aria-hidden="true" />
-                    {filters.attention === "trial-expiring"
-                      ? "Trial berakhir ≤ 7 hari"
-                      : "Sydia Plus berakhir ≤ 7 hari"}
-                    <X className="size-3.5" aria-hidden="true" />
-                  </button>
-                )}
-                {filters.activity && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1.5 text-brand focus-visible:outline-brand"
-                    onClick={() => onFiltersChange?.({ activity: undefined })}
-                  >
-                    {filters.activity === "active"
-                      ? "Aktif · 30 hari"
-                      : "Tidak aktif · 30 hari"}
-                    <X className="size-3.5" aria-hidden="true" />
-                  </button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="min-h-8 px-1 text-[13px]"
-                  onClick={onResetFilters}
-                >
-                  Hapus semua
-                </Button>
-                {filters.attention && (
-                  <span className="ml-auto font-mono text-xs">
-                    Dibuka dari Beranda · Perlu perhatian
-                  </span>
-                )}
-              </div>
-            )}
+        <section aria-label="Daftar pengguna" className="space-y-5">
+          <UsersToolbar
+            overview={overview}
+            period={period}
+            statusFilter={statusFilter}
+            query={query}
+            filters={filters}
+            onStatusChange={onStatusChange}
+            onQueryChange={onQueryChange}
+            onFiltersChange={onFiltersChange}
+            onResetFilters={onResetFilters}
+          />
+          <div className="overflow-hidden rounded-2xl border border-ink/6 bg-canvas shadow-card">
             {users.length === 0 && !isFiltering ? (
               <EmptyState
                 title="Belum ada pengguna"
@@ -443,18 +263,23 @@ export function AdminPage({
             ) : (
               <UsersTable
                 users={users}
-                onGiftPlus={onGiftPlus}
-                expandedUserIds={expandedUserIds}
                 now={now}
-                actionsDisabled={pending !== null || isFetching}
-                onToggleDetail={handleToggleDetail}
+                period={period}
+                selectedUserId={selectedUserId}
+                sortedByCost={(filters.sort ?? "cost") === "cost"}
+                onSortByCost={
+                  onFiltersChange && (() => onFiltersChange({ sort: "cost" }))
+                }
+                actionsDisabled={actionsDisabled}
+                onGiftPlus={onGiftPlus}
                 onAction={handleAction}
+                onSelectUser={handleSelectUser}
               />
             )}
             <nav
               aria-label="Paginasi pengguna"
               aria-busy={isFetching}
-              className="flex flex-wrap items-center justify-between gap-3 pt-0"
+              className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/6 px-5 py-4"
             >
               <p className="text-sm text-ink-muted" role="status">
                 {isFetching
@@ -467,9 +292,19 @@ export function AdminPage({
                 onOffsetChange={onOffsetChange}
               />
             </nav>
-          </section>
-        </>
+          </div>
+        </section>
       )}
+      <UserDrawer
+        userId={selectedUserId}
+        user={users.find((user) => user.id === selectedUserId)}
+        period={period}
+        now={now}
+        actionsDisabled={actionsDisabled}
+        onGiftPlus={onGiftPlus}
+        onAction={handleAction}
+        onClose={() => onSelectUser(null)}
+      />
       <UserActionDialog
         confirm={confirm}
         pending={pending !== null}

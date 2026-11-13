@@ -1,18 +1,24 @@
-import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminAnalyticsService } from './admin-analytics.service';
 import {
   Body,
   Controller,
   Get,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiException, ErrorCodes } from '../../shared/errors';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { IsIn } from 'class-validator';
 import type { AdminAction } from './admin.service';
 import { AdminService } from './admin.service';
-import { AdminDashboardQueryDto, AdminUsersQueryDto } from './admin-users.dto';
+import {
+  AdminFeatureParamsDto,
+  AdminPeriodQueryDto,
+  AdminUsersQueryDto,
+} from './admin-users.dto';
 import { AdminGiftPlusDto } from './admin-gift-plus.dto';
 import { AdminGiftPlusService } from './admin-gift-plus.service';
 
@@ -29,7 +35,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly gifts: AdminGiftPlusService,
-    private readonly dashboards: AdminDashboardService,
+    private readonly analytics: AdminAnalyticsService,
   ) {}
 
   @Post('users/:userId/gift-plus')
@@ -39,19 +45,54 @@ export class AdminController {
     @Body() input: AdminGiftPlusDto,
   ) {
     const result = await this.gifts.gift(session.user.id, userId, input);
-    this.dashboards.invalidate();
+    this.analytics.invalidate();
 
     return result;
   }
 
   @Get('overview')
-  async overview() {
-    return (await this.dashboards.dashboard('30d')).overview;
+  overview() {
+    return this.admin.overview();
   }
 
-  @Get('dashboard')
-  dashboard(@Query() input: AdminDashboardQueryDto) {
-    return this.dashboards.dashboard(input.period);
+  @Get('summary')
+  summary(@Query() input: AdminPeriodQueryDto) {
+    return this.analytics.summary(input.period);
+  }
+
+  @Get('usage')
+  usage(@Query() input: AdminPeriodQueryDto) {
+    return this.analytics.usage(input.period);
+  }
+
+  @Get('usage/features/:feature')
+  feature(
+    @Param() params: AdminFeatureParamsDto,
+    @Query() input: AdminPeriodQueryDto,
+  ) {
+    return this.analytics.feature(input.period, params.feature);
+  }
+
+  @Get('costs')
+  costs(@Query() input: AdminPeriodQueryDto) {
+    return this.analytics.costs(input.period);
+  }
+
+  @Get('users/:userId/insights')
+  async userInsights(
+    @Param('userId') userId: string,
+    @Query() input: AdminPeriodQueryDto,
+  ) {
+    const insights = await this.analytics.userInsights(input.period, userId);
+
+    if (!insights)
+      throw new ApiException({
+        code: ErrorCodes.NOT_FOUND,
+        message: 'Pengguna tidak ditemukan.',
+        status: HttpStatus.NOT_FOUND,
+      });
+
+    return insights;
   }
 
   @Get('users')
@@ -66,7 +107,7 @@ export class AdminController {
     @Body() input: AdminActionDto,
   ) {
     const result = await this.admin.act(session.user.id, userId, input.action);
-    this.dashboards.invalidate();
+    this.analytics.invalidate();
 
     return result;
   }

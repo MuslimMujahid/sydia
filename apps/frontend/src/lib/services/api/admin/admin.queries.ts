@@ -6,14 +6,19 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import {
+  getAdminCosts,
+  getAdminFeatureDetail,
   getAdminOverview,
-  getAdminDashboard,
+  getAdminSummary,
+  getAdminUsage,
+  getAdminUserInsights,
   getAdminUsers,
   updateAdminUser,
   giftAdminUserPlus,
 } from "./admin.api";
 import { billingKeys } from "../billing/billing.api";
 import type {
+  ActivityFeature,
   AdminUserAction,
   AdminPeriod,
   AdminUsersInput,
@@ -22,23 +27,72 @@ import type {
 
 export const adminQueryKeys = {
   all: ["admin"] as const,
-  dashboards: () => ["admin", "dashboard"] as const,
-  dashboard: (period: AdminPeriod) => ["admin", "dashboard", period] as const,
+  /** Every analytics read; invalidated after admin actions. */
+  analytics: () => ["admin", "analytics"] as const,
+  summary: (period: AdminPeriod) =>
+    ["admin", "analytics", "summary", period] as const,
+  usage: (period: AdminPeriod) =>
+    ["admin", "analytics", "usage", period] as const,
+  feature: (period: AdminPeriod, feature: ActivityFeature) =>
+    ["admin", "analytics", "feature", period, feature] as const,
+  costs: (period: AdminPeriod) =>
+    ["admin", "analytics", "costs", period] as const,
+  userInsights: (period: AdminPeriod, userId: string) =>
+    ["admin", "analytics", "user", period, userId] as const,
   overview: () => ["admin", "overview"] as const,
   users: () => ["admin", "users"] as const,
   usersPage: (input: AdminUsersInput) => ["admin", "users", input] as const,
 };
 
 // Matches the server cache: short periods change by the minute.
-const dashboardRefreshMs = (period: AdminPeriod) =>
+const analyticsRefreshMs = (period: AdminPeriod) =>
   period === "today" || period === "24h" ? 30_000 : 120_000;
 
-export const adminDashboardQueryOptions = (period: AdminPeriod) =>
+const analytics = (period: AdminPeriod) => ({
+  staleTime: analyticsRefreshMs(period),
+  refetchInterval: analyticsRefreshMs(period),
+  placeholderData: keepPreviousData,
+});
+
+export const adminSummaryQueryOptions = (period: AdminPeriod) =>
   queryOptions({
-    queryKey: adminQueryKeys.dashboard(period),
-    queryFn: () => getAdminDashboard(period),
-    staleTime: dashboardRefreshMs(period),
-    refetchInterval: dashboardRefreshMs(period),
+    queryKey: adminQueryKeys.summary(period),
+    queryFn: () => getAdminSummary(period),
+    ...analytics(period),
+  });
+
+export const adminUsageQueryOptions = (period: AdminPeriod) =>
+  queryOptions({
+    queryKey: adminQueryKeys.usage(period),
+    queryFn: () => getAdminUsage(period),
+    ...analytics(period),
+  });
+
+export const adminFeatureQueryOptions = (
+  period: AdminPeriod,
+  feature: ActivityFeature
+) =>
+  queryOptions({
+    queryKey: adminQueryKeys.feature(period, feature),
+    queryFn: () => getAdminFeatureDetail(period, feature),
+    staleTime: analyticsRefreshMs(period),
+  });
+
+export const adminCostsQueryOptions = (period: AdminPeriod) =>
+  queryOptions({
+    queryKey: adminQueryKeys.costs(period),
+    queryFn: () => getAdminCosts(period),
+    ...analytics(period),
+  });
+
+export const adminUserInsightsQueryOptions = (
+  period: AdminPeriod,
+  userId: string
+) =>
+  queryOptions({
+    queryKey: adminQueryKeys.userInsights(period, userId),
+    queryFn: () => getAdminUserInsights(period, userId),
+    staleTime: analyticsRefreshMs(period),
   });
 
 export const adminOverviewQueryOptions = () =>
@@ -69,7 +123,7 @@ export function useAdminUserAction() {
       invalidateQueries: [
         adminQueryKeys.overview(),
         adminQueryKeys.users(),
-        adminQueryKeys.dashboards(),
+        adminQueryKeys.analytics(),
       ],
     },
   });
@@ -88,7 +142,7 @@ export function useAdminGiftPlus() {
       invalidateQueries: [
         adminQueryKeys.users(),
         adminQueryKeys.overview(),
-        adminQueryKeys.dashboards(),
+        adminQueryKeys.analytics(),
         billingKeys.status,
       ],
     },
@@ -101,6 +155,8 @@ export function useAdminUsersList(initial: Partial<AdminUsersInput> = {}) {
     limit: 25,
     q: "",
     status: "all",
+    period: "7d",
+    sort: "cost",
     ...initial,
   });
 
@@ -137,7 +193,7 @@ export function useAdminUsersList(initial: Partial<AdminUsersInput> = {}) {
         plan: undefined,
         activity: undefined,
         attention: undefined,
-        sort: "newest",
+        sort: "cost",
         offset: 0,
       }));
     },

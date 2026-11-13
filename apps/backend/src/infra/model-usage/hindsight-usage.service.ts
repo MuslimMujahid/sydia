@@ -57,6 +57,7 @@ export class HindsightUsageService {
         kind: 'hindsight',
         job: 'hindsight',
         stage: 'hindsight',
+        feature: 'memory',
         provider: 'openrouter',
         model: 'hindsight',
         attempt: 1,

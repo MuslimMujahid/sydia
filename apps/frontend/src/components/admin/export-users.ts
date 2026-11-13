@@ -1,14 +1,16 @@
 import { getAdminUsers } from "@/lib/services/api/admin/admin.api";
 import type { AdminUser, AdminUsersInput } from "./types";
+import { marginIdr, periodDays } from "./users/user-metrics";
 
 // Quoting alone does not prevent spreadsheets from executing formula cells.
-function csvCell(value: string | number | null): string {
-  const text = value === null ? "" : String(value);
+function csvCell(value: string | number | null | undefined): string {
+  const text = value === null || value === undefined ? "" : String(value);
   const safe = /^[\s]*[=+@-]/u.test(text) ? `'${text}` : text;
 
   return `"${safe.replaceAll('"', '""')}"`;
 }
 
+/** Exports every matching user; margin follows the users table (see user-metrics). */
 export async function exportAdminUsers(input: AdminUsersInput): Promise<void> {
   const users: AdminUser[] = [];
   let offset = 0;
@@ -30,6 +32,7 @@ export async function exportAdminUsers(input: AdminUsersInput): Promise<void> {
     offset += page.data.length;
   } while (offset < total);
 
+  const days = periodDays(input.period ?? "7d");
   const rows = [
     [
       "Nama",
@@ -40,6 +43,11 @@ export async function exportAdminUsers(input: AdminUsersInput): Promise<void> {
       "Aktivitas terakhir",
       "Plus hingga",
       "Pembayaran (IDR)",
+      "Aksi periode",
+      "Hari aktif periode",
+      "Fitur periode",
+      "Biaya periode (USD)",
+      "Margin periode (IDR)",
     ],
     ...users.map((user) => [
       user.name,
@@ -50,6 +58,11 @@ export async function exportAdminUsers(input: AdminUsersInput): Promise<void> {
       user.lastActivityAt,
       user.paidUntil,
       user.paymentTotalIdr,
+      user.periodActions,
+      user.periodActiveDays,
+      user.periodFeatures,
+      user.periodCostUsd,
+      Math.round(marginIdr(user.plan, user.periodCostUsd, days)),
     ]),
   ];
 

@@ -36,6 +36,8 @@ import { Route as AppSecretsRouteImport } from './routes/_app.secrets'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminCostsRouteImport } from './routes/admin.costs'
+import { Route as AdminUsageRouteImport } from './routes/admin.usage'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
 import { Route as AdminWhatsappRouteImport } from './routes/admin_.whatsapp'
@@ -182,6 +184,16 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCostsRoute = AdminCostsRouteImport.update({
+  id: '/costs',
+  path: '/costs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsageRoute = AdminUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -265,6 +277,8 @@ export interface FileRoutesByFullPath {
   '/secrets': typeof AppSecretsRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/tasks': typeof AppTasksRoute
+  '/admin/costs': typeof AdminCostsRoute
+  '/admin/usage': typeof AdminUsageRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
@@ -302,6 +316,8 @@ export interface FileRoutesByTo {
   '/secrets': typeof AppSecretsRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/tasks': typeof AppTasksRoute
+  '/admin/costs': typeof AdminCostsRoute
+  '/admin/usage': typeof AdminUsageRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
@@ -343,6 +359,8 @@ export interface FileRoutesById {
   '/_app/secrets': typeof AppSecretsRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/tasks': typeof AppTasksRoute
+  '/admin/costs': typeof AdminCostsRoute
+  '/admin/usage': typeof AdminUsageRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin_/login': typeof AdminLoginRoute
   '/admin_/whatsapp': typeof AdminWhatsappRoute
@@ -385,6 +403,8 @@ export interface FileRouteTypes {
     | '/secrets'
     | '/settings'
     | '/tasks'
+    | '/admin/costs'
+    | '/admin/usage'
     | '/admin/users'
     | '/admin/login'
     | '/admin/whatsapp'
@@ -422,6 +442,8 @@ export interface FileRouteTypes {
     | '/secrets'
     | '/settings'
     | '/tasks'
+    | '/admin/costs'
+    | '/admin/usage'
     | '/admin/users'
     | '/admin/login'
     | '/admin/whatsapp'
@@ -462,6 +484,8 @@ export interface FileRouteTypes {
     | '/_app/secrets'
     | '/_app/settings'
     | '/_app/tasks'
+    | '/admin/costs'
+    | '/admin/usage'
     | '/admin/users'
     | '/admin_/login'
     | '/admin_/whatsapp'
@@ -688,6 +712,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/costs': {
+      id: '/admin/costs'
+      path: '/costs'
+      fullPath: '/admin/costs'
+      preLoaderRoute: typeof AdminCostsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/usage': {
+      id: '/admin/usage'
+      path: '/usage'
+      fullPath: '/admin/usage'
+      preLoaderRoute: typeof AdminUsageRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/users'
@@ -825,11 +863,15 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminRouteChildren {
+  AdminCostsRoute: typeof AdminCostsRoute
+  AdminUsageRoute: typeof AdminUsageRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCostsRoute: AdminCostsRoute,
+  AdminUsageRoute: AdminUsageRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

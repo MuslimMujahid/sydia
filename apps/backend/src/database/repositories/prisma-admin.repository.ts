@@ -1,5 +1,12 @@
 import { BILLING_TRIAL_DAYS } from '../../shared/billing-policy';
-import { userActivitySql, verifiedPaymentsSql } from './admin-analytics.sql';
+import {
+  actionsSql,
+  costRowsSql,
+  reportQuery,
+  userActivitySql,
+  verifiedPaymentsSql,
+} from './admin-analytics.sql';
+import { adminPeriodWindow } from './prisma-admin-analytics.repository';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
@@ -168,7 +175,9 @@ export class PrismaAdminRepository implements IAdminRepository {
 
   async overview(now: Date): Promise<AdminOverview> {
     const [rows, costs] = await Promise.all([
-      this.prisma.$queryRaw<OverviewRow[]>(Prisma.sql`
+      reportQuery<OverviewRow[]>(
+        this.prisma,
+        Prisma.sql`
         WITH activity AS (${userActivitySql(new Date(now.getTime() - 30 * 86_400_000), now)}), payments AS (${verifiedPaymentsSql('production')})
         SELECT
           COUNT(*)::bigint AS "totalUsers",
@@ -180,7 +189,8 @@ export class PrismaAdminRepository implements IAdminRepository {
           COALESCE((SELECT SUM(f."size") FROM "file_asset" f), 0)::bigint AS "storageBytes",
           COALESCE((SELECT SUM(r."costUsd") FROM "model_usage" r), 0)::decimal AS "llmCostUsd"
         FROM "user" u
-      `),
+      `,
+      ),
       this.prisma.$queryRaw<CostRow[]>(Prisma.sql`
         SELECT r."model", COALESCE(SUM(r."costUsd"), 0)::decimal AS "costUsd"
         FROM "model_usage" r
@@ -241,9 +251,15 @@ export class PrismaAdminRepository implements IAdminRepository {
 
     const monthAgo = new Date(now.getTime() - 30 * 86_400_000);
     const cost30Days = Prisma.sql`(SELECT SUM(mu."costUsd") FROM model_usage mu WHERE mu."userId"=u.id AND mu."createdAt">=${monthAgo} AND mu."createdAt"<${now})`;
+    const window = adminPeriodWindow(now, input.period ?? '7d');
+    const unit = Prisma.raw(`'${window.bucket}'`);
+    const local = (column: Prisma.Sql) =>
+      Prisma.sql`date_trunc(${unit}, ${column} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jakarta')`;
+
+    const periodCost = Prisma.sql`(SELECT SUM(mu."costUsd") FROM model_usage mu WHERE mu."userId"=u.id AND mu."createdAt">=${window.from} AND mu."createdAt"<${now})`;
     const order =
       input.sort === 'cost'
-        ? Prisma.sql`${cost30Days} DESC NULLS LAST, u."id" DESC`
+        ? Prisma.sql`${periodCost} DESC NULLS LAST, u."id" DESC`
         : input.sort === 'oldest'
           ? Prisma.sql`u."createdAt" ASC, u."id" ASC`
           : input.sort === 'activity'
@@ -264,12 +280,20 @@ export class PrismaAdminRepository implements IAdminRepository {
       Math.max(0, Math.ceil(total / input.limit) - 1) * input.limit,
     );
 
-    const rows = await this.prisma.$queryRaw<AdminUserRow[]>(Prisma.sql`
+    const rows = await reportQuery<AdminUserRow[]>(
+      this.prisma,
+      Prisma.sql`
       WITH page_users AS MATERIALIZED (
         SELECT u."id", u."name", u."email", u."banned", u."createdAt", u."updatedAt"
         FROM "user" u ${where}
         ORDER BY ${order}
         LIMIT ${input.limit} OFFSET ${offset}
+      ),
+      period_acts AS MATERIALIZED (
+        SELECT * FROM (${actionsSql(window.from, now)}) a WHERE a."userId" IN (SELECT id FROM page_users)
+      ),
+      period_buckets AS (
+        SELECT generate_series(${local(Prisma.sql`${window.from}::timestamp`)}, ${local(Prisma.sql`${now}::timestamp`)}, ${Prisma.raw(`interval '1 ${window.bucket}'`)}) AS b
       )
       SELECT
         u."id",
@@ -286,6 +310,11 @@ export class PrismaAdminRepository implements IAdminRepository {
           'lastPaymentAt',(SELECT MAX(p."verifiedAt") AT TIME ZONE 'UTC' FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'}),
           'lastPaymentMethod',(SELECT o."paymentMethod" FROM billing_payment p JOIN billing_order o ON o.id=p."orderId" WHERE o."userId"=u.id AND p.environment=${input.environment ?? 'production'} ORDER BY p."verifiedAt" DESC LIMIT 1),
           'llmCost30DaysUsd',COALESCE(${cost30Days},0),
+          'periodActivity',(SELECT json_agg((SELECT COUNT(*) FROM period_acts a WHERE a."userId"=u.id AND ${local(Prisma.sql`a."occurredAt"`)}=pb.b) ORDER BY pb.b) FROM period_buckets pb),
+          'periodActions',(SELECT COUNT(*) FROM period_acts a WHERE a."userId"=u.id),
+          'periodActiveDays',(SELECT COUNT(DISTINCT date_trunc('day', a."occurredAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jakarta')) FROM period_acts a WHERE a."userId"=u.id),
+          'periodFeatures',(SELECT COUNT(DISTINCT a.feature) FROM period_acts a WHERE a."userId"=u.id),
+          'periodCostUsd',COALESCE((SELECT SUM(k.cost) FROM (${costRowsSql(window.from, now)}) k WHERE k."userId"=u.id),0),
           'llmCost30DaysByKind',COALESCE((SELECT json_agg(x ORDER BY x."costUsd" DESC) FROM (SELECT mu.kind,COALESCE(SUM(mu."costUsd"),0) AS "costUsd",COUNT(*) AS calls FROM model_usage mu WHERE mu."userId"=u.id AND mu."createdAt">=${monthAgo} AND mu."createdAt"<${now} GROUP BY mu.kind) x),'[]'::json)
         ) AS details,
         (SELECT b."paidUntil" FROM "billing_account" b WHERE b."userId" = u."id") AS "paidUntil",
@@ -304,7 +333,8 @@ export class PrismaAdminRepository implements IAdminRepository {
         (SELECT COUNT(*) FROM "calendar_event" x WHERE x."userId" = u."id")::bigint AS "events"
       FROM page_users u
       ORDER BY ${order}
-    `);
+    `,
+    );
 
     const items = rows.map((row) => ({
       ...row.details,

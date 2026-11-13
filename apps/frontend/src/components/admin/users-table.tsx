@@ -1,167 +1,159 @@
-import { memo, useId } from "react";
-import { ChevronDown } from "lucide-react";
+import { memo, type MouseEvent } from "react";
+import { AlertTriangle, ChevronDown } from "lucide-react";
+import { Sparkline } from "./analytics/charts";
+import { ACTIVITY_FEATURES } from "./analytics/meta";
+import { formatCount, formatUsd } from "./format";
 import { GiftPlusPopover } from "./gift-plus-popover";
-import { remainingDays, UserDetailPanel } from "./user-detail-panel";
-import { formatDate } from "./format";
-import { UserActionsMenu } from "./user-actions";
 import type {
+  AdminPeriod,
   AdminUser,
   AdminUserAction,
-  AdminUserStatus,
   OnGiftPlus,
 } from "./types";
-import { Button } from "@/components/ui/button";
+import { UserActionsMenu } from "./user-actions";
+import { PlanBadge, UserAvatar } from "./users/user-badges";
+import {
+  GROUP_LABELS,
+  costFlag,
+  engagementGroup,
+  formatRecent,
+  formatSignedIdr,
+  marginIdr,
+  pageTypicalCostPerAction,
+  periodDays,
+  periodPhrase,
+  type CostFlag,
+} from "./users/user-metrics";
 import { cn } from "@/lib/utils/cn";
 
-function StatusBadge({ status }: { status: AdminUserStatus }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-ink/6 bg-canvas px-2 py-0.5 text-xs leading-4 text-ink-muted">
-      <span
-        aria-hidden="true"
-        className={cn(
-          "size-1.5 rounded-full",
-          status === "active" ? "bg-brand" : "bg-destructive"
-        )}
-      />
-      {status === "active" ? "Diizinkan" : "Diblokir"}
-    </span>
-  );
-}
+type RowContext = {
+  now: number;
+  period: AdminPeriod;
+  typical: number | null;
+  actionsDisabled: boolean;
+  onGiftPlus: OnGiftPlus;
+  onAction: (user: AdminUser, action: AdminUserAction) => void;
+  onSelectUser: (userId: string) => void;
+};
 
-function PlanBadge({ user, now }: { user: AdminUser; now: number }) {
-  const trialDays =
-    user.trialEndsAt !== null ? remainingDays(user.trialEndsAt, now) : null;
+type UserRowProps = RowContext & { user: AdminUser; selected: boolean };
 
-  const plusDays =
-    user.paidUntil !== null ? remainingDays(user.paidUntil, now) : null;
-
-  const urgent =
-    (user.plan === "trial" && trialDays !== null && trialDays <= 3) ||
-    (user.plan === "plus" && plusDays !== null && plusDays <= 3);
-
-  const expiry =
-    user.paidUntil !== null
-      ? new Intl.DateTimeFormat("id-ID", {
-          day: "numeric",
-          month: "short",
-        }).format(new Date(user.paidUntil))
-      : null;
-
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-ink/6 bg-canvas px-2 py-0.5 text-xs leading-4 text-ink-muted">
-      {(user.plan !== "trial" || urgent) && (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "size-1.5 rounded-full",
-            urgent
-              ? "bg-orange-700"
-              : user.plan === "plus"
-                ? "bg-brand"
-                : "bg-ink-muted"
-          )}
-        />
-      )}
-      {user.plan === "plus"
-        ? `Plus${expiry ? ` · s.d. ${expiry}` : ""}`
-        : user.plan === "trial"
-          ? `Trial${trialDays !== null ? ` · ${trialDays} hari lagi` : ""}`
-          : user.plan === "expired"
-            ? "Trial berakhir"
-            : "Belum diberlakukan"}
-    </span>
-  );
-}
-
-function UserIdentity({ user }: { user: AdminUser }) {
+function UserIdentity({
+  user,
+  onSelectUser,
+}: Pick<UserRowProps, "user" | "onSelectUser">) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <span
-        aria-hidden="true"
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium",
-          user.status === "banned"
-            ? "bg-destructive/10 text-destructive"
-            : "bg-brand/10 text-brand"
-        )}
+      <UserAvatar name={user.name} banned={user.status === "banned"} />
+      <button
+        type="button"
+        aria-label={`Buka detail ${user.name}`}
+        onClick={() => onSelectUser(user.id)}
+        className="min-w-0 rounded-sm text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50"
       >
-        {user.name
-          .trim()
-          .split(/\s+/)
-          .slice(0, 2)
-          .map((part) => part[0])
-          .join("")
-          .toLocaleUpperCase("id-ID")}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-[15px] font-medium leading-5 text-ink">
+        <span className="block truncate text-sm leading-5 font-semibold text-ink hover:underline">
           {user.name}
-        </p>
-        <p className="truncate text-[13px] leading-[18px] text-ink-muted">
+        </span>
+        <span className="block truncate text-xs leading-[18px] text-ink-muted">
           {user.email}
-        </p>
-      </div>
+        </span>
+      </button>
     </div>
   );
 }
 
-function LastActivity({ value }: { value: string | null }) {
-  return value ? (
-    <time dateTime={value}>
-      {new Intl.DateTimeFormat("id-ID", {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(new Date(value))}
-    </time>
-  ) : (
-    <>Belum pernah aktif</>
+function groupLabel(user: AdminUser, period: AdminPeriod): string {
+  return GROUP_LABELS[
+    engagementGroup({
+      actions: user.periodActions,
+      activeDays: user.periodActiveDays,
+      features: user.periodFeatures,
+      days: periodDays(period),
+      lastActivityAt: user.lastActivityAt,
+    })
+  ];
+}
+
+function Activity({ user }: { user: AdminUser }) {
+  return (
+    <span className="inline-flex items-end gap-2.5">
+      <Sparkline values={user.periodActivity} className="h-5 w-[84px]" />
+      <span
+        className={cn(
+          "font-mono text-xs whitespace-nowrap",
+          user.periodActions === 0 ? "text-ink-muted" : "text-ink"
+        )}
+      >
+        {formatCount(user.periodActions)} aksi
+      </span>
+    </span>
   );
 }
 
-type UserRowProps = {
-  user: AdminUser;
-  now: number;
-  expanded: boolean;
-  actionsDisabled: boolean;
-  onGiftPlus: OnGiftPlus;
-  onToggleDetail: (userId: string) => void;
-  onAction: (user: AdminUser, action: AdminUserAction) => void;
-};
+function Cost({ user, flag }: { user: AdminUser; flag: CostFlag }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 font-mono text-[13px] font-semibold whitespace-nowrap",
+        flag === "leak"
+          ? "text-red-600"
+          : flag === "idle"
+            ? "text-amber-700"
+            : "text-ink"
+      )}
+    >
+      {formatUsd(user.periodCostUsd)}
+      {flag && (
+        <>
+          <AlertTriangle aria-hidden="true" className="size-3.5" />
+          <span className="sr-only">
+            {flag === "leak" ? "Biaya tidak wajar" : "Biaya tanpa aksi"}
+          </span>
+        </>
+      )}
+    </span>
+  );
+}
+
+function Margin({ user, period }: { user: AdminUser; period: AdminPeriod }) {
+  const value = Math.round(
+    marginIdr(user.plan, user.periodCostUsd, periodDays(period))
+  );
+
+  return (
+    <span
+      className={cn(
+        "font-mono text-xs whitespace-nowrap",
+        value > 0
+          ? "text-emerald-700"
+          : value < 0
+            ? "text-red-600"
+            : "text-ink-muted"
+      )}
+    >
+      {formatSignedIdr(value)}
+    </span>
+  );
+}
+
+function LastActive({ user, now }: { user: AdminUser; now: number }) {
+  return user.lastActivityAt ? (
+    <time dateTime={user.lastActivityAt}>
+      {formatRecent(user.lastActivityAt, now)}
+    </time>
+  ) : (
+    <span aria-label="Belum pernah aktif">—</span>
+  );
+}
 
 function RowActions({
   user,
-  expanded,
   actionsDisabled,
-  onToggleDetail,
   onGiftPlus,
   onAction,
-  panelId,
-}: UserRowProps & { panelId: string }) {
+}: UserRowProps) {
   return (
-    <div className="flex items-center justify-end gap-1">
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-expanded={expanded}
-        aria-controls={panelId}
-        aria-label={`Detail penggunaan untuk ${user.name}`}
-        onClick={() => onToggleDetail(user.id)}
-        className={cn(
-          "min-h-8 rounded-[8px] px-2.5 py-1.5 text-[13px] text-ink hover:bg-ink/5",
-          expanded && "bg-ink/5"
-        )}
-      >
-        Detail{" "}
-        <ChevronDown
-          aria-hidden="true"
-          className={cn(
-            "size-3.5 transition-transform motion-reduce:transition-none",
-            expanded && "rotate-180"
-          )}
-        />
-      </Button>
+    <div className="flex items-center justify-end gap-0.5">
       <GiftPlusPopover
         user={user}
         disabled={actionsDisabled}
@@ -176,131 +168,209 @@ function RowActions({
   );
 }
 
+/**
+ * Opens the drawer for clicks anywhere on a row except its own controls and
+ * anything portalled out of it (popovers and menus bubble through React).
+ */
+function openFromRow(
+  event: MouseEvent<HTMLElement>,
+  userId: string,
+  onSelectUser: (userId: string) => void
+) {
+  const target = event.target;
+  if (!(target instanceof Element) || !event.currentTarget.contains(target))
+    return;
+  if (target.closest("button, a, input, select, label, [role='menu']")) return;
+  onSelectUser(userId);
+}
+
 const UserTableRow = memo(function UserTableRow(props: UserRowProps) {
-  const { user, now, expanded } = props;
-  const panelId = useId();
+  const { user, now, period, typical, selected, onSelectUser } = props;
 
   return (
-    <>
-      <tr
+    <tr
+      onClick={(event) => openFromRow(event, user.id, onSelectUser)}
+      className={cn(
+        "cursor-pointer border-b border-ink/6 last:border-0 hover:bg-ink/[0.025]",
+        selected && "bg-brand/[0.04]"
+      )}
+    >
+      <td className="py-3 pr-4 pl-5">
+        <UserIdentity user={user} onSelectUser={onSelectUser} />
+      </td>
+      <td className="py-3 pr-4">
+        <PlanBadge user={user} now={now} />
+      </td>
+      <td
         className={cn(
-          "h-[65px] border-b border-ink/6",
-          expanded && "bg-ink/[0.025]"
+          "py-3 pr-4 text-[13px]",
+          user.periodActions === 0 ? "text-ink-muted" : "text-ink"
         )}
       >
-        <td className="py-3 pr-4">
-          <UserIdentity user={user} />
-        </td>
-        <td className="py-3 pr-4">
-          <PlanBadge user={user} now={now} />
-        </td>
-        <td className="py-3 pr-4">
-          <StatusBadge status={user.status} />
-        </td>
-        <td className="py-3 pr-4 font-mono text-[13px] text-ink-muted">
-          <time dateTime={user.createdAt}>{formatDate(user.createdAt)}</time>
-        </td>
-        <td className="py-3 pr-4 font-mono text-[13px] text-ink-muted">
-          <LastActivity value={user.lastActivityAt} />
-        </td>
-        <td className="py-3">
-          <RowActions {...props} panelId={panelId} />
-        </td>
-      </tr>
-      {expanded && (
-        <tr className="border-b border-ink/6 bg-ink/[0.025]">
-          <td colSpan={6} id={panelId} className="pt-4 pr-4 pb-5 pl-[60px]">
-            <UserDetailPanel user={user} now={now} />
-          </td>
-        </tr>
-      )}
-    </>
+        {groupLabel(user, period)}
+      </td>
+      <td className="py-3 pr-4">
+        <Activity user={user} />
+      </td>
+      <td className="py-3 pr-4 font-mono text-xs">
+        {user.periodFeatures}/{ACTIVITY_FEATURES.length}
+      </td>
+      <td className="py-3 pr-4">
+        <Cost user={user} flag={costFlag(user, typical)} />
+      </td>
+      <td className="py-3 pr-4">
+        <Margin user={user} period={period} />
+      </td>
+      <td className="py-3 pr-4 text-[13px] whitespace-nowrap text-ink-muted">
+        <LastActive user={user} now={now} />
+      </td>
+      <td className="py-3 pr-3">
+        <RowActions {...props} />
+      </td>
+    </tr>
   );
 });
 
 const UserCard = memo(function UserCard(props: UserRowProps) {
-  const { user, now, expanded } = props;
-  const panelId = useId();
+  const { user, now, period, typical, selected, onSelectUser } = props;
 
   return (
     <li
-      className={cn("border-b border-ink/6 py-4", expanded && "bg-ink/[0.025]")}
+      onClick={(event) => openFromRow(event, user.id, onSelectUser)}
+      className={cn(
+        "space-y-3 border-b border-ink/6 px-4 py-4 last:border-0 sm:px-5",
+        selected && "bg-brand/[0.04]"
+      )}
     >
-      <div className="flex items-center justify-between gap-3">
-        <UserIdentity user={user} />
-        <StatusBadge status={user.status} />
-      </div>
-      <div className="mt-3 pl-11">
+      <div className="flex items-start justify-between gap-3">
+        <UserIdentity user={user} onSelectUser={onSelectUser} />
         <PlanBadge user={user} now={now} />
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-3 pl-11 text-xs text-ink-muted">
-        <div>
-          <dt className="mb-1">Daftar</dt>
-          <dd className="font-mono">{formatDate(user.createdAt)}</dd>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 pl-11 text-xs sm:grid-cols-4">
+        <div className="col-span-2 sm:col-span-1">
+          <dt className="mb-1 text-ink-muted">
+            Aktivitas {periodPhrase(period)}
+          </dt>
+          <dd>
+            <Activity user={user} />
+          </dd>
         </div>
         <div>
-          <dt className="mb-1">Aktivitas terakhir</dt>
-          <dd className="font-mono">
-            <LastActivity value={user.lastActivityAt} />
+          <dt className="mb-1 text-ink-muted">Kelompok · Fitur</dt>
+          <dd>
+            {groupLabel(user, period)} ·{" "}
+            <span className="font-mono">
+              {user.periodFeatures}/{ACTIVITY_FEATURES.length}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="mb-1 text-ink-muted">Biaya · Margin</dt>
+          <dd className="flex flex-wrap items-center gap-x-2">
+            <Cost user={user} flag={costFlag(user, typical)} />
+            <Margin user={user} period={period} />
+          </dd>
+        </div>
+        <div>
+          <dt className="mb-1 text-ink-muted">Terakhir aktif</dt>
+          <dd>
+            <LastActive user={user} now={now} />
           </dd>
         </div>
       </dl>
-      <div className="mt-3">
-        <RowActions {...props} panelId={panelId} />
-      </div>
-      {expanded && (
-        <div id={panelId} className="mt-4">
-          <UserDetailPanel user={user} now={now} />
-        </div>
-      )}
+      <RowActions {...props} />
     </li>
   );
 });
 
-type UsersTableProps = Omit<UserRowProps, "user" | "expanded"> & {
+type UsersTableProps = Omit<RowContext, "typical"> & {
   users: AdminUser[];
-  expandedUserIds: string[];
+  selectedUserId: string | null;
+  sortedByCost: boolean;
+  onSortByCost?: () => void;
 };
+
+const HEADER_CELL =
+  "py-3 pr-4 text-xs font-medium whitespace-nowrap text-ink-muted";
 
 export function UsersTable({
   users,
-  expandedUserIds,
-  ...props
+  selectedUserId,
+  sortedByCost,
+  onSortByCost,
+  ...context
 }: UsersTableProps) {
+  const typical = pageTypicalCostPerAction(users);
+  const phrase = periodPhrase(context.period);
+
   return (
-    <div className="border-t border-ink/6 pt-7">
-      <div className="hidden xl:block">
-        <table className="w-full table-fixed border-collapse text-left">
+    <>
+      <div className="relative hidden overflow-x-auto xl:block">
+        <table className="w-full min-w-[1120px] border-collapse text-left">
           <caption className="sr-only">
-            Daftar pengguna Sydia beserta status dan aktivitasnya
+            Daftar pengguna Sydia beserta paket, aktivitas, biaya dan margin{" "}
+            {phrase}
           </caption>
           <colgroup>
             <col />
-            <col className="w-[15%]" />
-            <col className="w-[11.4%]" />
-            <col className="w-[12.3%]" />
-            <col className="w-[16.9%]" />
-            <col className="w-60" />
+            <col className="w-[160px]" />
+            <col className="w-[96px]" />
+            <col className="w-[170px]" />
+            <col className="w-[60px]" />
+            <col className="w-[120px]" />
+            <col className="w-[104px]" />
+            <col className="w-[120px]" />
+            <col className="w-[164px]" />
           </colgroup>
           <thead>
             <tr className="border-b border-ink/6">
-              {[
-                "Pengguna",
-                "Paket",
-                "Akses",
-                "Daftar",
-                "Aktivitas terakhir",
-              ].map((label) => (
-                <th
-                  key={label}
-                  scope="col"
-                  className="pb-3 pr-4 pt-2 text-[13px] font-medium text-ink-muted"
-                >
-                  {label}
-                </th>
-              ))}
+              <th scope="col" className={cn(HEADER_CELL, "pl-5")}>
+                Pengguna
+              </th>
+              <th scope="col" className={HEADER_CELL}>
+                Paket
+              </th>
+              <th scope="col" className={HEADER_CELL}>
+                Kelompok
+              </th>
+              <th scope="col" className={HEADER_CELL}>
+                Aktivitas {phrase}
+              </th>
+              <th scope="col" className={HEADER_CELL}>
+                Fitur
+              </th>
+              <th
+                scope="col"
+                aria-sort={sortedByCost ? "descending" : undefined}
+                className={HEADER_CELL}
+              >
+                {onSortByCost ? (
+                  <button
+                    type="button"
+                    onClick={onSortByCost}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-sm outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
+                      sortedByCost && "text-ink"
+                    )}
+                  >
+                    Biaya {phrase}
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={cn("size-3.5", !sortedByCost && "opacity-40")}
+                    />
+                  </button>
+                ) : (
+                  `Biaya ${phrase}`
+                )}
+              </th>
+              <th scope="col" className={HEADER_CELL}>
+                Margin
+              </th>
+              <th scope="col" className={HEADER_CELL}>
+                Terakhir aktif
+              </th>
               <th scope="col">
-                <span className="sr-only">Detail dan aksi</span>
+                <span className="sr-only">Aksi</span>
               </th>
             </tr>
           </thead>
@@ -309,8 +379,9 @@ export function UsersTable({
               <UserTableRow
                 key={user.id}
                 user={user}
-                expanded={expandedUserIds.includes(user.id)}
-                {...props}
+                selected={user.id === selectedUserId}
+                typical={typical}
+                {...context}
               />
             ))}
           </tbody>
@@ -321,11 +392,12 @@ export function UsersTable({
           <UserCard
             key={user.id}
             user={user}
-            expanded={expandedUserIds.includes(user.id)}
-            {...props}
+            selected={user.id === selectedUserId}
+            typical={typical}
+            {...context}
           />
         ))}
       </ul>
-    </div>
+    </>
   );
 }

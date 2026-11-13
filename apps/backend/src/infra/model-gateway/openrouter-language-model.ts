@@ -758,7 +758,16 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
       // Provider cost of every finished step, so a failed attempt still
       // records what it was billed for.
       const stepCosts: Array<number | undefined> = [];
-      let attemptUsage: { inputTokens?: number; outputTokens?: number } = {};
+      // Tools each finished step called, parallel to stepCosts, so the ledger
+      // can charge every step to the features it served.
+      const stepTools: string[][] = [];
+      let currentStepTools: string[] = [];
+      let attemptUsage: {
+        inputTokens?: number;
+        outputTokens?: number;
+        cachedInputTokens?: number;
+      } = {};
+
       lastTextEmitted = false;
       lastExecutedToolNames = [];
       let usageRecorded = false;
@@ -784,6 +793,10 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
           attempt,
           status,
           ...attemptUsage,
+          steps: stepCosts.map((costUsd, index) => ({
+            ...(costUsd === undefined ? {} : { costUsd }),
+            tools: stepTools[index] ?? [],
+          })),
           ...(cost.costUsd === undefined ? {} : { costUsd: cost.costUsd }),
           // A failed attempt may also be billed for the step it was cut off in.
           costPartial: cost.costPartial || (status === 'failed' && !rejected),
@@ -882,6 +895,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                     }
                   } else if (chunk.type === 'tool-call') {
                     stepCalledTool = true;
+                    currentStepTools.push(chunk.toolName);
                     executedToolNames.add(chunk.toolName);
                     lastExecutedToolNames = [...executedToolNames];
                     request.onToolCall?.(chunk.toolName);
@@ -896,6 +910,8 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                     flushStep();
                     usage = chunk.usage;
                     stepCosts.push(openRouterCost(chunk.providerMetadata));
+                    stepTools.push(currentStepTools);
+                    currentStepTools = [];
                   } else if (chunk.type === 'finish') {
                     usage = chunk.totalUsage;
                   }
@@ -927,6 +943,7 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 attemptUsage = {
                   inputTokens: normalizedUsage.inputTokens,
                   outputTokens: normalizedUsage.outputTokens,
+                  cachedInputTokens: cache.cacheReadTokens,
                 };
                 recordUsage('ok');
                 this.logCacheUsage(request, cache);
@@ -974,9 +991,16 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   openRouterCost(step.providerMetadata),
                 ),
               );
+              stepTools.push(
+                ...result.steps.map((step) =>
+                  step.toolCalls.map((call) => call.toolName),
+                ),
+              );
               attemptUsage = {
                 inputTokens: tokenCount(result.totalUsage.inputTokens),
                 outputTokens: tokenCount(result.totalUsage.outputTokens),
+                cachedInputTokens: cacheUsage(result.totalUsage)
+                  .cacheReadTokens,
               };
 
               for (const step of result.steps)

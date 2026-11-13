@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import type { OnGiftPlus } from "../src/components/admin/types";
+import { useCallback, useState } from "react";
+import type { AdminPeriod, OnGiftPlus } from "../src/components/admin/types";
 import { createRoot } from "react-dom/client";
 import {
   createMemoryHistory,
@@ -23,8 +23,16 @@ import { createQueryClient } from "../src/lib/query-client";
 const client = createQueryClient();
 client.setDefaultOptions({ queries: { retry: false } });
 
+// `?user=<id>` opens the drawer on load, like a link from Ringkasan.
+const initialUser = new URLSearchParams(window.location.search).get("user");
+
 function AdminFixture() {
   const list = useAdminUsersList();
+  const [period, setPeriod] = useState<AdminPeriod>("7d");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(
+    initialUser
+  );
+
   const { mutateAsync: giftPlus } = useAdminGiftPlus();
   const handleGiftPlus = useCallback<OnGiftPlus>(
     (user, input) => giftPlus({ userId: user.id, input }),
@@ -45,6 +53,13 @@ function AdminFixture() {
           llmCostUsd: 0,
           llmCostBreakdown: [],
         }}
+        period={period}
+        onPeriodChange={(next) => {
+          setPeriod(next);
+          list.onFiltersChange({ period: next });
+        }}
+        selectedUserId={selectedUserId}
+        onSelectUser={setSelectedUserId}
         users={list.query.data?.data ?? []}
         pagination={
           list.query.data?.pagination ?? { offset: 0, limit: 25, total: 0 }

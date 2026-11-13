@@ -1,9 +1,76 @@
 import { expect, test, type Page } from "@playwright/test";
 
+const BUCKETS = Array.from(
+  { length: 7 },
+  (_, index) => `2026-11-${String(8 + index).padStart(2, "0")}T00:00:00+07:00`
+);
+
+/** 22 actions and US$0,20 over 7 days; memory costs far above the average. */
+function insightsFor(userId: string, period: string) {
+  return {
+    generatedAt: "2026-11-14T12:00:00Z",
+    from: "2026-11-07T17:00:00Z",
+    until: "2026-11-14T12:00:00Z",
+    period,
+    bucket: "day",
+    timezone: "Asia/Jakarta",
+    buckets: BUCKETS,
+    userId,
+    series: BUCKETS.map((_, index) => ({
+      actions:
+        index === 0 ? { chat: 2, notes: 1, memory: 1 } : { chat: 2, notes: 1 },
+      costUsd: index === 0 ? 0.08 : 0.02,
+    })),
+    features: [
+      { feature: "chat", actions: 14, costUsd: 0.1 },
+      { feature: "memory", actions: 1, costUsd: 0.06 },
+      { feature: "notes", actions: 7, costUsd: 0.04 },
+    ],
+    interactiveUsd: 0.14,
+    backgroundUsd: 0.06,
+    previousActions: 10,
+    activeDays: 7,
+    conversations: [
+      {
+        id: "conversation-1",
+        title: "Rencana konten minggu depan",
+        lastMessageAt: "2026-11-12T10:00:00Z",
+        messages: 9,
+        toolSteps: 14,
+        costUsd: 0.08,
+      },
+    ],
+  };
+}
+
+async function mockInsights(page: Page) {
+  const requests: URL[] = [];
+  await page.route("**/admin/users/*/insights?**", async (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url);
+    const userId = url.pathname.split("/").at(-2)!;
+    if (userId === "user-missing")
+      return route.fulfill({
+        status: 404,
+        json: {
+          error: { code: "NOT_FOUND", message: "Pengguna tidak ditemukan" },
+        },
+      });
+    await route.fulfill({
+      json: {
+        data: insightsFor(userId, url.searchParams.get("period") ?? "7d"),
+      },
+    });
+  });
+
+  return requests;
+}
+
 async function openUsers(
   page: Page,
   userCount = 51,
-  expiry: (userId: string) => string | null = () => null
+  expiry: (userId: string) => string | null = () => null,
+  search = ""
 ) {
   const requests: URL[] = [];
   await page.route("**/admin/users?**", async (route) => {
@@ -39,6 +106,12 @@ async function openUsers(
       activeSessions: 0,
       storageBytes: 0,
       llmCostUsd: 0,
+      // User 3 spends far more per action than the rest of the page.
+      periodActivity: [0, 1, 0, 2, 0, 3, 4],
+      periodActions: offset + index === 2 ? 2 : 10,
+      periodActiveDays: 4,
+      periodFeatures: 2,
+      periodCostUsd: offset + index === 2 ? 1.2 : 0.05,
       usage: {
         conversations: 0,
         documents: 0,
@@ -54,10 +127,12 @@ async function openUsers(
       json: { data, pagination: { total, offset, limit: 25 } },
     });
   });
-  await page.goto("/e2e/admin-users.html");
-  await expect(page.getByRole("status")).toHaveText(
-    `Menampilkan 1–${Math.min(25, userCount)} dari ${userCount} pengguna`
-  );
+  await page.goto(`/e2e/admin-users.html${search}`);
+  // An open drawer is modal, so the list status is only checked without one.
+  if (!search)
+    await expect(page.getByRole("status")).toHaveText(
+      `Menampilkan 1–${Math.min(25, userCount)} dari ${userCount} pengguna`
+    );
 
   return requests;
 }
@@ -75,10 +150,7 @@ test("loads 25 users at a time and disables navigation at both ends", async ({
     "Menampilkan 26–50 dari 51 pengguna"
   );
   await expect(
-    page.getByRole("button", {
-      name: "Detail penggunaan untuk User 26",
-      exact: true,
-    })
+    page.getByRole("button", { name: "Buka detail User 26", exact: true })
   ).toBeVisible();
   await expect(page.getByText("User 1", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Berikutnya", exact: true }).click();
@@ -111,10 +183,7 @@ test("searches all users on the server and resets the page", async ({
   expect(requests.at(-1)?.searchParams.get("offset")).toBe("0");
   expect(requests.at(-1)?.searchParams.get("q")).toBe("Ada");
   await expect(
-    page.getByRole("button", {
-      name: "Detail penggunaan untuk Ada",
-      exact: true,
-    })
+    page.getByRole("button", { name: "Buka detail Ada", exact: true })
   ).toBeVisible();
 });
 
@@ -150,24 +219,117 @@ test("empty search can be reset to the first unfiltered page", async ({
   );
 });
 
-test("opens user details without fetching the users again", async ({
+test("opens the user drawer with insights without fetching the users again", async ({
+  page,
+}) => {
+  const insights = await mockInsights(page);
+  const requests = await openUsers(page);
+  const initialRequests = requests.length;
+
+  await page
+    .getByRole("button", { name: "Buka detail User 1", exact: true })
+    .click();
+  const drawer = page.getByRole("dialog", { name: "User 1" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("+12 vs 7 hari sblm")).toBeVisible();
+  await expect(drawer.getByText("7/7", { exact: true })).toBeVisible();
+  await expect(
+    drawer.getByRole("heading", { name: "Aksi per hari", exact: true })
+  ).toBeVisible();
+  await expect(
+    drawer.getByRole("heading", { name: "Biaya per hari", exact: true })
+  ).toBeVisible();
+  await expect(
+    drawer
+      .getByRole("table", { name: "Aksi dan biaya per fitur" })
+      .getByRole("row", { name: /Memori/ })
+  ).toContainText("lebih dari rata-rata");
+  await expect(drawer.getByText("Rencana konten minggu depan")).toBeVisible();
+  await expect(
+    drawer.getByText("12 Nov · 9 pesan · 14 langkah alat")
+  ).toBeVisible();
+  await expect(drawer.getByText("0 perangkat", { exact: true })).toBeVisible();
+  await expect(
+    drawer.getByRole("button", { name: "Aksi untuk User 1", exact: true })
+  ).toBeVisible();
+  expect(insights.at(-1)?.pathname).toMatch(
+    /\/admin\/users\/user-1\/insights$/
+  );
+  expect(insights.at(-1)?.searchParams.get("period")).toBe("7d");
+
+  await drawer
+    .getByRole("group", { name: "Periode detail" })
+    .getByRole("button", { name: "30 hari", exact: true })
+    .click();
+  await expect
+    .poll(() => insights.at(-1)?.searchParams.get("period"))
+    .toBe("30d");
+  expect(requests).toHaveLength(initialRequests);
+
+  await drawer.getByRole("button", { name: "Tutup", exact: true }).click();
+  await expect(drawer).not.toBeVisible();
+});
+
+test("a user outside the current page still opens with insights", async ({
+  page,
+}) => {
+  await mockInsights(page);
+  await openUsers(page, 51, () => null, "?user=user-999");
+  const drawer = page.getByRole("dialog", { name: "Detail pengguna" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("+12 vs 7 hari sblm")).toBeVisible();
+  await expect(drawer.getByText("paket tidak dimuat")).toBeVisible();
+  await expect(drawer.getByRole("heading", { name: "Akun" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(drawer).not.toBeVisible();
+});
+
+test("a deleted user shows a not-found drawer", async ({ page }) => {
+  await mockInsights(page);
+  await openUsers(page, 51, () => null, "?user=user-missing");
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByText("Pengguna tidak ditemukan", { exact: true })
+  ).toBeVisible();
+});
+
+test("flags a user who spends far above the page's typical cost per action", async ({
+  page,
+}) => {
+  await openUsers(page);
+  const leak = page
+    .getByRole("listitem")
+    .or(page.getByRole("row"))
+    .filter({ hasText: "user3@example.com" })
+    .filter({ visible: true });
+
+  await expect(leak.getByText("Biaya tidak wajar")).toHaveCount(1);
+  const normal = page
+    .getByRole("listitem")
+    .or(page.getByRole("row"))
+    .filter({ hasText: "user2@example.com" })
+    .filter({ visible: true });
+
+  await expect(normal.getByText("Biaya tidak wajar")).toHaveCount(0);
+});
+
+test("changing the period refetches the list for that window", async ({
   page,
 }) => {
   const requests = await openUsers(page);
-  const initialRequests = requests.length;
-  const detail = page.getByRole("button", {
-    name: "Detail penggunaan untuk User 1",
-    exact: true,
-  });
-
-  await detail.click();
-  await expect(detail).toHaveAttribute("aria-expanded", "true");
+  expect(requests[0]?.searchParams.get("period")).toBe("7d");
+  expect(requests[0]?.searchParams.get("sort")).toBe("cost");
+  await page
+    .getByRole("group", { name: "Periode", exact: true })
+    .getByRole("button", { name: "30 hari", exact: true })
+    .click();
+  await expect
+    .poll(() => requests.at(-1)?.searchParams.get("period"))
+    .toBe("30d");
   await expect(
-    page.getByRole("heading", { name: "Penggunaan", exact: true })
-  ).toBeVisible();
-  expect(requests).toHaveLength(initialRequests);
-  await detail.click();
-  await expect(detail).toHaveAttribute("aria-expanded", "false");
+    page.getByRole("combobox", { name: "Urutkan pengguna" })
+  ).toContainText("Biaya 30 hari");
 });
 
 test("page numbers jump directly to the selected page and mark the current page", async ({
@@ -496,40 +658,36 @@ test("CSV exports every matching page and protects spreadsheet formula cells", a
   expect(csv).toContain('"\'=DANGEROUS()"');
 });
 
-test("users can compare multiple expanded rows and close them independently", async ({
+test("the user drawer fits the viewport on phones and desktops", async ({
   page,
 }, testInfo) => {
-  await page.setViewportSize({
-    width: testInfo.project.name === "desktop" ? 1440 : 390,
-    height: 1000,
-  });
+  const width = testInfo.project.name === "desktop" ? 1440 : 390;
+  await page.setViewportSize({ width, height: 1000 });
+  await mockInsights(page);
   await openUsers(page, 7);
-  const first = page.getByRole("button", {
-    name: "Detail penggunaan untuk User 1",
-    exact: true,
-  });
+  await page
+    .getByRole("button", { name: "Buka detail User 1", exact: true })
+    .click();
+  const drawer = page.getByRole("dialog", { name: "User 1" });
+  await expect(drawer.getByText("+12 vs 7 hari sblm")).toBeVisible();
+  // The drawer slides in; measure once it has come to rest.
+  await expect
+    .poll(async () => {
+      const box = await drawer.boundingBox();
 
-  const second = page.getByRole("button", {
-    name: "Detail penggunaan untuk User 2",
-    exact: true,
-  });
-
-  await first.click();
-  await second.click();
-  await expect(first).toHaveAttribute("aria-expanded", "true");
-  await expect(second).toHaveAttribute("aria-expanded", "true");
-  await expect(
-    page.getByRole("heading", { name: "Penggunaan", exact: true })
-  ).toHaveCount(2);
+      return box ? box.x + box.width : Infinity;
+    })
+    .toBeLessThanOrEqual(width + 1);
+  const bounds = await drawer.boundingBox();
+  expect(bounds).not.toBeNull();
+  if (width < 600) expect(bounds!.width).toBeGreaterThanOrEqual(width - 1);
+  else expect(bounds!.width).toBeLessThanOrEqual(600);
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth)
-  ).toBeLessThanOrEqual(page.viewportSize()!.width);
+  ).toBeLessThanOrEqual(width);
   await page.screenshot({
-    path: testInfo.outputPath("pengguna-details.png"),
+    path: testInfo.outputPath("pengguna-drawer.png"),
     fullPage: true,
     animations: "disabled",
   });
-  await first.click();
-  await expect(first).toHaveAttribute("aria-expanded", "false");
-  await expect(second).toHaveAttribute("aria-expanded", "true");
 });
