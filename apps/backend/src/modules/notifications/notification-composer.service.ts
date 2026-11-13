@@ -7,7 +7,12 @@ import {
   type ReminderDelivery,
 } from '../../database/interfaces';
 import type { Task, User, CalendarEvent } from '../../database/entities';
-import { REMINDER_TEMPLATES } from './reminder.templates';
+import {
+  IMPORTANT_REMINDER_TEMPLATES,
+  REMINDER_FINAL_TEMPLATES,
+  REMINDER_REPEAT_SUFFIX,
+  REMINDER_TEMPLATES,
+} from './reminder.templates';
 import {
   notificationTaskRow,
   type NotificationBodies,
@@ -27,17 +32,45 @@ export class NotificationComposerService {
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
   ) {}
 
-  /** Reminder delivery text for one occurrence, rendered in the owner's locale. */
-  async reminderBody(reminder: ReminderDelivery): Promise<string> {
+  /**
+   * Reminder delivery text for one occurrence, rendered in the owner's locale.
+   * Important reminders use their own template; `sequence` ≥ 2 marks a repeat.
+   */
+  async reminderBody(
+    reminder: ReminderDelivery,
+    options: { occurrenceAt?: Date; sequence?: number } = {},
+  ): Promise<string> {
+    const user = await this.users.findById(reminder.userId);
+    const locale = localeOf(user?.locale);
+    const sequence = options.sequence ?? 1;
+    const title =
+      reminder.important && sequence > 1
+        ? `${reminder.title}${REMINDER_REPEAT_SUFFIX[locale].replace('{n}', String(sequence))}`
+        : reminder.title;
+
+    return renderTemplate(
+      reminder.important
+        ? IMPORTANT_REMINDER_TEMPLATES[locale]
+        : REMINDER_TEMPLATES[locale],
+      {
+        locale,
+        timezone: user?.timezone ?? 'UTC',
+        title,
+        notes: reminder.notes,
+        time: options.occurrenceAt ?? reminder.scheduledAt,
+      },
+    );
+  }
+
+  /** The single note sent when an important reminder reaches its repeat cap. */
+  async reminderFinalBody(reminder: ReminderDelivery): Promise<string> {
     const user = await this.users.findById(reminder.userId);
     const locale = localeOf(user?.locale);
 
-    return renderTemplate(REMINDER_TEMPLATES[locale], {
+    return renderTemplate(REMINDER_FINAL_TEMPLATES[locale], {
       locale,
       timezone: user?.timezone ?? 'UTC',
       title: reminder.title,
-      notes: reminder.notes,
-      time: reminder.scheduledAt,
     });
   }
 

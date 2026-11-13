@@ -9,6 +9,7 @@ import {
 } from '../../database/repositories';
 import { RemindersController } from './reminders.controller';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
+import { ReminderLifecycleService } from './reminder-lifecycle.service';
 
 @Module({
   controllers: [RemindersController],
@@ -16,7 +17,12 @@ import { ReminderSchedulerService } from './reminder-scheduler.service';
     { provide: REMINDER_REPOSITORY, useClass: PrismaReminderRepository },
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     ReminderSchedulerService,
+    ReminderLifecycleService,
   ],
-  exports: [REMINDER_REPOSITORY, ReminderSchedulerService],
+  exports: [
+    REMINDER_REPOSITORY,
+    ReminderSchedulerService,
+    ReminderLifecycleService,
+  ],
 })
 export class RemindersModule {}

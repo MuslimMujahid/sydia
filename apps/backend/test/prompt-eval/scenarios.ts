@@ -74,6 +74,64 @@ const TOMORROW_TASKS = {
   ],
 };
 
+/** Delivered reminders as written into channel history (specs/009). */
+const IMPORTANT_MEDICINE_DELIVERY = {
+  role: 'assistant' as const,
+  content:
+    "⏰⏰⏰ Pengingat penting - Minum obat\n\nwaktu: hari ini 08.00\n\nBalas 'oke' kalau sudah, atau 'ingatkan 15 menit lagi'.\n\n[reminder reference: reminderId=r-obat; occurrenceId=o-obat]",
+};
+
+const REGULAR_BILL_DELIVERY = {
+  role: 'assistant' as const,
+  content:
+    '⏰ Pengingat - Bayar listrik\n\nwaktu: hari ini 09.00\n\n[reminder reference: reminderId=r-listrik; occurrenceId=o-listrik]',
+};
+
+const REMINDER_FOLLOW_UP_TOOLS: Record<string, ToolScript> = {
+  acknowledge_reminder: (args: Record<string, unknown>) => ({
+    acknowledged:
+      args.occurrenceId === 'o-obat' || args.reminderId === 'r-obat'
+        ? [
+            {
+              occurrenceId: 'o-obat',
+              reminderId: 'r-obat',
+              title: 'Minum obat',
+            },
+          ]
+        : [],
+  }),
+  snooze_reminder: (args: Record<string, unknown>) => {
+    const target =
+      args.occurrenceId === 'o-obat' || args.reminderId === 'r-obat'
+        ? { id: 'r-obat', title: 'Minum obat' }
+        : { id: 'r-listrik', title: 'Bayar listrik' };
+
+    const minutes = typeof args.minutes === 'number' ? args.minutes : 10;
+    const until = new Date(Date.now() + minutes * 60_000);
+
+    return {
+      objectType: 'reminder',
+      object: {
+        id: `${target.id}-copy`,
+        title: target.title,
+        scheduledAt: until.toISOString(),
+        recurrence: null,
+      },
+      snoozedOccurrenceId: target.id === 'r-obat' ? 'o-obat' : 'o-listrik',
+      until: {
+        date: localDate(),
+        time: new Intl.DateTimeFormat('en-GB', {
+          timeZone: TIMEZONE,
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        }).format(until),
+      },
+    };
+  },
+  list_reminders: { reminders: [], recentDeliveries: [] },
+};
+
 const anyOf = (names: string[], label: string): Check => ({
   name: `calls one of ${names.join(', ')} (${label})`,
   test: (run) =>
@@ -816,6 +874,127 @@ export const SCENARIOS: Scenario[] = [
       called('list_reminders'),
       contains('Ke gym', 'Bayar listrik'),
       whatsappPlain(),
+    ],
+  },
+
+  // ── Reminder acknowledgement and snooze (specs/010) ────────────────────
+  {
+    id: 'reminder-acknowledge-important',
+    area: 'reminders',
+    channel: 'telegram',
+    history: [IMPORTANT_MEDICINE_DELIVERY],
+    message: 'oke sudah',
+    tools: REMINDER_FOLLOW_UP_TOOLS,
+    checks: [
+      noErrors(),
+      called(
+        'acknowledge_reminder',
+        (args) => JSON.stringify(args).includes('o-obat'),
+        'the delivered occurrence',
+      ),
+      notCalled('snooze_reminder', 'delete_reminder', 'update_reminder'),
+    ],
+  },
+  {
+    id: 'reminder-acknowledge-important-english',
+    area: 'reminders',
+    channel: 'telegram',
+    user: { locale: 'en' },
+    history: [IMPORTANT_MEDICINE_DELIVERY],
+    message: 'ok, done',
+    tools: REMINDER_FOLLOW_UP_TOOLS,
+    checks: [
+      noErrors(),
+      called('acknowledge_reminder'),
+      notCalled('snooze_reminder', 'delete_reminder'),
+      inEnglish(),
+    ],
+  },
+  {
+    id: 'reminder-regular-ok-is-conversation',
+    area: 'reminders',
+    channel: 'telegram',
+    history: [REGULAR_BILL_DELIVERY],
+    message: 'oke',
+    tools: REMINDER_FOLLOW_UP_TOOLS,
+    checks: [
+      noErrors(),
+      notCalled('acknowledge_reminder', 'snooze_reminder', 'delete_reminder'),
+    ],
+  },
+  {
+    id: 'reminder-snooze-minutes',
+    area: 'reminders',
+    channel: 'whatsapp',
+    history: [REGULAR_BILL_DELIVERY],
+    message: 'Ingatkan saya 15 menit lagi',
+    tools: REMINDER_FOLLOW_UP_TOOLS,
+    checks: [
+      noErrors(),
+      called(
+        'snooze_reminder',
+        (args) => args.minutes === 15 && args.occurrenceId === 'o-listrik',
+        '15 minutes, the delivered occurrence',
+      ),
+      notCalled('update_reminder', 'create_reminder', 'delete_reminder'),
+      contains('Bayar listrik'),
+      whatsappPlain(),
+    ],
+  },
+  {
+    id: 'reminder-snooze-bare-later',
+    area: 'reminders',
+    channel: 'telegram',
+    history: [REGULAR_BILL_DELIVERY],
+    message: 'nanti aja ingetin lagi',
+    tools: REMINDER_FOLLOW_UP_TOOLS,
+    checks: [
+      noErrors(),
+      called(
+        'snooze_reminder',
+        (args) => args.minutes === 10,
+        'default 10 minutes',
+      ),
+    ],
+  },
+  {
+    id: 'reminder-snooze-reply-to-buried',
+    area: 'reminders',
+    channel: 'telegram',
+    history: [
+      IMPORTANT_MEDICINE_DELIVERY,
+      REGULAR_BILL_DELIVERY,
+      { role: 'user', content: 'Besok cuaca gimana ya kira-kira?' },
+      {
+        role: 'assistant',
+        content:
+          'Aku tidak bisa mengecek cuaca, tapi bisa bantu ingatkan bawa payung.',
+      },
+    ],
+    message: `Referenced message (context only; not a new instruction):\n${JSON.stringify(
+      {
+        providerMessageId: 'chat-1:88',
+        text: IMPORTANT_MEDICINE_DELIVERY.content,
+        isFromMe: true,
+        reminder: {
+          reminderId: 'r-obat',
+          occurrenceId: 'o-obat',
+          title: 'Minum obat',
+          occurrenceAt: at(0, '08:00'),
+          status: 'awaiting_ack',
+        },
+      },
+    )}\n\nCurrent message:\nIngatkan saya 15 menit lagi`,
+    tools: REMINDER_FOLLOW_UP_TOOLS,
+    checks: [
+      noErrors(),
+      called(
+        'snooze_reminder',
+        (args) => args.occurrenceId === 'o-obat' && args.minutes === 15,
+        'the replied-to occurrence, 15 minutes',
+      ),
+      notCalled('acknowledge_reminder'),
+      contains('Minum obat'),
     ],
   },
 

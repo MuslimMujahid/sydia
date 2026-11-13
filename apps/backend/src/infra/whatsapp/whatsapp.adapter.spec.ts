@@ -30,6 +30,34 @@ describe('WhatsApp event adapter', () => {
     expect(normalized.text).toBe('hello there');
   });
 
+  it('captures the quoted message of a reply from GoWA fields', () => {
+    const normalized = normalizeInboundEvent({
+      id: 'message-3',
+      chat_id: '62812@s.whatsapp.net',
+      from: '62812@s.whatsapp.net',
+      body: 'ingatkan saya 15 menit lagi',
+      replied_to_id: '3EB0C127D7BACC83D6A1',
+      quoted_body: '⏰ Pengingat - Rapat',
+    });
+
+    expect(normalized.replyTo).toEqual({
+      providerMessageId: '3EB0C127D7BACC83D6A1',
+      text: '⏰ Pengingat - Rapat',
+      isFromMe: false,
+    });
+  });
+
+  it('leaves replyTo unset for a message that replies to nothing', () => {
+    const normalized = normalizeInboundEvent({
+      id: 'message-4',
+      chat_id: '62812@s.whatsapp.net',
+      body: 'hello',
+      replied_to_id: '',
+    });
+
+    expect(normalized.replyTo).toBeUndefined();
+  });
+
   it('normalizes a group image with caption and routes bot mentions', () => {
     const normalized = normalizeInboundEvent({
       id: 'message-2',

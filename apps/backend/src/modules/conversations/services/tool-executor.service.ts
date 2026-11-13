@@ -256,6 +256,11 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
   create_reminder: { en: 'Create reminder', id: 'Membuat pengingat' },
   update_reminder: { en: 'Update reminder', id: 'Memperbarui pengingat' },
   list_reminders: { en: 'Find reminders', id: 'Mencari pengingat' },
+  acknowledge_reminder: {
+    en: 'Acknowledge reminder',
+    id: 'Mengonfirmasi pengingat',
+  },
+  snooze_reminder: { en: 'Snooze reminder', id: 'Menunda pengingat' },
   save_memory: { en: 'Save memory', id: 'Menyimpan memori' },
   update_memory: { en: 'Update memory', id: 'Memperbarui memori' },
   forget_memory: { en: 'Forget memory', id: 'Menghapus memori' },

@@ -10,7 +10,8 @@ import type { AssistantToolDefinition } from './tool-executor.service';
  * `bun run eval:prompts` first, and prefer trimming text that repeats a rule
  * already stated elsewhere.
  */
-const TOOL_DEFINITION_BUDGET_BYTES = 89_000;
+// Raised from 89_000 for acknowledge_reminder and snooze_reminder (specs/010).
+const TOOL_DEFINITION_BUDGET_BYTES = 92_500;
 
 function registeredTools(): AssistantToolDefinition[] {
   const stub = {} as never;

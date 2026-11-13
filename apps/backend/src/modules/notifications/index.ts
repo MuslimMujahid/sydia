@@ -6,3 +6,4 @@ export * from './reminder.templates';
 export * from './notifications.module';
 export * from './proactive.service';
 export * from './secretary-background.service';
+export * from './reminder-history.service';

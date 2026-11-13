@@ -11,11 +11,26 @@ export type CalendarReminderDispatch = {
   timezone: string;
 };
 export type CalendarReminderJob = { kind: 'sweep' } | CalendarReminderDispatch;
-export type ReminderJob = {
+export type ReminderDispatchJob = {
+  kind?: 'dispatch';
   reminderId: string;
   idempotencyKey: string;
   occurrenceId: string;
 };
+/** Repeat `sequence` is the 1-based message number for the occurrence (2..cap). */
+export type ReminderRepeatJob = {
+  kind: 'repeat';
+  reminderId: string;
+  occurrenceId: string;
+  sequence: number;
+};
+export type ReminderFinalJob = {
+  kind: 'final';
+  reminderId: string;
+  occurrenceId: string;
+};
+export type ReminderJob =
+  ReminderDispatchJob | ReminderRepeatJob | ReminderFinalJob;
 export type DocumentJob = { documentId: string; userId: string; hint?: string };
 export type MemoryDreamJob = {
   kind: 'dream' | 'recover';

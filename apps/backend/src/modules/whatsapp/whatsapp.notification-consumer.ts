@@ -4,6 +4,7 @@ import {
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
@@ -19,6 +20,7 @@ import {
   WhatsAppDeliveryQueues,
   type NotificationJob,
 } from '../../infra/queue';
+import { ReminderHistoryService } from '../notifications/reminder-history.service';
 import { WhatsAppService } from './whatsapp.service';
 
 @Injectable()
@@ -37,6 +39,7 @@ export class WhatsAppNotificationConsumer
     private readonly connections: IWhatsAppConnectionRepository,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly notifications: INotificationRepository,
+    @Optional() private readonly history?: ReminderHistoryService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -111,6 +114,7 @@ export class WhatsAppNotificationConsumer
 
     if (result.status === 'delivered' && data.reminderOccurrenceKey) {
       await this.reminders.markOccurrenceDelivered(data.reminderOccurrenceKey);
+      await this.history?.recordDelivered(data);
     }
 
     return result;

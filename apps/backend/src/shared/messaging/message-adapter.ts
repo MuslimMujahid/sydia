@@ -1,5 +1,13 @@
 export type MessageProvider = 'whatsapp' | 'telegram';
 
+export type ReminderReference = {
+  reminderId: string;
+  occurrenceId: string;
+  title: string;
+  occurrenceAt: string;
+  status: string;
+};
+
 export type MessageKind = 'text' | 'image' | 'document' | 'voice' | 'unknown';
 
 export type NormalizedInboundMessage = {
@@ -19,6 +27,8 @@ export type NormalizedInboundMessage = {
     text: string;
     isFromMe: boolean;
     quoteText?: string;
+    /** Set when the quoted message is a delivered reminder. */
+    reminder?: ReminderReference;
   };
   mediaMessage?: Record<string, unknown>;
   raw: Record<string, unknown>;

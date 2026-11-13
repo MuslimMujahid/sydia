@@ -56,6 +56,39 @@ const preferenceSelect = {
 @Injectable()
 export class PrismaNotificationRepository implements INotificationRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findReminderReference(userId: string, occurrenceId: string) {
+    const row = await this.prisma.reminderOccurrence.findFirst({
+      where: { id: occurrenceId, reminder: { userId } },
+      select: {
+        id: true,
+        reminderId: true,
+        occurrenceAt: true,
+        status: true,
+        reminder: { select: { title: true } },
+      },
+    });
+
+    return row
+      ? {
+          reminderId: row.reminderId,
+          occurrenceId: row.id,
+          title: row.reminder.title,
+          occurrenceAt: row.occurrenceAt.toISOString(),
+          status: row.status,
+        }
+      : null;
+  }
+
+  async findDeliveryOccurrenceStatus(userId: string, deliveryId: string) {
+    const row = await this.prisma.notificationDelivery.findFirst({
+      where: { id: deliveryId, userId },
+      select: { reminderOccurrence: { select: { status: true } } },
+    });
+
+    return row?.reminderOccurrence?.status ?? null;
+  }
+
   findDeliveryByProviderMessageId(
     userId: string,
     channel: string,

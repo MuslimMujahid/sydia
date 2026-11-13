@@ -27,6 +27,12 @@ export type NotificationIntent = {
   eventReminder?: CalendarReminderDispatch;
 };
 
+/** Occurrence status a reminder follow-up notification requires to send. */
+const REMINDER_FOLLOW_UP_STATUS: Record<string, string> = {
+  reminder_repeat: 'awaiting_ack',
+  reminder_final: 'expired',
+};
+
 export type NotificationEnqueueResult = {
   deliveries: NotificationDelivery[];
   replayed: boolean;
@@ -202,6 +208,27 @@ export class NotificationService {
     }
 
     return (await this.calendarReminders.resolve(input.eventReminder)) !== null;
+  }
+
+  /**
+   * Repeats send only while their occurrence still awaits acknowledgement and
+   * a final note only while it is expired, so an acknowledgement or snooze on
+   * any channel stops the follow-ups queued for the others.
+   */
+  async reminderFollowUpIsCurrent(input: {
+    kind?: string;
+    userId: string;
+    deliveryId: string;
+  }): Promise<boolean> {
+    const expected = REMINDER_FOLLOW_UP_STATUS[input.kind ?? ''];
+    if (!expected) return true;
+
+    return (
+      (await this.notifications.findDeliveryOccurrenceStatus(
+        input.userId,
+        input.deliveryId,
+      )) === expected
+    );
   }
 
   async missedEventReminderIsCurrent(

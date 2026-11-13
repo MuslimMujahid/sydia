@@ -112,7 +112,7 @@ export class PrismaAdminAnalyticsRepository implements IAdminAnalyticsRepository
       WITH activity AS MATERIALIZED (${userActivitySql(activityFrom, now)}),
       feature_tools(name, feature) AS (VALUES
         ('create_task','tasks'),('update_task','tasks'),('list_tasks','tasks'),
-        ('create_reminder','reminders'),('update_reminder','reminders'),('list_reminders','reminders'),
+        ('create_reminder','reminders'),('update_reminder','reminders'),('list_reminders','reminders'),('acknowledge_reminder','reminders'),('snooze_reminder','reminders'),
         ('save_memory','memories'),('update_memory','memories'),('search_memories','memories'),
         ('write_daily_note','notes'),('read_daily_note','notes'),('search_daily_notes','notes'),
         ('create_custom_note','notes'),('update_custom_note','notes'),('read_custom_note','notes'),('search_notes','notes'),

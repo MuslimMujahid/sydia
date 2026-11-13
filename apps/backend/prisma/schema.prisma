@@ -361,6 +361,7 @@ model Message {
   type              String              @default("text")
   content           String
   providerMessageId String?
+  metadata          Json?
   activeNoteRef     String?
   sourceSegments    Json?
   sourceDocumentIds String[] @default([])
@@ -545,10 +546,14 @@ model Reminder {
   recurrence      Json?
   sourceType      String               @default("dashboard")
   sourceMessageId String?
+  important               Boolean              @default(false)
+  repeatIntervalMinutes   Int                  @default(5)
+  snoozedFromOccurrenceId String?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @default(now()) @updatedAt
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   occurrences     ReminderOccurrence[]
+  snoozedFrom     ReminderOccurrence?  @relation("ReminderSnoozedFrom", fields: [snoozedFromOccurrenceId], references: [id], onDelete: SetNull)
 
   @@index([userId, scheduledAt])
   @@index([userId, updatedAt])
@@ -565,13 +570,19 @@ model ReminderOccurrence {
   attemptedAt            DateTime?
   deliveredAt            DateTime?
   errorMessage           String?
+  important              Boolean                @default(false)
+  messagesSent           Int                    @default(0)
+  lastSentAt             DateTime?
+  acknowledgedAt         DateTime?
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @default(now()) @updatedAt
   reminder               Reminder               @relation(fields: [reminderId], references: [id], onDelete: Cascade)
   notificationDeliveries NotificationDelivery[]
+  snoozeCopies           Reminder[]             @relation("ReminderSnoozedFrom")
 
   @@unique([reminderId, occurrenceAt])
   @@index([status, occurrenceAt])
+  @@index([status, lastSentAt])
   @@map("reminder_occurrence")
 }
 

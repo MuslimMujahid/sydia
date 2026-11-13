@@ -27,6 +27,7 @@ import {
 } from '../../../database/interfaces';
 import { MemoryAccessService } from '../../memories/memory-access.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
+import { ReminderLifecycleService } from '../../reminders/reminder-lifecycle.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import { CalendarReadService } from '../../calendar/calendar-read.service';
 import { CalendarSyncService } from '../../calendar/calendar-sync.service';
@@ -79,6 +80,7 @@ export class DomainToolsProvider {
     @Optional() actions?: AssistantActionService,
     @Optional() policy?: AssistancePolicyService,
     @Optional() cellReview?: RecordCellReviewService,
+    @Optional() lifecycle?: ReminderLifecycleService,
   ) {
     const protectedTools = protectNoteTools(
       [
@@ -91,6 +93,7 @@ export class DomainToolsProvider {
           scheduler,
           users,
           secrets,
+          lifecycle,
         }),
         ...createPhaseTools({
           contacts,
