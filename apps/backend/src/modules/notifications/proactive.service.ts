@@ -65,6 +65,16 @@ function reminderOccurrences(reminder: Reminder, end: Date): Reminder[] {
   return occurrences;
 }
 
+function isEmptyBriefing(snapshot: BriefingSnapshot): boolean {
+  return (
+    snapshot.events.length +
+      snapshot.tasksDueToday.length +
+      snapshot.overdueTasks.length +
+      snapshot.remindersToday.length ===
+    0
+  );
+}
+
 @Injectable()
 export class DailyBriefingService {
   private readonly logger = new Logger(DailyBriefingService.name);
@@ -299,6 +309,10 @@ export class DailyBriefingService {
     >,
     snapshot: BriefingSnapshot,
   ): Promise<string> {
+    // Nothing scheduled today: the deterministic line says all there is, so
+    // an empty day costs no model call.
+    if (isEmptyBriefing(snapshot)) return this.fallback(user, snapshot);
+
     if (!this.model) {
       this.logger.warn(
         'Briefing model is unconfigured; using deterministic introduction.',
@@ -341,12 +355,7 @@ export class DailyBriefingService {
     user: Pick<User, 'locale'>,
     snapshot: BriefingSnapshot,
   ): string {
-    const empty =
-      snapshot.events.length +
-        snapshot.tasksDueToday.length +
-        snapshot.overdueTasks.length +
-        snapshot.remindersToday.length ===
-      0;
+    const empty = isEmptyBriefing(snapshot);
 
     if (localeOf(user.locale) === 'id')
       return empty

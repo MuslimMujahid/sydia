@@ -21,6 +21,7 @@ import type {
 import type { CalendarReadRepository } from '../calendar/calendar-read.service.js';
 import { CalendarReadService } from '../calendar/calendar-read.service.js';
 import type { QueueService } from '../../infra/queue';
+import type { LanguageModelGateway } from '../../infra/model-gateway';
 import {
   DevNotificationDto,
   DevNotificationsController,
@@ -39,6 +40,7 @@ function setup(
   channelsEnabled = true,
   followUpIntervalMinutes = 60,
   weeklyPreferences = { weeklyBriefingEnabled: false, weeklyBriefingDay: 1 },
+  model: LanguageModelGateway | null = null,
 ) {
   const owner: User = {
     id: 'owner',
@@ -152,6 +154,7 @@ function setup(
     reminders,
     calendar,
     notifications,
+    model,
   );
 
   const followUps = new FollowUpService(
@@ -949,3 +952,66 @@ test.each([
     ]);
   },
 );
+
+describe('briefing introduction', () => {
+  function briefingModel() {
+    const generate = jest
+      .fn<LanguageModelGateway['generate']>()
+      .mockResolvedValue({ text: 'Good morning, Owner.' } as Awaited<
+        ReturnType<LanguageModelGateway['generate']>
+      >);
+
+    return {
+      generate,
+      model: { generate } as unknown as LanguageModelGateway,
+    };
+  }
+
+  test('an empty day uses the deterministic line without a model call', async () => {
+    const { generate, model } = briefingModel();
+    const { briefings, createDelivery } = setup(
+      'development',
+      true,
+      true,
+      60,
+      undefined,
+      model,
+    );
+
+    await briefings.run('owner', new Date('2026-10-20T00:00:00Z'));
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(createDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'daily_briefing',
+        content: 'No agenda, tasks due, or reminders today.',
+      }),
+    );
+  });
+
+  test('a day with work asks the model for the introduction', async () => {
+    const { generate, model } = briefingModel();
+    const { briefings, createDelivery, listTasks } = setup(
+      'development',
+      true,
+      true,
+      60,
+      undefined,
+      model,
+    );
+
+    listTasks
+      .mockResolvedValueOnce([
+        briefingTask('Send invoice', '2026-10-20T02:00:00Z'),
+      ])
+      .mockResolvedValueOnce([]);
+    await briefings.run('owner', new Date('2026-10-20T00:00:00Z'));
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(createDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('Good morning, Owner.'),
+      }),
+    );
+  });
+});
