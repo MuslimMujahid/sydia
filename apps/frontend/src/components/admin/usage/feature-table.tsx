@@ -180,9 +180,10 @@ export function FeatureTable({ report, active, onSelect }: FeatureTableProps) {
       <p className="flex gap-2 bg-ink/[0.025] px-4 py-3 text-xs leading-relaxed text-ink-muted sm:px-5">
         <Info aria-hidden="true" className="mt-px size-3.5 shrink-0" />
         <span>
-          Biaya overhead routing ({formatUsd(report.featureCosts.overhead ?? 0)}
-          ) dan proses proaktif ({formatUsd(report.featureCosts.proactive ?? 0)}
-          ) tidak dibagi ke fitur. Biaya Memori termasuk Hindsight gabungan{" "}
+          Biaya overhead (routing, pencarian konteks, langkah persiapan;{" "}
+          {formatUsd(report.featureCosts.overhead ?? 0)}) dan proses proaktif (
+          {formatUsd(report.featureCosts.proactive ?? 0)}) tidak dibagi ke
+          fitur. Biaya Memori termasuk Hindsight gabungan{" "}
           {formatUsd(report.pooledMemoryUsd)}.
         </span>
       </p>

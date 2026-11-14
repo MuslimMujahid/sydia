@@ -107,15 +107,17 @@ export type GenerationStep = {
 
 /**
  * Splits a multi-step generation's cost across features. A step that calls
- * tools is charged evenly to their features. A step without tool calls (the
- * reply that reads the results) is charged to the features of the step before
- * it, and otherwise to chat. Returns only features with spend.
+ * tools is charged evenly to the features of its real tools; housekeeping
+ * (overhead) tools count only when the step called nothing else, because a
+ * step spent on them alone still re-reads the whole prompt. A step without
+ * tool calls (the reply that reads the results) is charged to the real
+ * features of the tool steps right before it, and otherwise to chat. Returns only features with spend.
  */
 export function allocateStepCosts(
   steps: readonly GenerationStep[],
 ): Partial<Record<UsageFeature, number>> {
   const costs: Partial<Record<UsageFeature, number>> = {};
-  let previous: UsageFeature[] = [];
+  let carried: UsageFeature[] = [];
 
   for (const step of steps) {
     const own = [
@@ -124,11 +126,14 @@ export function allocateStepCosts(
       ),
     ];
 
-    const features: UsageFeature[] = own.length
-      ? own
-      : previous.length
-        ? previous
-        : ['chat'];
+    const real = own.filter((feature) => feature !== 'overhead');
+    const features: UsageFeature[] = real.length
+      ? real
+      : own.length
+        ? own
+        : carried.length
+          ? carried
+          : ['chat'];
 
     const cost = step.costUsd ?? 0;
 
@@ -136,7 +141,9 @@ export function allocateStepCosts(
       for (const feature of features)
         costs[feature] = (costs[feature] ?? 0) + cost / features.length;
 
-    previous = own;
+    // Housekeeping keeps the features being carried; a reply ends them.
+    if (real.length) carried = real;
+    else if (!own.length) carried = [];
   }
 
   return costs;

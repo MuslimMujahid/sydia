@@ -29,7 +29,7 @@ export const FEATURE_LABELS: Record<UsageFeature, string> = {
   calendar: "Kalender",
   contacts: "Kontak",
   proactive: "Proaktif & ringkasan harian",
-  overhead: "Overhead routing",
+  overhead: "Overhead",
   other: "Lainnya",
 };
 
@@ -51,7 +51,7 @@ export const COST_CATEGORIES: ReadonlyArray<{
   { key: "memory", label: "Memori", color: "#1baf7a" },
   { key: "tasks", label: "Tugas & Pengingat", color: "#eda100" },
   { key: "documents", label: "Dokumen", color: "#2a78d6" },
-  { key: "overhead", label: "Overhead routing", color: "#c25d35" },
+  { key: "overhead", label: "Overhead", color: "#c25d35" },
   { key: "other", label: "Lainnya", color: "#b8b1bc" },
 ];
 

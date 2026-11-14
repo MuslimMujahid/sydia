@@ -6,6 +6,8 @@ import {
   expect,
   test,
 } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infra/prisma';
 import { PrismaAdminAnalyticsRepository } from './prisma-admin-analytics.repository';
@@ -399,6 +401,98 @@ live('Admin analytics PostgreSQL contracts', () => {
     });
     expect(page.items[0]?.periodActivity).toHaveLength(7);
     expect(page.items[0]?.periodCostUsd).toBeCloseTo(0.07);
+  });
+
+  test('the reply backfill keeps housekeeping tools out of legacy replies', async () => {
+    await account('legacy');
+    const day = new Date('2026-11-06T03:00:00Z');
+
+    const reply = async (
+      runId: string,
+      createdAt: Date,
+      featureCosts: Record<string, number> | null,
+    ) => {
+      await usage.record(
+        entry({
+          userId: 'legacy',
+          runId,
+          costUsd: 0.06,
+          feature: 'overhead',
+          featureCosts,
+          createdAt,
+        }),
+      );
+    };
+
+    const clock = await tools('legacy', day, [
+      { name: 'get_current_datetime' },
+    ]);
+
+    const mixed = await tools('legacy', new Date(day.getTime() + 60_000), [
+      { name: 'create_task' },
+      { name: 'get_current_datetime' },
+      { name: 'save_memory' },
+    ]);
+
+    const single = await tools('legacy', new Date(day.getTime() + 120_000), [
+      { name: 'create_task' },
+      { name: 'update_plan' },
+    ]);
+
+    await reply(clock.runId, day, null);
+    await reply(mixed.runId, day, {
+      tasks: 0.02,
+      memory: 0.02,
+      overhead: 0.02,
+    });
+    await reply(single.runId, day, { tasks: 0.03, overhead: 0.03 });
+    // Recorded after the feature columns existed: an exact split, left alone.
+    const recent = new Date(Date.now() + 3_600_000);
+    await reply(clock.runId, recent, { overhead: 0.06 });
+
+    await db.$executeRawUnsafe(
+      readFileSync(
+        join(
+          process.cwd(),
+          'prisma/migrations/20261114120000_model_usage_reply_overhead/migration.sql',
+        ),
+        'utf8',
+      ),
+    );
+
+    const rows = await db.modelUsage.findMany({
+      where: { userId: 'legacy' },
+      select: {
+        runId: true,
+        createdAt: true,
+        feature: true,
+        featureCosts: true,
+      },
+    });
+
+    const row = (runId: string, createdAt = day) =>
+      rows.find(
+        (entry) =>
+          entry.runId === runId &&
+          entry.createdAt.getTime() === createdAt.getTime(),
+      );
+
+    expect(row(clock.runId)).toMatchObject({
+      feature: 'chat',
+      featureCosts: null,
+    });
+    expect(row(mixed.runId)).toMatchObject({
+      feature: 'chat',
+      featureCosts: { memory: 0.03, tasks: 0.03 },
+    });
+    expect(row(single.runId)).toMatchObject({
+      feature: 'tasks',
+      featureCosts: null,
+    });
+    expect(row(clock.runId, recent)).toMatchObject({
+      feature: 'overhead',
+      featureCosts: { overhead: 0.06 },
+    });
   });
 
   test('revenue isolates the environment and survives account deletion', async () => {

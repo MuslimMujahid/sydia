@@ -71,6 +71,33 @@ describe('allocateStepCosts', () => {
     ).toEqual({ notes: 0.03, chat: 0.05 });
   });
 
+  it('charges a reply after housekeeping alone to chat, and the housekeeping step to overhead', () => {
+    expect(
+      allocateStepCosts([
+        { costUsd: 0.01, tools: ['get_current_datetime'] },
+        { costUsd: 0.02, tools: [] },
+      ]),
+    ).toEqual({ overhead: 0.01, chat: 0.02 });
+  });
+
+  it('charges a reply to the last real feature even when housekeeping came between', () => {
+    expect(
+      allocateStepCosts([
+        { costUsd: 0.01, tools: ['create_task'] },
+        { costUsd: 0.01, tools: ['get_current_datetime'] },
+        { costUsd: 0.02, tools: [] },
+      ]),
+    ).toEqual({ tasks: 0.03, overhead: 0.01 });
+  });
+
+  it('charges a step that mixes a real tool with housekeeping to the real feature only', () => {
+    expect(
+      allocateStepCosts([
+        { costUsd: 0.04, tools: ['create_task', 'get_current_datetime'] },
+      ]),
+    ).toEqual({ tasks: 0.04 });
+  });
+
   it('ignores steps whose cost is unknown', () => {
     expect(allocateStepCosts([{ tools: ['create_task'] }])).toEqual({});
   });
