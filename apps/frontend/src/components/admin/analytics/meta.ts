@@ -2,6 +2,7 @@ import { MAX_CHART_BARS, binSize } from "./charts";
 import type {
   ActivityFeature,
   AdminPeriod,
+  AdminPricing,
   AdminWindow,
   FeatureCosts,
   UsageFeature,
@@ -232,3 +233,20 @@ export function periodSearch(search: Record<string, unknown>): {
 }
 
 export const DEFAULT_PERIOD: AdminPeriod = "7d";
+
+const RATE_DATE = new Intl.DateTimeFormat("id-ID", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+/** "kurs 18.245 · ECB 13 Nov", or "kurs 16.250 · cadangan" without a live rate. */
+export function rateLabel(
+  pricing: Pick<AdminPricing, "usdIdrRate" | "rateSource" | "rateDate">
+): string {
+  const rate = `kurs ${new Intl.NumberFormat("id-ID").format(pricing.usdIdrRate)}`;
+
+  return pricing.rateSource === "ecb" && pricing.rateDate
+    ? `${rate} · ECB ${RATE_DATE.format(new Date(`${pricing.rateDate}T00:00:00Z`))}`
+    : `${rate} · cadangan`;
+}

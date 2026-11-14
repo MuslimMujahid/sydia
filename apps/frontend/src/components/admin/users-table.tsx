@@ -6,6 +6,7 @@ import { formatCount, formatUsd } from "./format";
 import { GiftPlusPopover } from "./gift-plus-popover";
 import type {
   AdminPeriod,
+  AdminPricing,
   AdminUser,
   AdminUserAction,
   OnGiftPlus,
@@ -29,6 +30,8 @@ import { cn } from "@/lib/utils/cn";
 type RowContext = {
   now: number;
   period: AdminPeriod;
+  /** Null until the backend's price and exchange rate have loaded. */
+  pricing: AdminPricing | null;
   typical: number | null;
   actionsDisabled: boolean;
   onGiftPlus: OnGiftPlus;
@@ -115,9 +118,24 @@ function Cost({ user, flag }: { user: AdminUser; flag: CostFlag }) {
   );
 }
 
-function Margin({ user, period }: { user: AdminUser; period: AdminPeriod }) {
+function Margin({
+  user,
+  period,
+  pricing,
+}: {
+  user: AdminUser;
+  period: AdminPeriod;
+  pricing: AdminPricing | null;
+}) {
+  if (!pricing)
+    return (
+      <span aria-label="Margin belum dimuat" className="text-ink-muted">
+        —
+      </span>
+    );
+
   const value = Math.round(
-    marginIdr(user.plan, user.periodCostUsd, periodDays(period))
+    marginIdr(user.plan, user.periodCostUsd, periodDays(period), pricing)
   );
 
   return (
@@ -219,7 +237,7 @@ const UserTableRow = memo(function UserTableRow(props: UserRowProps) {
         <Cost user={user} flag={costFlag(user, typical)} />
       </td>
       <td className="py-3 pr-4">
-        <Margin user={user} period={period} />
+        <Margin user={user} period={period} pricing={props.pricing} />
       </td>
       <td className="py-3 pr-4 text-[13px] whitespace-nowrap text-ink-muted">
         <LastActive user={user} now={now} />
@@ -268,7 +286,7 @@ const UserCard = memo(function UserCard(props: UserRowProps) {
           <dt className="mb-1 text-ink-muted">Biaya · Margin</dt>
           <dd className="flex flex-wrap items-center gap-x-2">
             <Cost user={user} flag={costFlag(user, typical)} />
-            <Margin user={user} period={period} />
+            <Margin user={user} period={period} pricing={props.pricing} />
           </dd>
         </div>
         <div>

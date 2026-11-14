@@ -70,9 +70,23 @@ async function openUsers(
   page: Page,
   userCount = 51,
   expiry: (userId: string) => string | null = () => null,
-  search = ""
+  search = "",
+  usdIdrRate = 16250
 ) {
   const requests: URL[] = [];
+  await page.route("**/admin/pricing", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          plusPriceIdr: 29000,
+          termDays: 30,
+          usdIdrRate,
+          rateSource: "ecb",
+          rateDate: "2026-11-13",
+        },
+      },
+    })
+  );
   await page.route("**/admin/users?**", async (route) => {
     const url = new URL(route.request().url());
     requests.push(url);
@@ -217,6 +231,15 @@ test("empty search can be reset to the first unfiltered page", async ({
   await expect(page.getByRole("status")).toHaveText(
     "Menampilkan 1–25 dari 51 pengguna"
   );
+});
+
+test("margins use the backend's live exchange rate", async ({ page }) => {
+  await openUsers(page, 51, () => null, "", 20000);
+
+  // User 3 has no paid plan and spent US$1,20: 1,2 × 20.000.
+  await expect(
+    page.getByText("-Rp 24.000", { exact: true }).filter({ visible: true })
+  ).toBeVisible();
 });
 
 test("opens the user drawer with insights without fetching the users again", async ({

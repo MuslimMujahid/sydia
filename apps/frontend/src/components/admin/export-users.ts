@@ -1,5 +1,5 @@
 import { getAdminUsers } from "@/lib/services/api/admin/admin.api";
-import type { AdminUser, AdminUsersInput } from "./types";
+import type { AdminPricing, AdminUser, AdminUsersInput } from "./types";
 import { marginIdr, periodDays } from "./users/user-metrics";
 
 // Quoting alone does not prevent spreadsheets from executing formula cells.
@@ -11,7 +11,10 @@ function csvCell(value: string | number | null | undefined): string {
 }
 
 /** Exports every matching user; margin follows the users table (see user-metrics). */
-export async function exportAdminUsers(input: AdminUsersInput): Promise<void> {
+export async function exportAdminUsers(
+  input: AdminUsersInput,
+  pricing: AdminPricing | null
+): Promise<void> {
   const users: AdminUser[] = [];
   let offset = 0;
   let total: number;
@@ -62,7 +65,9 @@ export async function exportAdminUsers(input: AdminUsersInput): Promise<void> {
       user.periodActiveDays,
       user.periodFeatures,
       user.periodCostUsd,
-      Math.round(marginIdr(user.plan, user.periodCostUsd, days)),
+      pricing
+        ? Math.round(marginIdr(user.plan, user.periodCostUsd, days, pricing))
+        : "",
     ]),
   ];
 

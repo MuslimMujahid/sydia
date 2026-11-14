@@ -1,5 +1,6 @@
 import { AdminAnalyticsService } from './admin-analytics.service';
 import { Module } from '@nestjs/common';
+import { ExchangeRatesModule } from '../../infra/exchange-rates';
 import {
   ADMIN_ANALYTICS_REPOSITORY,
   ADMIN_REPOSITORY,
@@ -13,6 +14,7 @@ import { AdminService } from './admin.service';
 import { AdminGiftPlusService } from './admin-gift-plus.service';
 
 @Module({
+  imports: [ExchangeRatesModule],
   controllers: [AdminController],
   providers: [
     {

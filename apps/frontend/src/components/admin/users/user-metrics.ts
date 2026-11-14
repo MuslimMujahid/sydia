@@ -2,19 +2,10 @@ import { median, periodLabel } from "../analytics/meta";
 import type {
   AdminPeriod,
   AdminPlan,
+  AdminPricing,
   AdminUser,
   AdminUserGroup,
 } from "../types";
-
-/*
- * Pricing used for per-user margin. The users endpoint carries no pricing, so
- * these mirror the backend `AdminAnalyticsService.pricing()` defaults
- * (BACKEND_BILLING_PRICE_IDR, BILLING_TERM_DAYS, BACKEND_ADMIN_USD_IDR_RATE).
- * Keep them in sync if those defaults change.
- */
-export const PLUS_PRICE_IDR = 29_000;
-export const TERM_DAYS = 30;
-export const USD_IDR_RATE = 16_250;
 
 /** A user counts toward the page's typical rate only with this many actions. */
 const TYPICAL_MIN_ACTIONS = 3;
@@ -42,17 +33,22 @@ export function periodPhrase(period: AdminPeriod): string {
 }
 
 /** What a Plus subscription is worth over `days`; trials and lapsed plans earn nothing. */
-export function planValueIdr(plan: AdminPlan, days: number): number {
-  return plan === "plus" ? (PLUS_PRICE_IDR * days) / TERM_DAYS : 0;
+export function planValueIdr(
+  plan: AdminPlan,
+  days: number,
+  pricing: AdminPricing
+): number {
+  return plan === "plus" ? (pricing.plusPriceIdr * days) / pricing.termDays : 0;
 }
 
-/** Plan value minus model spend, in rupiah. */
+/** Plan value minus model spend at the backend's USD→IDR rate, in rupiah. */
 export function marginIdr(
   plan: AdminPlan,
   costUsd: number,
-  days: number
+  days: number,
+  pricing: AdminPricing
 ): number {
-  return planValueIdr(plan, days) - costUsd * USD_IDR_RATE;
+  return planValueIdr(plan, days, pricing) - costUsd * pricing.usdIdrRate;
 }
 
 export function formatSignedIdr(value: number): string {

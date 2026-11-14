@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { PeriodBar } from "./analytics/widgets";
 import { exportAdminUsers } from "./export-users";
@@ -17,6 +18,7 @@ import { UsersToolbar, type StatusFilter } from "./users/users-toolbar";
 import { UsersPagination } from "./users-pagination";
 import { UsersTable } from "./users-table";
 import { EmptyState } from "@/components/app-states";
+import { adminPricingQueryOptions } from "@/lib/services/api/admin/admin.queries";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
 
@@ -97,6 +99,7 @@ export function AdminPage({
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [now] = useState(Date.now);
+  const pricing = useQuery(adminPricingQueryOptions()).data ?? null;
   const [confirm, setConfirm] = useState<{
     user: AdminUser;
     action: AdminUserAction;
@@ -161,14 +164,17 @@ export function AdminPage({
     setExportError(null);
 
     try {
-      await exportAdminUsers({
-        offset: 0,
-        limit: 100,
-        ...filters,
-        q: query,
-        status: statusFilter,
-        period,
-      });
+      await exportAdminUsers(
+        {
+          offset: 0,
+          limit: 100,
+          ...filters,
+          q: query,
+          status: statusFilter,
+          period,
+        },
+        pricing
+      );
     } catch (error) {
       console.error("Admin CSV export failed", error);
       setExportError(
@@ -265,6 +271,7 @@ export function AdminPage({
                 users={users}
                 now={now}
                 period={period}
+                pricing={pricing}
                 selectedUserId={selectedUserId}
                 sortedByCost={(filters.sort ?? "cost") === "cost"}
                 onSortByCost={
@@ -299,6 +306,7 @@ export function AdminPage({
         userId={selectedUserId}
         user={users.find((user) => user.id === selectedUserId)}
         period={period}
+        pricing={pricing}
         now={now}
         actionsDisabled={actionsDisabled}
         onGiftPlus={onGiftPlus}

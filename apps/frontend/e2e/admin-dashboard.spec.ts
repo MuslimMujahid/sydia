@@ -248,7 +248,13 @@ const costs = {
   series: { featureCosts: days.map(() => featureDay) },
   featureCosts: summary.featureCosts,
   typicalCostPerAction: 0.021,
-  pricing: { plusPriceIdr: 29000, termDays: 30, usdIdrRate: 16250 },
+  pricing: {
+    plusPriceIdr: 29000,
+    termDays: 30,
+    usdIdrRate: 16250,
+    rateSource: "ecb",
+    rateDate: "2026-11-13",
+  },
   processes: [
     {
       stage: "memory-dream.extract",
@@ -517,6 +523,9 @@ test("an empty period shows only an icon and message", async ({ page }) => {
 test("costs expose leaks and expand a process", async ({ page }, info) => {
   await mock(page);
   await open(page, "Biaya");
+  await expect(
+    page.getByText(/kurs 16\.250 · ECB 13 Nov/).first()
+  ).toBeVisible();
   const row = page.getByRole("button", { name: /Ekstraksi memori/ }).first();
   await row.click();
   await expect(row).toHaveAttribute("aria-expanded", "true");

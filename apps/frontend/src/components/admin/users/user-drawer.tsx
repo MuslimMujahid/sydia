@@ -6,6 +6,7 @@ import { formatDate } from "../format";
 import { GiftPlusPopover } from "../gift-plus-popover";
 import type {
   AdminPeriod,
+  AdminPricing,
   AdminUser,
   AdminUserAction,
   AdminUserInsights,
@@ -36,6 +37,8 @@ export type UserDrawerProps = {
   /** The list row, when the user is on the current page. */
   user: AdminUser | undefined;
   period: AdminPeriod;
+  /** Null until the backend's price and exchange rate have loaded. */
+  pricing: AdminPricing | null;
   now: number;
   actionsDisabled: boolean;
   onGiftPlus: OnGiftPlus;
@@ -71,6 +74,7 @@ function UserDrawerContent({
   userId,
   user,
   period: pagePeriod,
+  pricing,
   now,
   actionsDisabled,
   onGiftPlus,
@@ -129,6 +133,7 @@ function UserDrawerContent({
           <UserInsightsBody
             insights={insights.data}
             user={user}
+            pricing={pricing}
             now={now}
             isFetching={insights.isFetching}
           />

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import {
   getAdminCosts,
+  getAdminPricing,
   getAdminFeatureDetail,
   getAdminOverview,
   getAdminSummary,
@@ -40,6 +41,7 @@ export const adminQueryKeys = {
   userInsights: (period: AdminPeriod, userId: string) =>
     ["admin", "analytics", "user", period, userId] as const,
   overview: () => ["admin", "overview"] as const,
+  pricing: () => ["admin", "pricing"] as const,
   users: () => ["admin", "users"] as const,
   usersPage: (input: AdminUsersInput) => ["admin", "users", input] as const,
 };
@@ -93,6 +95,14 @@ export const adminUserInsightsQueryOptions = (
     queryKey: adminQueryKeys.userInsights(period, userId),
     queryFn: () => getAdminUserInsights(period, userId),
     staleTime: analyticsRefreshMs(period),
+  });
+
+/** Plus price and the live USD→IDR rate the backend refreshes twice a day. */
+export const adminPricingQueryOptions = () =>
+  queryOptions({
+    queryKey: adminQueryKeys.pricing(),
+    queryFn: getAdminPricing,
+    staleTime: 10 * 60_000,
   });
 
 export const adminOverviewQueryOptions = () =>

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils/cn";
 import type { AdminCostReport } from "../types";
 import { Meter } from "../analytics/charts";
 import { Card } from "../analytics/widgets";
-import { formatIdr, percent } from "../analytics/meta";
+import { formatIdr, percent, rateLabel } from "../analytics/meta";
 import { formatCount } from "../format";
 import { PLAN_LABELS, formatSignedIdr, formatUsdShort } from "./cost-format";
 import { userMargins, type Margins } from "./cost-model";
@@ -47,7 +47,7 @@ export function UserMargin({ data }: MarginProps) {
   return (
     <Card
       title="Margin per pengguna"
-      description={`Plus ${formatIdr(pricing.plusPriceIdr)}/${formatCount(pricing.termDays)} hari → ${formatIdr(margins.plusPerPeriodIdr)} per ${span} · biaya dalam Rp (kurs ${formatCount(pricing.usdIdrRate)})`}
+      description={`Plus ${formatIdr(pricing.plusPriceIdr)}/${formatCount(pricing.termDays)} hari → ${formatIdr(margins.plusPerPeriodIdr)} per ${span} · biaya dalam Rp (${rateLabel(pricing)})`}
     >
       {margins.rows.length ? (
         <>

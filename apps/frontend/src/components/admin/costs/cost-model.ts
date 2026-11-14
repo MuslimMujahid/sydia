@@ -7,6 +7,7 @@ import {
   groupCosts,
   percent,
   type CostCategory,
+  rateLabel,
 } from "../analytics/meta";
 import { formatCount, formatUsd } from "../format";
 
@@ -84,7 +85,7 @@ export function costKpis(data: AdminCostReport): KpiTileProps[] {
       label: "Biaya total",
       value: formatUsd(current.costUsd),
       delta: costDelta(current.costUsd, previous.costUsd),
-      detail: `≈ ${formatIdr(current.costUsd * pricing.usdIdrRate)} · kurs ${formatCount(pricing.usdIdrRate)}`,
+      detail: `≈ ${formatIdr(current.costUsd * pricing.usdIdrRate)} · ${rateLabel(pricing)}`,
     },
     {
       label: "Interaktif",

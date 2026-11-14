@@ -4,6 +4,7 @@ import type {
   ActivityFeature,
   AdminCostReport,
   AdminFeatureDetail,
+  AdminPricing,
   AdminOverview,
   AdminPeriod,
   AdminSummary,
@@ -124,6 +125,16 @@ export function getAdminFeatureDetail(
 
 export function getAdminCosts(period: AdminPeriod): Promise<AdminCostReport> {
   return getAnalytics("/admin/costs", period, "Data biaya tidak dapat dimuat.");
+}
+
+export async function getAdminPricing(): Promise<AdminPricing> {
+  try {
+    return (await api.get<ApiResponse<AdminPricing>>("/admin/pricing")).data
+      .data;
+  } catch (error) {
+    console.error("Admin pricing request failed", error);
+    throw toApiError(error, "Harga dan kurs tidak dapat dimuat.");
+  }
 }
 
 export function getAdminUserInsights(

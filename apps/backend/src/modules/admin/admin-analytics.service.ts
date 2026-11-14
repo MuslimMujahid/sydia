@@ -9,6 +9,7 @@ import {
   type AdminUserInsightsData,
   type IAdminAnalyticsRepository,
 } from '../../database/interfaces';
+import { ExchangeRateService } from '../../infra/exchange-rates';
 import { BILLING_TERM_DAYS } from '../../shared/billing-policy';
 import {
   buildCosts,
@@ -23,8 +24,6 @@ import {
 export const ADMIN_ANALYTICS_TTL_MS = 120_000;
 /** Today and the last 24 hours change by the minute, so they are reused briefly. */
 export const ADMIN_ANALYTICS_SHORT_TTL_MS = 30_000;
-/** Rupiah per US dollar for margins, unless BACKEND_ADMIN_USD_IDR_RATE is set. */
-export const DEFAULT_USD_IDR_RATE = 16_250;
 
 /**
  * Reads the admin analytics with a short per-request cache: several admins
@@ -46,6 +45,7 @@ export class AdminAnalyticsService {
     @Inject(ADMIN_ANALYTICS_REPOSITORY)
     private readonly analytics: IAdminAnalyticsRepository,
     private readonly config: ConfigService,
+    private readonly rates: ExchangeRateService,
   ) {}
 
   /** Drops cached reads after an admin action changed accounts or billing. */
@@ -78,7 +78,7 @@ export class AdminAnalyticsService {
 
   costs(period: AdminPeriod): Promise<AdminCosts> {
     return this.cached(`costs:${period}`, period, async (input) =>
-      buildCosts(await this.analytics.costs(input), this.pricing()),
+      buildCosts(await this.analytics.costs(input), await this.pricing()),
     );
   }
 
@@ -91,19 +91,17 @@ export class AdminAnalyticsService {
     );
   }
 
-  pricing(): AdminPricing {
-    const rate = Number(
-      this.config.get<string>('BACKEND_ADMIN_USD_IDR_RATE') ??
-        DEFAULT_USD_IDR_RATE,
-    );
+  async pricing(): Promise<AdminPricing> {
+    const rate = await this.rates.usdIdr();
 
     return {
       plusPriceIdr: Number(
         this.config.get<number>('BACKEND_BILLING_PRICE_IDR') ?? 29_000,
       ),
       termDays: BILLING_TERM_DAYS,
-      usdIdrRate:
-        Number.isFinite(rate) && rate > 0 ? rate : DEFAULT_USD_IDR_RATE,
+      usdIdrRate: rate.rate,
+      rateSource: rate.source,
+      rateDate: rate.date,
     };
   }
 

@@ -310,6 +310,10 @@ export type AdminPricing = {
   plusPriceIdr: number;
   termDays: number;
   usdIdrRate: number;
+  /** `ecb` for the live reference rate, `fallback` for the configured one. */
+  rateSource: "ecb" | "fallback";
+  /** The business day of the ECB rate, `YYYY-MM-DD`; null for the fallback. */
+  rateDate: string | null;
 };
 
 export type AdminCostReport = AdminWindow & {

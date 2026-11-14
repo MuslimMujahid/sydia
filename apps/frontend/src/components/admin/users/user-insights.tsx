@@ -18,7 +18,12 @@ import {
   periodLabel,
 } from "../analytics/meta";
 import { formatBytes, formatCount, formatDate, formatUsd } from "../format";
-import type { ActivityFeature, AdminUser, AdminUserInsights } from "../types";
+import type {
+  ActivityFeature,
+  AdminPricing,
+  AdminUser,
+  AdminUserInsights,
+} from "../types";
 import {
   LEAK_MULTIPLE,
   engagementGroup,
@@ -121,14 +126,24 @@ function Stat({ label, value, detail, tone }: StatProps) {
 type Props = {
   insights: AdminUserInsights;
   user: AdminUser | undefined;
+  /** Null until the backend's price and exchange rate have loaded. */
+  pricing: AdminPricing | null;
   now: number;
   isFetching: boolean;
 };
 
-export function UserInsightsBody({ insights, user, now, isFetching }: Props) {
+export function UserInsightsBody({
+  insights,
+  user,
+  pricing,
+  now,
+  isFetching,
+}: Props) {
   const { actions, costUsd, days } = totals(insights);
   const delta = actions - insights.previousActions;
-  const margin = user ? marginIdr(user.plan, costUsd, days) : null;
+  const margin =
+    user && pricing ? marginIdr(user.plan, costUsd, days, pricing) : null;
+
   const labels = bucketLabels(insights);
   const unit = chartUnit(insights);
   const series = actionSeries(insights);
@@ -168,9 +183,11 @@ export function UserInsightsBody({ insights, user, now, isFetching }: Props) {
                   : undefined
           }
           detail={
-            user
-              ? `nilai ${formatIdr(planValueIdr(user.plan, days))}`
-              : "paket tidak dimuat"
+            user && pricing
+              ? `nilai ${formatIdr(planValueIdr(user.plan, days, pricing))}`
+              : user
+                ? "kurs belum dimuat"
+                : "paket tidak dimuat"
           }
         />
       </dl>

@@ -78,6 +78,11 @@ export class AdminController {
     return this.analytics.costs(input.period);
   }
 
+  @Get('pricing')
+  pricing() {
+    return this.analytics.pricing();
+  }
+
   @Get('users/:userId/insights')
   async userInsights(
     @Param('userId') userId: string,
