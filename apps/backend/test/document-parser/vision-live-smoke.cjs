@@ -43,7 +43,7 @@ async function main() {
     'Configure BACKEND_MODEL_API_KEY locally before running.',
   );
   const model =
-    providerConfig.BACKEND_VISION_MODEL || 'google/gemini-2.5-flash';
+    providerConfig.BACKEND_VISION_MODEL || 'deepseek/deepseek-v4.1-flash';
   const media = new OpenRouterMediaService(new ConfigService(providerConfig));
   const parser = new DocumentParserService(
     new DocumentParserSettings(new ConfigService({})),

@@ -35,7 +35,7 @@ export class OpenRouterMediaService {
     );
     this.visionModel = config.get<string>(
       'BACKEND_VISION_MODEL',
-      'google/gemini-2.5-flash',
+      'deepseek/deepseek-v4.1-flash',
     );
   }
 

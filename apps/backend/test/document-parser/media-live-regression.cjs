@@ -92,7 +92,8 @@ async function main() {
     runtime: process.version,
     parser: 'officeparser-8.1.1',
     policyVersion: 3,
-    visionModel: provider.BACKEND_VISION_MODEL || 'google/gemini-2.5-flash',
+    visionModel:
+      provider.BACKEND_VISION_MODEL || 'deepseek/deepseek-v4.1-flash',
     sttModel: provider.BACKEND_STT_MODEL || 'openai/whisper-large-v3-turbo',
     embeddingModel: embeddings.modelName(),
     providerCalls: [],

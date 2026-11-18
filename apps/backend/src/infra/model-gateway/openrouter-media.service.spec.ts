@@ -35,7 +35,7 @@ describe('OpenRouterMediaService', () => {
       'Bearer media-key',
     );
     expect(JSON.parse(init?.body as string)).toMatchObject({
-      model: 'google/gemini-2.5-flash',
+      model: 'deepseek/deepseek-v4.1-flash',
     });
   });
 
@@ -237,7 +237,7 @@ describe('OpenRouterMediaService', () => {
       {
         stage: 'media.vision',
         provider: 'openrouter',
-        model: 'google/gemini-2.5-flash',
+        model: 'deepseek/deepseek-v4.1-flash',
         status: 'failed',
         costUsd: 0,
       },
