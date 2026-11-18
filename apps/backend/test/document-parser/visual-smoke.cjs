@@ -20,6 +20,15 @@ async function main() {
   const parser = new DocumentParserService(
     new DocumentParserSettings(new ConfigService({})),
   );
+  const limitedParser = new DocumentParserService(
+    new DocumentParserSettings(
+      new ConfigService({
+        BACKEND_DOCUMENT_MAX_IMAGES: 2,
+        BACKEND_DOCUMENT_MAX_VISION_CALLS: 1,
+        BACKEND_DOCUMENT_MAX_CHUNKS: 1,
+      }),
+    ),
+  );
   const fixtures = await createVisualFixtures();
   const results = [];
   const storageRoot = await mkdtemp(join(tmpdir(), 'sydia-visual-storage-'));
@@ -42,7 +51,9 @@ async function main() {
         });
         continue;
       }
-      const parsed = await parser.parse({
+      const activeParser =
+        name === 'image-budget.docx' ? limitedParser : parser;
+      const parsed = await activeParser.parse({
         originalname: name,
         mimetype: 'application/octet-stream',
         buffer,
@@ -73,6 +84,18 @@ async function main() {
         assert.equal(parsed.visuals[0].reason, 'unreadable');
         assert(parsed.warnings.includes('OCR_LOW_CONFIDENCE'));
       } else assert(parsed.sections[0].text.includes('SYD-12345'));
+      if (name === 'image-budget.docx') {
+        assert.deepEqual(parsed.warnings, [
+          'IMAGE_LIMIT_EXCEEDED',
+          'VISION_LIMIT_EXCEEDED',
+        ]);
+        assert.equal(parsed.skippedImageCount, 2);
+        assert.equal(parsed.sections[0].chunks.length, 1);
+        assert(parsed.sections[0].chunks[0].includes('SYD-12345'));
+        assert(
+          parsed.sections[0].chunks[0].includes('Record the approval date.'),
+        );
+      }
       results.push({
         name,
         durationMs: Date.now() - started,
@@ -136,11 +159,10 @@ async function main() {
       ['unreadable-provider', '[unreadable]', 'VISION_UNREADABLE'],
     ]) {
       visionResponse = response;
-      const rejectedKey = `owner/${suffix}.pdf`;
-      await assert.rejects(extraction.extract(file, rejectedKey), { code });
-      await assert.rejects(storage.get(extractionKey(rejectedKey)), {
-        code: 'ENOENT',
-      });
+      const partial = await extraction.extract(file, `owner/${suffix}.pdf`);
+      assert(partial.text.includes('Invoice SYD-12345'));
+      assert.equal(partial.skippedImageCount, 1);
+      assert(partial.warnings.includes(code));
     }
     await extraction.deleteCheckpoint(key);
     await assert.rejects(storage.get(extractionKey(key)), { code: 'ENOENT' });
@@ -151,7 +173,7 @@ async function main() {
       parserCalls,
       controlledVisionCalls: visionCalls,
       checkpointReuse: true,
-      incompleteResultsRejected: true,
+      partialResultsPreserved: true,
       checkpointDeleted: true,
     };
     const report = {
@@ -167,7 +189,10 @@ async function main() {
       await writeFile(process.argv[2], JSON.stringify(report, null, 2) + '\n');
     process.stdout.write(JSON.stringify(report) + '\n');
   } finally {
-    await parser.onModuleDestroy();
+    await Promise.all([
+      parser.onModuleDestroy(),
+      limitedParser.onModuleDestroy(),
+    ]);
     await rm(storageRoot, { recursive: true, force: true });
   }
 }

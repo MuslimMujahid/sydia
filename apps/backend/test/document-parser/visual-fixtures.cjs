@@ -1,6 +1,6 @@
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { createCanvas } = require('@napi-rs/canvas');
-const { zipSync, unzipSync, strToU8 } = require('fflate');
+const { zipSync, unzipSync, strToU8, strFromU8 } = require('fflate');
 
 async function createVisualFixtures() {
   const files = {};
@@ -95,7 +95,7 @@ async function createVisualFixtures() {
   const graph = canvas.toBuffer('image/png');
 
   const xml = (value) => `<?xml version="1.0" encoding="UTF-8"?>${value}`;
-  function officeImage(altText, repeats = 1) {
+  function officeImage(altText, repeats = 1, additionalImages = []) {
     const drawing = `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="5715000" cy="2667000"/><wp:docPr id="1" name="Workflow" descr="${altText}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="workflow.png" descr="${altText}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImage"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="5715000" cy="2667000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
     const entries = {
       '[Content_Types].xml': xml(
@@ -105,12 +105,18 @@ async function createVisualFixtures() {
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdDocument" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
       ),
       'word/_rels/document.xml.rels': xml(
-        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdImage" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/workflow.png"/></Relationships>',
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdImage" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/workflow.png"/>${additionalImages.map((_, index) => `<Relationship Id="rIdImage${index}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/workflow${index}.png"/>`).join('')}</Relationships>`,
       ),
       'word/document.xml': xml(
-        `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body><w:p><w:r><w:t>Invoice SYD-12345 Total Rp 125.000. Approval workflow below.</w:t></w:r></w:p>${drawing.repeat(repeats)}</w:body></w:document>`,
+        `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body><w:p><w:r><w:t>Invoice SYD-12345 Total Rp 125.000. Approval workflow below.</w:t></w:r></w:p>${drawing.repeat(repeats)}${additionalImages.map((_, index) => drawing.replace('rIdImage', `rIdImage${index}`).replace('workflow.png', `workflow${index}.png`)).join('')}</w:body></w:document>`,
       ),
       'word/media/workflow.png': graph,
+      ...Object.fromEntries(
+        additionalImages.map((image, index) => [
+          `word/media/workflow${index}.png`,
+          image,
+        ]),
+      ),
     };
     return Buffer.from(
       zipSync(
@@ -126,6 +132,23 @@ async function createVisualFixtures() {
   files['embedded-flowchart.docx'] = officeImage('Approval workflow');
   files['repeated-flowchart.docx'] = officeImage('Approval workflow', 2);
   files['decorative-logo.docx'] = officeImage('Company logo');
+  const variants = ['Step 2', 'Step 3'].map((step) => {
+    context.fillStyle = 'white';
+    context.fillRect(40, 20, 200, 50);
+    context.fillStyle = '#111';
+    context.fillText(step, 40, 60);
+    return canvas.toBuffer('image/png');
+  });
+  const imageBudgetDocument = unzipSync(
+    officeImage('Approval workflow', 1, variants),
+  );
+  imageBudgetDocument['word/document.xml'] = strToU8(
+    strFromU8(imageBudgetDocument['word/document.xml']).replace(
+      '</w:body>',
+      '<w:p><w:r><w:t>Review the invoice.</w:t></w:r></w:p><w:p><w:r><w:t>Record the approval date.</w:t></w:r></w:p></w:body>',
+    ),
+  );
+  files['image-budget.docx'] = Buffer.from(zipSync(imageBudgetDocument));
   const broken = unzipSync(officeImage('Approval workflow'));
   delete broken['word/media/workflow.png'];
   files['broken-flowchart.docx'] = Buffer.from(zipSync(broken));

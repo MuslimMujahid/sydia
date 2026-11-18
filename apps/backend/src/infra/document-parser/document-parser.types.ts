@@ -1,7 +1,7 @@
 import { MAX_MEDIA_BYTES } from '../../shared/messaging';
 
 export const DOCUMENT_PARSER_VERSION = 'officeparser-8.1.1';
-export const DOCUMENT_POLICY_VERSION = 3;
+export const DOCUMENT_POLICY_VERSION = 4;
 export const MAX_DOCUMENT_BYTES = MAX_MEDIA_BYTES;
 export const OCR_CLEANUP_GRACE_MS = 1000;
 export type ParserStage = 'render' | 'ocr';
@@ -36,12 +36,14 @@ export type ParsedDocument = {
   sections: ExtractedSection[];
   visuals: DocumentVisual[];
   warnings: string[];
+  skippedImageCount: number;
 };
 export type ExtractionResult = {
   text: string;
   chunks: ExtractionChunk[];
   methods: ExtractionMethod[];
   warnings: string[];
+  skippedImageCount: number;
 };
 export type ParserLimits = {
   timeoutMs: number;

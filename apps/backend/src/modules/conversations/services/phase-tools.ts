@@ -605,7 +605,7 @@ Use it when you need the contents of a specific document and have its id.
 
 Do not use it for a file list, semantic search, or when no document is identified.
 
-documentId is required; cursor defaults to 0 and limit defaults to 4 (1 through 10). Each chunk's content is truncated to keep the result bounded; the result includes metadata, chunks with page positions, nextCursor, and hasMore.`,
+documentId is required; cursor defaults to 0 and limit defaults to 4 (1 through 10). Each chunk's content is truncated to keep the result bounded; the result includes metadata, chunks with page positions, nextCursor, and hasMore. A skippedImageCount means those images were not analyzed. Treat the available text as partial when answering about visual content.`,
         parameters: schema(
           {
             documentId: {
@@ -650,6 +650,9 @@ documentId is required; cursor defaults to 0 and limit defaults to 4 (1 through 
           documentId: result.document.id,
           filename: result.document.title,
           status: result.document.status,
+          ...(result.document.skippedImageCount
+            ? { skippedImageCount: result.document.skippedImageCount }
+            : {}),
           chunks: result.chunks.map((chunk) => ({
             chunk: chunk.chunkIndex,
             page: chunk.pageNumber,

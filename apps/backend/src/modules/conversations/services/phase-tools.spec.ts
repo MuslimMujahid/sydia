@@ -287,11 +287,12 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(JSON.stringify(result)).not.toContain('textContent');
   });
 
-  test('reads ordered document chunks with pagination metadata', async () => {
+  test('reads ordered document chunks with pagination and skipped image metadata', async () => {
     const document = {
       id: 'doc-1',
       title: 'KTP Muh Muslim Al-Mujahid.jpg',
       status: 'ready' as const,
+      skippedImageCount: 2,
       createdAt: new Date('2026-09-01T00:00:00Z'),
       updatedAt: new Date('2026-09-01T00:00:00Z'),
       file: {
@@ -351,6 +352,7 @@ describe('phase 5 and 6 assistant tools', () => {
       documentId: 'doc-1',
       filename: 'KTP Muh Muslim Al-Mujahid.jpg',
       status: 'ready',
+      skippedImageCount: 2,
       chunks: [{ chunk: 3, page: 2, content: 'Bagian kedua dokumen.' }],
       nextCursor: 4,
       hasMore: true,

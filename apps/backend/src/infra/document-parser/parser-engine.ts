@@ -19,6 +19,8 @@ import {
   type ParserStage,
 } from './document-parser.types';
 
+const MAX_CHUNK_SIZE = 1400;
+
 export function splitDocumentText(
   text: string,
   size = 1400,
@@ -67,6 +69,27 @@ function labelChunk(chunk: OfficeChunk, section: ExtractedSection): string {
   ].filter(Boolean);
 
   return `${context.length ? `[${context.join(' / ')}]\n` : ''}${chunk.text.trim()}`;
+}
+
+function coalesceWordChunks(chunks: OfficeChunk[]): OfficeChunk[] {
+  const merged: OfficeChunk[] = [];
+
+  for (const chunk of chunks) {
+    const text = chunk.text.trim();
+    const previous = merged.at(-1);
+
+    if (
+      previous &&
+      previous.metadata.closestHeading === chunk.metadata.closestHeading &&
+      previous.text.length + text.length + 1 <= MAX_CHUNK_SIZE
+    ) {
+      previous.text += `\n${text}`;
+    } else {
+      merged.push({ ...chunk, text });
+    }
+  }
+
+  return merged;
 }
 
 // TSV word boxes retain column alignment for scanned forms/tables without treating
@@ -233,6 +256,7 @@ export async function parseLocalDocument(
       ],
       visuals: [],
       warnings: [],
+      skippedImageCount: 0,
     };
   }
 
@@ -272,13 +296,24 @@ export async function parseLocalDocument(
 
   if (containers.length > limits.maxPages)
     throw new DocumentParserError('PAGE_LIMIT_EXCEEDED');
-  if (
-    ast.attachments.filter((attachment) => attachment.type === 'image').length >
-    limits.maxImages
-  )
-    throw new DocumentParserError('IMAGE_LIMIT_EXCEEDED');
   const sections: ExtractedSection[] = [];
   const visuals: DocumentVisual[] = [];
+  let imagesProcessed = 0;
+  let skippedImageCount = 0;
+
+  const reserveImage = () => {
+    if (imagesProcessed < limits.maxImages) {
+      imagesProcessed++;
+
+      return true;
+    }
+
+    skippedImageCount++;
+    warnings.push('IMAGE_LIMIT_EXCEEDED');
+
+    return false;
+  };
+
   const ocr = new LocalOcr(limits);
   let usedOcr = false;
   let pdf:
@@ -346,7 +381,7 @@ export async function parseLocalDocument(
         chunksConfig: {
           strategy: 'document-structure',
           splitBy: 'heading',
-          maxChunkSize: 1400,
+          maxChunkSize: MAX_CHUNK_SIZE,
           tableSplitStrategy: 'row',
           // Account for the separator added between rows. Otherwise the upstream
           // table grouper can overfill a chunk and split off rows without headers.
@@ -354,9 +389,14 @@ export async function parseLocalDocument(
         },
       });
 
-      section.chunks = generated.value
-        .filter((chunk) => chunk.text.trim())
-        .map((chunk) => labelChunk(chunk, section));
+      const chunks = generated.value.filter((chunk) => chunk.text.trim());
+      // Word can yield thousands of short paragraph chunks even for modest text.
+      // Keep adjacent text together within its heading when the chunk cap is tight.
+      section.chunks = (
+        format === 'docx' && chunks.length > limits.maxChunks
+          ? coalesceWordChunks(chunks)
+          : chunks
+      ).map((chunk) => labelChunk(chunk, section));
       const imageNodes = descendants([node]).filter(
         (child) => child.type === 'image',
       );
@@ -446,7 +486,7 @@ export async function parseLocalDocument(
             )) ||
           meaningfulVectors;
 
-        if (needsOcr || visual) {
+        if ((needsOcr || visual) && reserveImage()) {
           await reportStage?.('render', true);
 
           try {
@@ -482,6 +522,7 @@ export async function parseLocalDocument(
         page.cleanup();
       } else {
         const seenImages = new Set<string>();
+        const seenNormalizedImages = new Set<string>();
 
         for (const image of imageNodes) {
           if (image.type !== 'image') continue;
@@ -502,6 +543,14 @@ export async function parseLocalDocument(
             continue;
           }
 
+          const digest = createHash('sha256')
+            .update(attachment.data)
+            .digest('hex');
+
+          if (seenImages.has(digest)) continue;
+          seenImages.add(digest);
+          if (!reserveImage()) continue;
+
           await reportStage?.('render', true);
           let buffer: Buffer;
 
@@ -516,9 +565,12 @@ export async function parseLocalDocument(
 
           const decoded = await loadImage(buffer);
           if (decoded.width < 160 || decoded.height < 100) continue;
-          const digest = createHash('sha256').update(buffer).digest('hex');
-          if (seenImages.has(digest)) continue;
-          seenImages.add(digest);
+          const normalizedDigest = createHash('sha256')
+            .update(buffer)
+            .digest('hex');
+
+          if (seenNormalizedImages.has(normalizedDigest)) continue;
+          seenNormalizedImages.add(normalizedDigest);
           candidates.push({
             buffer,
             needsOcr: !readableText(section.text),
@@ -561,8 +613,12 @@ export async function parseLocalDocument(
         }
 
         if (required) {
-          if (visuals.length >= limits.maxVisionCalls)
-            throw new DocumentParserError('VISION_LIMIT_EXCEEDED');
+          if (visuals.length >= limits.maxVisionCalls) {
+            skippedImageCount++;
+            warnings.push('VISION_LIMIT_EXCEEDED');
+            continue;
+          }
+
           visuals.push({
             sectionIndex: index,
             label: section.label,
@@ -589,7 +645,12 @@ export async function parseLocalDocument(
         throw new DocumentParserError('CHUNK_LIMIT_EXCEEDED');
     }
 
-    return { sections, visuals, warnings: [...new Set(warnings)] };
+    return {
+      sections,
+      visuals,
+      warnings: [...new Set(warnings)],
+      skippedImageCount,
+    };
   } finally {
     if (usedOcr) await reportStage?.('ocr', true);
 

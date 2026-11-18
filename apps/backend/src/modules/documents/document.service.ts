@@ -414,6 +414,7 @@ export class DocumentService {
     let transcript: string | null = null;
     let imageDescription: string | null = null;
     let parsedChunks: ParsedChunk[] = [];
+    let skippedImageCount = 0;
 
     if (kind === 'audio') {
       // A retried job reuses the stored transcript instead of paying to
@@ -474,6 +475,7 @@ export class DocumentService {
         const parsed = await this.extraction.extract(file, storageKey);
         textContent = parsed.text;
         parsedChunks = parsed.chunks;
+        skippedImageCount = parsed.skippedImageCount;
       } catch (error: unknown) {
         if (error instanceof DocumentParserError && !error.retryable)
           throw new NonRetryableDocumentError(
@@ -584,11 +586,15 @@ export class DocumentService {
     }
 
     const searchable = textContent ?? transcript ?? imageDescription ?? '';
+    const structuredData = this.extractStructured(searchable);
     await this.documents.complete(documentId, {
       textContent,
       transcript,
       imageDescription,
-      structuredData: this.extractStructured(searchable),
+      structuredData:
+        skippedImageCount > 0
+          ? { ...structuredData, skippedImageCount }
+          : structuredData,
     });
   }
 

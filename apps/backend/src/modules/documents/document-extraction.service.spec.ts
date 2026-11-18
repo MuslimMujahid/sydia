@@ -20,7 +20,10 @@ const file = {
 
 const key = 'tenant-a/documents/invoice.pdf';
 
-function setup(visual = false) {
+function setup(
+  visual = false,
+  { nativeText = true, skippedImageCount = 0 } = {},
+) {
   const objects = new Map<string, Buffer>();
   const settings = new DocumentParserSettings(new ConfigService({}));
 
@@ -32,8 +35,10 @@ function setup(visual = false) {
           {
             label: 'Page 2',
             pageNumber: 2,
-            text: 'Invoice SYD-12345 Total Rp 125.000',
-            chunks: ['[Page 2]\nInvoice SYD-12345 Total Rp 125.000'],
+            text: nativeText ? 'Invoice SYD-12345 Total Rp 125.000' : '',
+            chunks: nativeText
+              ? ['[Page 2]\nInvoice SYD-12345 Total Rp 125.000']
+              : [],
             methods: ['native'],
           },
         ],
@@ -49,6 +54,7 @@ function setup(visual = false) {
             ]
           : [],
         warnings: [],
+        skippedImageCount,
       }),
     );
 
@@ -123,6 +129,7 @@ describe('DocumentExtractionService', () => {
     'pageNumber',
     'chunkIndex',
     'content',
+    'skippedImageCount',
     'json',
   ])('regenerates invalid cached %s', async (field) => {
     const runtime = setup();
@@ -134,6 +141,7 @@ describe('DocumentExtractionService', () => {
       parserVersion: string;
       policyVersion: number;
       result: {
+        skippedImageCount: number;
         chunks: Array<{
           pageNumber: number;
           chunkIndex: number;
@@ -148,6 +156,7 @@ describe('DocumentExtractionService', () => {
     if (field === 'pageNumber') checkpoint.result.chunks[0]!.pageNumber = -1;
     if (field === 'chunkIndex') checkpoint.result.chunks[0]!.chunkIndex = 5;
     if (field === 'content') checkpoint.result.chunks[0]!.content = '';
+    if (field === 'skippedImageCount') checkpoint.result.skippedImageCount = -1;
     runtime.objects.set(
       extractionKey(key),
       Buffer.from(field === 'json' ? '{broken' : JSON.stringify(checkpoint)),
@@ -163,11 +172,30 @@ describe('DocumentExtractionService', () => {
     expect(runtime.parse).toHaveBeenCalledTimes(2);
   });
 
-  test('requires vision for visual content and does not persist a partial result', async () => {
+  test('keeps readable text when vision is unavailable', async () => {
     const runtime = setup(true);
     runtime.interpretDocumentImage.mockResolvedValue(null);
+    await expect(runtime.service.extract(file, key)).resolves.toMatchObject({
+      text: expect.stringContaining('Invoice SYD-12345'),
+      skippedImageCount: 1,
+    });
+  });
+
+  test('preserves the skipped image count when reusing an extraction checkpoint', async () => {
+    const runtime = setup(true, { skippedImageCount: 3 });
+    await runtime.service.extract(file, key);
+
+    await expect(runtime.service.extract(file, key)).resolves.toMatchObject({
+      skippedImageCount: 3,
+    });
+    expect(runtime.parse).toHaveBeenCalledTimes(1);
+  });
+
+  test('fails with a specific error when the image budget leaves no readable content', async () => {
+    const runtime = setup(false, { nativeText: false, skippedImageCount: 2 });
+
     await expect(runtime.service.extract(file, key)).rejects.toMatchObject({
-      code: 'VISION_NOT_CONFIGURED',
+      code: 'NO_READABLE_DOCUMENT_CONTENT',
     });
     expect(runtime.put).not.toHaveBeenCalled();
   });
@@ -184,7 +212,7 @@ describe('DocumentExtractionService', () => {
   test.each(['[unreadable]', '[UNREADABLE]\n[unreadable]', '...'])(
     'rejects vision output without readable facts: %s',
     async (description) => {
-      const runtime = setup(true);
+      const runtime = setup(true, { nativeText: false });
       runtime.interpretDocumentImage.mockResolvedValue(description);
       await expect(runtime.service.extract(file, key)).rejects.toMatchObject({
         code: 'VISION_UNREADABLE',

@@ -35,6 +35,7 @@ export type FileLibraryItem = {
   mimeType: string | null;
   fileKind: string | null;
   status: string | null;
+  skippedImageCount: number | null;
   childCount: number | null;
   path: FileBreadcrumb[];
 };

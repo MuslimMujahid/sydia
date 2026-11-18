@@ -17,6 +17,7 @@ export type LibraryItem = LibraryRef & {
   mimeType: string | null;
   fileKind: string | null;
   status: string | null;
+  skippedImageCount?: number | null;
   childCount: number | null;
   path: LibraryCrumb[];
 };

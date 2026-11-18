@@ -159,13 +159,15 @@ export class PrismaFileLibraryRepository implements IFileLibraryRepository {
           : Prisma.sql`
         UNION ALL
         SELECT d.id, 'file' AS kind, d.title AS name, d."folderId" AS "parentId", d."organizationRevision" AS revision,
-          d."createdAt", d."deletingOperationId", a.size, a."mimeType", a.kind AS "fileKind", d.status
+          d."createdAt", d."deletingOperationId", a.size, a."mimeType", a.kind AS "fileKind", d.status,
+          CASE WHEN d.status = 'ready' THEN d."structuredData"->'skippedImageCount' END AS "skippedImageCount"
         FROM document d JOIN file_asset a ON a.id = d."fileAssetId"
         WHERE d."userId" = ${userId}`;
 
         const listing = Prisma.sql`
         SELECT f.id, 'folder' AS kind, f.name, f."parentId", f.revision, f."createdAt", f."deletingOperationId",
-          NULL::int AS size, NULL::text AS "mimeType", NULL::text AS "fileKind", NULL::text AS status
+          NULL::int AS size, NULL::text AS "mimeType", NULL::text AS "fileKind", NULL::text AS status,
+          NULL::jsonb AS "skippedImageCount"
         FROM file_folder f WHERE f."userId" = ${userId} ${files}`;
 
         const order =

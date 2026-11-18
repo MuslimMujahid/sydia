@@ -24,6 +24,10 @@ import {
   type FormEvent,
 } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  formatSkippedDocumentImages,
+  skippedDocumentImages,
+} from "@/components/documents/document-image-warning";
 import type { SendMessageVariables } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
 import {
@@ -44,6 +48,7 @@ export type ComposerAttachment = {
   status: "queued" | "uploading" | "processing" | "ready" | "error";
   file?: File;
   errorMessage?: string;
+  skippedImageCount?: number;
 };
 
 type ChatComposerProps = {
@@ -215,6 +220,7 @@ export function ChatComposer({
           kind: document.file.kind,
           status: document.status === "failed" ? "error" : document.status,
           errorMessage: document.errorMessage ?? undefined,
+          skippedImageCount: skippedDocumentImages(document),
         };
       })
     );
@@ -305,6 +311,7 @@ export function ChatComposer({
                 kind: document.file.kind,
                 status: "ready",
                 errorMessage: undefined,
+                skippedImageCount: skippedDocumentImages(document),
               }
             : item
         )
@@ -509,14 +516,16 @@ export function ChatComposer({
             {attachments.map((attachment) => (
               <li
                 key={attachment.localId}
-                className="flex min-h-9 max-w-full items-center gap-2 rounded-md border border-hairline bg-canvas px-2.5 py-1.5 text-sm"
+                className="flex min-h-9 max-w-full flex-wrap items-center gap-x-2 rounded-md border border-hairline bg-canvas px-2.5 py-1.5 text-sm"
               >
                 {attachment.status === "uploading" ? (
                   <LoaderCircle className="size-4 shrink-0 animate-spin text-brand-deep motion-reduce:animate-none" />
                 ) : (
                   <AttachmentIcon kind={attachment.kind} />
                 )}
-                <span className="max-w-52 truncate">{attachment.name}</span>
+                <span className="min-w-0 max-w-52 truncate">
+                  {attachment.name}
+                </span>
                 <span
                   className={
                     attachment.status === "error"
@@ -568,8 +577,25 @@ export function ChatComposer({
                 >
                   <X />
                 </Button>
-                {attachment.errorMessage ? (
-                  <span className="sr-only">{attachment.errorMessage}</span>
+                {attachment.status === "error" && attachment.errorMessage ? (
+                  <span
+                    className="basis-full pb-0.5 text-xs text-destructive"
+                    role="alert"
+                  >
+                    {attachment.errorMessage}
+                  </span>
+                ) : null}
+                {attachment.status === "ready" &&
+                attachment.skippedImageCount ? (
+                  <span
+                    className="basis-full pb-0.5 text-xs text-ink-muted"
+                    role="status"
+                  >
+                    {formatSkippedDocumentImages(
+                      attachment.skippedImageCount,
+                      locale
+                    )}
+                  </span>
                 ) : null}
               </li>
             ))}

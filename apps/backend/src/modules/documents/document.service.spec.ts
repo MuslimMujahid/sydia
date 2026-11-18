@@ -260,6 +260,7 @@ function dependencies(
       chunks: [{ chunkIndex: 0, pageNumber: null, content: 'hello world' }],
       methods: ['native'],
       warnings: [],
+      skippedImageCount: 0,
     }),
     deleteCheckpoint: jest
       .fn<DocumentExtractionService['deleteCheckpoint']>()
@@ -993,6 +994,34 @@ describe('DocumentService retrieval', () => {
   });
 });
 
+describe('DocumentService partial extraction', () => {
+  test('publishes readable chunks and the skipped image count together', async () => {
+    const { service, documents, extraction } = dependencies();
+    extraction.extract.mockResolvedValue({
+      text: 'Invoice SYD12345 total Rp 125.000',
+      chunks: [
+        {
+          chunkIndex: 0,
+          pageNumber: null,
+          content: 'Invoice SYD12345 total Rp 125.000',
+        },
+      ],
+      methods: ['native'],
+      warnings: ['VISION_LIMIT_EXCEEDED'],
+      skippedImageCount: 3,
+    });
+
+    await service.processDocument('document-1', userId);
+
+    expect(documents.complete).toHaveBeenCalledWith('document-1', {
+      textContent: 'Invoice SYD12345 total Rp 125.000',
+      transcript: null,
+      imageDescription: null,
+      structuredData: { amount: 'Rp 125.000', skippedImageCount: 3 },
+    });
+  });
+});
+
 describe('DocumentService processing deletion races', () => {
   test('removes the checkpoint when deletion races with a failed embedding', async () => {
     const { service, documents, embeddings, extraction } = dependencies();
@@ -1007,6 +1036,7 @@ describe('DocumentService processing deletion races', () => {
       ],
       methods: ['native'],
       warnings: [],
+      skippedImageCount: 0,
     });
     const failure = new Error('Embedding temporarily unavailable');
     jest.mocked(embeddings.embedMany).mockImplementation(() => {
@@ -1035,6 +1065,7 @@ describe('DocumentService processing deletion races', () => {
         chunks: [{ chunkIndex: 0, pageNumber: null, content: 'hello world' }],
         methods: ['native'],
         warnings: [],
+        skippedImageCount: 0,
       });
     });
 
@@ -1104,6 +1135,7 @@ describe('DocumentService processing deletion races', () => {
       ],
       methods: ['native'],
       warnings: [],
+      skippedImageCount: 0,
     });
     jest
       .mocked(embeddings.embedMany)
@@ -1149,6 +1181,7 @@ describe('DocumentService chunk provenance on retry', () => {
       ],
       methods: ['native'],
       warnings: [],
+      skippedImageCount: 0,
     });
     jest.mocked(documents.listChunkEmbeddings).mockResolvedValue([
       {

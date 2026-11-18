@@ -60,6 +60,7 @@ const documentMetadataSelect = {
   title: true,
   description: true,
   status: true,
+  structuredData: true,
   createdAt: true,
   updatedAt: true,
   fileAsset: { select: fileSelect },
@@ -125,17 +126,35 @@ function presentAttachment(row: DocumentRow): Document {
 
 type DocumentMetadataRow = Pick<
   PrismaDocument,
-  'id' | 'title' | 'description' | 'status' | 'createdAt' | 'updatedAt'
+  | 'id'
+  | 'title'
+  | 'description'
+  | 'status'
+  | 'structuredData'
+  | 'createdAt'
+  | 'updatedAt'
 > & {
   fileAsset: Pick<PrismaFileAsset, keyof typeof fileSelect>;
 };
 
 function presentMetadata(row: DocumentMetadataRow): DocumentMetadata {
+  const data = row.structuredData;
+  const skippedImageCount =
+    row.status === 'ready' &&
+    data &&
+    typeof data === 'object' &&
+    !Array.isArray(data)
+      ? data.skippedImageCount
+      : undefined;
+
   return {
     id: row.id,
     title: row.title,
     description: row.description,
     status: row.status as DocumentMetadata['status'],
+    ...(typeof skippedImageCount === 'number' && skippedImageCount > 0
+      ? { skippedImageCount }
+      : {}),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     file: presentFile(row.fileAsset),

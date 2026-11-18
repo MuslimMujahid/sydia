@@ -9,6 +9,8 @@ export function documentParserFailureMessage(code: string): string {
     return 'File rusak atau tidak dapat dibaca. Ekspor ulang sebagai PDF atau UTF-8 lalu unggah kembali.';
   if (code === 'EMPTY_DOCUMENT')
     return 'Tidak ada isi yang dapat diindeks. Unggah dokumen yang berisi teks atau gambar yang jelas.';
+  if (code === 'NO_READABLE_DOCUMENT_CONTENT')
+    return 'Tidak ada teks yang dapat dibaca dalam batas pemrosesan gambar. Bagi dokumen atau unggah salinan dengan teks yang dapat dipilih.';
   if (code === 'VISION_UNREADABLE')
     return 'Isi gambar tidak dapat dibaca. Unggah hasil pindai atau gambar dengan teks dan diagram yang lebih jelas.';
   if (code === 'FILE_TOO_LARGE')

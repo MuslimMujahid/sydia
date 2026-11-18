@@ -19,6 +19,8 @@ const {
 const {
   DocumentParserService,
   DocumentParserSettings,
+  DOCUMENT_PARSER_VERSION,
+  DOCUMENT_POLICY_VERSION,
 } = require('../../dist/src/infra/document-parser');
 const {
   DocumentService,
@@ -90,8 +92,8 @@ async function main() {
     generatedAt: new Date().toISOString(),
     passed: false,
     runtime: process.version,
-    parser: 'officeparser-8.1.1',
-    policyVersion: 3,
+    parser: DOCUMENT_PARSER_VERSION,
+    policyVersion: DOCUMENT_POLICY_VERSION,
     visionModel:
       provider.BACKEND_VISION_MODEL || 'deepseek/deepseek-v4.1-flash',
     sttModel: provider.BACKEND_STT_MODEL || 'openai/whisper-large-v3-turbo',

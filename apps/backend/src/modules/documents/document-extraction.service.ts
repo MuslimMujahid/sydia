@@ -53,31 +53,65 @@ export class DocumentExtractionService {
     const started = Date.now();
     const parsed = await this.parser.parse(file);
     const deadline = started + this.settings.limits.timeoutMs + 25_000;
+    const warnings = new Set(parsed.warnings);
+    let skippedImageCount = parsed.skippedImageCount;
+    let visionFailure: Error | undefined;
+    let visionCalls = 0;
 
-    for (const visual of parsed.visuals) {
+    for (const [index, visual] of parsed.visuals.entries()) {
       const section = parsed.sections[visual.sectionIndex];
       if (!section) throw new DocumentParserError('INVALID_PAGE_REFERENCE');
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) throw new DocumentParserError('EXTRACTION_TIMEOUT');
-      const description = await this.media.interpretDocumentImage(
-        visual.buffer,
-        visual.mimeType,
-        visual.label,
-        Math.min(remaining, 20_000),
-      );
+      let description: string;
 
-      if (!description?.trim())
-        throw new DocumentParserError('VISION_NOT_CONFIGURED');
-      if (description.length > 20_000)
-        throw new DocumentParserError('VISION_OUTPUT_LIMIT_EXCEEDED');
-      if (!/[\p{L}\p{N}]/u.test(description.replace(/\[unreadable\]/gi, '')))
-        throw new DocumentParserError('VISION_UNREADABLE');
+      try {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw new DocumentParserError('EXTRACTION_TIMEOUT');
+        visionCalls++;
+        const output = await this.media.interpretDocumentImage(
+          visual.buffer,
+          visual.mimeType,
+          visual.label,
+          Math.min(remaining, 20_000),
+        );
+
+        if (output === null)
+          throw new DocumentParserError('VISION_NOT_CONFIGURED');
+        if (output.length > 20_000)
+          throw new DocumentParserError('VISION_OUTPUT_LIMIT_EXCEEDED');
+        if (!/[\p{L}\p{N}]/u.test(output.replace(/\[unreadable\]/gi, '')))
+          throw new DocumentParserError('VISION_UNREADABLE');
+        description = output.trim();
+      } catch (error: unknown) {
+        const code =
+          error instanceof DocumentParserError
+            ? error.code
+            : 'VISION_REQUEST_FAILED';
+
+        this.logger.warn({
+          event: 'document-image-analysis-failed',
+          code,
+          errorName: error instanceof Error ? error.name : typeof error,
+          sectionIndex: visual.sectionIndex,
+        });
+        warnings.add(code);
+        visionFailure ??=
+          error instanceof Error ? error : new DocumentParserError(code, true);
+
+        if (code === 'VISION_NOT_CONFIGURED' || code === 'EXTRACTION_TIMEOUT') {
+          skippedImageCount += parsed.visuals.length - index;
+          break;
+        }
+
+        skippedImageCount++;
+        continue;
+      }
+
       const normalize = (text: string) =>
         text.replace(/\s+/g, ' ').trim().toLowerCase();
 
       // Keep extracted text authoritative. Do not index an identical transcription twice.
       if (!normalize(section.text).includes(normalize(description))) {
-        const content = `[Vision interpretation${visual.label ? `: ${visual.label}` : ''}]\n${description.trim()}`;
+        const content = `[Vision interpretation${visual.label ? `: ${visual.label}` : ''}]\n${description}`;
         section.text = [section.text, content].filter(Boolean).join('\n\n');
         for (let offset = 0; offset < content.length; offset += 1220)
           section.chunks.push(content.slice(offset, offset + 1400));
@@ -85,6 +119,17 @@ export class DocumentExtractionService {
 
       section.methods.push('vision');
     }
+
+    if (
+      skippedImageCount > 0 &&
+      !parsed.sections.some(
+        (section) =>
+          section.chunks.length > 0 && /[\p{L}\p{N}]/u.test(section.text),
+      )
+    )
+      throw (
+        visionFailure ?? new DocumentParserError('NO_READABLE_DOCUMENT_CONTENT')
+      );
 
     const result: ExtractionResult = {
       text: parsed.sections
@@ -108,7 +153,8 @@ export class DocumentExtractionService {
       methods: [
         ...new Set(parsed.sections.flatMap((section) => section.methods)),
       ],
-      warnings: parsed.warnings,
+      warnings: [...warnings],
+      skippedImageCount,
     };
 
     if (!result.chunks.length) throw new DocumentParserError('EMPTY_DOCUMENT');
@@ -142,7 +188,8 @@ export class DocumentExtractionService {
       chunkCount: result.chunks.length,
       methods: result.methods,
       warnings: result.warnings,
-      visionCalls: parsed.visuals.length,
+      visionCalls,
+      skippedImageCount,
     });
 
     return result;
@@ -177,7 +224,12 @@ export class DocumentExtractionService {
 
     try {
       value = JSON.parse(bytes.toString('utf8'));
-    } catch {
+    } catch (error: unknown) {
+      this.logger.warn({
+        event: 'invalid-document-extraction-checkpoint',
+        errorName: error instanceof Error ? error.name : typeof error,
+      });
+
       return null;
     }
 
@@ -200,6 +252,9 @@ export class DocumentExtractionService {
       !Array.isArray(result.methods) ||
       !result.methods.length ||
       result.methods.length > METHODS.length ||
+      typeof result.skippedImageCount !== 'number' ||
+      !Number.isSafeInteger(result.skippedImageCount) ||
+      result.skippedImageCount < 0 ||
       !Array.isArray(result.warnings)
     )
       return null;

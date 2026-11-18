@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type { Document } from '../../database/entities';
 import type { IDocumentRepository } from '../../database/interfaces';
+import { DOCUMENT_POLICY_VERSION } from '../../infra/document-parser';
 import type { QueueService } from '../../infra/queue';
 import type { DocumentExtractionService } from './document-extraction.service';
 import { DocumentService, NonRetryableDocumentError } from './document.service';
@@ -209,7 +210,7 @@ describe('DocumentReprocessingService', () => {
     expect(extraction.deleteCheckpoint).toHaveBeenCalledWith('owner/original');
     expect(repository.storageKey).toHaveBeenCalledWith('owner', 'a');
     expect(result.parserVersion).toBe('officeparser-8.1.1');
-    expect(result.policyVersion).toBe(3);
+    expect(result.policyVersion).toBe(DOCUMENT_POLICY_VERSION);
   });
 
   test('owner scoping prevents another owner from restarting or reading a document', async () => {

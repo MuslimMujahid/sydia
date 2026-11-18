@@ -45,6 +45,7 @@ export type DocumentMetadata = Pick<
   'id' | 'title' | 'description' | 'status' | 'createdAt' | 'updatedAt'
 > & {
   file: FileAsset;
+  skippedImageCount?: number;
 };
 
 export type DocumentCreate = {

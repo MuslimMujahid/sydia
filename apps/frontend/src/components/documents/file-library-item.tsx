@@ -29,17 +29,36 @@ import { formatDateTime } from "@/lib/utils/date-time";
 import { formatFileSize } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 import { FileLibraryThumbnail } from "./file-library-thumbnail";
+import { formatSkippedDocumentImages } from "./document-image-warning";
 
 interface ItemStatusProps {
   status: string | null;
   deleting: boolean;
+  skippedImageCount?: number | null;
 }
 
-function ItemStatus({ status, deleting }: ItemStatusProps) {
-  if (!status && !deleting) return null;
+function itemStatusLabel({
+  status,
+  deleting,
+  skippedImageCount,
+}: ItemStatusProps) {
+  if (deleting) return "Menghapus…";
+  if (status === "processing") return "Diproses";
+  if (status === "failed") return "Gagal diproses";
+  if (status === "ready" && skippedImageCount)
+    return formatSkippedDocumentImages(skippedImageCount, "id");
+
+  return status ? "Siap" : null;
+}
+
+function ItemStatus(props: ItemStatusProps) {
+  const { status, deleting, skippedImageCount } = props;
+  const label = itemStatusLabel(props);
+  if (!label) return null;
   const pending = deleting || status === "processing";
   const failed = status === "failed";
-  const Icon = pending ? LoaderCircle : failed ? AlertCircle : Check;
+  const partial = status === "ready" && Boolean(skippedImageCount);
+  const Icon = pending ? LoaderCircle : failed || partial ? AlertCircle : Check;
 
   return (
     <span
@@ -55,13 +74,7 @@ function ItemStatus({ status, deleting }: ItemStatusProps) {
           pending && "animate-spin motion-reduce:animate-none"
         )}
       />
-      {deleting
-        ? "Menghapus…"
-        : status === "processing"
-          ? "Diproses"
-          : failed
-            ? "Gagal diproses"
-            : "Siap"}
+      {label}
     </span>
   );
 }
@@ -197,12 +210,14 @@ export function FileLibraryItem({
       ? `${item.childCount} item`
       : formatFileSize(item.size!);
 
-  const status = (
-    <ItemStatus
-      status={item.status}
-      deleting={Boolean(item.deletingOperationId)}
-    />
-  );
+  const statusProps = {
+    status: item.status,
+    deleting: Boolean(item.deletingOperationId),
+    skippedImageCount: item.skippedImageCount,
+  };
+
+  const status = <ItemStatus {...statusProps} />;
+  const statusLabel = itemStatusLabel(statusProps);
 
   const name =
     item.kind === "folder" ? (
@@ -306,9 +321,7 @@ export function FileLibraryItem({
               )}
             >
               {size}
-              {item.kind === "file" || item.deletingOperationId
-                ? ` · ${item.deletingOperationId ? "Menghapus…" : item.status === "processing" ? "Diproses" : item.status === "failed" ? "Gagal diproses" : "Siap"}`
-                : ""}
+              {statusLabel ? ` · ${statusLabel}` : ""}
             </p>
           </div>
           <span className="files-row-size">{size}</span>

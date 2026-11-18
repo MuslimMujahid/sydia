@@ -3,6 +3,10 @@ import { Link } from "@tanstack/react-router";
 import { Check, Inbox, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { dayKeyInZone } from "@/components/calendar/calendar-date";
+import {
+  formatSkippedDocumentImages,
+  skippedDocumentImages,
+} from "@/components/documents/document-image-warning";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { PopoverTitle } from "@/components/ui/popover";
@@ -320,6 +324,7 @@ function FileDetails({ entity, locale }: DetailsProps) {
     );
   const document = query.data;
   const contentUrl = getDocumentContentUrl(document.id);
+  const skippedImageCount = skippedDocumentImages(document);
 
   return (
     <>
@@ -336,6 +341,11 @@ function FileDetails({ entity, locale }: DetailsProps) {
             (locale === "en"
               ? "File processing failed. Retry from Files."
               : "Pemrosesan file gagal. Coba ulangi dari File.")}
+        </p>
+      ) : null}
+      {skippedImageCount > 0 ? (
+        <p className="mt-1 text-sm text-ink-muted">
+          {formatSkippedDocumentImages(skippedImageCount, locale)}
         </p>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2">

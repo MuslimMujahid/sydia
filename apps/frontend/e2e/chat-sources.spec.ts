@@ -224,6 +224,47 @@ test("a pasted screenshot can be sent without typing a message", async ({
     .toEqual(["clipboard-image"]);
 });
 
+test("a document with skipped images shows a warning and can still be sent", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  const document = {
+    id: "partial-document",
+    title: "Regulation.docx",
+    file: { kind: "document" },
+  };
+
+  await page.route("http://localhost:5000/documents", (route) =>
+    route.fulfill({ json: { data: { ...document, status: "processing" } } })
+  );
+  await page.route(
+    "http://localhost:5000/documents/partial-document",
+    (route) =>
+      route.fulfill({
+        json: {
+          data: {
+            ...document,
+            status: "ready",
+            structuredData: { skippedImageCount: 33 },
+          },
+        },
+      })
+  );
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "Regulation.docx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    buffer: Buffer.from("mocked DOCX upload"),
+  });
+
+  await expect(page.getByText("33 gambar tidak dianalisis")).toBeVisible();
+  await page.getByRole("button", { name: "Kirim pesan", exact: true }).click();
+  await expect
+    .poll(() => state.sends[0]?.attachmentIds)
+    .toEqual(["partial-document"]);
+});
+
 test("pasting an image with text adds the attachment and inserts the text", async ({
   page,
 }) => {
