@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AdminPage } from "@/components/admin/admin-page";
+import { AdminPage, AdminUsersLoading } from "@/components/admin/admin-page";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import {
   DEFAULT_PERIOD,
@@ -97,9 +97,7 @@ function UsersContent({
 
   if (overview.isPending || (!list.query.data && list.query.isPending))
     return (
-      <p aria-busy="true" role="status">
-        Memuat pengguna…
-      </p>
+      <AdminUsersLoading period={period} onPeriodChange={onPeriodChange} />
     );
   if (!overview.data || !list.query.data)
     return (

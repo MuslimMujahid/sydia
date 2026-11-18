@@ -1,7 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
-import { PeriodBar } from "./analytics/widgets";
+import { PeriodBar, Skeleton } from "./analytics/widgets";
 import { exportAdminUsers } from "./export-users";
 import type {
   AdminOverview,
@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/app-states";
 import { adminPricingQueryOptions } from "@/lib/services/api/admin/admin.queries";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils/cn";
 
 export type AdminPageProps = {
   overview: AdminOverview;
@@ -53,19 +54,169 @@ export type AdminPageProps = {
 
 const DEFAULT_ERROR_MESSAGE = "Aksi gagal dijalankan. Coba lagi.";
 
-function AdminSkeleton() {
+const SKELETON_ROWS = [0, 1, 2, 3, 4, 5, 6, 7];
+
+/** Mirrors the users table (desktop) and user cards (mobile) while loading. */
+function UsersListSkeleton() {
   return (
     <div
-      className="space-y-3 rounded-2xl border border-ink/6 bg-canvas p-5 shadow-card"
+      className="overflow-hidden rounded-2xl border border-ink/6 bg-canvas shadow-card"
       aria-busy="true"
       aria-label="Memuat data pengguna"
+      role="status"
     >
-      {[0, 1, 2, 3, 4, 5].map((index) => (
-        <span
-          key={index}
-          className="block h-12 animate-pulse rounded-sm bg-surface-1 motion-reduce:animate-none"
-        />
-      ))}
+      <div className="hidden xl:block">
+        <div className="flex items-center gap-6 border-b border-ink/6 px-5 py-4">
+          {["w-20", "w-12", "w-16", "w-24", "w-12", "w-16", "w-14"].map(
+            (width, index) => (
+              <Skeleton key={index} className={cn("h-2.5", width)} />
+            )
+          )}
+        </div>
+        {SKELETON_ROWS.map((row) => (
+          <div
+            key={row}
+            className="grid grid-cols-[minmax(220px,2fr)_96px_120px_120px_80px_120px_104px_96px] items-center gap-4 border-b border-ink/6 px-5 py-3.5 last:border-b-0"
+          >
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-3 w-3/5" />
+                <Skeleton className="h-2.5 w-4/5" />
+              </div>
+            </div>
+            <Skeleton className="h-5 w-14 rounded-full" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-5 w-[84px]" />
+            <Skeleton className="h-3 w-8" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="ml-auto h-7 w-16 rounded-full" />
+          </div>
+        ))}
+      </div>
+      <ul className="divide-y divide-ink/6 xl:hidden">
+        {SKELETON_ROWS.slice(0, 5).map((row) => (
+          <li key={row} className="space-y-4 p-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-3 w-2/5" />
+                <Skeleton className="h-2.5 w-3/5" />
+              </div>
+              <Skeleton className="h-5 w-14 rounded-full" />
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 pl-11 sm:grid-cols-4">
+              {[0, 1, 2, 3].map((cell) => (
+                <div key={cell} className="space-y-1.5">
+                  <Skeleton className="h-2.5 w-14" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="flex items-center justify-between gap-3 border-t border-ink/6 px-5 py-4">
+        <Skeleton className="h-3 w-48" />
+        <Skeleton className="h-8 w-28 rounded-full" />
+      </div>
+      <span className="sr-only">Memuat pengguna…</span>
+    </div>
+  );
+}
+
+function UsersToolbarSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex flex-wrap items-center gap-x-4 gap-y-3"
+    >
+      <div className="mr-auto flex items-center gap-6 pb-2">
+        {["w-16", "w-14", "w-20"].map((width, index) => (
+          <Skeleton key={index} className={cn("h-4", width)} />
+        ))}
+      </div>
+      <Skeleton className="h-10 w-28 rounded-[8px]" />
+      <Skeleton className="h-10 w-40 rounded-[8px]" />
+      <Skeleton className="h-10 w-full rounded-[8px] sm:w-64" />
+    </div>
+  );
+}
+
+function UsersHeader({ children }: { children: ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div className="space-y-1">
+        <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
+          Pengguna
+        </h1>
+        <p className="text-[15px] leading-[1.5] text-ink-muted">
+          Pantau aktivitas, biaya dan margin tiap pengguna, lalu kelola akses
+          akun dengan aman.
+        </p>
+      </div>
+      <div className="flex flex-col items-end gap-1">{children}</div>
+    </header>
+  );
+}
+
+function ExportButton({
+  disabled,
+  exporting = false,
+  onClick,
+}: {
+  disabled: boolean;
+  exporting?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Button
+      variant="dark-outline"
+      size="sm"
+      className="rounded-[12px] bg-canvas px-4"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <Download aria-hidden="true" />
+      {exporting ? "Mengekspor…" : "Ekspor CSV"}
+    </Button>
+  );
+}
+
+function usersComparison(period: AdminPeriod): string {
+  return `Aktivitas, biaya dan margin dihitung untuk ${periodPhrase(period)} terakhir`;
+}
+
+const MARGIN_NOTE = "Margin = nilai paket pada periode − biaya model";
+
+export type AdminUsersLoadingProps = {
+  period: AdminPeriod;
+  onPeriodChange: (period: AdminPeriod) => void;
+};
+
+/** First-load screen for the users page: real chrome, skeleton data. */
+export function AdminUsersLoading({
+  period,
+  onPeriodChange,
+}: AdminUsersLoadingProps) {
+  return (
+    <div className="space-y-6">
+      <UsersHeader>
+        <ExportButton disabled />
+      </UsersHeader>
+      <PeriodBar
+        period={period}
+        onPeriodChange={onPeriodChange}
+        onRefresh={() => undefined}
+        isFetching
+        comparison={usersComparison(period)}
+        status={MARGIN_NOTE}
+      />
+      <section aria-label="Daftar pengguna" className="space-y-5">
+        <UsersToolbarSkeleton />
+        <UsersListSkeleton />
+      </section>
     </div>
   );
 }
@@ -189,44 +340,28 @@ export function AdminPage({
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="font-display text-[26px] leading-[1.22] font-semibold tracking-[-0.018em]">
-            Pengguna
-          </h1>
-          <p className="text-[15px] leading-[1.5] text-ink-muted">
-            Pantau aktivitas, biaya dan margin tiap pengguna, lalu kelola akses
-            akun dengan aman.
+      <UsersHeader>
+        <ExportButton
+          disabled={exporting || isLoading || isFetching || !!error}
+          exporting={exporting}
+          onClick={() => void handleExport()}
+        />
+        {exportError && (
+          <p role="alert" className="text-sm text-destructive">
+            {exportError}
           </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Button
-            variant="dark-outline"
-            size="sm"
-            className="rounded-[12px] bg-canvas px-4"
-            disabled={exporting || isLoading || isFetching || !!error}
-            onClick={() => void handleExport()}
-          >
-            <Download aria-hidden="true" />
-            {exporting ? "Mengekspor…" : "Ekspor CSV"}
-          </Button>
-          {exportError && (
-            <p role="alert" className="text-sm text-destructive">
-              {exportError}
-            </p>
-          )}
-        </div>
-      </header>
+        )}
+      </UsersHeader>
       <PeriodBar
         period={period}
         onPeriodChange={onPeriodChange}
         onRefresh={() => onRetry?.()}
         isFetching={isFetching}
-        comparison={`Aktivitas, biaya dan margin dihitung untuk ${periodPhrase(period)} terakhir`}
-        status="Margin = nilai paket pada periode − biaya model"
+        comparison={usersComparison(period)}
+        status={MARGIN_NOTE}
       />
       {isLoading ? (
-        <AdminSkeleton />
+        <UsersListSkeleton />
       ) : error ? (
         <DomainInlineError
           title="Gagal memuat data pengguna"
