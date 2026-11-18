@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { CalendarDays, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { CalendarGlyph } from "@/components/ui/glyphs";
 import { shiftMonthAnchor } from "@/components/calendar/month-anchor";
 import { DailyNoteCalendar } from "@/components/daily-notes/daily-note-calendar";
 import {
@@ -59,14 +60,15 @@ export function WorkspaceDailyNavigation({
               aria-current={selectedDate === date ? "page" : undefined}
               onClick={() => onSelectDate(date)}
               className={cn(
-                "flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-[13px] outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8",
+                "glyph-host flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-[13px] outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8",
                 selectedDate === date &&
                   "bg-brand/10 font-semibold text-brand hover:bg-brand/10"
               )}
             >
-              <CalendarDays
+              <CalendarGlyph
+                hue="amber"
                 className={cn(
-                  "size-4 shrink-0 text-ink-muted",
+                  "size-4.5 text-ink-muted",
                   selectedDate === date && "text-brand"
                 )}
               />
@@ -97,8 +99,8 @@ export function WorkspaceDailyNavigation({
           setPickerOpen(open);
         }}
       >
-        <PopoverTrigger className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-[13px] text-ink-muted outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8">
-          <CalendarDays className="size-4 shrink-0" />
+        <PopoverTrigger className="glyph-host mt-1 flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-[13px] text-ink-muted outline-none hover:bg-surface-1 focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8">
+          <CalendarGlyph hue="amber" className="size-4.5" />
           Pilih tanggal…
           <ChevronDown className="ml-auto size-3.5" />
         </PopoverTrigger>

@@ -105,6 +105,42 @@ export function NoteGlyph(props: GlyphProps) {
   );
 }
 
+/** Text note: a page with one line highlighted. */
+export function DocumentGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <rect x="4.25" y="2.75" width="11.5" height="14.5" rx="3.25" />
+      <path d="M7.5 6.5h5M7.5 13.5h3" />
+      <rect
+        className="glyph-accent"
+        x="7"
+        y="8.75"
+        width="6"
+        height="2.5"
+        rx="1.25"
+      />
+    </Glyph>
+  );
+}
+
+/** Table note: a grid whose header row is the accent. */
+export function TableGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <rect x="3.25" y="3.75" width="13.5" height="12.5" rx="3.25" />
+      <path d="M3.25 8.75h13.5M3.25 12.5h13.5M8.25 8.75v7.5" />
+      <rect
+        className="glyph-accent"
+        x="5.75"
+        y="5.25"
+        width="8.5"
+        height="2"
+        rx="1"
+      />
+    </Glyph>
+  );
+}
+
 /** Files: a folder with a label. */
 export function FolderGlyph(props: GlyphProps) {
   return (

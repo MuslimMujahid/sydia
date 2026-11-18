@@ -2,10 +2,8 @@ import { useRef, useState, type DragEvent } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  FileText,
   FilePlus,
   Table2,
-  Folder,
   FolderPlus,
   MoreHorizontal,
   Pencil,
@@ -14,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DocumentGlyph, FolderGlyph, TableGlyph } from "@/components/ui/glyphs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -235,7 +234,7 @@ export function WorkspaceTree({
                 )}
               >
                 <button
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8"
+                  className="glyph-host flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left text-[13px] outline-none focus-visible:outline-2 focus-visible:outline-brand sm:min-h-8"
                   aria-current={selected ? "page" : undefined}
                   aria-expanded={folder ? expanded : undefined}
                   onClick={() => {
@@ -260,12 +259,12 @@ export function WorkspaceTree({
                     ) : null}
                   </span>
                   {folder ? (
-                    <Folder className="size-4 shrink-0 text-ink-muted" />
+                    <FolderGlyph className="size-4.5 text-ink-muted" />
                   ) : (
                     <ItemNoteIcon
                       format={item.format}
                       className={cn(
-                        "size-4 shrink-0 text-ink-muted",
+                        "size-4.5 text-ink-muted",
                         selected && "text-brand"
                       )}
                     />
@@ -340,7 +339,9 @@ function ItemNoteIcon({
   format?: string;
   className?: string;
 }) {
-  const Icon = format === "record" ? Table2 : FileText;
-
-  return <Icon className={className} />;
+  return format === "record" ? (
+    <TableGlyph className={className} />
+  ) : (
+    <DocumentGlyph hue="violet" className={className} />
+  );
 }
