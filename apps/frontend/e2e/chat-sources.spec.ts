@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const at = "2026-10-25T08:00:00.000Z";
 const file = {
@@ -160,6 +160,84 @@ async function files(page: Page, text = "Compare @") {
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog")).toBeVisible();
 }
+
+async function mockImageUpload(page: Page) {
+  await page.route("http://localhost:5000/documents", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          id: "clipboard-image",
+          title: "Screenshot.png",
+          status: "ready",
+          file: { kind: "image" },
+        },
+      },
+    })
+  );
+}
+
+async function pasteImage(composer: Locator, text?: string) {
+  await composer.focus();
+  await composer.evaluate((editor, clipboardText) => {
+    const png = Uint8Array.fromBase64(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aKbsAAAAASUVORK5CYII="
+    );
+
+    const clipboardData = new DataTransfer();
+
+    clipboardData.items.add(
+      new File([png], "Screenshot.png", { type: "image/png" })
+    );
+
+    if (clipboardText !== undefined)
+      clipboardData.setData("text/plain", clipboardText);
+    editor.dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+  }, text);
+}
+
+test("a pasted screenshot can be sent without typing a message", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await mockImageUpload(page);
+  const composer = page.getByRole("textbox", { name: "Pesan untuk Sydia" });
+
+  await pasteImage(composer);
+
+  const attachment = page
+    .getByRole("list", { name: "Lampiran pesan" })
+    .getByRole("listitem")
+    .filter({ hasText: "Screenshot.png" });
+
+  await expect(attachment.getByText("Siap", { exact: true })).toBeVisible();
+  await expect(composer).toHaveText("");
+  expect(state.sends).toEqual([]);
+  await page.getByRole("button", { name: "Kirim pesan", exact: true }).click();
+  await expect
+    .poll(() => state.sends[0]?.attachmentIds)
+    .toEqual(["clipboard-image"]);
+});
+
+test("pasting an image with text adds the attachment and inserts the text", async ({
+  page,
+}) => {
+  await setup(page);
+  await mockImageUpload(page);
+  const composer = page.getByRole("textbox", { name: "Pesan untuk Sydia" });
+
+  await pasteImage(composer, "My screenshot");
+
+  await expect(
+    page.getByRole("button", { name: "Hapus lampiran Screenshot.png" })
+  ).toBeVisible();
+  await expect(composer).toHaveText("My screenshot");
+});
 
 test("Enter opens a selector without sending and cancel restores the exact draft and focus", async ({
   page,

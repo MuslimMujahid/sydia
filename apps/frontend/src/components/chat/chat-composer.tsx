@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ClipboardEvent,
   type FormEvent,
 } from "react";
 import { Button } from "@/components/ui/button";
@@ -246,8 +247,8 @@ export function ChatComposer({
     }
   }
 
-  async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(event.target.files ?? []).map((file) => ({
+  async function addFiles(files: File[]) {
+    const selected = files.map((file) => ({
       localId: crypto.randomUUID(),
       name: file.name,
       kind: kindFromFile(file),
@@ -255,9 +256,27 @@ export function ChatComposer({
       file,
     }));
 
-    event.target.value = "";
     setAttachments((current) => [...current, ...selected]);
     for (const attachment of selected) await uploadAttachment(attachment);
+  }
+
+  function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
+    input.value = "";
+    void addFiles(files);
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
+    if (disabled || isSending || submittingRef.current) return;
+    const images = Array.from(event.clipboardData.files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+
+    if (images.length === 0) return;
+
+    if (!event.clipboardData.getData("text/plain")) event.preventDefault();
+    void addFiles(images);
   }
 
   function removeAttachment(localId: string) {
@@ -456,7 +475,7 @@ export function ChatComposer({
           <input
             ref={fileInputRef}
             type="file"
-            onChange={(event) => void handleFiles(event)}
+            onChange={handleFiles}
             accept=".pdf,.docx,.xlsx,.pptx,.odt,.ods,.odp,.rtf,.txt,.md,.csv,.html,.json,image/*,audio/*"
             className="sr-only"
           />
@@ -465,6 +484,7 @@ export function ChatComposer({
             locale={locale}
             disabled={!!disabled || isSending || submitting}
             embedded={embedded}
+            onPaste={handlePaste}
             onChange={(text, segments) => {
               if (errorMessage) onDraftChange?.();
               setContent(text);

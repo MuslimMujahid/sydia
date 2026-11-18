@@ -16,6 +16,7 @@ import {
   useImperativeHandle,
   useRef,
   useState,
+  type ClipboardEventHandler,
   type Ref,
   type MouseEventHandler,
 } from "react";
@@ -158,6 +159,7 @@ interface ChatSourceEditorProps {
   locale: SupportedLocale;
   disabled: boolean;
   embedded: boolean;
+  onPaste: ClipboardEventHandler<HTMLDivElement>;
   onChange: (text: string, segments: ChatSegment[]) => void;
   onSubmit: () => void;
 }
@@ -167,6 +169,7 @@ export function ChatSourceEditor({
   locale,
   disabled,
   embedded,
+  onPaste,
   onChange,
   onSubmit,
 }: ChatSourceEditorProps) {
@@ -333,6 +336,7 @@ export function ChatSourceEditor({
       <div className="relative">
         <EditorContent
           editor={editor}
+          onPasteCapture={onPaste}
           className={cn(
             "[&_.tiptap_p]:m-0 [&_.tiptap_p]:min-h-6 [&_.tiptap_p.is-editor-empty:first-child]:before:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child]:before:float-left [&_.tiptap_p.is-editor-empty:first-child]:before:h-0",
             // The home box opens two lines tall; the docked box stays compact.
