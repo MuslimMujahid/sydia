@@ -4,6 +4,7 @@ import type {
   CalendarEvent,
   CalendarEventWriteInput,
 } from "../src/lib/services/api/calendar/calendar.api";
+import type { Task } from "../src/lib/services/api/tasks/tasks.api";
 
 const timestamp = "2026-10-08T08:00:00.000Z";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3110";
@@ -11,6 +12,75 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3110";
 // A cold Vite fixture compiles the calendar and rich text dependencies on first
 // navigation. Keep assertion deadlines unchanged while allowing that startup.
 test.setTimeout(60_000);
+
+test("a deleted task stays hidden while the task list refreshes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  const task: Task = {
+    id: "task-1",
+    title: "Kirim laporan",
+    description: null,
+    status: "inbox",
+    priority: "medium",
+    dueAt: null,
+    categories: [],
+    source: null,
+    completedAt: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  const tasksUrl = "http://localhost:5000/tasks";
+  const deletion = Promise.withResolvers<void>();
+  const refresh = Promise.withResolvers<void>();
+
+  await page.route("http://localhost:5000/categories", (route) =>
+    route.fulfill({ json: { data: [] } })
+  );
+  await page.route(tasksUrl, (route) =>
+    route.fulfill({ json: { data: [task] } })
+  );
+  await page.route(`${tasksUrl}/${task.id}`, async (route) => {
+    await deletion.promise;
+
+    return route.fulfill({ status: 204 });
+  });
+  await page.goto("/e2e/calendar-sync.html?mode=tasks");
+
+  const taskActions = page.getByRole("button", {
+    name: `Aksi untuk ${task.title}`,
+  });
+
+  await taskActions.click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("menuitem", { name: "Hapus tugas" }).click();
+
+  try {
+    await expect(taskActions).toHaveCount(0);
+    await page.route(tasksUrl, async (route) => {
+      await refresh.promise;
+
+      return route.fulfill({ json: { data: [] } });
+    });
+    const refreshRequest = page.waitForRequest(tasksUrl);
+    deletion.resolve();
+    await refreshRequest;
+
+    // Give React a paint after DELETE succeeds while the replacement list is held.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        })
+    );
+    await expect(taskActions).toHaveCount(0);
+  } finally {
+    deletion.resolve();
+    refresh.resolve();
+  }
+});
 
 const googleEvent: CalendarEvent = {
   id: "event-1",

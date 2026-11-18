@@ -85,7 +85,13 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: deleteTask,
-    onSuccess: (_, taskId) => {
+    onSuccess: async (_, taskId) => {
+      const taskLists = { queryKey: taskQueryKeys.lists() };
+      // Discard older list requests before removing the task from the cache.
+      await queryClient.cancelQueries(taskLists);
+      queryClient.setQueriesData<Task[]>(taskLists, (tasks) =>
+        tasks?.filter((task) => task.id !== taskId)
+      );
       queryClient.removeQueries({ queryKey: taskQueryKeys.detail(taskId) });
     },
     meta: {

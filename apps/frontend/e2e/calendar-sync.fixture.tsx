@@ -4,6 +4,7 @@ import { isCalendarView } from "../src/components/calendar/calendar-date";
 import { CalendarPage } from "../src/components/calendar/calendar-page";
 import { IntegrationSettingsPage } from "../src/components/settings/integrations-page";
 import { WhatsAppIntegrationCard } from "../src/components/settings/whatsapp-page";
+import { TaskPage } from "../src/components/tasks/task-page";
 import { Card } from "../src/components/ui/card";
 import { createQueryClient } from "../src/lib/query-client";
 import "../src/styles/globals.css";
@@ -12,6 +13,9 @@ function CalendarSyncFixture() {
   const params = new URLSearchParams(window.location.search);
   const mode = params.get("mode");
   const view = params.get("view");
+
+  if (mode === "tasks")
+    return <TaskPage modeSwitch={null} onTaskIdChange={() => {}} />;
 
   if (mode === "whatsapp")
     return (
