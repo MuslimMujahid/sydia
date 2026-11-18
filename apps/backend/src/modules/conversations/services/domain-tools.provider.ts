@@ -35,6 +35,7 @@ import { CalendarSyncService } from '../../calendar/calendar-sync.service';
 import { SecretsService } from '../../secrets/secrets.service';
 import { DocumentService } from '../../documents/document.service';
 import { DailyNoteService } from '../../daily-notes/daily-note.service';
+import { UpdateUserProfileService } from '../../users/user-profile.module';
 import { createDomainTools } from './domain-tools';
 import { createPhaseTools } from './phase-tools';
 import { createDailyNoteTools } from './daily-note-tools';
@@ -42,6 +43,7 @@ import { NotesService } from '../../notes/notes.service';
 import { createNotesWorkspaceTools } from './notes-workspace-tools';
 import type { AssistantTool } from './tool-executor.service';
 import { validateToolGroups } from './tool-groups';
+import { createTimezoneTool } from './timezone-tool';
 import {
   AssistancePolicyService,
   AssistantActionService,
@@ -75,6 +77,7 @@ export class DomainToolsProvider {
     records: RecordNotesService,
     mutations: NoteMutationService,
     @Inject(NOTE_WORK_REPOSITORY) noteWork: INoteWorkRepository,
+    profiles: UpdateUserProfileService,
     @Optional() skills?: SkillCatalogService,
     @Optional() workContext?: WorkContextService,
     @Optional() availability?: AvailabilityService,
@@ -87,6 +90,7 @@ export class DomainToolsProvider {
     const protectedTools = protectNoteTools(
       [
         createAssistantPlanTool(),
+        createTimezoneTool(profiles),
         ...createDomainTools({
           tasks,
           categories,

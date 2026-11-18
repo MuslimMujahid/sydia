@@ -250,6 +250,7 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
     en: 'View current time',
     id: 'Melihat waktu saat ini',
   },
+  set_timezone: { en: 'Change timezone', id: 'Mengubah zona waktu' },
   create_task: { en: 'Create task', id: 'Membuat tugas' },
   update_task: { en: 'Update task', id: 'Memperbarui tugas' },
   list_tasks: { en: 'Find tasks', id: 'Mencari tugas' },

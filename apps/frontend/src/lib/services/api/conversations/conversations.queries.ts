@@ -4,6 +4,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
+import { userQueryKeys } from "../users/users.queries";
 import {
   getConversation,
   getConversations,
@@ -106,6 +107,22 @@ function cacheRetryResult(
   );
 }
 
+function refreshProfileAfterTimezoneChange(
+  queryClient: QueryClient,
+  invocations: ToolInvocation[]
+) {
+  if (
+    invocations.some(
+      ({ name, status }) => name === "set_timezone" && status === "completed"
+    )
+  ) {
+    return queryClient.invalidateQueries({
+      queryKey: userQueryKeys.current(),
+      refetchType: "all",
+    });
+  }
+}
+
 export function useSendConversationMessage(
   handlers: Omit<ConversationStreamHandlers, "onTurn"> & {
     onTurn?(result: SendMessageResult): void;
@@ -122,6 +139,13 @@ export function useSendConversationMessage(
           handlers.onTurn?.(result);
         },
       }),
+    onSuccess: (result, values) => {
+      if (!values.previewSessionId)
+        return refreshProfileAfterTimezoneChange(
+          queryClient,
+          result.toolInvocations
+        );
+    },
     meta: { invalidateQueries: [conversationQueryKeys.all] },
   });
 }
@@ -141,7 +165,14 @@ export function useRetryAssistantRun() {
 
   return useMutation({
     mutationFn: retryAssistantRun,
-    onSuccess: (result) => cacheRetryResult(queryClient, result),
+    onSuccess: (result, values) => {
+      cacheRetryResult(queryClient, result);
+      if (!values.previewSessionId)
+        return refreshProfileAfterTimezoneChange(
+          queryClient,
+          result.toolInvocations
+        );
+    },
     meta: { invalidateQueries: [conversationQueryKeys.all] },
   });
 }

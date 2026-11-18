@@ -15,8 +15,8 @@ const TOOL_DEFINITION_BUDGET_BYTES = 92_500;
 
 function registeredTools(): AssistantToolDefinition[] {
   const stub = {} as never;
-  const dependencies: unknown[] = Array.from({ length: 24 }, () => stub);
-  dependencies[19] = new SkillCatalogService();
+  const dependencies: unknown[] = Array.from({ length: 25 }, () => stub);
+  dependencies[20] = new SkillCatalogService();
   const Provider = DomainToolsProvider as unknown as new (
     ...args: unknown[]
   ) => DomainToolsProvider;

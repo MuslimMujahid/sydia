@@ -798,23 +798,17 @@ Filters combine. Omitted status means inbox (unfinished); use done, cancelled, o
     definition: {
       name: 'create_reminder',
       label: 'Create reminder',
-      description: `Use this tool to create a scheduled reminder.
+      description: `Use this tool to schedule a reminder.
 
-Use it when the user asks to be reminded at a specific date or time, optionally recurring.
+Use it when the user requests a notification, once or recurring.
 
-Do not use it for a task without a notification schedule or to take a note; use 'create_task' or the note tools instead.
+Do not use it for tasks without notifications (create_task) or notes (note tools).
 
-title is required and schedules holds one entry per distinct notification time. Each entry takes the user's local date and time plus an optional recurrence.
+Call once per reminder with a title and one schedules entry per distinct time. Pass the user's local date (YYYY-MM-DD) and 24-hour time (HH:mm), using the profile timezone for relative dates. Resolve them from the current local calendar date. "jam 5 sore" is 17:00 and "jam 7 pagi" is 07:00. If the requested day passed, use the next one.
 
-date and time are the user's own wall clock, never a converted UTC instant: date is YYYY-MM-DD and time is 24 hour HH:mm. "jam 5 sore" is 17:00 and "jam 7 pagi" is 07:00. Use the date and clock the user stated, or the next one if that day has passed; do not shift them for the time zone, because the server converts them with the user's profile time zone.
+Weekly entries need daysOfWeek. ${WEEKDAY_NAMES_TEXT} For the first notification, set date to the next matching weekday at that time. "Tuesday, Thursday, and Friday at 17:00, and Saturday at 07:00" needs [2,4,5] at 17:00 and [6] at 07:00 in separate entries. Never combine different times in one rule.
 
-date must fall on one of that entry's recurrence weekdays, so it is the first time the user is notified. Weekdays use ${WEEKDAY_NAMES_TEXT} A weekly entry therefore needs daysOfWeek; when the user names weekdays, the date is the next such weekday at that time.
-
-Split schedules by time of day: one entry per distinct time. "Every Tuesday, Thursday, and Friday at 17:00, and Saturday at 07:00" is two entries with the same title, one with daysOfWeek [2,4,5] and time 17:00, the other with [6] and 07:00. Never widen daysOfWeek to absorb a second time of day.
-
-Call this tool once per reminder.
-
-When the result has deliveryNotice, the reminder is saved but will not reach the user. Tell them so in the reply and say what deliveryNotice suggests.`,
+If deliveryNotice is present, tell the user the reminder was saved but will not reach them, and relay its recommendation.`,
       parameters: schema(
         {
           title: string,

@@ -353,6 +353,7 @@ function scriptedTools(
     stub,
     stub,
     stub,
+    stub,
     skills,
     stub,
     stub,

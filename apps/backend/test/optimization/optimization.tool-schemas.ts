@@ -8,6 +8,7 @@ import { createNoteQuestionResponseTools } from '../../src/modules/conversations
 import { advertisedInputSchema } from '../../src/modules/conversations/services/advertised-tool-schema';
 import { validateToolGroups } from '../../src/modules/conversations/services/tool-groups';
 import { createAssistantPlanTool } from '../../src/modules/conversations/services/assistant-plan';
+import { createTimezoneTool } from '../../src/modules/conversations/services/timezone-tool';
 
 /** No live repository/client can be reached, even if a factory changes. */
 function unavailable<T extends object>(): T {
@@ -24,6 +25,7 @@ function unavailable<T extends object>(): T {
 export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
   const definitions = [
     createAssistantPlanTool(),
+    createTimezoneTool(unavailable()),
     ...createDomainTools({
       tasks: unavailable(),
       categories: unavailable(),

@@ -18,10 +18,10 @@ import {
   PrismaUserRepository,
 } from '../../database/repositories';
 import { UsersController } from './users.controller';
+import { UserProfileModule } from './user-profile.module';
 import {
   GetUserService,
   RecordAttributionService,
-  UpdateUserProfileService,
   UserPreferencesService,
   UserPrivacyService,
 } from './services';
@@ -29,6 +29,7 @@ import {
 @Module({
   imports: [
     AuditModule,
+    UserProfileModule,
     CalendarModule,
     NotificationsModule,
     TasksModule,
@@ -45,7 +46,6 @@ import {
     },
     { provide: USER_PRIVACY_REPOSITORY, useClass: PrismaUserPrivacyRepository },
     { provide: ATTRIBUTION_REPOSITORY, useClass: PrismaAttributionRepository },
-    UpdateUserProfileService,
     UserPreferencesService,
     UserPrivacyService,
     RecordAttributionService,

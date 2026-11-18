@@ -751,6 +751,25 @@ function noGuessedReference(name: string, items: ReferenceFixture[]): Check {
 }
 
 export const SCENARIOS: Scenario[] = [
+  {
+    id: 'timezone-change-explicit',
+    area: 'time',
+    message: 'Ubah zona waktu akun saya ke Tokyo.',
+    tools: { set_timezone: { timezone: 'Asia/Tokyo' } },
+    checks: [
+      noErrors(),
+      called('set_timezone', (args) => args.timezone === 'Asia/Tokyo', 'Tokyo'),
+      notCalled('update_reminder', 'update_task', 'update_calendar_event'),
+      contains('Tokyo'),
+    ],
+  },
+  {
+    id: 'timezone-travel-mention',
+    area: 'time',
+    message: 'Saya baru sampai di Tokyo.',
+    tools: {},
+    checks: [noErrors(), notCalled('set_timezone')],
+  },
   // ── Task and reminder lists ────────────────────────────────────────────
   {
     id: 'tasks-tomorrow-web',

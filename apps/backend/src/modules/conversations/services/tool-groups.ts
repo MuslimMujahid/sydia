@@ -62,7 +62,7 @@ export const TOOL_GROUPS = {
     'update_category',
     'delete_category',
   ],
-  time: ['get_current_datetime'],
+  time: ['get_current_datetime', 'set_timezone'],
   planning: ['update_plan'],
   assistance: [
     'load_skill',

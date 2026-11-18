@@ -72,6 +72,7 @@ import { ContextBuilderService } from '../../src/modules/conversations/services/
 import { ConversationSummarizerService } from '../../src/modules/conversations/services/conversation-summarizer.service';
 import { DomainToolsProvider } from '../../src/modules/conversations/services/domain-tools.provider';
 import { ToolExecutorService } from '../../src/modules/conversations/services/tool-executor.service';
+import { UpdateUserProfileService } from '../../src/modules/users/user-profile.module';
 import { MEMORY_EVALUATION_FACTS } from './memory-evaluation.fixtures';
 import type { MemorySearchHit } from '../../src/modules/memories/memory-access.types';
 import { NotesService } from '../../src/modules/notes/notes.service';
@@ -338,6 +339,7 @@ type Turn = {
           new PrismaNoteWorkRepository(prisma),
         ),
         new PrismaNoteWorkRepository(prisma),
+        new UpdateUserProfileService(users, audit),
       );
 
       let calls: Turn['tools'] = [];
