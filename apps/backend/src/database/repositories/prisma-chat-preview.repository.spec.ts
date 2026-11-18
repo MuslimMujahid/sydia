@@ -22,6 +22,7 @@ const owner: User = {
   automaticMemoryEnabled: true,
   persona: 'friendly',
   preferredAddress: 'Dev',
+  occupation: null,
   createdAt: timestamp,
   updatedAt: timestamp,
 };

@@ -55,6 +55,7 @@ function setup(
     automaticMemoryEnabled: false,
     persona: 'professional',
     preferredAddress: 'Owner',
+    occupation: null,
     createdAt: now,
     updatedAt: now,
   };

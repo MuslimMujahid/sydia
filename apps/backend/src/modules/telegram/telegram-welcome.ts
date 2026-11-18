@@ -1,11 +1,83 @@
-import type { User } from '../../database/entities';
+import type { User, UserOccupation } from '../../database/entities';
 
-type WelcomeRecipient = Pick<User, 'name' | 'preferredAddress' | 'locale'>;
+type WelcomeRecipient = Pick<
+  User,
+  'name' | 'preferredAddress' | 'locale' | 'occupation'
+>;
+
+/** Example sets; several onboarding answers share one. */
+type ExampleGroup = 'household' | 'school' | 'campus' | 'work' | 'business';
+
+const EXAMPLE_GROUP: Record<UserOccupation, ExampleGroup> = {
+  homemaker: 'household',
+  school_student: 'school',
+  university_student: 'campus',
+  office_worker: 'work',
+  freelancer: 'work',
+  business_owner: 'business',
+  other: 'household',
+};
+
+/** Unanswered or unknown answers use the household set, Sydia's main audience. */
+function exampleGroup(occupation: string | null | undefined): ExampleGroup {
+  return occupation && occupation in EXAMPLE_GROUP
+    ? EXAMPLE_GROUP[occupation as UserOccupation]
+    : 'household';
+}
+
+type CapabilityExamples = [
+  notes: string,
+  tasks: string,
+  calendar: string,
+  contacts: string,
+  documents: string,
+];
+
+/** One message per capability, in the order of the Indonesian capability list. */
+const INDONESIAN_EXAMPLES: Record<ExampleGroup, CapabilityExamples> = {
+  household: [
+    'Catat belanja hari ini: sayur 25rb, telur 30rb',
+    'Ingetin aku bayar listrik tiap tanggal 20',
+    'Sabtu jam 4 sore ada les renang anak, masukin ke kalender',
+    'Simpan nomor Bu Rina, wali kelas: 0812-3456-7890',
+    'Kirimin lagi foto KK yang kemarin aku simpan',
+  ],
+  school: [
+    'Catat materi biologi hari ini: fotosintesis butuh cahaya matahari',
+    'Ingetin aku kumpulin PR matematika besok jam 7 pagi',
+    'Ujian IPA hari Senin jam 8 pagi, masukin ke kalender',
+    'Simpan nomor Pak Budi, wali kelas: 0812-3456-7890',
+    'Kirimin lagi foto jadwal pelajaran yang aku simpan',
+  ],
+  campus: [
+    'Catat pengeluaran kos bulan ini: listrik 150rb, galon 20rb',
+    'Ingetin aku submit tugas statistik Jumat jam 23.00',
+    'Bimbingan skripsi Kamis jam 10 pagi, masukin ke kalender',
+    'Simpan nomor Bu Sinta, dosen pembimbing: 0812-3456-7890',
+    'Jurnal yang aku simpan kemarin bahas apa aja?',
+  ],
+  work: [
+    'Catat poin meeting hari ini: target bulan depan naik 10%',
+    'Ingetin aku kirim laporan mingguan tiap Jumat jam 4 sore',
+    'Rapat tim Rabu jam 10 pagi, masukin ke kalender',
+    'Simpan nomor Pak Andi, klien PT Maju: 0812-3456-7890',
+    'Kirimin lagi kontrak yang aku simpan minggu lalu',
+  ],
+  business: [
+    'Catat pesanan Bu Sari: 2 kotak brownies, diambil Sabtu',
+    'Ingetin aku belanja stok tepung tiap Senin pagi',
+    'Bazar hari Minggu jam 8 pagi, masukin ke kalender',
+    'Simpan nomor Bu Sari, pelanggan tetap: 0812-3456-7890',
+    'Kirimin lagi foto nota supplier yang kemarin',
+  ],
+};
 
 type WelcomeCopy = {
   greeting: (address: string | null) => string;
   capabilitiesIntro: string;
-  capabilities: Array<{ name: string; summary: string; example: string }>;
+  capabilities: (
+    group: ExampleGroup,
+  ) => Array<{ name: string; summary: string; example: string }>;
   firstStep: string;
   firstMessage: string;
   outcome: string;
@@ -20,34 +92,39 @@ const COPY: Record<'id' | 'en', WelcomeCopy> = {
     greeting: (address) =>
       `**Halo${address ? `, ${address}` : ''}!** Telegram kamu sudah terhubung dengan Sydia.`,
     capabilitiesIntro: 'Beberapa contoh hal yang bisa aku bantu:',
-    capabilities: [
-      {
-        name: 'Catatan',
-        summary:
-          'catat pengeluaran, diary, atau daftar apa pun (bisa dibikin tabel juga lho)',
-        example: 'Catat belanja hari ini: sayur 25rb, telur 30rb',
-      },
-      {
-        name: 'Tugas & pengingat',
-        summary: 'bikin to-do atau pengingat di jam tertentu',
-        example: 'Ingetin aku bayar listrik tiap tanggal 20',
-      },
-      {
-        name: 'Kalender',
-        summary: 'cek jadwal, cari waktu luang, atur acara',
-        example: 'Sabtu jam 4 sore ada les renang anak, masukin ke kalender',
-      },
-      {
-        name: 'Kontak',
-        summary: 'simpan dan cari kontak atau grup',
-        example: 'Simpan nomor Bu Rina, wali kelas: 0812-3456-7890',
-      },
-      {
-        name: 'Dokumen',
-        summary: 'baca dan kirim file yang sudah tersimpan',
-        example: 'Kirimin lagi foto KK yang kemarin aku simpan',
-      },
-    ],
+    capabilities: (group) => {
+      const [notes, tasks, calendar, contacts, documents] =
+        INDONESIAN_EXAMPLES[group];
+
+      return [
+        {
+          name: 'Catatan',
+          summary:
+            'catat pengeluaran, diary, atau daftar apa pun (bisa dibikin tabel juga lho)',
+          example: notes,
+        },
+        {
+          name: 'Tugas & pengingat',
+          summary: 'bikin to-do atau pengingat di jam tertentu',
+          example: tasks,
+        },
+        {
+          name: 'Kalender',
+          summary: 'cek jadwal, cari waktu luang, atur acara',
+          example: calendar,
+        },
+        {
+          name: 'Kontak',
+          summary: 'simpan dan cari kontak atau grup',
+          example: contacts,
+        },
+        {
+          name: 'Dokumen',
+          summary: 'baca dan kirim file yang sudah tersimpan',
+          example: documents,
+        },
+      ];
+    },
     firstStep:
       'Coba kita mulai dengan hal yang simpel. Kirim balik pesan ini ke aku:',
     firstMessage: 'Ingetin aku minum air 2 menit lagi',
@@ -57,7 +134,8 @@ const COPY: Record<'id' | 'en', WelcomeCopy> = {
     greeting: (address) =>
       `**Hi${address ? `, ${address}` : ''}!** Your Telegram is now connected to Sydia.`,
     capabilitiesIntro: 'A few examples of what I can help with:',
-    capabilities: [
+    // English accounts are rare; they keep one household set for now.
+    capabilities: () => [
       {
         name: 'Notes',
         summary: 'log expenses, a diary, or any list (it can be a table, too)',
@@ -93,7 +171,8 @@ const COPY: Record<'id' | 'en', WelcomeCopy> = {
 
 /**
  * The first message after linking Telegram. It doubles as the getting-started
- * guide: what Sydia can do, with a message to try for each, then one sentence
+ * guide: what Sydia can do, with a message to try for each (matched to how the
+ * user described themselves in onboarding), then one sentence
  * the user can send as-is, chosen so the reminder fires within a couple of
  * minutes and shows Sydia messaging them first.
  *
@@ -103,7 +182,8 @@ const COPY: Record<'id' | 'en', WelcomeCopy> = {
  */
 export function telegramWelcomeMessage(user: WelcomeRecipient | null): string {
   const copy = COPY[user?.locale === 'en' ? 'en' : 'id'];
-  const capabilities = copy.capabilities
+  const capabilities = copy
+    .capabilities(exampleGroup(user?.occupation))
     .map(
       ({ name, summary, example }) =>
         // A trailing backslash is a hard line break; a plain newline would be

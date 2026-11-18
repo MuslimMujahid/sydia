@@ -13,10 +13,34 @@ export const ASSISTANT_PERSONAS = [
 export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
 
 export const DEFAULT_ASSISTANT_PERSONA: AssistantPersona = "professional";
+
+/** How the user describes themselves; picks the example messages they see. */
+export const USER_OCCUPATIONS = [
+  "homemaker",
+  "school_student",
+  "university_student",
+  "office_worker",
+  "freelancer",
+  "business_owner",
+  "other",
+] as const;
+
+export type UserOccupation = (typeof USER_OCCUPATIONS)[number];
+
+export const OCCUPATION_LABELS: Record<UserOccupation, string> = {
+  homemaker: "Ibu rumah tangga",
+  school_student: "Pelajar / anak sekolah",
+  university_student: "Mahasiswa",
+  office_worker: "Pekerja kantoran",
+  freelancer: "Freelancer",
+  business_owner: "Pedagang / pemilik usaha",
+  other: "Lainnya",
+};
 export type UserPreferences = {
   automaticMemoryEnabled: boolean;
   persona: AssistantPersona;
   preferredAddress: string | null;
+  occupation: UserOccupation | null;
   briefingEnabled: boolean;
   weeklyBriefingEnabled: boolean;
   /** ISO weekday: Monday = 1, Sunday = 7. */

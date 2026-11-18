@@ -16,6 +16,7 @@ const userSelect = {
   automaticMemoryEnabled: true,
   persona: true,
   preferredAddress: true,
+  occupation: true,
   createdAt: true,
   updatedAt: true,
 } as const;

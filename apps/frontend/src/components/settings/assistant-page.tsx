@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { OccupationOptions } from "@/components/onboarding/occupation-options";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { DomainPageHeader } from "@/components/domain/domain-page";
@@ -173,6 +174,13 @@ export function AssistantSettingsPage() {
     preferencesQuery.data?.persona ??
     DEFAULT_ASSISTANT_PERSONA;
 
+  const selectedOccupation =
+    (updateMutation.isPending
+      ? updateMutation.variables?.occupation
+      : undefined) ??
+    preferencesQuery.data?.occupation ??
+    null;
+
   const controlsDisabled = preferencesQuery.isError || updateMutation.isPending;
   const [addressDraft, setAddressDraft] = useState<string>();
   const addressValue =
@@ -261,6 +269,39 @@ export function AssistantSettingsPage() {
               {addressSaving ? "Menyimpan…" : "Simpan panggilan"}
             </Button>
           </form>
+        )}
+      </Card>
+      <Card className="p-6 sm:p-8">
+        <div className="max-w-xl">
+          <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
+            Tentang kamu
+          </h2>
+          <p className="mt-2 text-ink-muted">
+            Pilih yang paling mendeskripsikan dirimu. Sydia memakainya untuk
+            memberi contoh yang pas; semua fitur tetap tersedia.
+          </p>
+        </div>
+        {preferencesQuery.isPending ? (
+          <div
+            className="mt-6 grid gap-2.5 sm:grid-cols-2"
+            aria-label="Memuat pilihan tentang kamu"
+          >
+            {[0, 1, 2, 3].map((item) => (
+              <span
+                key={item}
+                className="block h-12 animate-pulse rounded-md bg-hairline motion-reduce:animate-none"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-6">
+            <OccupationOptions
+              label="Pilih yang paling mendeskripsikan dirimu"
+              value={selectedOccupation}
+              disabled={controlsDisabled}
+              onChange={(occupation) => updateMutation.mutate({ occupation })}
+            />
+          </div>
         )}
       </Card>
       <Card className="p-6 sm:p-8">

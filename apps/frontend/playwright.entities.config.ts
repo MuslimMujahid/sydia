@@ -21,6 +21,7 @@ export default defineConfig({
     "whatsapp.spec.ts",
     "notification-settings.spec.ts",
     "reminder-delivery.spec.ts",
+    "try-in-chat.spec.ts",
   ],
   fullyParallel: true,
   retries: 0,

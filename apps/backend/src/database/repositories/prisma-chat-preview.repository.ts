@@ -20,6 +20,7 @@ export class PrismaChatPreviewRepository implements IChatPreviewRepository {
           locale: profile.locale,
           persona: profile.persona,
           preferredAddress: profile.preferredAddress,
+          occupation: profile.occupation,
           role: 'user',
           banned: true,
           banReason: 'Development chat sandbox; sign-in is disabled.',

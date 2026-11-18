@@ -49,6 +49,8 @@ export type ComposerAttachment = {
 type ChatComposerProps = {
   conversationId?: string;
   initialAttachmentId?: string;
+  /** Draft text to start with, e.g. an example opened from an empty page. */
+  initialDraft?: string;
   disabled?: boolean;
   disabledReason?: string;
   isSending: boolean;
@@ -127,6 +129,7 @@ function AttachmentIcon({ kind }: { kind: FileKind }) {
 export function ChatComposer({
   conversationId,
   initialAttachmentId,
+  initialDraft,
   disabled,
   disabledReason,
   isSending,
@@ -597,6 +600,7 @@ export function ChatComposer({
               lastSubmission.current = undefined;
             }}
             onSubmit={() => void submit()}
+            initialText={initialDraft}
           />
           <div className="flex items-center justify-between gap-2">
             <Button

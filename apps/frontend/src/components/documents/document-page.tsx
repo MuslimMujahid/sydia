@@ -1,4 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FolderGlyph } from "@/components/ui/glyphs";
+import { EmptyState } from "@/components/app-states";
+import { TryInChat } from "@/components/chat/try-in-chat";
 import {
   useHydrated,
   useNavigate,
@@ -6,7 +9,6 @@ import {
   useSearch,
 } from "@tanstack/react-router";
 import {
-  Folder,
   FolderInput,
   FolderPlus,
   Grid2X2,
@@ -636,23 +638,29 @@ export function DocumentPage() {
             </div>
             {!query.data.data.length ? (
               <div className="files-empty">
-                <div>
-                  <Folder aria-hidden="true" />
-                  <h2>
-                    {search.q
+                <EmptyState
+                  align="center"
+                  icon={<FolderGlyph hue="coral" />}
+                  title={
+                    search.q
                       ? "Tidak ada hasil"
                       : folderId
                         ? "Folder ini masih kosong"
-                        : "Belum ada file"}
-                  </h2>
-                  <p>
-                    {search.q
+                        : "Belum ada file"
+                  }
+                  message={
+                    search.q
                       ? "Coba nama lain atau hapus pencarian."
                       : folderId
                         ? `Unggah file atau buat subfolder di ${folder.data?.data.folder.name ?? "lokasi ini"}.`
-                        : "Unggah file atau buat folder untuk mulai mengatur file Anda."}
-                  </p>
-                </div>
+                        : "File yang kamu unggah atau kirim lewat chat tersimpan di sini."
+                  }
+                  action={
+                    !search.q && !folderId ? (
+                      <TryInChat topic="file" />
+                    ) : undefined
+                  }
+                />
               </div>
             ) : null}
             {view === "list" &&

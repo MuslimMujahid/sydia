@@ -344,7 +344,12 @@ describe('TelegramService account linking', () => {
       findById: jest.fn((id: string) =>
         Promise.resolve(
           id === 'owner-1'
-            ? { name: 'Rina Kartika', preferredAddress: null, locale: 'id' }
+            ? {
+                name: 'Rina Kartika',
+                preferredAddress: null,
+                locale: 'id',
+                occupation: null,
+              }
             : null,
         ),
       ),

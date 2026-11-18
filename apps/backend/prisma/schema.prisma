@@ -38,6 +38,8 @@ model User {
   automaticMemoryEnabled   Boolean                   @default(true)
   persona                  AssistantPersona          @default(professional)
   preferredAddress         String?
+  /// How the user describes themselves; one of USER_OCCUPATIONS in the app.
+  occupation               String?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @default(now()) @updatedAt
   sessions                 Session[]

@@ -11,6 +11,18 @@ export const ASSISTANT_PERSONAS = [
 ] as const;
 export type AssistantPersona = (typeof ASSISTANT_PERSONAS)[number];
 
+/** How a user describes themselves in onboarding; it picks example messages. */
+export const USER_OCCUPATIONS = [
+  'homemaker',
+  'school_student',
+  'university_student',
+  'office_worker',
+  'freelancer',
+  'business_owner',
+  'other',
+] as const;
+export type UserOccupation = (typeof USER_OCCUPATIONS)[number];
+
 // Derived from the Prisma model: if the schema drops or renames one of
 // these fields, this file fails to compile — drift surfaces immediately.
 export type User = Pick<
@@ -27,6 +39,7 @@ export type User = Pick<
   | 'automaticMemoryEnabled'
   | 'persona'
   | 'preferredAddress'
+  | 'occupation'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -41,5 +54,6 @@ export type UserProfileUpdate = Partial<
     | 'automaticMemoryEnabled'
     | 'persona'
     | 'preferredAddress'
+    | 'occupation'
   >
 >;

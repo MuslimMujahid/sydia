@@ -1276,41 +1276,9 @@
 .files-deletion-failure p {
   line-height: 18px;
 }
+/* The shared EmptyState supplies the look; this only places it in the flow. */
 .files-empty {
-  display: grid;
-  min-height: 420px;
-  flex: 1;
-  place-items: center;
   margin-top: 28px;
-  padding-bottom: 80px;
-  text-align: center;
-}
-.files-empty > div {
-  width: 100%;
-}
-.files-empty > div > svg {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 20px;
-}
-.files-empty h2 {
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
-.files-empty p {
-  max-width: 420px;
-  margin-right: auto;
-  margin-left: auto;
-  font-size: 14px;
-  line-height: 24px;
-}
-.files-empty button {
-  min-height: 40px;
-  height: 40px;
-  font-size: 13px;
-  border-radius: 10px;
 }
 .files-item-path {
   overflow: hidden;
@@ -1408,15 +1376,6 @@
     grid-column: 5;
   }
 }
-@media (max-width: 639px) {
-  .files-empty {
-    min-height: 350px;
-    padding-bottom: 40px;
-  }
-  .files-empty h2 {
-    font-size: 22px;
-  }
-}
 
 .files-search-summary {
   display: flex;
@@ -1451,24 +1410,9 @@
   }
 }
 
-.files-empty > div > svg {
-  width: 48px;
-  height: 48px;
-  color: var(--color-ink-muted);
-  margin-bottom: 15px;
-}
-.files-empty h2 {
-  line-height: 39px;
-}
-.files-empty p {
-  margin-top: 4px;
-}
 @media (min-width: 1024px) {
   .files-empty {
     flex: none;
-    height: 460px;
-    min-height: 460px;
     margin-top: 0;
-    padding: 0 44px 0 0;
   }
 }

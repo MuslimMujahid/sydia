@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { TryInChat } from "@/components/chat/try-in-chat";
 import {
   LoaderCircle,
   Mail,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { ContactGlyph } from "@/components/ui/glyphs";
 import { EmptyState } from "@/components/app-states";
 import {
   DomainInlineError,
@@ -453,6 +455,8 @@ export function ContactPage() {
           ) : null}
           {query.isSuccess && !query.data.length ? (
             <EmptyState
+              align="center"
+              icon={<ContactGlyph hue="violet" />}
               title={
                 groupFilter
                   ? "Belum ada kontak di grup ini"
@@ -465,7 +469,12 @@ export function ContactPage() {
                   ? `Tambahkan kontak ke grup ${groupFilter.name} lewat tombol Edit kontak.`
                   : queryText
                     ? "Periksa ejaan atau cari dengan nama lain."
-                    : "Tambahkan orang pertama beserta alias yang biasa Anda gunakan di chat."
+                    : "Kontak yang kamu simpan lewat chat atau tombol + ada di sini."
+              }
+              action={
+                groupFilter || queryText ? undefined : (
+                  <TryInChat topic="contact" />
+                )
               }
             />
           ) : null}

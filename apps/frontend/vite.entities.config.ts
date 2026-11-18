@@ -24,7 +24,8 @@ const entityFixture: Plugin = {
         fixture !== "/e2e/dev-toolbar.html" &&
         fixture !== "/e2e/calendar-sync.html" &&
         fixture !== "/e2e/notification-settings.html" &&
-        fixture !== "/e2e/reminder-delivery.html"
+        fixture !== "/e2e/reminder-delivery.html" &&
+        fixture !== "/e2e/try-in-chat.html"
       )
         return next();
 

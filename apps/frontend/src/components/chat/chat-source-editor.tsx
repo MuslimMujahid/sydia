@@ -162,6 +162,8 @@ interface ChatSourceEditorProps {
   onPaste: ClipboardEventHandler<HTMLDivElement>;
   onChange: (text: string, segments: ChatSegment[]) => void;
   onSubmit: () => void;
+  /** Text placed in the draft once the editor is ready, e.g. from a "try in chat" link. */
+  initialText?: string;
 }
 
 export function ChatSourceEditor({
@@ -172,6 +174,7 @@ export function ChatSourceEditor({
   onPaste,
   onChange,
   onSubmit,
+  initialText,
 }: ChatSourceEditorProps) {
   const [menu, setMenu] = useState(false);
   const [active, setActive] = useState(0);
@@ -281,6 +284,31 @@ export function ChatSourceEditor({
   useEffect(() => {
     editor?.setEditable(!disabled, false);
   }, [editor, disabled]);
+  const appliedInitialText = useRef<string | undefined>(undefined);
+
+  // Applied through an update so the composer sees the draft and can send it.
+  useEffect(() => {
+    if (!editor || !initialText || appliedInitialText.current === initialText)
+      return;
+    appliedInitialText.current = initialText;
+    editor
+      .chain()
+      .setContent(
+        {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: initialText }],
+            },
+          ],
+        },
+        { emitUpdate: true }
+      )
+      .focus("end")
+      .run();
+  }, [editor, initialText]);
+
   useImperativeHandle(
     ref,
     () => ({

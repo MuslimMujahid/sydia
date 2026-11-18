@@ -4,6 +4,7 @@ const indonesianUser = {
   name: 'Rina Kartika',
   preferredAddress: null,
   locale: 'id',
+  occupation: null as string | null,
 };
 
 describe('telegramWelcomeMessage', () => {
@@ -59,5 +60,31 @@ describe('telegramWelcomeMessage', () => {
     expect(telegramWelcomeMessage(null)).toMatch(
       /^\*\*Halo!\*\* Telegram kamu sudah terhubung/,
     );
+  });
+
+  it('uses order examples for a business owner', () => {
+    expect(
+      telegramWelcomeMessage({
+        ...indonesianUser,
+        occupation: 'business_owner',
+      }),
+    ).toContain(
+      '- **Catatan** — catat pengeluaran, diary, atau daftar apa pun (bisa dibikin tabel juga lho)\\\n  _"Catat pesanan Bu Sari: 2 kotak brownies, diambil Sabtu"_',
+    );
+  });
+
+  it('gives a university student campus examples', () => {
+    expect(
+      telegramWelcomeMessage({
+        ...indonesianUser,
+        occupation: 'university_student',
+      }),
+    ).toContain('_"Ingetin aku submit tugas statistik Jumat jam 23.00"_');
+  });
+
+  it('falls back to household examples when the answer is unknown', () => {
+    expect(
+      telegramWelcomeMessage({ ...indonesianUser, occupation: 'astronaut' }),
+    ).toContain('_"Ingetin aku bayar listrik tiap tanggal 20"_');
   });
 });

@@ -29,6 +29,7 @@ import { notesKeys } from "@/lib/services/api/notes/notes.api";
 type ChatPageProps = {
   conversationId?: string;
   initialAttachmentId?: string;
+  initialDraft?: string;
   locale: SupportedLocale;
   /** Clock for the home greeting; injectable so rendering stays deterministic. */
   now?: () => Date;
@@ -108,6 +109,7 @@ export function ChatPage(props: ChatPageProps) {
 function ChatPageContent({
   conversationId,
   initialAttachmentId,
+  initialDraft,
   locale,
   now = () => new Date(),
 }: ChatPageProps) {
@@ -331,6 +333,7 @@ function ChatPageContent({
                 <ChatComposer
                   key="new-home"
                   initialAttachmentId={initialAttachmentId}
+                  initialDraft={initialDraft}
                   isSending={isSending}
                   errorMessage={sendErrorMessage}
                   onDraftChange={handleDraftChange}
@@ -392,6 +395,7 @@ function ChatPageContent({
           key={conversationId ?? "new-sending"}
           conversationId={conversationId}
           initialAttachmentId={initialAttachmentId}
+          initialDraft={initialDraft}
           disabled={composerDisabled}
           disabledReason={composerDisabledReason}
           isSending={isSending}

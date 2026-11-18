@@ -27,6 +27,7 @@ const user = {
   automaticMemoryEnabled: false,
   persona: 'professional' as const,
   preferredAddress: null,
+  occupation: null as string | null,
 };
 
 function createRepository(stored: UserPreference | null = storedPreference) {
@@ -58,11 +59,13 @@ function createRepository(stored: UserPreference | null = storedPreference) {
 function updateUserResult(
   persona: AssistantPersona,
   preferredAddress: string | null = null,
+  occupation: string | null = null,
 ) {
   return Promise.resolve({
     automaticMemoryEnabled: true,
     persona,
     preferredAddress,
+    occupation,
   });
 }
 
@@ -77,6 +80,7 @@ describe('UserPreferencesService', () => {
       automaticMemoryEnabled: false,
       persona: 'professional',
       preferredAddress: null,
+      occupation: null,
       briefingEnabled: true,
       weeklyBriefingEnabled: true,
       weeklyBriefingDay: 1,
@@ -110,6 +114,7 @@ describe('UserPreferencesService', () => {
           automaticMemoryEnabled: boolean;
           persona: AssistantPersona;
           preferredAddress: string | null;
+          occupation: string | null;
         } | null>
       >()
       .mockImplementation(() => updateUserResult('playful'));
@@ -141,6 +146,7 @@ describe('UserPreferencesService', () => {
           automaticMemoryEnabled: boolean;
           persona: AssistantPersona;
           preferredAddress: string | null;
+          occupation: string | null;
         } | null>
       >()
       .mockImplementation(() => updateUserResult('friendly'));
@@ -166,6 +172,7 @@ describe('UserPreferencesService', () => {
           automaticMemoryEnabled: boolean;
           persona: AssistantPersona;
           preferredAddress: string | null;
+          occupation: string | null;
         } | null>
       >()
       .mockImplementation(() => updateUserResult('professional', 'Kak Raka'));
@@ -190,6 +197,7 @@ describe('UserPreferencesService', () => {
           automaticMemoryEnabled: boolean;
           persona: AssistantPersona;
           preferredAddress: string | null;
+          occupation: string | null;
         } | null>
       >()
       .mockImplementation(() => updateUserResult('professional'));
@@ -264,4 +272,34 @@ test('weekly weekday and switch persist independently of the daily switch and sh
 
   expect(savePreferences).toHaveBeenCalledWith('user-1', input);
   expect(result).toMatchObject(input);
+});
+
+describe('UserPreferencesService occupation', () => {
+  test('saves the onboarding answer on the user and returns it', async () => {
+    const { repository } = createRepository();
+    const service = new UserPreferencesService(repository);
+    const updateUser = jest
+      .fn<(input: UserProfileUpdate) => ReturnType<typeof updateUserResult>>()
+      .mockImplementation(() =>
+        updateUserResult('professional', null, 'business_owner'),
+      );
+
+    const result = await service.update(
+      user,
+      { occupation: 'business_owner' },
+      updateUser,
+    );
+
+    expect(updateUser).toHaveBeenCalledWith({ occupation: 'business_owner' });
+    expect(result?.occupation).toBe('business_owner');
+  });
+
+  test('reads a stored value that is no longer offered as unanswered', async () => {
+    const { repository } = createRepository();
+    const service = new UserPreferencesService(repository);
+
+    const result = await service.get({ ...user, occupation: 'astronaut' });
+
+    expect(result.occupation).toBeNull();
+  });
 });

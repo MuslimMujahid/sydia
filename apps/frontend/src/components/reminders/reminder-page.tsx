@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { TryInChat } from "@/components/chat/try-in-chat";
 import {
   AlarmClock,
   CalendarClock,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
+import { BellGlyph } from "@/components/ui/glyphs";
 import { EmptyState } from "@/components/app-states";
 import { ReminderDeliveryNotice } from "@/components/reminders/reminder-delivery-notice";
 import {
@@ -864,14 +866,17 @@ export function ReminderPage() {
       ) : null}
       {query.isSuccess && query.data.length === 0 ? (
         <EmptyState
+          align="center"
+          icon={<BellGlyph hue="amber" />}
           title={
             filtered ? "Tidak ada pengingat yang cocok" : "Belum ada pengingat"
           }
           message={
             filtered
               ? "Ubah pencarian atau filter untuk melihat jadwal lain."
-              : "Jadwalkan dari dasbor, atau minta Sydia mengingatkan Anda melalui chat."
+              : "Pengingat dari chat atau tombol + akan muncul di sini."
           }
+          action={filtered ? undefined : <TryInChat topic="reminder" />}
         />
       ) : null}
       {query.isSuccess && query.data.length > 0 ? (

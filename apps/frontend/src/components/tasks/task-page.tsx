@@ -1,4 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { TaskListGlyph } from "@/components/ui/glyphs";
+import { EmptyState } from "@/components/app-states";
+import { TryInChat } from "@/components/chat/try-in-chat";
 import { ArrowDownUp, ListFilter, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
@@ -376,36 +379,34 @@ function CategoryManager({
 type TaskListEmptyProps = {
   filtered: boolean;
   onReset: () => void;
-  onCreate: () => void;
 };
 
-function TaskListEmpty({ filtered, onReset, onCreate }: TaskListEmptyProps) {
+function TaskListEmpty({ filtered, onReset }: TaskListEmptyProps) {
   return (
-    <div className="rounded-lg border border-dashed border-ink/12 px-6 py-12 text-center max-sm:mx-5">
-      <p className="font-display text-base font-semibold text-ink">
-        {filtered ? "Tidak ada tugas yang cocok" : "Belum ada tugas"}
-      </p>
-      <p className="mx-auto mt-1.5 max-w-sm text-sm text-ink-muted">
-        {filtered
+    <EmptyState
+      align="center"
+      icon={<TaskListGlyph hue="violet" />}
+      title={filtered ? "Tidak ada tugas yang cocok" : "Belum ada tugas"}
+      message={
+        filtered
           ? "Coba ubah kata kunci pencarian atau longgarkan filternya."
-          : "Tambahkan tugas pertamamu, lalu centang saat sudah selesai."}
-      </p>
-      {filtered ? (
-        <Button
-          type="button"
-          variant="dark-outline"
-          size="sm"
-          className="mt-5"
-          onClick={onReset}
-        >
-          Hapus filter
-        </Button>
-      ) : (
-        <Button type="button" size="sm" className="mt-5" onClick={onCreate}>
-          <Plus /> Tugas baru
-        </Button>
-      )}
-    </div>
+          : "Tugas dari chat atau tombol + akan muncul di sini."
+      }
+      action={
+        filtered ? (
+          <Button
+            type="button"
+            variant="dark-outline"
+            size="sm"
+            onClick={onReset}
+          >
+            Hapus filter
+          </Button>
+        ) : (
+          <TryInChat topic="task" />
+        )
+      }
+    />
   );
 }
 
@@ -717,11 +718,7 @@ export function TaskPage({
                 })}
               </div>
             ) : (
-              <TaskListEmpty
-                filtered={filtered}
-                onReset={resetFilters}
-                onCreate={() => setNewEditorOpen(true)}
-              />
+              <TaskListEmpty filtered={filtered} onReset={resetFilters} />
             )
           ) : null}
         </section>

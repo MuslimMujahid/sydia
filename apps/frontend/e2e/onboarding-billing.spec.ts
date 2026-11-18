@@ -205,6 +205,7 @@ async function openChannels(page: Page) {
   await page.goto("/e2e/onboarding.html");
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
 }
 
@@ -213,7 +214,7 @@ test("channel setup replaces billing and can be skipped without a billing reques
 }) => {
   const state = await setup(page);
   await openChannels(page);
-  await expect(page.getByText("Pengaturan awal · 4 dari 4")).toBeVisible();
+  await expect(page.getByText("Pengaturan awal · 5 dari 5")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Lanjutkan", exact: true })
   ).toBeDisabled();
@@ -243,6 +244,7 @@ test("returning from channels preserves name and persona for the welcome", async
   await page.goto("/e2e/onboarding.html");
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByLabel("Panggilan", { exact: true }).fill("Kak Sari");
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByRole("button", { name: "Persona berikutnya" }).click();
   await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
@@ -386,7 +388,7 @@ test("a failed QR request surfaces an error and can be retried", async ({
   expect(state.qrCount).toBe(2);
 });
 
-test("name and persona are saved before choosing a channel", async ({
+test("name, self-description and persona are saved before choosing a channel", async ({
   page,
 }) => {
   const state = await setup(page);
@@ -394,15 +396,18 @@ test("name and persona are saved before choosing a channel", async ({
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByLabel("Panggilan", { exact: true }).fill("Kak Sari");
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await page.getByRole("radio", { name: "Pedagang / pemilik usaha" }).check();
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
-  await expect(page.getByText("Pengaturan awal · 4 dari 4")).toBeVisible();
+  await expect(page.getByText("Pengaturan awal · 5 dari 5")).toBeVisible();
   expect(state.savedPreferences).toMatchObject({
     preferredAddress: "Kak Sari",
+    occupation: "business_owner",
   });
   expect(state.savedProfile).toMatchObject({ onboardingCompleted: false });
 });
 
-test("a failed save before the channel step stays on step 3 for retry", async ({
+test("a failed save before the channel step stays on the persona step for retry", async ({
   page,
 }) => {
   const state = await setup(page);
@@ -411,10 +416,10 @@ test("a failed save before the channel step stays on step 3 for retry", async ({
   await expect(page.getByRole("alert")).toContainText(
     "Preferensi belum dapat disimpan"
   );
-  await expect(page.getByText("Pengaturan awal · 3 dari 4")).toBeVisible();
+  await expect(page.getByText("Pengaturan awal · 4 dari 5")).toBeVisible();
   state.preferenceFailure = false;
   await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
-  await expect(page.getByText("Pengaturan awal · 4 dari 4")).toBeVisible();
+  await expect(page.getByText("Pengaturan awal · 5 dari 5")).toBeVisible();
 });
 
 test("saving failure keeps onboarding open and supports an explicit retry", async ({
@@ -478,6 +483,7 @@ test("English welcome sends the English greeting into a new conversation", async
   await page.getByRole("menuitemradio", { name: "Bahasa Inggris" }).click();
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
   await page.getByRole("button", { name: "Lewati untuk sekarang" }).click();
   await page.getByRole("button", { name: "Say Hi" }).click();
@@ -510,4 +516,24 @@ test("retrying a failed welcome greeting keeps its idempotency key", async ({
   ).toHaveAttribute("data-conversation", "welcome-conversation");
   expect(state.greetingRequests).toHaveLength(2);
   expect(state.greetingRequests[1]).toEqual(state.greetingRequests[0]);
+});
+
+test("each step shows its heading exactly once", async ({ page }) => {
+  await setup(page);
+  await page.goto("/e2e/onboarding.html");
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Interaksi seperti apa yang kamu harapkan?",
+    })
+  ).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Di mana kamu mau mengobrol dengan Sydia?",
+    })
+  ).toHaveCount(1);
 });

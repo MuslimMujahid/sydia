@@ -335,6 +335,17 @@ textarea,
 .composer-shell:focus-within::before {
   opacity: 1;
 }
+/* An example message styled as the composer: hovering or focusing it lights
+   the same aurora outline the real composer shows while typing. */
+.composer-shell-action:hover,
+.composer-shell-action:focus-visible {
+  border-color: transparent;
+  box-shadow: var(--composer-lift), var(--shadow-button);
+}
+.composer-shell-action:hover::before,
+.composer-shell-action:focus-visible::before {
+  opacity: 1;
+}
 
 /* Sydia at work: a small morphing aurora orb and a light sweep on the label. */
 .sydia-orb {

@@ -19,7 +19,9 @@ import { requireSession } from "@/lib/auth";
 import {
   ASSISTANT_PERSONAS,
   DEFAULT_ASSISTANT_PERSONA,
+  USER_OCCUPATIONS,
   type AssistantPersona,
+  type UserOccupation,
 } from "@/lib/services/api/users/preferences.api";
 import { useUpdateUserPreferences } from "@/lib/services/api/users/preferences.queries";
 import {
@@ -28,6 +30,7 @@ import {
 } from "@/lib/services/api/users/users.queries";
 import { cn } from "@/lib/utils/cn";
 import { PERSONA_OPTIONS } from "@/components/onboarding/personas";
+import { OccupationOptions } from "@/components/onboarding/occupation-options";
 import { SydiaLogo } from "@/components/ui/sydia-logo";
 
 const onboardingSchema = z.object({
@@ -35,6 +38,7 @@ const onboardingSchema = z.object({
   locale: z.enum(["en", "id"]),
   preferredAddress: z.string().max(50, "Panggilan maksimal 50 karakter."),
   persona: z.enum(ASSISTANT_PERSONAS),
+  occupation: z.enum(USER_OCCUPATIONS).nullable(),
 });
 
 type OnboardingValues = z.infer<typeof onboardingSchema>;
@@ -53,11 +57,12 @@ const TIMEZONES = [
   "UTC",
 ];
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 const STEP_HEADINGS = [
   "Atur bahasa dan zona waktu",
   "Kamu mau dipanggil apa?",
+  "Pilih yang paling mendeskripsikan dirimu",
   "Interaksi seperti apa yang kamu harapkan?",
   "Di mana kamu mau mengobrol dengan Sydia?",
 ] as const;
@@ -94,7 +99,7 @@ export const Route = createFileRoute("/onboarding")({
 
 function OnboardingPage() {
   const { user } = Route.useLoaderData();
-  const totalSteps = 4;
+  const totalSteps = 5;
   const navigate = useNavigate();
   const updateMutation = useUpdateCurrentUser();
   const preferencesMutation = useUpdateUserPreferences();
@@ -107,6 +112,7 @@ function OnboardingPage() {
     await preferencesMutation.mutateAsync({
       preferredAddress: trimmed === "" ? null : trimmed,
       persona: value.persona,
+      occupation: value.occupation,
     });
     await updateMutation.mutateAsync({
       name: user.name,
@@ -121,6 +127,7 @@ function OnboardingPage() {
       timezone: user.timezone || "Asia/Jakarta",
       locale: user.locale || "id",
       preferredAddress: "",
+      occupation: null as UserOccupation | null,
       persona: DEFAULT_ASSISTANT_PERSONA,
     },
     validators: { onChange: onboardingSchema },
@@ -152,7 +159,7 @@ function OnboardingPage() {
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   const heading = STEP_HEADINGS[step - 1];
-  const StepShell: "div" | typeof Card = step === 3 ? "div" : Card;
+  const StepShell: "div" | typeof Card = step === 4 ? "div" : Card;
 
   useEffect(() => {
     if (step > 1) document.getElementById("onboarding-title")?.focus();
@@ -170,7 +177,7 @@ function OnboardingPage() {
   async function saveAndChooseChannel() {
     try {
       await saveSettings(form.state.values, false);
-      goToStep(4);
+      goToStep(5);
     } catch (error) {
       // The mutation error stays visible under the buttons for retry.
       console.error("Onboarding settings could not be saved", error);
@@ -191,7 +198,11 @@ function OnboardingPage() {
         </div>
         <div
           aria-label={`Langkah ${step} dari ${totalSteps}`}
-          className="mb-5 grid grid-cols-4 gap-2"
+          className="mb-5 grid gap-2"
+          // One equal column per step, so adding a step never wraps the bar.
+          style={{
+            gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))`,
+          }}
           role="progressbar"
           aria-valuemin={1}
           aria-valuemax={totalSteps}
@@ -220,7 +231,7 @@ function OnboardingPage() {
               : "slide-in-from-left-3"
           )}
         >
-          {step !== 4 && (
+          {step !== 5 && (
             <h1
               id="onboarding-title"
               tabIndex={-1}
@@ -229,11 +240,11 @@ function OnboardingPage() {
               {heading}
             </h1>
           )}
-          {step === 4 ? (
+          {step === 5 ? (
             <OnboardingChannelStep
               saving={saving}
               error={submitError}
-              onBack={() => goToStep(3)}
+              onBack={() => goToStep(4)}
               onFinish={() => {
                 void form.handleSubmit().catch((error: unknown) => {
                   // The mutation error stays visible in the channel step for retry.
@@ -247,7 +258,7 @@ function OnboardingPage() {
           ) : (
             <StepShell
               className={
-                step === 3
+                step === 4
                   ? undefined
                   : "p-6 transition-shadow duration-300 sm:p-8"
               }
@@ -257,7 +268,7 @@ function OnboardingPage() {
                 noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (step < 3) goToStep((step + 1) as Step);
+                  if (step < 4) goToStep((step + 1) as Step);
                   else void saveAndChooseChannel();
                 }}
               >
@@ -345,6 +356,17 @@ function OnboardingPage() {
                   </form.Field>
                 )}
                 {step === 3 && (
+                  <form.Field name="occupation">
+                    {(field) => (
+                      <OccupationOptions
+                        label="Pilih yang paling mendeskripsikan dirimu"
+                        value={field.state.value}
+                        onChange={field.handleChange}
+                      />
+                    )}
+                  </form.Field>
+                )}
+                {step === 4 && (
                   <form.Field name="persona">
                     {(field) => (
                       <>
@@ -489,7 +511,7 @@ function OnboardingPage() {
                       Kembali
                     </Button>
                   )}
-                  {step < 3 ? (
+                  {step < 4 ? (
                     <Button
                       type="button"
                       onClick={() => goToStep((step + 1) as Step)}
@@ -517,7 +539,7 @@ function OnboardingPage() {
                     </form.Subscribe>
                   )}
                 </div>
-                {step === 3 && <FormError message={submitError} />}
+                {step === 4 && <FormError message={submitError} />}
               </form>
             </StepShell>
           )}

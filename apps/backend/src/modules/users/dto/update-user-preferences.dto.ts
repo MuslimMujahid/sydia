@@ -9,7 +9,9 @@ import {
 } from 'class-validator';
 import {
   ASSISTANT_PERSONAS,
+  USER_OCCUPATIONS,
   type AssistantPersona,
+  type UserOccupation,
 } from '../../../database/entities';
 
 export class UpdateUserPreferencesDto {
@@ -31,6 +33,11 @@ export class UpdateUserPreferencesDto {
     return trimmed.length > 0 ? trimmed : null;
   })
   preferredAddress?: string | null;
+
+  /** Null clears the answer; omitted leaves it unchanged. */
+  @IsOptional()
+  @IsIn(USER_OCCUPATIONS)
+  occupation?: UserOccupation | null;
 
   @IsOptional()
   @IsBoolean()

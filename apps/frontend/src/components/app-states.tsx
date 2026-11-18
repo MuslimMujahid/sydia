@@ -73,20 +73,67 @@ export function EmptyState({
   message,
   action,
   className,
+  icon,
+  align = "start",
 }: {
   title: string;
   message: string;
   action?: ReactNode;
   className?: string;
+  /**
+   * Names what the page holds, e.g. the page's navigation glyph; defaults to
+   * a generic inbox. Glyph accents show in their hue, as on the active nav item.
+   */
+  icon?: ReactNode;
+  /** Centered for a page whose whole content area is empty. */
+  align?: "start" | "center";
 }) {
+  const centered = align === "center";
+
   return (
-    <div className={cn("border-surface-1 py-10", className)}>
-      <Inbox className="mb-4 size-6 text-brand-deep" />
+    <div
+      className={cn(
+        "border-surface-1",
+        centered
+          ? "flex flex-col items-center px-4 py-16 text-center sm:py-24"
+          : "py-10",
+        className
+      )}
+    >
+      {icon ? (
+        <span
+          aria-hidden="true"
+          data-active="true"
+          className={cn(
+            "glyph-host flex text-ink-muted [&_svg]:size-7",
+            centered ? "mb-5" : "mb-4"
+          )}
+        >
+          {icon}
+        </span>
+      ) : (
+        <Inbox
+          aria-hidden="true"
+          className={cn(
+            "size-6",
+            centered ? "mb-5 text-ink-muted" : "mb-4 text-brand-deep"
+          )}
+        />
+      )}
       <h2 className="font-display text-[17px] leading-[1.6] font-semibold">
         {title}
       </h2>
-      <p className="mt-2 max-w-xl text-ink-muted">{message}</p>
-      {action ? <div className="mt-6">{action}</div> : null}
+      <p
+        className={cn(
+          "mt-2 text-ink-muted",
+          centered ? "max-w-sm text-balance" : "max-w-xl"
+        )}
+      >
+        {message}
+      </p>
+      {action ? (
+        <div className={centered ? "mt-7" : "mt-6"}>{action}</div>
+      ) : null}
     </div>
   );
 }
