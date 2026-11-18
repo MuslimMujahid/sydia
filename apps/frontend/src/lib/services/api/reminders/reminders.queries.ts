@@ -9,6 +9,7 @@ import {
   createReminder,
   deleteReminder,
   getReminder,
+  getReminderDelivery,
   getReminders,
   snoozeReminder,
   updateReminder,
@@ -24,7 +25,17 @@ export const reminderQueryKeys = {
   list: (filters: ReminderFilters) => ["reminders", "list", filters] as const,
   details: () => ["reminders", "detail"] as const,
   detail: (reminderId: string) => ["reminders", "detail", reminderId] as const,
+  delivery: () => ["reminders", "delivery"] as const,
 };
+
+export const reminderDeliveryQueryOptions = () =>
+  queryOptions({
+    queryKey: reminderQueryKeys.delivery(),
+    queryFn: getReminderDelivery,
+    // Refetch on every visit so the notice clears right after a user returns
+    // from connecting Telegram or turning notifications back on.
+    staleTime: 0,
+  });
 
 export const remindersQueryOptions = (filters: ReminderFilters = {}) =>
   queryOptions({

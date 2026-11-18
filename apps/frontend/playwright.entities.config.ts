@@ -20,6 +20,7 @@ export default defineConfig({
     "calendar-sync.spec.ts",
     "whatsapp.spec.ts",
     "notification-settings.spec.ts",
+    "reminder-delivery.spec.ts",
   ],
   fullyParallel: true,
   retries: 0,

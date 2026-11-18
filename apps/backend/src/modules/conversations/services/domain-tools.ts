@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { JSONSchema7 } from 'ai';
 import type { Prisma } from '../../../generated/prisma/client';
 import type {
@@ -22,6 +23,7 @@ import type { AssistantTool } from './tool-executor.service';
 import { AmbiguousReferenceError, closestReferences } from './tool-references';
 import { MemoryAccessService } from '../../memories/memory-access.service';
 import { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
+import type { ReminderDeliveryService } from '../../reminders/reminder-delivery.service';
 import {
   ReminderActionError,
   type ReminderLifecycleService,
@@ -419,6 +421,8 @@ function texts(
   return result;
 }
 
+const reminderLogger = new Logger('ReminderDelivery');
+
 export function createDomainTools(deps: {
   tasks: ITaskRepository;
   categories: ICategoryRepository;
@@ -428,6 +432,7 @@ export function createDomainTools(deps: {
   users: IUserRepository;
   secrets?: SecretsService;
   lifecycle?: ReminderLifecycleService;
+  delivery?: ReminderDeliveryService;
 }): AssistantTool[] {
   const ownerTimezone = async (userId: string): Promise<string> =>
     (await deps.users.findById(userId))?.timezone ?? 'Asia/Jakarta';
@@ -510,6 +515,49 @@ export function createDomainTools(deps: {
     if (!reminder) throw new Error('The specified reminder was not found.');
 
     return reminder;
+  };
+
+  /** Why a new reminder would not reach the owner, or null when it would. */
+  const reminderDeliveryNotice = async (
+    userId: string,
+  ): Promise<{
+    delivery: 'no_channel' | 'notifications_off';
+    deliveryNotice: string;
+  } | null> => {
+    if (!deps.delivery) return null;
+    let delivery: Awaited<ReturnType<ReminderDeliveryService['check']>>;
+
+    try {
+      delivery = await deps.delivery.check(userId);
+    } catch (error) {
+      // The reminder is already saved; failing the tool here would invite a
+      // retry that creates a duplicate. Reply without the notice instead.
+      reminderLogger.warn(
+        JSON.stringify({
+          event: 'reminder_delivery_check_failed',
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          remediation:
+            'The reply omits any missing-channel notice; check database connectivity.',
+        }),
+      );
+
+      return null;
+    }
+
+    if (delivery.status === 'no_channel')
+      return {
+        delivery: delivery.status,
+        deliveryNotice:
+          'No Telegram or WhatsApp is connected, and reminders are only sent there. Suggest connecting Telegram in Settings > Integrations so the reminder arrives.',
+      };
+    if (delivery.status === 'notifications_off')
+      return {
+        delivery: delivery.status,
+        deliveryNotice:
+          'Notifications are turned off for every connected channel. Suggest turning them on in Settings > Notifications so the reminder arrives.',
+      };
+
+    return null;
   };
 
   const getCurrentDateTime: AssistantTool = {
@@ -764,7 +812,9 @@ date must fall on one of that entry's recurrence weekdays, so it is the first ti
 
 Split schedules by time of day: one entry per distinct time. "Every Tuesday, Thursday, and Friday at 17:00, and Saturday at 07:00" is two entries with the same title, one with daysOfWeek [2,4,5] and time 17:00, the other with [6] and 07:00. Never widen daysOfWeek to absorb a second time of day.
 
-Call this tool once per reminder.`,
+Call this tool once per reminder.
+
+When the result has deliveryNotice, the reminder is saved but will not reach the user. Tell them so in the reply and say what deliveryNotice suggests.`,
       parameters: schema(
         {
           title: string,
@@ -837,9 +887,12 @@ Call this tool once per reminder.`,
         reminders.push(reminder);
       }
 
+      const delivery = await reminderDeliveryNotice(userId);
+
       return {
         reminders,
         ...(adjusted ? { repeatIntervalAdjusted: adjusted } : {}),
+        ...delivery,
       };
     },
   };

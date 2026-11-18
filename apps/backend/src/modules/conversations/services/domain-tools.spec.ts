@@ -14,6 +14,10 @@ import type {
 } from '../../../database/interfaces';
 import type { MemoryAccessService } from '../../memories/memory-access.service';
 import type { ReminderSchedulerService } from '../../reminders/reminder-scheduler.service';
+import type {
+  ReminderDelivery,
+  ReminderDeliveryService,
+} from '../../reminders/reminder-delivery.service';
 import {
   ReminderActionError,
   type ReminderLifecycleService,
@@ -842,5 +846,75 @@ describe('domain assistant tools', () => {
       );
       visit(assistantTool.definition.parameters, true);
     }
+  });
+});
+
+describe('create_reminder delivery notice', () => {
+  function createReminderWith(check: () => Promise<ReminderDelivery>) {
+    const tools = createDomainTools({
+      tasks: {} as ITaskRepository,
+      categories: {} as ICategoryRepository,
+      reminders: {
+        create: (_userId: string, input: object) =>
+          Promise.resolve({ id: 'reminder-1', ...input }),
+      } as unknown as IReminderRepository,
+      memoryService: {} as MemoryAccessService,
+      scheduler: {
+        schedule: resolved(undefined),
+      } as unknown as ReminderSchedulerService,
+      users: {
+        findById: resolved({ timezone: 'Asia/Jakarta' }),
+      } as unknown as IUserRepository,
+      delivery: { check } as unknown as ReminderDeliveryService,
+    });
+
+    return tools
+      .find((tool) => tool.definition.name === 'create_reminder')!
+      .execute({
+        userId: 'user-1',
+        sourceMessageId: 'message-1',
+        arguments: {
+          title: 'Minum air',
+          schedules: [{ date: '2026-09-15', time: '10:02' }],
+        },
+        idempotencyKey: 'reminder-water',
+      }) as Promise<Record<string, unknown>>;
+  }
+
+  test('tells the assistant to suggest Telegram when no channel is connected', async () => {
+    const result = await createReminderWith(() =>
+      Promise.resolve({ status: 'no_channel' }),
+    );
+
+    expect(result.delivery).toBe('no_channel');
+    expect(result.deliveryNotice).toMatch(/Settings > Integrations/);
+  });
+
+  test('tells the assistant to suggest notification settings when all are muted', async () => {
+    const result = await createReminderWith(() =>
+      Promise.resolve({ status: 'notifications_off' }),
+    );
+
+    expect(result.delivery).toBe('notifications_off');
+    expect(result.deliveryNotice).toMatch(/Settings > Notifications/);
+  });
+
+  test('adds no notice when the reminder will reach the user', async () => {
+    const result = await createReminderWith(() =>
+      Promise.resolve({ status: 'reachable', channels: ['telegram'] }),
+    );
+
+    expect(result).not.toHaveProperty('deliveryNotice');
+  });
+
+  test('still returns the saved reminder when the delivery check fails', async () => {
+    const result = await createReminderWith(() =>
+      Promise.reject(new Error('database unavailable')),
+    );
+
+    expect(result.reminders).toEqual([
+      expect.objectContaining({ id: 'reminder-1', title: 'Minum air' }),
+    ]);
+    expect(result).not.toHaveProperty('deliveryNotice');
   });
 });

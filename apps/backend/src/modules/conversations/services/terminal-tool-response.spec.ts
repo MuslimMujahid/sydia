@@ -615,6 +615,51 @@ describe('terminal tool response', () => {
     );
   });
 
+  it('warns after the reminder receipt when no channel can deliver it', () => {
+    const result = buildTerminalToolResponse(
+      { locale: 'id', timezone: 'Asia/Makassar' },
+      [
+        execution('create_reminder', {
+          reminders: [
+            { id: 'r1', title: 'Ke bank', scheduledAt: AT, timezone: 'UTC' },
+          ],
+          delivery: 'no_channel',
+        }),
+      ],
+    );
+
+    expect(result).toBe(
+      'Siap, pengingatnya sudah dibuat.\n\n- **Ke bank** — Pada 22 Sep 2026, 18.00\n\nCatatan: Telegram atau WhatsApp belum terhubung, jadi pengingat ini belum bisa dikirim ke kamu. Hubungkan Telegram di Pengaturan > Integrasi.',
+    );
+  });
+
+  it('points to notification settings when every channel is muted', () => {
+    const result = web('en', [
+      execution('create_reminder', {
+        reminders: [
+          { id: 'r1', title: 'Bank', scheduledAt: AT, timezone: 'UTC' },
+        ],
+        delivery: 'notifications_off',
+      }),
+    ]);
+
+    expect(result).toMatch(
+      /\n\nNote: notifications are off on every connected channel, so this reminder will not be sent\. Turn them on in Settings > Notifications\.$/,
+    );
+  });
+
+  it('adds no delivery note to a reminder that will be delivered', () => {
+    const result = web('en', [
+      execution('create_reminder', {
+        reminders: [
+          { id: 'r1', title: 'Bank', scheduledAt: AT, timezone: 'UTC' },
+        ],
+      }),
+    ]);
+
+    expect(result).not.toMatch(/Note:/);
+  });
+
   it('batches event creations with a local time range and optional location', () => {
     const result = buildTerminalToolResponse(
       { locale: 'id', timezone: 'Asia/Makassar' },

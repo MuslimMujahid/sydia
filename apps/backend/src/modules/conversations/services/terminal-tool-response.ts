@@ -176,9 +176,41 @@ export function buildTerminalToolResponse(
     if (!message) return null;
 
     messages.push(message);
+    const deliveryNote =
+      name === 'create_reminder'
+        ? reminderDeliveryNote(context, group.results)
+        : null;
+
+    if (deliveryNote) messages.push(deliveryNote);
   }
 
   return messages.join('\n\n');
+}
+
+/**
+ * A saved reminder that cannot reach the owner must say so, because the
+ * acknowledgement replaces the model reply that would otherwise explain it.
+ */
+function reminderDeliveryNote(
+  context: TerminalResponseContext,
+  results: readonly unknown[],
+): string | null {
+  const statuses = new Set(results.map((result) => asRecord(result)?.delivery));
+
+  if (statuses.has('no_channel'))
+    return pick(
+      context.locale,
+      "Note: Telegram or WhatsApp isn't connected yet, so this reminder can't be sent to you. Connect Telegram in Settings > Integrations.",
+      'Catatan: Telegram atau WhatsApp belum terhubung, jadi pengingat ini belum bisa dikirim ke kamu. Hubungkan Telegram di Pengaturan > Integrasi.',
+    );
+  if (statuses.has('notifications_off'))
+    return pick(
+      context.locale,
+      'Note: notifications are off on every connected channel, so this reminder will not be sent. Turn them on in Settings > Notifications.',
+      'Catatan: notifikasi di semua saluran sedang mati, jadi pengingat ini tidak akan terkirim. Nyalakan di Pengaturan > Notifikasi.',
+    );
+
+  return null;
 }
 
 /** A call that declared more work returns the turn to the model. */

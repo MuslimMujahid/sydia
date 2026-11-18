@@ -12,6 +12,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { EmptyState } from "@/components/app-states";
+import { ReminderDeliveryNotice } from "@/components/reminders/reminder-delivery-notice";
 import {
   DomainInlineError,
   DomainListSkeleton,
@@ -818,6 +819,7 @@ export function ReminderPage() {
         title="Pengingat"
         addAction={{ label: "Pengingat baru", onClick: () => setEditor("new") }}
       />
+      <ReminderDeliveryNotice />
       <section
         aria-label="Filter pengingat"
         className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]"

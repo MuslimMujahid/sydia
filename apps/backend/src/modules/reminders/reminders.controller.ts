@@ -23,6 +23,7 @@ import {
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { firstOccurrence } from '../../shared/date-time';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
+import { ReminderDeliveryService } from './reminder-delivery.service';
 import {
   ReminderActionError,
   ReminderLifecycleService,
@@ -54,7 +55,13 @@ export class RemindersController {
     @Inject(AUDIT_EVENT_REPOSITORY)
     private readonly audit: IAuditEventRepository,
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
+    private readonly delivery: ReminderDeliveryService,
   ) {}
+
+  /** Whether reminders can currently reach the owner through any channel. */
+  @Get('delivery') deliveryStatus(@Session() s: UserSession) {
+    return this.delivery.check(s.user.id);
+  }
 
   @Get() async list(@Session() s: UserSession, @Query() q: ReminderFiltersDto) {
     const timezone = (await this.users.findById(s.user.id))?.timezone ?? 'UTC';

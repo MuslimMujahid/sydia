@@ -239,3 +239,21 @@ export async function acknowledgeReminder({
     throw toApiError(error, "Pengingat tidak dapat dikonfirmasi.");
   }
 }
+
+/** Whether reminders can currently reach the owner through Telegram or WhatsApp. */
+export type ReminderDelivery =
+  | { status: "reachable"; channels: ("telegram" | "whatsapp")[] }
+  | { status: "no_channel" }
+  | { status: "notifications_off" };
+
+export async function getReminderDelivery(): Promise<ReminderDelivery> {
+  try {
+    const response = await api.get<ApiResponse<ReminderDelivery>>(
+      "/reminders/delivery"
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw toApiError(error, "Status pengiriman pengingat tidak dapat dimuat.");
+  }
+}
