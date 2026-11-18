@@ -16,6 +16,7 @@ import { DocumentService } from '../documents/document.service';
 import { MessagingHandlerService } from '../messaging';
 import { NotificationService } from '../notifications';
 import type { CalendarReminderDispatch } from '../../infra/queue';
+import { telegramWelcomeMessage } from './telegram-welcome';
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -312,10 +313,8 @@ export class TelegramService implements OnModuleInit {
       eventType: 'telegram.identity.linked',
       metadata: { externalId: message.senderExternalId },
     });
-    await this.send(
-      message,
-      'Telegram berhasil ditautkan ke akun Sydia Anda. Kirim pesan apa pun untuk mulai berbicara dengan Sydia.',
-    );
+    const user = await this.users.findById(identity.userId);
+    await this.send(message, telegramWelcomeMessage(user));
 
     return identity;
   }

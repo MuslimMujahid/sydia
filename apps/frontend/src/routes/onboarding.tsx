@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import {
   FieldShell,
+  FormError,
   SelectField,
   type SelectOption,
 } from "@/components/forms/form-fields";
@@ -35,6 +36,8 @@ const onboardingSchema = z.object({
   preferredAddress: z.string().max(50, "Panggilan maksimal 50 karakter."),
   persona: z.enum(ASSISTANT_PERSONAS),
 });
+
+type OnboardingValues = z.infer<typeof onboardingSchema>;
 
 const LOCALE_OPTIONS: SelectOption<"id" | "en">[] = [
   { value: "id", label: "Bahasa Indonesia" },
@@ -95,6 +98,24 @@ function OnboardingPage() {
   const navigate = useNavigate();
   const updateMutation = useUpdateCurrentUser();
   const preferencesMutation = useUpdateUserPreferences();
+
+  async function saveSettings(
+    value: OnboardingValues,
+    onboardingCompleted: boolean
+  ) {
+    const trimmed = value.preferredAddress.trim();
+    await preferencesMutation.mutateAsync({
+      preferredAddress: trimmed === "" ? null : trimmed,
+      persona: value.persona,
+    });
+    await updateMutation.mutateAsync({
+      name: user.name,
+      timezone: value.timezone,
+      locale: value.locale,
+      onboardingCompleted,
+    });
+  }
+
   const form = useAppForm({
     defaultValues: {
       timezone: user.timezone || "Asia/Jakarta",
@@ -104,17 +125,7 @@ function OnboardingPage() {
     },
     validators: { onChange: onboardingSchema },
     onSubmit: async ({ value }) => {
-      const trimmed = value.preferredAddress.trim();
-      await preferencesMutation.mutateAsync({
-        preferredAddress: trimmed === "" ? null : trimmed,
-        persona: value.persona,
-      });
-      await updateMutation.mutateAsync({
-        name: user.name,
-        timezone: value.timezone,
-        locale: value.locale,
-        onboardingCompleted: true,
-      });
+      await saveSettings(value, true);
       await navigate({
         to: "/welcome",
         search: { reason: "ready" },
@@ -153,6 +164,18 @@ function OnboardingPage() {
     setDirection(next > step ? "forward" : "backward");
     setStep(next);
   };
+
+  // Save before the channel step: linking Telegram sends a welcome message that
+  // greets the user by the name and in the language chosen here.
+  async function saveAndChooseChannel() {
+    try {
+      await saveSettings(form.state.values, false);
+      goToStep(4);
+    } catch (error) {
+      // The mutation error stays visible under the buttons for retry.
+      console.error("Onboarding settings could not be saved", error);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-background px-5 py-8 sm:px-8 lg:py-12">
@@ -235,7 +258,7 @@ function OnboardingPage() {
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (step < 3) goToStep((step + 1) as Step);
-                  else goToStep(4);
+                  else void saveAndChooseChannel();
                 }}
               >
                 {step === 1 && (
@@ -483,7 +506,7 @@ function OnboardingPage() {
                       {([canSubmit, isSubmitting]) => (
                         <Button
                           type="button"
-                          onClick={() => goToStep(4)}
+                          onClick={() => void saveAndChooseChannel()}
                           disabled={!canSubmit || isSubmitting || saving}
                         >
                           {isSubmitting || saving
@@ -494,6 +517,7 @@ function OnboardingPage() {
                     </form.Subscribe>
                   )}
                 </div>
+                {step === 3 && <FormError message={submitError} />}
               </form>
             </StepShell>
           )}

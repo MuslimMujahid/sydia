@@ -89,8 +89,9 @@ async function setup(page: Page) {
   );
   await page.route("**/users/me", (route) => {
     if (route.request().method() === "PATCH") {
-      state.savedProfile = route.request().postDataJSON();
-      state.completed = true;
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      state.savedProfile = body;
+      state.completed = body.onboardingCompleted === true;
     }
 
     return route.fulfill({
@@ -282,7 +283,7 @@ test("Telegram must confirm linking before onboarding can continue", async ({
   await expect(
     page.getByRole("button", { name: "Lanjutkan", exact: true })
   ).toBeDisabled();
-  expect(state.savedProfile).toBeUndefined();
+  expect(state.savedProfile).toMatchObject({ onboardingCompleted: false });
   state.telegramLinked = true;
   await expect(
     page.getByRole("heading", { name: "Telegram sudah terhubung" })
@@ -347,7 +348,7 @@ test("WhatsApp explains two numbers before QR and requires owner verification", 
   await expect(
     page.getByRole("button", { name: "Lanjutkan", exact: true })
   ).toBeDisabled();
-  expect(state.savedProfile).toBeUndefined();
+  expect(state.savedProfile).toMatchObject({ onboardingCompleted: false });
   state.whatsapp = {
     ...state.whatsapp,
     setupPhase: "ready",
@@ -385,17 +386,48 @@ test("a failed QR request surfaces an error and can be retried", async ({
   expect(state.qrCount).toBe(2);
 });
 
-test("saving failure keeps onboarding open and supports an explicit retry", async ({
+test("name and persona are saved before choosing a channel", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await page.goto("/e2e/onboarding.html");
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await page.getByLabel("Panggilan", { exact: true }).fill("Kak Sari");
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
+  await expect(page.getByText("Pengaturan awal · 4 dari 4")).toBeVisible();
+  expect(state.savedPreferences).toMatchObject({
+    preferredAddress: "Kak Sari",
+  });
+  expect(state.savedProfile).toMatchObject({ onboardingCompleted: false });
+});
+
+test("a failed save before the channel step stays on step 3 for retry", async ({
   page,
 }) => {
   const state = await setup(page);
   state.preferenceFailure = true;
   await openChannels(page);
+  await expect(page.getByRole("alert")).toContainText(
+    "Preferensi belum dapat disimpan"
+  );
+  await expect(page.getByText("Pengaturan awal · 3 dari 4")).toBeVisible();
+  state.preferenceFailure = false;
+  await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
+  await expect(page.getByText("Pengaturan awal · 4 dari 4")).toBeVisible();
+});
+
+test("saving failure keeps onboarding open and supports an explicit retry", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await openChannels(page);
+  state.preferenceFailure = true;
   await page.getByRole("button", { name: "Lewati untuk sekarang" }).click();
   await expect(page.getByRole("alert")).toContainText(
     "Preferensi belum dapat disimpan"
   );
-  expect(state.savedProfile).toBeUndefined();
+  expect(state.savedProfile).toMatchObject({ onboardingCompleted: false });
   state.preferenceFailure = false;
   await page.getByRole("button", { name: "Lewati untuk sekarang" }).click();
   await expect(

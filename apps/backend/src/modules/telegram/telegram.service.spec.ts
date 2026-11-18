@@ -294,3 +294,99 @@ describe('TelegramService processing feedback', () => {
     },
   );
 });
+
+describe('TelegramService account linking', () => {
+  function linkSetup() {
+    let inbound: ((ctx: unknown) => Promise<void>) | undefined;
+    const outbound = {
+      send: jest.fn(() => Promise.resolve({ providerMessageId: '123:43' })),
+    };
+
+    const startMessage: NormalizedInboundMessage = {
+      ...message,
+      kind: 'text',
+      text: '/start link-token',
+      mediaMessage: undefined,
+    };
+
+    const gateway = {
+      setInboundHandler: jest.fn((handler: (ctx: unknown) => Promise<void>) => {
+        inbound = handler;
+      }),
+      getInboundAdapter: jest.fn(() => ({ normalize: () => startMessage })),
+      getOutboundAdapter: jest.fn(() => outbound),
+    } as unknown as TelegramGatewayService;
+
+    const linkedIdentity = {
+      id: 'identity-1',
+      userId: 'owner-1',
+      provider: 'telegram',
+      externalId: '123',
+      verifiedAt: new Date(0),
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    };
+
+    const telegram = {
+      findIdentityByExternalId: jest.fn(() => Promise.resolve(null)),
+      recordInbound: jest.fn(() =>
+        Promise.resolve({ id: 'inbound-1', externalIdentityId: null }),
+      ),
+      commitLink: jest.fn(() =>
+        Promise.resolve({ status: 'linked', identity: linkedIdentity }),
+      ),
+      associateInbound: jest.fn(() => Promise.resolve()),
+      upsertProfile: jest.fn(() => Promise.resolve()),
+      markInboundProcessed: jest.fn(() => Promise.resolve()),
+    } as unknown as ITelegramRepository;
+
+    const users = {
+      findById: jest.fn((id: string) =>
+        Promise.resolve(
+          id === 'owner-1'
+            ? { name: 'Rina Kartika', preferredAddress: null, locale: 'id' }
+            : null,
+        ),
+      ),
+    } as unknown as IUserRepository;
+
+    const messages = {
+      registerAdapter: jest.fn(() => Promise.resolve()),
+    } as unknown as MessagingHandlerService;
+
+    const service = new TelegramService(
+      gateway,
+      telegram,
+      users,
+      { record: jest.fn(() => Promise.resolve()) },
+      messages,
+      {} as DocumentService,
+      {} as OpenRouterMediaService,
+      {} as NotificationService,
+    );
+
+    return {
+      outbound,
+      service,
+      receive: () => {
+        if (!inbound) throw new Error('Telegram inbound handler was not set');
+
+        return inbound({ from: { first_name: 'Rina' } });
+      },
+    };
+  }
+
+  it('greets the linked account owner with a first message to try', async () => {
+    const { outbound, receive, service } = linkSetup();
+    await service.onModuleInit();
+
+    await receive();
+
+    expect(outbound.send).toHaveBeenCalledWith({
+      recipientExternalId: '123',
+      content: expect.stringMatching(
+        /^\*\*Halo, Rina!\*\*[\s\S]*\n> Ingetin aku minum air 2 menit lagi\n/,
+      ) as unknown,
+    });
+  });
+});
