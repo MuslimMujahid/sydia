@@ -91,6 +91,17 @@ export function CalendarGlyph(props: GlyphProps) {
   );
 }
 
+/** Tasks: a checklist whose next open item is the accent. */
+export function TaskListGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="m2.5 4.5 2 2 3.25-3.5M2.5 10.25l2 2 3.25-3.5" />
+      <path d="M10.5 4.75h6.75M10.5 10.5h6.75M10.5 16h6.75" />
+      <circle className="glyph-accent" cx="5.1" cy="15.75" r="2.4" />
+    </Glyph>
+  );
+}
+
 /** Notes: a page with a pen resting on its corner. */
 export function NoteGlyph(props: GlyphProps) {
   return (

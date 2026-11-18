@@ -1,12 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, ListChecks } from "lucide-react";
+import { CalendarGlyph, TaskListGlyph } from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils/cn";
 
 export type CalendarMode = "calendar" | "tasks";
 
 const MODES = [
-  { mode: "calendar", label: "Kalender", icon: CalendarDays },
-  { mode: "tasks", label: "Tugas", icon: ListChecks },
+  { mode: "calendar", label: "Kalender", icon: CalendarGlyph, hue: "amber" },
+  { mode: "tasks", label: "Tugas", icon: TaskListGlyph, hue: "violet" },
 ] as const;
 
 type CalendarModeSwitchProps = { mode: CalendarMode };
@@ -39,11 +39,11 @@ export function CalendarModeSwitch({ mode }: CalendarModeSwitchProps) {
             title={entry.label}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex h-full w-11 items-center justify-center rounded-sm text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
+              "glyph-host flex h-full w-11 items-center justify-center rounded-sm text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-brand/50",
               active && "bg-surface-1 text-ink"
             )}
           >
-            <Icon aria-hidden="true" className="size-6" />
+            <Icon hue={entry.hue} />
           </Link>
         );
       })}
