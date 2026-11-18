@@ -27,6 +27,7 @@ import {
 } from "@/components/forms/form-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -160,6 +161,7 @@ function ReminderEditor({
   const updateMutation = useUpdateReminder();
   const deleteMutation = useDeleteReminder();
   const mutation = reminder ? updateMutation : createMutation;
+  const { confirm, confirmDialog } = useConfirm();
   const form = useAppForm({
     defaultValues: reminderValues(reminder),
     validators: { onChange: reminderSchema },
@@ -203,14 +205,15 @@ function ReminderEditor({
     },
   });
 
-  function handleDelete() {
-    if (
-      !reminder ||
-      !window.confirm(
-        `Hapus pengingat “${reminder.title}”? Tindakan ini tidak dapat dibatalkan.`
-      )
-    )
-      return;
+  async function handleDelete() {
+    if (!reminder) return;
+    const confirmed = await confirm({
+      title: "Hapus pengingat ini?",
+      description: `“${reminder.title}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus pengingat",
+    });
+
+    if (!confirmed) return;
     deleteMutation.mutate(reminder.id, { onSuccess: onClose });
   }
 
@@ -491,6 +494,7 @@ function ReminderEditor({
           </div>
         </div>
       </form>
+      {confirmDialog}
     </DialogContent>
   );
 }
@@ -629,14 +633,16 @@ function ReminderRow({
 }) {
   const deleteMutation = useDeleteReminder();
   const acknowledgeMutation = useAcknowledgeReminder();
+  const { confirm, confirmDialog } = useConfirm();
 
-  function remove() {
-    if (
-      window.confirm(
-        `Hapus pengingat “${reminder.title}”? Tindakan ini tidak dapat dibatalkan.`
-      )
-    )
-      deleteMutation.mutate(reminder.id);
+  async function remove() {
+    const confirmed = await confirm({
+      title: "Hapus pengingat ini?",
+      description: `“${reminder.title}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus pengingat",
+    });
+
+    if (confirmed) deleteMutation.mutate(reminder.id);
   }
 
   const recurrence = formatRecurrence(reminder.recurrence);
@@ -727,7 +733,7 @@ function ReminderRow({
           )}
           <DropdownMenuItem
             disabled={deleteMutation.isPending}
-            onClick={remove}
+            onClick={() => void remove()}
             className="text-destructive"
           >
             <Trash2 /> {deleteMutation.isPending ? "Menghapus…" : "Hapus"}
@@ -777,7 +783,7 @@ function ReminderRow({
           variant="ghost"
           size="sm"
           disabled={deleteMutation.isPending}
-          onClick={remove}
+          onClick={() => void remove()}
           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 /> {deleteMutation.isPending ? "Menghapus…" : "Hapus"}
@@ -786,6 +792,7 @@ function ReminderRow({
           <Pencil /> Rincian
         </Button>
       </div>
+      {confirmDialog}
     </li>
   );
 }
@@ -918,6 +925,17 @@ export function ReminderPage() {
 
 export function CompactReminderRow({ reminder }: { reminder: Reminder }) {
   const mutation = useDeleteReminder();
+  const { confirm, confirmDialog } = useConfirm();
+
+  async function remove() {
+    const confirmed = await confirm({
+      title: "Hapus pengingat ini?",
+      description: `“${reminder.title}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus pengingat",
+    });
+
+    if (confirmed) mutation.mutate(reminder.id);
+  }
 
   return (
     <li className="flex items-start gap-3 py-4">
@@ -926,11 +944,7 @@ export function CompactReminderRow({ reminder }: { reminder: Reminder }) {
         size="sm"
         aria-label={`Hapus pengingat ${reminder.title}`}
         disabled={mutation.isPending}
-        onClick={() =>
-          window.confirm(
-            `Hapus pengingat “${reminder.title}”? Tindakan ini tidak dapat dibatalkan.`
-          ) && mutation.mutate(reminder.id)
-        }
+        onClick={() => void remove()}
       >
         {mutation.isPending ? (
           <LoaderCircle className="animate-spin motion-reduce:animate-none" />
@@ -955,6 +969,7 @@ export function CompactReminderRow({ reminder }: { reminder: Reminder }) {
           </p>
         ) : null}
       </div>
+      {confirmDialog}
     </li>
   );
 }

@@ -7,6 +7,7 @@ import {
 } from "@/components/domain/domain-page";
 import { TaskEditor, TaskEditorLoader } from "@/components/tasks/task-editor";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -138,6 +139,7 @@ export function CalendarPage({
   const [recurrenceError, setRecurrenceError] = useState<string | null>(null);
   const [isResolvingRecurrence, setIsResolvingRecurrence] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const [isConnecting, setIsConnecting] = useState(false);
   const deleteEventKeys = useRef(new Map<string, string>());
   const isDesktop = useMediaQuery("(min-width: 40rem)");
@@ -214,18 +216,19 @@ export function CalendarPage({
       if (isRecurringOccurrence(item.event)) {
         setRecurrenceError(null);
         setRecurrenceAction({ mode: "delete", event: item.event });
-      } else cancelEvent(item.event);
+      } else void cancelEvent(item.event);
 
       return;
     }
 
-    if (
-      !window.confirm(
-        `Hapus tugas “${item.title}”? Tindakan ini tidak dapat dibatalkan.`
-      )
-    )
-      return;
-    deleteTaskMutation.mutate(item.task.id);
+    const taskId = item.task.id;
+    void confirm({
+      title: "Hapus tugas ini?",
+      description: `“${item.title}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus tugas",
+    }).then((confirmed) => {
+      if (confirmed) deleteTaskMutation.mutate(taskId);
+    });
   }
 
   function toggleDone(item: ScheduleItem, done: boolean) {
@@ -257,8 +260,15 @@ export function CalendarPage({
     } else onTaskIdChange(item.task.id);
   }
 
-  function cancelEvent(event: CalendarEvent) {
-    if (!window.confirm(`Batalkan acara “${event.title}”?`)) return;
+  async function cancelEvent(event: CalendarEvent) {
+    const confirmed = await confirm({
+      title: "Batalkan acara ini?",
+      description: `“${event.title}” akan dibatalkan.`,
+      confirmLabel: "Batalkan acara",
+      cancelLabel: "Kembali",
+    });
+
+    if (!confirmed) return;
     const idempotencyKey =
       deleteEventKeys.current.get(event.id) ?? crypto.randomUUID();
 
@@ -299,7 +309,7 @@ export function CalendarPage({
 
       setRecurrenceAction(null);
       if (action.mode === "edit") setEditor({ mode: "edit-event", event });
-      else cancelEvent(event);
+      else void cancelEvent(event);
     } catch (error) {
       setRecurrenceError(
         error instanceof Error
@@ -697,6 +707,7 @@ export function CalendarPage({
           />
         ) : null}
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

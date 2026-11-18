@@ -13,6 +13,7 @@ import {
 } from "@/components/forms/form-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -145,14 +146,16 @@ export function ContactGroupPanel({
 }: ContactGroupPanelProps) {
   const groupsQuery = useQuery(contactGroupsQueryOptions());
   const deleteMutation = useDeleteContactGroup();
+  const { confirm, confirmDialog } = useConfirm();
 
   async function handleDelete(group: ContactGroup) {
-    if (
-      !window.confirm(
-        `Hapus grup “${group.name}”? Kontak di dalamnya tidak akan dihapus.`
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      title: "Hapus grup ini?",
+      description: `Grup “${group.name}” akan dihapus. Kontak di dalamnya tetap tersimpan.`,
+      confirmLabel: "Hapus grup",
+    });
+
+    if (!confirmed) return;
     await deleteMutation.mutateAsync(group.id);
   }
 
@@ -232,6 +235,7 @@ export function ContactGroupPanel({
           />
         ) : null}
       </Dialog>
+      {confirmDialog}
     </>
   );
 }

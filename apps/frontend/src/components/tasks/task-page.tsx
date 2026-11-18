@@ -9,6 +9,7 @@ import {
 import { DomainPageSearch } from "@/components/domain/domain-page-search";
 import { FormError } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogClose,
@@ -116,6 +117,7 @@ function CategoryManager({
   const [name, setName] = useState("");
   const [color, setColor] = useState<CategoryColor>("blue");
   const [iconKey, setIconKey] = useState<CategoryIconKey>("star");
+  const { confirm, confirmDialog } = useConfirm();
 
   const categories = categoriesQuery.data ?? [];
   const atLimit = categories.length >= 25;
@@ -166,12 +168,13 @@ function CategoryManager({
   }
 
   async function remove(category: Category) {
-    if (
-      !window.confirm(
-        `Hapus kategori “${category.name}”? Kategori akan dilepas dari ${category.taskCount} tugas.`
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      title: "Hapus kategori ini?",
+      description: `“${category.name}” akan dilepas dari ${category.taskCount} tugas. Tugasnya tetap tersimpan.`,
+      confirmLabel: "Hapus kategori",
+    });
+
+    if (!confirmed) return;
     await deleteMutation.mutateAsync(category.id);
     onDeleted(category.id);
   }
@@ -365,6 +368,7 @@ function CategoryManager({
           <FormError message={deleteMutation.error?.message} />
         </>
       )}
+      {confirmDialog}
     </DialogContent>
   );
 }
@@ -422,6 +426,7 @@ export function TaskPage({
   const [now] = useState(() => new Date());
   const statusMutation = useSetTaskStatus();
   const deleteMutation = useDeleteTask();
+  const { confirm, confirmDialog } = useConfirm();
 
   const categoriesQuery = useQuery(categoriesQueryOptions());
   const filters: TaskFilters = {
@@ -493,13 +498,14 @@ export function TaskPage({
     statusMutation.mutate({ taskId: task.id, status: nextStatus });
   }
 
-  function removeTask(task: Task) {
-    if (
-      !window.confirm(
-        `Hapus tugas “${task.title}”? Tindakan ini tidak dapat dibatalkan.`
-      )
-    )
-      return;
+  async function removeTask(task: Task) {
+    const confirmed = await confirm({
+      title: "Hapus tugas ini?",
+      description: `“${task.title}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus tugas",
+    });
+
+    if (!confirmed) return;
     statusMutation.reset();
     deleteMutation.mutate(task.id);
   }
@@ -702,7 +708,7 @@ export function TaskPage({
                             onStatusChange={(nextStatus) =>
                               changeTaskStatus(task, nextStatus)
                             }
-                            onDelete={() => removeTask(task)}
+                            onDelete={() => void removeTask(task)}
                           />
                         ))}
                       </ul>
@@ -798,6 +804,7 @@ export function TaskPage({
           />
         ) : null}
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Check, Inbox, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { dayKeyInZone } from "@/components/calendar/calendar-date";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { PopoverTitle } from "@/components/ui/popover";
 import { calendarEventsQueryOptions } from "@/lib/services/api/calendar/calendar.queries";
 import { getDocumentContentUrl } from "@/lib/services/api/documents/documents.api";
@@ -198,6 +199,7 @@ function ReminderDetails({ entity, locale, timezone }: DetailsProps) {
   const query = useQuery({ ...reminderQueryOptions(entity.id), retry: false });
   const deleteMutation = useDeleteReminder();
   const snoozeMutation = useSnoozeReminder();
+  const { confirm, confirmDialog } = useConfirm();
   if (deleteMutation.isSuccess)
     return (
       <>
@@ -263,14 +265,22 @@ function ReminderDetails({ entity, locale, timezone }: DetailsProps) {
           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           disabled={pending}
           onClick={() => {
-            if (
-              window.confirm(
-                locale === "en"
-                  ? `Delete reminder “${reminder.title}”? This cannot be undone.`
-                  : `Hapus pengingat “${reminder.title}”? Tindakan ini tidak dapat dibatalkan.`
-              )
-            )
-              deleteMutation.mutate(reminder.id);
+            void confirm(
+              locale === "en"
+                ? {
+                    title: "Delete this reminder?",
+                    description: `“${reminder.title}” will be deleted permanently. This cannot be undone.`,
+                    confirmLabel: "Delete reminder",
+                    cancelLabel: "Cancel",
+                  }
+                : {
+                    title: "Hapus pengingat ini?",
+                    description: `“${reminder.title}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+                    confirmLabel: "Hapus pengingat",
+                  }
+            ).then((confirmed) => {
+              if (confirmed) deleteMutation.mutate(reminder.id);
+            });
           }}
         >
           {deleteMutation.isPending ? (
@@ -290,6 +300,7 @@ function ReminderDetails({ entity, locale, timezone }: DetailsProps) {
           {locale === "en" ? "Manage reminder" : "Atur pengingat"}
         </Button>
       </div>
+      {confirmDialog}
     </>
   );
 }

@@ -25,6 +25,7 @@ import {
 } from "@/components/forms/form-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -74,6 +75,7 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
   const updateMutation = useUpdateContact();
   const deleteMutation = useDeleteContact();
   const groupsQuery = useQuery(contactGroupsQueryOptions());
+  const { confirm, confirmDialog } = useConfirm();
   const mutation = contact ? updateMutation : createMutation;
   const form = useAppForm({
     defaultValues: {
@@ -110,8 +112,14 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
   });
 
   async function handleDelete() {
-    if (!contact || !window.confirm(`Hapus ${contact.name} dari kontak?`))
-      return;
+    if (!contact) return;
+    const confirmed = await confirm({
+      title: "Hapus kontak ini?",
+      description: `${contact.name} akan dihapus dari kontakmu.`,
+      confirmLabel: "Hapus kontak",
+    });
+
+    if (!confirmed) return;
     await deleteMutation.mutateAsync(contact.id);
     onClose();
   }
@@ -277,6 +285,7 @@ function ContactEditor({ contact, onClose }: ContactEditorProps) {
           </div>
         </div>
       </form>
+      {confirmDialog}
     </DialogContent>
   );
 }

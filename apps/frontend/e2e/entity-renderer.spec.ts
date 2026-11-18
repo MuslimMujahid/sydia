@@ -516,8 +516,11 @@ test("hard deletes a reminder from chat instead of completing or cancelling it",
   await expect(
     page.getByRole("button", { name: "Batalkan", exact: true })
   ).toHaveCount(0);
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Hapus", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Hapus pengingat ini?" })
+    .getByRole("button", { name: "Hapus pengingat" })
+    .click();
   await expect(page.getByRole("status")).toHaveText("Pengingat dihapus.");
   expect(deleted).toBe(true);
   await page.reload();
@@ -543,8 +546,11 @@ test("keeps a reminder available when deletion fails", async ({ page }) => {
   );
   await page.goto("/e2e/entity-renderer.html");
   await page.getByRole("button", { name: "Pengingat: Minum obat" }).click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Hapus", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Hapus pengingat ini?" })
+    .getByRole("button", { name: "Hapus pengingat" })
+    .click();
   await expect(page.getByRole("alert")).toHaveText("Pengingat belum dihapus.");
   await expect(
     page.getByRole("button", { name: "Hapus", exact: true })
@@ -563,8 +569,11 @@ test("does not delete a reminder when confirmation is dismissed", async ({
   });
   await page.goto("/e2e/entity-renderer.html");
   await page.getByRole("button", { name: "Pengingat: Minum obat" }).click();
-  page.once("dialog", (dialog) => dialog.dismiss());
   await page.getByRole("button", { name: "Hapus", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Hapus pengingat ini?" })
+    .getByRole("button", { name: "Batal" })
+    .click();
   await expect(page.getByRole("button", { name: "Tunda 1 jam" })).toBeVisible();
   expect(deletes).toBe(0);
 });
@@ -595,12 +604,15 @@ test("removes a hard deleted reminder from the list on desktop and mobile", asyn
   await expect(
     page.getByRole("menuitem", { name: "Batalkan", exact: true })
   ).toHaveCount(0);
-  page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole(testInfo.project.name === "mobile" ? "menuitem" : "button", {
       name: "Hapus",
       exact: true,
     })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Hapus pengingat ini?" })
+    .getByRole("button", { name: "Hapus pengingat" })
     .click();
   await expect(page.getByRole("heading", { name: reminder.title })).toHaveCount(
     0
@@ -759,9 +771,12 @@ test("hard deletes a reminder from Today", async ({ page }) => {
     await route.fulfill({ status: 204 });
   });
   await page.goto("/e2e/entity-renderer.html?mode=compact-reminders");
-  page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: `Hapus pengingat ${reminder.title}` })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Hapus pengingat ini?" })
+    .getByRole("button", { name: "Hapus pengingat" })
     .click();
   await expect(page.getByText(reminder.title, { exact: true })).toHaveCount(0);
   expect(deleted).toBe(true);

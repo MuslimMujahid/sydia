@@ -21,6 +21,7 @@ import {
 } from "@/components/forms/form-fields";
 import { TimePicker } from "@/components/forms/time-picker";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DialogContent,
@@ -162,6 +163,7 @@ export function EventEditor({
   onClose,
 }: EventEditorProps) {
   const eventTimezone = event?.timezone ?? timezone;
+  const { confirm, confirmDialog } = useConfirm();
   const [destination, setDestination] = useState<"google" | "local">(
     googleConnected ? "google" : "local"
   );
@@ -311,7 +313,15 @@ export function EventEditor({
   });
 
   async function handleCancel() {
-    if (!event || !window.confirm(`Batalkan acara “${event.title}”?`)) return;
+    if (!event) return;
+    const confirmed = await confirm({
+      title: "Batalkan acara ini?",
+      description: `“${event.title}” akan dibatalkan.`,
+      confirmLabel: "Batalkan acara",
+      cancelLabel: "Kembali",
+    });
+
+    if (!confirmed) return;
     const key = idempotencyKey("cancel", { eventId: event.id });
     await deleteMutation.mutateAsync({
       eventId: event.id,
@@ -913,6 +923,7 @@ export function EventEditor({
           </div>
         </div>
       </form>
+      {confirmDialog}
     </DialogContent>
   );
 }

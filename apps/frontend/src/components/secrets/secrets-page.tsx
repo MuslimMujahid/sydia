@@ -24,6 +24,7 @@ import {
   TextField,
 } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -460,6 +461,7 @@ export function SecretsPage() {
   const query = useQuery(secretsQueryOptions());
   const deleteMutation = useDeleteSecret();
   const revealLinkMutation = useCreateRevealLink();
+  const { confirm, confirmDialog } = useConfirm();
 
   async function handleCreateLink(secret: SecretMetadata) {
     const link = await revealLinkMutation.mutateAsync(secret.id);
@@ -467,8 +469,13 @@ export function SecretsPage() {
   }
 
   async function handleDelete(secret: SecretMetadata) {
-    if (!window.confirm(`Hapus rahasia “${secret.label}” secara permanen?`))
-      return;
+    const confirmed = await confirm({
+      title: "Hapus rahasia ini?",
+      description: `“${secret.label}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus permanen",
+    });
+
+    if (!confirmed) return;
     await deleteMutation.mutateAsync(secret.id);
   }
 
@@ -552,6 +559,7 @@ export function SecretsPage() {
           />
         ) : null}
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

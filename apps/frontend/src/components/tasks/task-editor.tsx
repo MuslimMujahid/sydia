@@ -12,6 +12,7 @@ import {
   TextField,
 } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   DialogContent,
   DialogDescription,
@@ -148,6 +149,7 @@ export function TaskEditor({
   const updateMutation = useUpdateTask();
   const deleteMutation = useDeleteTask();
   const categoriesQuery = useQuery(categoriesQueryOptions());
+  const { confirm, confirmDialog } = useConfirm();
   const mutation = task ? updateMutation : createMutation;
   const form = useAppForm({
     defaultValues: taskValues(task, initialDueAt),
@@ -179,13 +181,14 @@ export function TaskEditor({
   });
 
   async function handleDelete() {
-    if (
-      !task ||
-      !window.confirm(
-        `Hapus tugas “${task.title}”? Tindakan ini tidak dapat dibatalkan.`
-      )
-    )
-      return;
+    if (!task) return;
+    const confirmed = await confirm({
+      title: "Hapus tugas ini?",
+      description: `“${task.title}” akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus tugas",
+    });
+
+    if (!confirmed) return;
     await deleteMutation.mutateAsync(task.id);
     onClose();
   }
@@ -374,6 +377,7 @@ export function TaskEditor({
           </div>
         </div>
       </form>
+      {confirmDialog}
     </DialogContent>
   );
 }

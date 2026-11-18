@@ -54,8 +54,11 @@ test("a deleted task stays hidden while the task list refreshes", async ({
   });
 
   await taskActions.click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("menuitem", { name: "Hapus tugas" }).click();
+  await page
+    .getByRole("dialog", { name: "Hapus tugas ini?" })
+    .getByRole("button", { name: "Hapus tugas" })
+    .click();
 
   try {
     await expect(taskActions).toHaveCount(0);
