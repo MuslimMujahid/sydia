@@ -2,7 +2,7 @@ import type { ComponentType, CSSProperties } from "react";
 import {
   BellGlyph,
   CalendarGlyph,
-  NoteGlyph,
+  MemoryGlyph,
   ReceiptGlyph,
   type GlyphHue,
   type GlyphProps,
@@ -19,37 +19,48 @@ type Starter = {
   draft: Record<SupportedLocale, string>;
 };
 
+// Everyday household examples a brand-new account can use. Each one creates or
+// saves something, so none of them depends on data the user does not have yet.
 const STARTERS: Starter[] = [
+  {
+    id: "bill",
+    icon: BellGlyph,
+    hue: "amber",
+    label: { id: "Ingetin tagihan", en: "Bill reminder" },
+    draft: {
+      id: "Ingetin aku bayar listrik tiap tanggal ",
+      en: "Remind me to pay the electricity bill every month on the ",
+    },
+  },
+  {
+    id: "important-info",
+    icon: MemoryGlyph,
+    hue: "violet",
+    label: { id: "Simpan info penting", en: "Save important info" },
+    draft: {
+      id: "Simpan ya, nomor pelanggan listrik rumah: ",
+      en: "Save this: our home electricity customer number is ",
+    },
+  },
   {
     id: "expense",
     icon: ReceiptGlyph,
     hue: "coral",
     label: { id: "Catat pengeluaran", en: "Log an expense" },
-    draft: { id: "Catat pengeluaran saya: ", en: "Log my expense: " },
-  },
-  {
-    id: "reminder",
-    icon: BellGlyph,
-    hue: "amber",
-    label: { id: "Buat pengingat", en: "Set a reminder" },
-    draft: { id: "Ingatkan saya untuk ", en: "Remind me to " },
-  },
-  {
-    id: "agenda",
-    icon: CalendarGlyph,
-    hue: "amber",
-    label: { id: "Agenda hari ini", en: "Today's agenda" },
     draft: {
-      id: "Apa saja agenda saya hari ini?",
-      en: "What is on my agenda today?",
+      id: "Catat pengeluaran hari ini: ",
+      en: "Log today's expense: ",
     },
   },
   {
-    id: "note",
-    icon: NoteGlyph,
-    hue: "violet",
-    label: { id: "Tulis catatan", en: "Write a note" },
-    draft: { id: "Buat catatan tentang ", en: "Create a note about " },
+    id: "school-pickup",
+    icon: CalendarGlyph,
+    hue: "amber",
+    label: { id: "Jemput anak", en: "School pickup" },
+    draft: {
+      id: "Ingetin aku jemput anak jam ",
+      en: "Remind me to pick up the kids at ",
+    },
   },
 ];
 
