@@ -32,6 +32,7 @@ import {
 } from "@/lib/services/api/documents/documents.api";
 import {
   documentQueryOptions,
+  useDeleteDocument,
   useUploadDocument,
 } from "@/lib/services/api/documents/documents.queries";
 
@@ -65,9 +66,45 @@ function kindFromFile(file: File): FileKind {
   return "document";
 }
 
-async function waitForDocument(documentId: string, locale: SupportedLocale) {
+/** Thrown when an attachment's work stops because it was removed or the composer closed. */
+class AttachmentCancelledError extends Error {
+  constructor() {
+    super("Attachment processing was cancelled.");
+    this.name = "AttachmentCancelledError";
+  }
+}
+
+function pause(milliseconds: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) return reject(new AttachmentCancelledError());
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", cancel);
+      resolve();
+    }, milliseconds);
+
+    function cancel() {
+      window.clearTimeout(timer);
+      reject(new AttachmentCancelledError());
+    }
+
+    signal.addEventListener("abort", cancel, { once: true });
+  });
+}
+
+async function waitForDocument(
+  documentId: string,
+  locale: SupportedLocale,
+  signal: AbortSignal
+) {
   for (;;) {
-    const document = await getDocument(documentId);
+    if (signal.aborted) throw new AttachmentCancelledError();
+    const document = await getDocument(documentId, { signal }).catch(
+      (error: unknown) => {
+        if (signal.aborted) throw new AttachmentCancelledError();
+        throw error;
+      }
+    );
+
     if (document.status === "ready") return document;
     if (document.status === "failed")
       throw new Error(
@@ -76,7 +113,7 @@ async function waitForDocument(documentId: string, locale: SupportedLocale) {
             ? "File could not be processed."
             : "File tidak dapat diproses.")
       );
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 2_000));
+    await pause(2_000, signal);
   }
 }
 
@@ -108,6 +145,13 @@ export function ChatComposer({
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadMutation = useUploadDocument();
+  const deleteMutation = useDeleteDocument();
+  // Removed attachments stay listed here so an upload or status check that is
+  // still running can see the removal and stop, or delete what it created.
+  const removedAttachments = useRef(new Set<string>());
+  const attachmentWork = useRef(new Map<string, AbortController>());
+  const uploadedDocuments = useRef(new Map<string, string>());
+  const [discardError, setDiscardError] = useState<string>();
   const libraryDocument = useQuery(
     documentQueryOptions(initialAttachmentId ?? "")
   );
@@ -115,6 +159,16 @@ export function ChatComposer({
   const lastSubmission = useRef<
     { signature: string; idempotencyKey: string } | undefined
   >(undefined);
+
+  useEffect(() => {
+    const work = attachmentWork.current;
+
+    // Leaving the composer stops status checks. Unsent uploads stay in the
+    // library; only an explicit removal deletes them.
+    return () => {
+      for (const controller of work.values()) controller.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!initialAttachmentId) return;
@@ -182,8 +236,33 @@ export function ChatComposer({
     !isSending &&
     !submitting;
 
+  async function discardUpload(localId: string) {
+    const documentId = uploadedDocuments.current.get(localId);
+    if (!documentId) return;
+    uploadedDocuments.current.delete(localId);
+
+    try {
+      await deleteMutation.mutateAsync(documentId);
+    } catch (error) {
+      console.error(
+        "Removed chat attachment could not be deleted; it remains in the file library.",
+        { documentId, error }
+      );
+      setDiscardError(
+        locale === "en"
+          ? "A removed file could not be deleted. It is still in your file library."
+          : "File yang dihapus dari pesan belum bisa dihapus. File masih ada di pustaka file."
+      );
+    }
+  }
+
   async function uploadAttachment(attachment: ComposerAttachment) {
-    if (!attachment.file) return;
+    const { localId } = attachment;
+    if (!attachment.file || removedAttachments.current.has(localId)) return;
+    // A retry replaces the earlier upload, which failed processing.
+    void discardUpload(localId);
+    const controller = new AbortController();
+    attachmentWork.current.set(localId, controller);
     setAttachments((current) =>
       current.map((item) =>
         item.localId === attachment.localId
@@ -198,6 +277,9 @@ export function ChatComposer({
         conversationId,
       });
 
+      uploadedDocuments.current.set(localId, uploaded.id);
+      if (controller.signal.aborted) throw new AttachmentCancelledError();
+
       setAttachments((current) =>
         current.map((item) =>
           item.localId === attachment.localId
@@ -208,7 +290,7 @@ export function ChatComposer({
       const document =
         uploaded.status === "ready"
           ? uploaded
-          : await waitForDocument(uploaded.id, locale);
+          : await waitForDocument(uploaded.id, locale, controller.signal);
 
       setAttachments((current) =>
         current.map((item) =>
@@ -225,6 +307,7 @@ export function ChatComposer({
         )
       );
     } catch (error) {
+      if (error instanceof AttachmentCancelledError) return;
       console.warn("Chat attachment upload failed", {
         name: error instanceof Error ? error.name : "UnknownError",
       });
@@ -244,6 +327,10 @@ export function ChatComposer({
             : item
         )
       );
+    } finally {
+      if (attachmentWork.current.get(localId) === controller)
+        attachmentWork.current.delete(localId);
+      if (removedAttachments.current.has(localId)) void discardUpload(localId);
     }
   }
 
@@ -256,6 +343,7 @@ export function ChatComposer({
       file,
     }));
 
+    setDiscardError(undefined);
     setAttachments((current) => [...current, ...selected]);
     for (const attachment of selected) await uploadAttachment(attachment);
   }
@@ -279,11 +367,21 @@ export function ChatComposer({
     void addFiles(images);
   }
 
+  /**
+   * Removing a file this composer uploaded also deletes it, so a file that was
+   * never sent does not stay in the library or keep being processed. A file
+   * attached from the library is only taken off the message.
+   */
   function removeAttachment(localId: string) {
+    removedAttachments.current.add(localId);
     setAttachments((current) =>
       current.filter((attachment) => attachment.localId !== localId)
     );
     lastSubmission.current = undefined;
+    const work = attachmentWork.current.get(localId);
+    // Running work deletes its own upload when it stops.
+    if (work) work.abort();
+    else void discardUpload(localId);
   }
 
   async function submit() {
@@ -330,6 +428,9 @@ export function ChatComposer({
       setSourceSegments([]);
       sourceEditorRef.current?.clear();
       setAttachments([]);
+      // Sent files belong to the message now; removal no longer deletes them.
+      uploadedDocuments.current.clear();
+      setDiscardError(undefined);
       lastSubmission.current = undefined;
     } catch (error) {
       console.warn("Chat submission failed; composer draft retained", {
@@ -369,6 +470,10 @@ export function ChatComposer({
           {locale === "en"
             ? "Press send to try again."
             : "Tekan kirim untuk mencoba lagi."}
+        </p>
+      ) : discardError ? (
+        <p className="text-destructive" role="alert">
+          {discardError}
         </p>
       ) : hasPendingUpload ? (
         <p className="text-ink-muted">

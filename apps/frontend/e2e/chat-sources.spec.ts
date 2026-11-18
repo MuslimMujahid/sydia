@@ -399,3 +399,108 @@ test("successful sends clear text and references", async ({ page }) => {
   ).toHaveText("");
   expect(state.sends).toHaveLength(1);
 });
+
+async function trackUploadedImage(page: Page) {
+  const calls = { polls: 0, deletes: 0 };
+
+  await page.route(
+    "http://localhost:5000/documents/clipboard-image",
+    (route) => {
+      if (route.request().method() === "DELETE") {
+        calls.deletes += 1;
+
+        return route.fulfill({ status: 204 });
+      }
+
+      calls.polls += 1;
+
+      return route.fulfill({
+        json: {
+          data: {
+            id: "clipboard-image",
+            title: "Screenshot.png",
+            status: "processing",
+            file: { kind: "image" },
+          },
+        },
+      });
+    }
+  );
+
+  return calls;
+}
+
+test("removing an image that is still processing deletes it and stops checking", async ({
+  page,
+}) => {
+  await setup(page);
+  const calls = await trackUploadedImage(page);
+  await page.route("http://localhost:5000/documents", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          id: "clipboard-image",
+          title: "Screenshot.png",
+          status: "processing",
+          file: { kind: "image" },
+        },
+      },
+    })
+  );
+  const composer = page.getByRole("textbox", { name: "Pesan untuk Sydia" });
+
+  await pasteImage(composer);
+  await expect(page.getByText("Memproses", { exact: true })).toBeVisible();
+  await expect.poll(() => calls.polls).toBeGreaterThan(0);
+  await page
+    .getByRole("button", { name: "Hapus lampiran Screenshot.png" })
+    .click();
+
+  await expect.poll(() => calls.deletes).toBe(1);
+  const pollsAtRemoval = calls.polls;
+  // Status checks run every 2 seconds; a stopped check makes no further call.
+  await page.waitForTimeout(2_500);
+  expect(calls.polls).toBe(pollsAtRemoval);
+  await expect(page.getByRole("list", { name: "Lampiran pesan" })).toHaveCount(
+    0
+  );
+});
+
+test("removing an image while it uploads deletes it once the upload lands", async ({
+  page,
+}) => {
+  await setup(page);
+  const calls = await trackUploadedImage(page);
+
+  let finishUpload = () => {};
+
+  const uploadHeld = new Promise<void>((resolve) => {
+    finishUpload = resolve;
+  });
+
+  await page.route("http://localhost:5000/documents", async (route) => {
+    await uploadHeld;
+
+    return route.fulfill({
+      json: {
+        data: {
+          id: "clipboard-image",
+          title: "Screenshot.png",
+          status: "processing",
+          file: { kind: "image" },
+        },
+      },
+    });
+  });
+  const composer = page.getByRole("textbox", { name: "Pesan untuk Sydia" });
+
+  await pasteImage(composer);
+  await expect(page.getByText("Mengunggah", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Hapus lampiran Screenshot.png" })
+    .click();
+  finishUpload();
+
+  await expect.poll(() => calls.deletes).toBe(1);
+  expect(calls.polls).toBe(0);
+});

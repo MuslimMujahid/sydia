@@ -1023,6 +1023,74 @@ describe('DocumentService processing deletion races', () => {
     expect(documents.complete).not.toHaveBeenCalled();
   });
 
+  test('stops before naming and embedding a document deleted during extraction', async () => {
+    const { service, documents, embeddings, extraction, languageModel } =
+      dependencies();
+
+    extraction.extract.mockImplementation(() => {
+      jest.mocked(documents.findById).mockResolvedValue(null);
+
+      return Promise.resolve({
+        text: 'hello world',
+        chunks: [{ chunkIndex: 0, pageNumber: null, content: 'hello world' }],
+        methods: ['native'],
+        warnings: [],
+      });
+    });
+
+    await service.processDocument('document-1', userId);
+
+    expect(languageModel.generate).not.toHaveBeenCalled();
+    expect(embeddings.embedMany).not.toHaveBeenCalled();
+    expect(documents.complete).not.toHaveBeenCalled();
+    expect(extraction.deleteCheckpoint).toHaveBeenCalledWith('user-1/blob');
+  });
+
+  test('stops before naming and embedding an image deleted while it is described', async () => {
+    const { service, documents, embeddings, media, languageModel } =
+      dependencies();
+
+    documents.findById = jest
+      .fn<IDocumentRepository['findById']>()
+      .mockResolvedValue({
+        ...document(),
+        file: {
+          ...asset('image/jpeg'),
+          kind: 'image',
+          originalName: 'receipt.jpg',
+        },
+      });
+    media.describeImage = jest
+      .fn<OpenRouterMediaService['describeImage']>()
+      .mockImplementation(() => {
+        jest.mocked(documents.findById).mockResolvedValue(null);
+
+        return Promise.resolve('A receipt from the corner shop.');
+      });
+
+    await service.processDocument('document-1', userId);
+
+    expect(documents.saveExtraction).not.toHaveBeenCalled();
+    expect(languageModel.generate).not.toHaveBeenCalled();
+    expect(embeddings.embedMany).not.toHaveBeenCalled();
+    expect(documents.complete).not.toHaveBeenCalled();
+  });
+
+  test('stops before embedding a document deleted while it is named', async () => {
+    const { service, documents, embeddings, languageModel } = dependencies();
+    languageModel.generate.mockImplementation(() => {
+      jest.mocked(documents.findById).mockResolvedValue(null);
+
+      return Promise.resolve({ text: 'Greeting.txt', usage: {} });
+    });
+
+    await service.processDocument('document-1', userId);
+
+    expect(languageModel.generate).toHaveBeenCalled();
+    expect(embeddings.embedMany).not.toHaveBeenCalled();
+    expect(documents.complete).not.toHaveBeenCalled();
+  });
+
   test('keeps the checkpoint for an embedding retry when the document survives', async () => {
     const { service, documents, embeddings, extraction } = dependencies();
     extraction.extract.mockResolvedValue({

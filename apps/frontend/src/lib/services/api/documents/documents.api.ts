@@ -95,13 +95,17 @@ export async function getDocuments(): Promise<Document[]> {
   }
 }
 
-export async function getDocument(documentId: string): Promise<Document> {
+export async function getDocument(
+  documentId: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<Document> {
   if (typeof window === "undefined")
     return getDocumentServer({ data: documentId });
 
   try {
     const response = await api.get<ApiResponse<Document>>(
-      `/documents/${encodeURIComponent(documentId)}`
+      `/documents/${encodeURIComponent(documentId)}`,
+      { signal: options.signal }
     );
 
     return response.data.data;

@@ -426,6 +426,15 @@ export class DocumentService {
           file.mimetype,
         ));
 
+      if (
+        await this.removedDuringProcessing(
+          userId,
+          documentId,
+          'after-transcription',
+        )
+      )
+        return;
+
       if (transcript && transcript !== record.transcript)
         await this.documents.saveExtraction(documentId, { transcript });
 
@@ -434,6 +443,14 @@ export class DocumentService {
       imageDescription =
         record.imageDescription?.trim() ||
         (await this.media.describeImage(file.buffer, file.mimetype));
+      if (
+        await this.removedDuringProcessing(
+          userId,
+          documentId,
+          'after-image-description',
+        )
+      )
+        return;
       if (imageDescription && imageDescription !== record.imageDescription)
         await this.documents.saveExtraction(documentId, { imageDescription });
       const descriptionForTitle = imageDescription?.trim() ?? '';
@@ -464,6 +481,15 @@ export class DocumentService {
           );
         throw error;
       }
+
+      if (
+        await this.removedDuringProcessing(
+          userId,
+          documentId,
+          'after-extraction',
+        )
+      )
+        return;
     }
 
     if (kind === 'document' && textContent)
@@ -503,6 +529,16 @@ export class DocumentService {
           existing[index]?.embeddingModel !== this.embeddings.modelName() ||
           existing[index]?.embeddingVersion !== this.embeddings.version,
       );
+
+    if (
+      pending.length > 0 &&
+      (await this.removedDuringProcessing(
+        userId,
+        documentId,
+        'before-embedding',
+      ))
+    )
+      return;
 
     const embeddings =
       pending.length === 0
@@ -554,6 +590,30 @@ export class DocumentService {
       imageDescription,
       structuredData: this.extractStructured(searchable),
     });
+  }
+
+  /**
+   * A document deleted while its job runs (for example a chat attachment the
+   * user removed before sending) must not keep paying for model calls. Checked
+   * between paid steps; the step already in flight still completes.
+   */
+  private async removedDuringProcessing(
+    userId: string,
+    documentId: string,
+    stage:
+      | 'after-transcription'
+      | 'after-image-description'
+      | 'after-extraction'
+      | 'before-embedding',
+  ): Promise<boolean> {
+    if (await this.documents.findById(userId, documentId)) return false;
+    this.logger.log({
+      event: 'document-processing-stopped-after-removal',
+      documentId,
+      stage,
+    });
+
+    return true;
   }
 
   async markProcessingFailed(
