@@ -57,6 +57,24 @@ const TIMEZONES = [
   "UTC",
 ];
 
+/** The zone the backend gives every new account (User.timezone default). */
+const SERVER_DEFAULT_TIMEZONE = "Asia/Jakarta";
+
+/**
+ * The device's IANA zone, e.g. Asia/Makassar. Placeholder names such as
+ * Etc/Unknown or a bare offset are ignored: the API would reject them, so the
+ * default stays selected for the user to change.
+ */
+function deviceTimezone(): string | null {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  return zone &&
+    (zone === "UTC" || /^[A-Z][A-Za-z_]+\//.test(zone)) &&
+    !zone.startsWith("Etc/")
+    ? zone
+    : null;
+}
+
 type Step = 1 | 2 | 3 | 4 | 5;
 
 const STEP_HEADINGS = [
@@ -141,14 +159,12 @@ function OnboardingPage() {
     },
   });
 
+  // Every new account starts on the server default, so a stored default says
+  // nothing about where the user is: propose the device's zone instead.
   useEffect(() => {
-    if (user.timezone) return;
-    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (
-      detected &&
-      (TIMEZONES.includes(detected) || detected.startsWith("Asia/"))
-    )
-      form.setFieldValue("timezone", detected);
+    if (user.timezone && user.timezone !== SERVER_DEFAULT_TIMEZONE) return;
+    const detected = deviceTimezone();
+    if (detected) form.setFieldValue("timezone", detected);
   }, [form, user.timezone]);
 
   const saving = updateMutation.isPending || preferencesMutation.isPending;

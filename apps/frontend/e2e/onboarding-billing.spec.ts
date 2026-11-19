@@ -25,7 +25,7 @@ const idle: WhatsAppStatus = {
   qrExpiresAt: null,
 };
 
-async function setup(page: Page) {
+async function setup(page: Page, user = profile) {
   const state = {
     completed: false,
     billingRequests: 0,
@@ -78,10 +78,10 @@ async function setup(page: Page) {
   await page.route("**/api/auth/get-session", (route) =>
     route.fulfill({
       json: {
-        user: { ...profile, emailVerified: true },
+        user: { ...user, emailVerified: true },
         session: {
           id: "session-1",
-          userId: profile.id,
+          userId: user.id,
           expiresAt: "2099-11-22T00:00:00Z",
         },
       },
@@ -97,7 +97,7 @@ async function setup(page: Page) {
     return route.fulfill({
       json: {
         data: {
-          ...profile,
+          ...user,
           ...state.savedProfile,
           onboardingCompleted: state.completed,
         },
@@ -405,6 +405,34 @@ test("name, self-description and persona are saved before choosing a channel", a
     occupation: "business_owner",
   });
   expect(state.savedProfile).toMatchObject({ onboardingCompleted: false });
+});
+
+test.describe("on a device set to WITA", () => {
+  test.use({ timezoneId: "Asia/Makassar" });
+
+  test("onboarding proposes and saves the device timezone, not the WIB default", async ({
+    page,
+  }) => {
+    const state = await setup(page);
+    await page.goto("/e2e/onboarding.html");
+    await expect(
+      page.getByRole("button", { name: "Zona waktu", exact: true })
+    ).toHaveText("Asia/Makassar");
+    await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+    await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+    await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+    await page.getByRole("button", { name: "Simpan dan lanjutkan" }).click();
+    await expect(page.getByText("Pengaturan awal · 5 dari 5")).toBeVisible();
+    expect(state.savedProfile).toMatchObject({ timezone: "Asia/Makassar" });
+  });
+
+  test("a zone the user already chose is kept", async ({ page }) => {
+    await setup(page, { ...profile, timezone: "Asia/Jayapura" });
+    await page.goto("/e2e/onboarding.html");
+    await expect(
+      page.getByRole("button", { name: "Zona waktu", exact: true })
+    ).toHaveText("Asia/Jayapura");
+  });
 });
 
 test("a failed save before the channel step stays on the persona step for retry", async ({
