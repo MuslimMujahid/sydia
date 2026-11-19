@@ -10,6 +10,7 @@ import {
 import { AuditModule } from '../../database/audit.module';
 import { CategoriesModule } from '../../modules/categories/categories.module';
 import { getFrontendOrigins } from '../../shared/frontend-origins';
+import { getMobileOrigins } from '../../shared/mobile-origins';
 import { PrismaService } from '../prisma';
 import { createAuth } from './auth';
 import { AuthMailService } from './auth-mail.service';
@@ -56,9 +57,11 @@ export class AuthSupportModule {}
           security,
           secret: config.getOrThrow<string>('BACKEND_AUTH_SECRET'),
           baseURL: config.getOrThrow<string>('BACKEND_AUTH_URL'),
-          trustedOrigins: getFrontendOrigins(
-            config.getOrThrow<string>('FRONTEND_URL'),
-          ),
+          // The web origin must stay first: registration links are built from it.
+          trustedOrigins: [
+            ...getFrontendOrigins(config.getOrThrow<string>('FRONTEND_URL')),
+            ...getMobileOrigins(config.get<string>('NODE_ENV')),
+          ],
           auditEventRepository,
           provisionDefaultCategories: (userId) =>
             categoryRepository.provisionDefaults(userId),

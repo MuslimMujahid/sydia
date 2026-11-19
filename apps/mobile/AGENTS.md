@@ -1,0 +1,50 @@
+# Mobile app guidelines
+
+`apps/mobile` is the Sydia iOS/Android app, built with Expo (SDK 58), Expo Router, React Native, TanStack Query, Axios, and the Better Auth Expo client. Follow the root [AGENTS.md](../../AGENTS.md) as well.
+
+## Expo changes quickly — do not trust training data
+
+Expo ships breaking changes every SDK release. Before writing code that touches an Expo, EAS, or React Native API, read the `expo` major version in `package.json` and check the matching docs at `https://docs.expo.dev/versions/v<major>.0.0/` (index: https://docs.expo.dev/llms.txt).
+
+## Commands
+
+Run these from `apps/mobile`:
+
+```bash
+bunx expo install <package>  # ALWAYS use instead of `bun add` — picks SDK-compatible versions
+bun run start                # Metro dev server (scan the QR code with Expo Go or a dev build)
+bun run lint                 # ESLint (eslint-config-expo), zero warnings
+bun run check-types          # tsc --noEmit
+bun run doctor               # expo-doctor
+```
+
+The app has no `dev` script on purpose: the root `bun run dev` starts only the web frontend and backend. Start Metro separately.
+
+## Local setup
+
+1. Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to the backend URL **as seen from the device**: your computer's LAN IP on a phone, `http://10.0.2.2:5000` on the Android emulator. `localhost` works only in the iOS simulator. On WSL2, the phone cannot reach WSL directly unless mirrored networking or a Windows port proxy is set up.
+2. Run the backend with `NODE_ENV=development` so it trusts the Expo Go `exp://` origins (see `apps/backend/src/shared/mobile-origins.ts`).
+
+## Structure
+
+- `src/app/` — Expo Router routes only. Every file is a screen; `_layout.tsx` defines navigators. Route files use a default export because Expo Router requires it.
+- `src/components/` — shared native UI components (named exports).
+- `src/lib/` — auth client, API client, env, and theme tokens.
+- Imports use the configured `@/*` alias for `src/*`.
+
+## Auth and API
+
+- `src/lib/auth-client.ts` is the only Better Auth client. The Expo plugin stores the session cookie in SecureStore; never store tokens yourself.
+- Auth gating happens in `src/app/_layout.tsx` with `Stack.Protected`. Add signed-in screens inside the `isSignedIn` guard.
+- `src/lib/api.ts` is the Axios client for the REST API. It attaches the session cookie manually because React Native has no cookie jar. Mirror the frontend's service conventions (`apps/frontend/src/lib/services/api/AGENTS.md`) and its `toApiError` fallback messages.
+- The app scheme is `sydia`. If you change it in `app.json`, update `MOBILE_APP_SCHEME` in the backend too.
+
+## Native code and dependencies
+
+- `ios/` and `android/` are generated (Continuous Native Generation) and git-ignored. Configure native behavior in `app.json` and config plugins; never edit generated native folders.
+- Expo Go includes only its bundled native modules. After adding a library with native code, use a development build (`bunx expo run:android|ios` or `bunx eas-cli build --profile development`).
+- The workspace uses Bun's isolated linker, so this app keeps its own React version. `expo-doctor` reports "duplicate" Expo packages because Bun creates peer-dependency variants on disk; Metro still bundles one copy of each. To verify, export a bundle with source maps and check the sources. `expo-doctor` checks that shell out to `npm explain` also fail because the root `devEngines` requires Bun; ignore those.
+
+## Before finishing
+
+Run `bun run lint` and `bun run check-types`. For runtime changes, also run `bunx expo export --platform android` to confirm the bundle builds.

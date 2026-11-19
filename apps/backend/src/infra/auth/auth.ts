@@ -1,3 +1,4 @@
+import { expo } from '@better-auth/expo';
 import { betterAuth, type Auth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins';
@@ -205,6 +206,9 @@ export function createAuth(prisma: PrismaService, options: AuthOptions): Auth {
       },
     },
     plugins: [
+      // Lets the Expo mobile app authenticate: maps its `expo-origin` header to
+      // `origin` and supports deep-link callbacks into the app scheme.
+      expo(),
       registrationPlugin(
         options.security,
         options.baseURL,

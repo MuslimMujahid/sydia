@@ -1,10 +1,11 @@
 # Project Guidelines
 
-This repository is a Bun/Turborepo monorepo containing a TanStack Start frontend, a NestJS 12 backend, and shared configuration packages. Before changing code, read the `AGENTS.md` that governs the target directory and follow the most specific applicable guide.
+This repository is a Bun/Turborepo monorepo containing a TanStack Start frontend, an Expo (React Native) mobile app, a NestJS 12 backend, and shared configuration packages. Before changing code, read the `AGENTS.md` that governs the target directory and follow the most specific applicable guide.
 
 ## Repository structure
 
 - `apps/frontend` — TanStack Start application using Vite, Tailwind CSS 4, shadcn/ui, TanStack Router/Query/Form, and Axios.
+- `apps/mobile` — Expo (React Native) iOS/Android app using Expo Router, TanStack Query, Axios, and the Better Auth Expo client.
 - `apps/backend` — NestJS 12 application with Better Auth and Prisma 7.
 - `packages/eslint-config` — shared ESLint configuration.
 - `packages/typescript-config` — shared TypeScript configuration.
@@ -14,7 +15,7 @@ This repository is a Bun/Turborepo monorepo containing a TanStack Start frontend
 - **Codebase exploration:** Use the CodeGraph MCP tool (`codegraph_explore`) first for code questions, architecture or flow tracing, and before changing code. Query the relevant symbols or file names; use its source and call-path results to understand impact. Use file search or direct reads only for details CodeGraph does not cover, such as documentation, configuration, or unindexed files. If CodeGraph reports the project is not indexed, stop querying it for that project and use normal repository tools; do not initialize an index yourself.
 - **TypeScript:** Keep strict typing enabled. Avoid `any`; use `unknown` and narrow it when a value is not known. Prefer `type` for data and utility definitions and `interface` for object contracts such as component props when an interface is useful.
 - **Exports:** Prefer named exports throughout product source. TanStack Start and other framework/config entrypoints may use a default export when the framework requires it (for example, route/config definitions); do not add default exports merely for convenience.
-- **Imports:** Follow each app's configured import style and directory barrels. The frontend may use its configured `@/*` alias; the backend uses relative imports. Do not introduce aliases that are not configured in the target app.
+- **Imports:** Follow each app's configured import style and directory barrels. The frontend and mobile app may use their configured `@/*` alias; the backend uses relative imports. Do not introduce aliases that are not configured in the target app.
 - **Consistency:** Reuse existing names, directory structure, error/response contracts, and dependency patterns before introducing a new one.
 - **Shared test lock:** Several agent sessions and worktrees may work on this machine at once, and E2E suites share fixed ports and the local database. Always run E2E tests through the lock: `bun run test:e2e` in `apps/frontend` or `apps/backend` (pass extra args after `--`, e.g. `bun run test:e2e -- --config playwright.entities.config.ts notes-search.spec.ts`), or prefix any other command that starts servers or touches the test database with `scripts/test-lock.sh`. Never invoke `playwright test` or the backend E2E Jest config directly. If the lock reports another session is testing, wait for it; do not kill that session's processes or free its ports. Unit tests (`bun run test`) do not need the lock.
 - **Browser testing (agent-browser, manual dev-server checks):** These span many commands, so hold a lease for the whole check: run `scripts/test-lock.sh acquire --ttl 1800 <what you are testing>` before starting dev servers, note the printed `SYDIA_TEST_LOCK_TOKEN`, and run `scripts/test-lock.sh release <token>` (after stopping your dev servers and closing your browser) as soon as you are done; the lease also expires after the TTL. While holding it, prefix lock-taking commands with the token (e.g. `SYDIA_TEST_LOCK_TOKEN=<token> bun run test:e2e`) so they do not wait on your own lease. Always give agent-browser an isolated session, e.g. `agent-browser --session <thread-or-task-name> ...`, never the default session. Check who holds the lock with `scripts/test-lock.sh status`.
@@ -29,6 +30,7 @@ This repository is a Bun/Turborepo monorepo containing a TanStack Start frontend
 | **Frontend components**    | [apps/frontend/src/components/AGENTS.md](./apps/frontend/src/components/AGENTS.md)             | Shared and UI component structure.                          |
 | **Frontend forms**         | [apps/frontend/src/components/forms/AGENTS.md](./apps/frontend/src/components/forms/AGENTS.md) | TanStack Form field and validation patterns.                |
 | **Frontend API services**  | [apps/frontend/src/lib/services/api/AGENTS.md](./apps/frontend/src/lib/services/api/AGENTS.md) | Axios client and TanStack Query service conventions.        |
+| **Mobile app**             | [apps/mobile/AGENTS.md](./apps/mobile/AGENTS.md)                                               | Expo, Expo Router, native auth, and mobile setup.           |
 | **Backend root**           | [apps/backend/AGENTS.md](./apps/backend/AGENTS.md)                                             | NestJS architecture, conventions, and testing.              |
 | **Backend database**       | [apps/backend/src/database/AGENTS.md](./apps/backend/src/database/AGENTS.md)                   | Entities, repository contracts, and persistence adapters.   |
 | **Backend infrastructure** | [apps/backend/src/infra/AGENTS.md](./apps/backend/src/infra/AGENTS.md)                         | Prisma, Better Auth, and configuration wiring.              |

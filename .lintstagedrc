@@ -8,5 +8,9 @@
     "prettier --ignore-unknown --write"
   ],
   "apps/backend/**/*.cjs": "prettier --ignore-unknown --write",
-  "!{apps/frontend,apps/backend}/**/*.{js,jsx,ts,tsx,mjs,cjs}": "prettier --ignore-unknown --write"
+  "apps/mobile/**/*.{js,jsx,ts,tsx}": [
+    "bun --cwd apps/mobile eslint --fix --max-warnings 0 --no-warn-ignored",
+    "prettier --ignore-unknown --write"
+  ],
+  "!{apps/frontend,apps/backend,apps/mobile}/**/*.{js,jsx,ts,tsx,mjs,cjs}": "prettier --ignore-unknown --write"
 }

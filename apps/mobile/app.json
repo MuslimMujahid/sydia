@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Sydia",
+    "slug": "sydia",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "sydia",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.sydia.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.sydia.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FBF8F5",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FBF8F5",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
