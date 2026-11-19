@@ -1,0 +1,222 @@
+/* App-wide upload tracker: a floating card that collapses to its header. */
+.upload-panel {
+  position: fixed;
+  z-index: 40;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  border-radius: 16px;
+  background: var(--color-canvas);
+  box-shadow: 0 12px 40px rgba(23, 20, 25, 0.14);
+  color: var(--color-ink);
+  animation: upload-panel-in 200ms ease-out;
+}
+@media (min-width: 640px) {
+  .upload-panel {
+    right: 24px;
+    bottom: 24px;
+    left: auto;
+    width: 380px;
+  }
+}
+.upload-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 8px 0;
+}
+.upload-panel-toggle {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 6px 8px 6px 14px;
+  text-align: left;
+  outline: none;
+}
+.upload-panel-toggle:focus-visible,
+.upload-panel-close:focus-visible,
+.upload-panel-footer button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 50%, transparent);
+  outline-offset: 1px;
+}
+.upload-panel-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  color: var(--color-brand);
+}
+.upload-panel[data-status="failed"] .upload-panel-icon {
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+.upload-panel-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.25;
+}
+.upload-panel-title {
+  display: block;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.upload-panel-destination {
+  display: block;
+  overflow: hidden;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.upload-panel-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--color-ink-muted);
+  transition: transform 180ms ease;
+}
+.upload-panel[data-collapsed] .upload-panel-chevron {
+  transform: rotate(180deg);
+}
+.upload-panel-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--color-ink-muted);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.upload-panel-close:hover,
+.upload-panel-toggle:hover .upload-panel-chevron {
+  color: var(--color-ink);
+}
+.upload-panel-close:hover {
+  background: var(--color-surface-1);
+}
+.upload-panel-close svg {
+  width: 18px;
+  height: 18px;
+}
+.upload-panel-progress {
+  display: block;
+  width: calc(100% - 36px);
+  height: 4px;
+  margin: 0 18px 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  appearance: none;
+  background: var(--color-surface-1);
+}
+.upload-panel-progress::-webkit-progress-bar {
+  background: var(--color-surface-1);
+}
+.upload-panel-progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--color-brand);
+  transition: width 300ms ease;
+}
+.upload-panel-progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--color-brand);
+}
+.upload-panel-list {
+  max-height: 264px;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-hairline);
+  padding: 6px 0;
+}
+.upload-panel-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 18px;
+}
+.upload-panel-file {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-ink-muted);
+}
+.upload-panel-name {
+  display: block;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.upload-panel-error {
+  display: block;
+  margin-top: 2px;
+  color: var(--destructive);
+  font-size: 13px;
+  line-height: 18px;
+}
+.upload-panel-state {
+  display: grid;
+  min-height: 20px;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+.upload-panel-state svg {
+  width: 18px;
+  height: 18px;
+}
+.upload-panel-state[data-state="completed"] {
+  color: var(--color-brand);
+}
+.upload-panel-state[data-state="failed"] {
+  color: var(--destructive);
+}
+.upload-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-hairline);
+  padding: 10px 12px;
+}
+.upload-panel-footer button {
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 0 14px;
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  font-size: 13px;
+  font-weight: 600;
+}
+.upload-panel-footer button:hover {
+  opacity: 0.9;
+}
+@keyframes upload-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .upload-panel,
+  .upload-panel-chevron {
+    animation: none;
+    transition: none;
+  }
+}

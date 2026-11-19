@@ -27,6 +27,7 @@ const LEASE_MS = 60_000;
 const PROCESSING_WAIT_MS = 5_000;
 const MAX_PROCESSING_WAITS = 120;
 const EXPIRED_PREVIEWS_PER_SWEEP = 5;
+const COMPLETED_DELETION_VISIBLE_MS = 60_000;
 
 function fingerprint(
   items: Array<
@@ -375,10 +376,24 @@ export class PrismaFileDeletionRepository implements IFileDeletionRepository {
     );
   }
 
-  async list(userId: string, offset: number, limit: number) {
+  async list(userId: string, offset: number, limit: number, now: Date) {
     return this.prisma.$transaction(
       async (tx) => {
-        const where = { userId, status: { not: 'preview' } };
+        // Finished operations only stay listed briefly so their notice can
+        // confirm completion without lingering across later visits.
+        const where = {
+          userId,
+          OR: [
+            { status: { in: ['running', 'partial'] } },
+            {
+              status: 'completed',
+              updatedAt: {
+                gte: new Date(now.getTime() - COMPLETED_DELETION_VISIBLE_MS),
+              },
+            },
+          ],
+        };
+
         const rows = await tx.fileDeletionOperation.findMany({
           where,
           skip: offset,

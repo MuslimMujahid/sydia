@@ -295,7 +295,9 @@ test.describe("Files and folders", () => {
       .getByRole("checkbox", { name: "Pilih Kerja", exact: true })
       .check();
     await page.getByRole("button", { name: /^Hapus(?: permanen)?$/ }).click();
-    await expect(page.getByRole("dialog")).toContainText("0 file dan 2 folder");
+    await expect(page.getByRole("dialog")).toContainText(
+      "2 folder akan dihapus permanen"
+    );
     await page.getByRole("button", { name: "Batal", exact: true }).click();
     await expect(
       page.getByRole("link", { name: "Kerja", exact: true })
@@ -308,11 +310,12 @@ test.describe("Files and folders", () => {
     await page.reload();
     await waitForWorkspace(page);
     await expect(
-      page.getByText("Penghapusan selesai", { exact: true })
-    ).toBeVisible({ timeout: 30_000 });
-    await expect(
       page.getByRole("link", { name: "Kerja", exact: true })
-    ).not.toBeVisible();
+    ).not.toBeVisible({ timeout: 30_000 });
+    // The completion notice is brief and does not return on later visits.
+    await expect(
+      page.getByText("2 folder dihapus", { exact: true })
+    ).not.toBeVisible({ timeout: 15_000 });
   });
   test("desktop drag moves the complete selection into a folder", async ({
     page,
@@ -488,7 +491,7 @@ test.describe("Files and folders", () => {
     await expect(
       page
         .getByRole("region", { name: "Hasil unggahan" })
-        .getByText("2 selesai", { exact: true })
+        .getByText("2 file diunggah", { exact: true })
     ).toBeVisible();
     expect(uploads[0]).toContain('filename="agenda.txt"');
     expect(uploads[1]).toContain('filename="minutes.txt"');
@@ -790,7 +793,10 @@ test.describe("Files and folders", () => {
       .getByRole("button", { name: "Hapus permanen", exact: true })
       .click();
     await expect(
-      page.getByRole("heading", { name: "Penghapusan selesai", exact: true })
+      page.getByRole("heading", {
+        name: "11 file dan 1 folder dihapus",
+        exact: true,
+      })
     ).toBeVisible();
     expect(retryBodies).toEqual([{}, { previewId: "renewed-confirmation" }]);
   });

@@ -64,8 +64,7 @@ import { FileDeletionProgress } from "./file-deletion-progress";
 import { useFileLibraryView } from "./use-file-library-view";
 import { FileLibraryItem } from "./file-library-item";
 import { FileLibraryBreadcrumbs } from "./file-library-breadcrumbs";
-import { FileLibraryUploadResults } from "./file-library-upload-results";
-import { useFileLibraryUpload } from "./use-file-library-upload";
+import { useFileLibraryUpload } from "./file-upload-provider";
 
 interface FileEditorProps {
   id: string;
@@ -562,13 +561,6 @@ export function DocumentPage() {
             {move.error.message}
           </p>
         ) : null}
-        <FileLibraryUploadResults
-          results={uploads.results}
-          pending={uploads.pending}
-          destination={uploads.destination}
-          onRetry={uploads.retry}
-          onDismiss={uploads.dismiss}
-        />
         <FileDeletionProgress />
         {query.isPending ? <DomainListSkeleton label="Memuat file" /> : null}
         {query.error || folder.error ? (

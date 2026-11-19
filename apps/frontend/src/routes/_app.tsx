@@ -1,6 +1,8 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { FileLibraryUploadResults } from "@/components/documents/file-library-upload-results";
+import { FileUploadProvider } from "@/components/documents/file-upload-provider";
 import { ErrorState, LoadingState } from "@/components/app-states";
 import { requireCompletedOnboarding } from "@/lib/auth";
 import { DevToolbar } from "@/components/dev/dev-toolbar";
@@ -26,10 +28,13 @@ function AppLayout() {
   }, []);
 
   return (
-    <DashboardShell user={user}>
-      <Outlet />
-      {/* eslint-disable-next-line turbo/no-undeclared-env-vars -- Vite build-time constant. */}
-      {import.meta.env.DEV ? <DevToolbar locale={user.locale} /> : null}
-    </DashboardShell>
+    <FileUploadProvider>
+      <DashboardShell user={user}>
+        <Outlet />
+        <FileLibraryUploadResults />
+        {/* eslint-disable-next-line turbo/no-undeclared-env-vars -- Vite build-time constant. */}
+        {import.meta.env.DEV ? <DevToolbar locale={user.locale} /> : null}
+      </DashboardShell>
+    </FileUploadProvider>
   );
 }

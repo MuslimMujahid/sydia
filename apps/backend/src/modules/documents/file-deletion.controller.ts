@@ -63,6 +63,7 @@ export class FileDeletionController {
         session.user.id,
         query.offset,
         query.limit,
+        new Date(),
       );
 
       return new PaginatedResult(result.items, {

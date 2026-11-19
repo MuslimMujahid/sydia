@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { AlertCircle, FileText } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { AlertCircle, Check, FileText, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +18,67 @@ import {
   libraryDeletionOptions,
   libraryQueryKeys,
 } from "@/lib/services/api/file-library/file-library.queries";
+
+const COMPLETED_NOTICE_MS = 5000;
+
+function deletedSummary({ files, folders }: DeletionOperation) {
+  const parts = [
+    files.completed ? `${files.completed} file` : null,
+    folders.completed ? `${folders.completed} folder` : null,
+  ].filter(Boolean);
+
+  return parts.length
+    ? `${parts.join(" dan ")} dihapus`
+    : "Penghapusan selesai";
+}
+
+interface DeletionNoticeProps {
+  operation: DeletionOperation;
+  onDismiss: () => void;
+}
+
+/** Compact toast for a running or just-finished deletion. */
+function DeletionNotice({ operation, onDismiss }: DeletionNoticeProps) {
+  const running = operation.status === "running";
+  const done = operation.files.completed + operation.folders.completed;
+  const total = operation.files.total + operation.folders.total;
+
+  return (
+    <article
+      className="files-deletion-notice"
+      data-status={operation.status}
+      style={
+        { "--notice-duration": `${COMPLETED_NOTICE_MS}ms` } as CSSProperties
+      }
+    >
+      <span className="files-deletion-notice-icon" aria-hidden="true">
+        {running ? <Loader2 className="animate-spin" /> : <Check />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="files-deletion-notice-title">
+          {running ? `Menghapus ${total} item…` : deletedSummary(operation)}
+        </h2>
+        {running ? (
+          <progress
+            aria-label="Progres penghapusan"
+            max={Math.max(total, 1)}
+            value={done}
+          />
+        ) : null}
+      </div>
+      {running ? null : (
+        <button
+          type="button"
+          className="files-deletion-notice-close"
+          aria-label="Tutup"
+          onClick={onDismiss}
+        >
+          <X aria-hidden="true" />
+        </button>
+      )}
+    </article>
+  );
+}
 
 interface OperationProgressProps {
   operation: DeletionOperation;
@@ -45,9 +106,6 @@ function OperationProgress({ operation }: OperationProgressProps) {
     onSuccess: () => setConfirmationOpen(true),
   });
 
-  const done = operation.files.completed + operation.folders.completed;
-  const total = operation.files.total + operation.folders.total;
-
   return (
     <article
       className="files-deletion-operation"
@@ -56,36 +114,14 @@ function OperationProgress({ operation }: OperationProgressProps) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">
-            {operation.status === "partial" ? (
-              <AlertCircle aria-hidden="true" />
-            ) : null}
-            {operation.status === "running"
-              ? "Menghapus item…"
-              : operation.status === "partial"
-                ? "Penghapusan belum selesai"
-                : "Penghapusan selesai"}
+            <AlertCircle aria-hidden="true" />
+            Penghapusan belum selesai
           </h2>
           <p className="mt-1 text-sm text-ink-muted">
-            {operation.status === "partial" ? (
-              `${operation.files.completed} file dihapus · ${operation.files.failed} file gagal`
-            ) : (
-              <>
-                {operation.files.completed} dari {operation.files.total} file ·{" "}
-                {operation.folders.completed} dari {operation.folders.total}{" "}
-                folder dihapus
-              </>
-            )}
+            {`${operation.files.completed} file dihapus · ${operation.files.failed} file gagal`}
           </p>
         </div>
       </div>
-      {operation.status === "running" ? (
-        <progress
-          aria-label="Progres penghapusan"
-          className="mt-3 h-2 w-full accent-brand"
-          max={Math.max(total, 1)}
-          value={done}
-        />
-      ) : null}
       {operation.status === "partial" ? (
         <p className="files-deletion-retained">
           {operation.files.failed + operation.folders.failed} gagal ·{" "}
@@ -173,20 +209,18 @@ function OperationProgress({ operation }: OperationProgressProps) {
         </div>
       ) : null}
       <Dialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
-        <DialogContent
-          className="files-dialog files-delete-dialog"
-          backdropClassName="bg-ink/25"
-        >
-          <DialogTitle>Konfirmasi item tersisa</DialogTitle>
+        <DialogContent>
+          <DialogTitle className="pr-6">Konfirmasi item tersisa</DialogTitle>
           <DialogDescription className="mt-3">
             Isi pilihan mungkin berubah. {preview.data?.data.files.total} file
             dan {preview.data?.data.folders.total} folder akan dihapus permanen,
             termasuk semua isi folder tersisa. Tindakan ini tidak dapat
             dibatalkan.
           </DialogDescription>
-          <div className="mt-6 flex justify-end gap-3">
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button
               variant="ghost"
+              size="sm"
               disabled={retry.isPending}
               onClick={() => setConfirmationOpen(false)}
             >
@@ -194,6 +228,7 @@ function OperationProgress({ operation }: OperationProgressProps) {
             </Button>
             <Button
               variant="destructive"
+              size="sm"
               disabled={retry.isPending || !preview.data}
               onClick={() => retry.mutate(preview.data!.data.id)}
             >
@@ -208,8 +243,31 @@ function OperationProgress({ operation }: OperationProgressProps) {
 
 export function FileDeletionProgress() {
   const [offset, setOffset] = useState(0);
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+
   const query = useQuery(libraryDeletionOptions(offset));
   const client = useQueryClient();
+  const completedIds = (query.data?.data ?? [])
+    .filter((row) => row.status === "completed" && !dismissed.has(row.id))
+    .map((row) => row.id)
+    .join(",");
+
+  // A finished deletion only needs a brief confirmation.
+  useEffect(() => {
+    if (!completedIds) return;
+    const timer = window.setTimeout(() => {
+      setDismissed((current) => {
+        const next = new Set(current);
+        for (const id of completedIds.split(",")) next.add(id);
+
+        return next;
+      });
+    }, COMPLETED_NOTICE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [completedIds]);
   // Progress changes invalidate visible listings as confirmed deletes arrive.
   const progressKey = JSON.stringify(
     query.data?.data.map((row) => [
@@ -238,7 +296,10 @@ export function FileDeletionProgress() {
         </button>
       </p>
     );
-  if (!query.data?.data.length) return null;
+  const operations =
+    query.data?.data.filter((row) => !dismissed.has(row.id)) ?? [];
+
+  if (!operations.length) return null;
 
   return (
     <section
@@ -246,10 +307,20 @@ export function FileDeletionProgress() {
       className="files-deletion-panel"
       aria-live="polite"
     >
-      {query.data.data.map((operation) => (
-        <OperationProgress key={operation.id} operation={operation} />
-      ))}
-      {query.data.pagination.total > 10 ? (
+      {operations.map((operation) =>
+        operation.status === "partial" ? (
+          <OperationProgress key={operation.id} operation={operation} />
+        ) : (
+          <DeletionNotice
+            key={operation.id}
+            operation={operation}
+            onDismiss={() =>
+              setDismissed((current) => new Set(current).add(operation.id))
+            }
+          />
+        )
+      )}
+      {query.data && query.data.pagination.total > 10 ? (
         <div className="flex justify-end gap-3">
           <Button
             variant="ghost"
@@ -262,7 +333,7 @@ export function FileDeletionProgress() {
           <Button
             variant="ghost"
             size="sm"
-            disabled={offset + 10 >= query.data.pagination.total}
+            disabled={offset + 10 >= (query.data?.pagination.total ?? 0)}
             onClick={() => setOffset(offset + 10)}
           >
             Aktivitas sebelumnya

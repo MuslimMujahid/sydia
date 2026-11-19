@@ -6,8 +6,6 @@ import {
   FolderInput,
   FolderPlus,
   LoaderCircle,
-  TriangleAlert,
-  Trash2,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -329,58 +327,52 @@ export function DeleteDialog({
     onSuccess: onStarted,
   });
 
+  const counts = preview.data?.data;
+  const title =
+    names.length === 1 ? `Hapus “${names[0]}”?` : `Hapus ${items.length} item?`;
+
   return (
-    <DialogContent
-      className="files-dialog files-delete-dialog"
-      backdropClassName="bg-ink/25"
-    >
-      <div className="files-delete-icon">
-        <TriangleAlert aria-hidden="true" />
-      </div>
-      <DialogTitle>Hapus {items.length} item permanen?</DialogTitle>
-      <DialogDescription className="mt-3 break-words">
-        {names
-          .slice(0, 3)
-          .map((name) => `“${name}”`)
-          .join(", ")}
-        {names.length > 3 ? ` dan ${names.length - 3} item lainnya` : ""}{" "}
-        beserta seluruh isinya akan dihapus.
+    <DialogContent>
+      <DialogTitle className="pr-6 break-words">{title}</DialogTitle>
+      <DialogDescription className="mt-3">
+        {counts ? (
+          <>
+            {items.length === 1 && !counts.folders.total
+              ? "File ini"
+              : deletionCountLabel(
+                  counts.files.total,
+                  counts.folders.total
+                )}{" "}
+            akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+          </>
+        ) : preview.isPending ? (
+          <span role="status" className="inline-flex items-center gap-2">
+            <LoaderCircle className="size-4 animate-spin" /> Menghitung isi
+            pilihan…
+          </span>
+        ) : (
+          "Item akan dihapus permanen."
+        )}
       </DialogDescription>
-      {preview.isPending ? (
-        <p role="status" className="mt-4 flex items-center gap-2">
-          <LoaderCircle className="size-4 animate-spin" /> Menghitung seluruh
-          isi pilihan…
-        </p>
-      ) : null}
-      {preview.data ? (
-        <p className="mt-5 font-semibold">
-          {preview.data.data.files.total} file dan{" "}
-          {preview.data.data.folders.total} folder
-        </p>
-      ) : null}
       {preview.error || mutation.error ? (
-        <div role="alert" className="mt-4 space-y-3 text-sm text-destructive">
+        <div role="alert" className="mt-4 space-y-1 text-sm text-destructive">
           <p>{preview.error?.message ?? mutation.error?.message}</p>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            className="font-medium underline underline-offset-4"
             onClick={() => {
               mutation.reset();
               void preview.refetch();
             }}
           >
             Periksa pilihan lagi
-          </Button>
+          </button>
         </div>
       ) : null}
-      <p className="files-delete-warning">
-        Tindakan ini tidak dapat dibatalkan.
-        <br />
-        File juga tidak lagi tersedia di chat.
-      </p>
-      <div className="files-delete-actions">
+      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button
-          variant="dark-outline"
+          variant="ghost"
+          size="sm"
           disabled={mutation.isPending}
           onClick={onClose}
         >
@@ -388,13 +380,25 @@ export function DeleteDialog({
         </Button>
         <Button
           variant="destructive"
+          size="sm"
           disabled={!preview.data || preview.isFetching || mutation.isPending}
           onClick={() => mutation.mutate()}
         >
-          <Trash2 aria-hidden="true" />
-          {mutation.isPending ? "Mengonfirmasi…" : "Hapus permanen"}
+          {mutation.isPending ? (
+            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+          ) : null}
+          Hapus permanen
         </Button>
       </div>
     </DialogContent>
   );
+}
+
+function deletionCountLabel(files: number, folders: number) {
+  const parts = [
+    files ? `${files} file` : null,
+    folders ? `${folders} folder` : null,
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(" dan ") : "Pilihan ini";
 }

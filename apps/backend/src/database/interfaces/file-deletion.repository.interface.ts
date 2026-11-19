@@ -21,6 +21,7 @@ export interface IFileDeletionRepository {
     userId: string,
     offset: number,
     limit: number,
+    now: Date,
   ): Promise<{ items: FileDeletionOperation[]; total: number }>;
   detail(userId: string, id: string): Promise<FileDeletionOperation>;
   failures(
