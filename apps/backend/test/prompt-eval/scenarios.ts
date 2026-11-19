@@ -770,6 +770,127 @@ export const SCENARIOS: Scenario[] = [
     tools: {},
     checks: [noErrors(), notCalled('set_timezone')],
   },
+  // ── Questions about Sydia itself (sydia-guide) ─────────────────────────
+  // Phrasings come from production chats where the assistant guessed wrong.
+  {
+    // Asked to "use WITA" for the schedule: change the profile timezone,
+    // never shift each reminder by an hour.
+    id: 'guide-timezone-wita-request',
+    area: 'guide',
+    channel: 'telegram',
+    message:
+      'Saya WITA, bisakah sesuaikan semua jadwal yang saya buat di sini jadi WITA?',
+    tools: {
+      set_timezone: { timezone: 'Asia/Makassar' },
+      list_reminders: { reminders: [], recentDeliveries: [] },
+    },
+    checks: [
+      noErrors(),
+      called(
+        'set_timezone',
+        (args) => args.timezone === 'Asia/Makassar',
+        'Asia/Makassar',
+      ),
+      notCalled('update_reminder'),
+      inIndonesian(),
+    ],
+  },
+  {
+    // Only a question: say which zone the account uses and offer the change.
+    id: 'guide-timezone-question',
+    area: 'guide',
+    channel: 'telegram',
+    message: 'Pengingatnya ini pakai WIB atau WITA? Saya di Banjarmasin.',
+    tools: { list_reminders: { reminders: [], recentDeliveries: [] } },
+    checks: [
+      noErrors(),
+      notCalled('set_timezone', 'update_reminder'),
+      matches(/WIB|Jakarta/, 'names the account timezone'),
+      matches(/WITA|Makassar/, 'mentions WITA'),
+      inIndonesian(),
+    ],
+  },
+  {
+    id: 'guide-whatsapp-setup',
+    area: 'guide',
+    message: 'Cara sambungin WhatsApp ke Sydia gimana? Apa ada nomornya?',
+    tools: {},
+    checks: [
+      noErrors(),
+      called('load_skill', (args) => args.name === 'sydia-guide', 'guide'),
+      contains('Integrasi'),
+      matches(/QR/, 'QR step'),
+      notMatches(
+        /(tidak|nggak|gak|belum) bisa (di)?(pakai|gunakan|digunakan|dipakai) (lewat|di|via) WhatsApp/i,
+        'denies WhatsApp',
+      ),
+      inIndonesian(),
+    ],
+  },
+  {
+    // The link code belongs in WhatsApp, not in web chat.
+    id: 'guide-whatsapp-code-in-web-chat',
+    area: 'guide',
+    history: [
+      { role: 'user', content: 'Cara sambungin WhatsApp gimana?' },
+      {
+        role: 'assistant',
+        content:
+          'Buka Pengaturan → Integrasi, nyalakan WhatsApp, pindai kode QR dari nomor asisten, lalu kirim pesan kode dari WhatsApp pribadi ke nomor asisten.',
+      },
+    ],
+    message: 'SYDIA-5C20DE0B',
+    tools: {},
+    checks: [
+      noErrors(),
+      matches(/WhatsApp/, 'points to WhatsApp'),
+      matches(/pribadi/i, 'send from the personal number'),
+      inIndonesian(),
+    ],
+  },
+  {
+    id: 'guide-paid',
+    area: 'guide',
+    message: 'Apa kamu berbayar?',
+    tools: {},
+    checks: [
+      noErrors(),
+      called('load_skill', (args) => args.name === 'sydia-guide', 'guide'),
+      matches(/7 hari/, 'free trial'),
+      matches(/Rp ?\d/, 'price'),
+      notMatches(/(tidak|nggak|gak) berbayar/i, 'claims Sydia is free'),
+      inIndonesian(),
+    ],
+  },
+  {
+    id: 'guide-trial-end-data',
+    area: 'guide',
+    message: 'Kalo trial 7 hari habis, chat dan data saya hilang?',
+    tools: {},
+    checks: [
+      noErrors(),
+      called('load_skill', (args) => args.name === 'sydia-guide', 'guide'),
+      matches(
+        /(tidak|nggak|gak) (ada yang )?(hilang|dihapus|terhapus)|tetap (ada|tersimpan|aman)/i,
+        'data is kept',
+      ),
+      matches(/Langganan/, 'where to renew'),
+      inIndonesian(),
+    ],
+  },
+  {
+    id: 'guide-timezone-howto-en',
+    area: 'guide',
+    user: { locale: 'en', name: 'Sam' },
+    message: 'Where do I change my time zone in the app?',
+    tools: {},
+    checks: [
+      noErrors(),
+      contains('/settings/profile'),
+      contains('Zona waktu'),
+      inEnglish(),
+    ],
+  },
   // ── Task and reminder lists ────────────────────────────────────────────
   {
     id: 'tasks-tomorrow-web',

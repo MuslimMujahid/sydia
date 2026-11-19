@@ -7,6 +7,8 @@ import { protectNoteTools } from './protected-note-tools';
 import { RecordCellReviewService } from './record-cell-review.service';
 import { createNoteQuestionResponseTools } from './note-question-tools';
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { withSydiaGuideLinks } from './sydia-guide-links';
 import {
   CALENDAR_REPOSITORY,
   CATEGORY_REPOSITORY,
@@ -86,6 +88,7 @@ export class DomainToolsProvider {
     @Optional() cellReview?: RecordCellReviewService,
     @Optional() lifecycle?: ReminderLifecycleService,
     @Optional() delivery?: ReminderDeliveryService,
+    @Optional() config?: ConfigService,
   ) {
     const protectedTools = protectNoteTools(
       [
@@ -130,9 +133,12 @@ export class DomainToolsProvider {
     );
 
     // Review runs before protection so a refused write never becomes pending work.
-    this.tools = withNoteSkillInventory(
-      cellReview ? cellReview.wrap(protectedTools, records) : protectedTools,
-      notes,
+    this.tools = withSydiaGuideLinks(
+      withNoteSkillInventory(
+        cellReview ? cellReview.wrap(protectedTools, records) : protectedTools,
+        notes,
+      ),
+      config?.get<string>('FRONTEND_URL'),
     );
     const names = this.tools.map(({ definition }) => definition.name);
     // Harnesses without the secretary module register only domain tools.

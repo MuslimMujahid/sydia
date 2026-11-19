@@ -39,6 +39,7 @@ describe('skill catalog', () => {
       'note-capture',
       'record-notes',
       'scheduling',
+      'sydia-guide',
       'work-resumption',
     ]);
     const scheduling = skills.find((item) => item.name === 'scheduling')!;
