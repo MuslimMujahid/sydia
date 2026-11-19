@@ -41,7 +41,7 @@ function tools(
 }
 
 describe('phase 5 and 6 assistant tools', () => {
-  test('the file text search tool preserves literal whitespace and defaults to case-sensitive search', async () => {
+  test('the file text search tool preserves literal whitespace and defaults to case-insensitive search', async () => {
     const findInDocument = jest
       .fn<DocumentService['findInDocument']>()
       .mockResolvedValue({
@@ -67,7 +67,9 @@ describe('phase 5 and 6 assistant tools', () => {
     expect(findInDocument).toHaveBeenCalledWith('user-1', 'document-1', {
       pattern: ' exact text ',
       mode: 'literal',
-      caseSensitive: true,
+      caseSensitive: false,
+      wholeWord: false,
+      excerpts: true,
       offset: 0,
       limit: 10,
     });

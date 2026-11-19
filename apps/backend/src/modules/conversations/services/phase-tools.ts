@@ -12,6 +12,7 @@ import { CalendarService } from '../../calendar/calendar.service';
 import type { CalendarReadService } from '../../calendar/calendar-read.service';
 import type { CalendarSyncService } from '../../calendar/calendar-sync.service';
 import {
+  DOCUMENT_COMPACT_MATCH_LIMIT,
   DOCUMENT_MATCH_LIMIT,
   DOCUMENT_PATTERN_LIMIT,
   type DocumentService,
@@ -677,7 +678,7 @@ Use it when asked to locate or count exact text or regex matches in a file.
 
 Do not use it for topic discovery across files.
 
-Returns the total count of non-overlapping matches, extracted-text line and column positions, and excerpts. Continue with nextOffset. skippedImageCount signals partial visual coverage.`,
+Returns totalMatches, per-spelling matchCounts, and matches with line, column, page or section, and excerpt. Continue with nextOffset. inImageDescription marks AI image-description text. countIsPartial means totals are lower bounds. skippedImageCount signals partial visual coverage.`,
         parameters: schema(
           {
             documentId: {
@@ -698,7 +699,16 @@ Returns the total count of non-overlapping matches, extracted-text line and colu
             },
             caseSensitive: {
               type: 'boolean',
-              description: 'Case-sensitive by default.',
+              description: 'Defaults to false.',
+            },
+            wholeWord: {
+              type: 'boolean',
+              description:
+                'Skip matches inside longer words. Defaults to false.',
+            },
+            excerpts: {
+              type: 'boolean',
+              description: 'Defaults to true. False returns compact matches.',
             },
             offset: {
               type: 'integer',
@@ -707,9 +717,9 @@ Returns the total count of non-overlapping matches, extracted-text line and colu
             },
             limit: {
               type: 'integer',
-              minimum: 1,
-              maximum: DOCUMENT_MATCH_LIMIT,
-              description: 'Matches per call. Defaults to 10.',
+              minimum: 0,
+              maximum: DOCUMENT_COMPACT_MATCH_LIMIT,
+              description: `Matches per call; 0 for counts only. Defaults to 10. Max ${DOCUMENT_MATCH_LIMIT} with excerpts.`,
             },
           },
           ['documentId', 'pattern'],
@@ -719,18 +729,32 @@ Returns the total count of non-overlapping matches, extracted-text line and colu
       parseArguments,
       execute: async ({ userId, arguments: raw }) => {
         const a = record(raw);
-        const { pattern, mode = 'literal', caseSensitive = true } = a;
+        const {
+          pattern,
+          mode = 'literal',
+          caseSensitive = false,
+          wholeWord = false,
+          excerpts = true,
+        } = a;
+
         if (typeof pattern !== 'string')
           throw new Error('Pattern must be text.');
         if (mode !== 'literal' && mode !== 'regex')
           throw new Error('Search mode must be literal or regex.');
-        if (typeof caseSensitive !== 'boolean')
-          throw new Error('caseSensitive must be a boolean.');
+        for (const [name, value] of Object.entries({
+          caseSensitive,
+          wholeWord,
+          excerpts,
+        }))
+          if (typeof value !== 'boolean')
+            throw new Error(`${name} must be a boolean.`);
 
         return deps.documents.findInDocument(userId, text(a, 'documentId')!, {
           pattern,
           mode,
-          caseSensitive,
+          caseSensitive: caseSensitive as boolean,
+          wholeWord: wholeWord as boolean,
+          excerpts: excerpts as boolean,
           offset: integer(a, 'offset', 0),
           limit: integer(a, 'limit', 10),
         });

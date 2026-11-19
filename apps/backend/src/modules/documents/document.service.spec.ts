@@ -320,6 +320,8 @@ describe('DocumentService file text search', () => {
     pattern: 'past indexed previews',
     mode: 'literal',
     caseSensitive: true,
+    wholeWord: false,
+    excerpts: true,
     offset: 0,
     limit: 10,
   } as const;
