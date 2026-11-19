@@ -201,6 +201,7 @@ function dependencies(
         ) => Promise<Document | null>
       >()
       .mockResolvedValue(document()),
+    findReadyContent: jest.fn<IDocumentRepository['findReadyContent']>(),
     storageKey: jest
       .fn<(id: string, documentId: string) => Promise<string | null>>()
       .mockResolvedValue('user-1/blob'),
@@ -311,6 +312,44 @@ describe('DocumentService links', () => {
     });
     expect(documents.findById).toHaveBeenCalledWith('user-1', 'document-1');
     expect(storage.get).toHaveBeenCalledWith('user-1/blob');
+  });
+});
+
+describe('DocumentService file text search', () => {
+  const input = {
+    pattern: 'past indexed previews',
+    mode: 'literal',
+    caseSensitive: true,
+    offset: 0,
+    limit: 10,
+  } as const;
+
+  test('finds a phrase beyond the assistant read tool’s chunk preview', async () => {
+    const { service, documents } = dependencies();
+    jest.mocked(documents.findReadyContent).mockResolvedValue({
+      ...document('ready'),
+      textContent: `${'x'.repeat(1200)} past indexed previews`,
+      skippedImageCount: 2,
+    });
+
+    await expect(
+      service.findInDocument(userId, 'document-1', input),
+    ).resolves.toMatchObject({
+      documentId: 'document-1',
+      skippedImageCount: 2,
+      totalMatches: 1,
+      nextOffset: null,
+      matches: [{ line: 1, column: 1202, match: 'past indexed previews' }],
+    });
+  });
+
+  test('rejects an unavailable document instead of returning zero matches', async () => {
+    const { service, documents } = dependencies();
+    jest.mocked(documents.findReadyContent).mockResolvedValue(null);
+
+    await expect(
+      service.findInDocument(userId, 'document-1', input),
+    ).rejects.toThrow('Document unavailable.');
   });
 });
 

@@ -36,6 +36,10 @@ import { sanitizeDerivedTitle } from './document-naming';
 import { DocumentExtractionService } from './document-extraction.service';
 import { documentParserFailureMessage } from './document-parser-errors';
 import {
+  searchDocumentText,
+  type DocumentTextSearch,
+} from './document-text-search';
+import {
   assertDocumentUploadMetadata,
   DocumentParserError,
   MAX_DOCUMENT_BYTES,
@@ -751,6 +755,37 @@ export class DocumentService {
     nextCursor: number | null;
   } | null> {
     return this.documents.readChunks(userId, documentId, cursor, limit);
+  }
+
+  async findInDocument(
+    userId: string,
+    documentId: string,
+    input: DocumentTextSearch,
+  ) {
+    const document = await this.documents.findReadyContent(userId, documentId);
+    if (!document)
+      throw new Error(
+        'Document unavailable. Use list_documents to check its status.',
+      );
+
+    const content = {
+      document: document.textContent,
+      audio: document.transcript,
+      image: document.imageDescription,
+    }[document.file.kind];
+
+    if (!content?.trim())
+      throw new Error('This file has no saved text to search.');
+
+    return {
+      documentId: document.id,
+      filename: document.title,
+      fileKind: document.file.kind,
+      ...(document.skippedImageCount
+        ? { skippedImageCount: document.skippedImageCount }
+        : {}),
+      ...searchDocumentText(content, input),
+    };
   }
 
   async searchForMessage(

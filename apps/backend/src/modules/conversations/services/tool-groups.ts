@@ -12,6 +12,7 @@ export const TOOL_GROUPS = {
   documents: [
     'list_documents',
     'read_document',
+    'find_in_document',
     'save_attached_files',
     'send_file',
     'search_documents',

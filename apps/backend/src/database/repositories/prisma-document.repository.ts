@@ -283,6 +283,28 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return row ? present(row) : null;
   }
 
+  async findReadyContent(userId: string, id: string) {
+    const row = await this.prisma.document.findFirst({
+      where: { userId, id, status: 'ready', deletingOperationId: null },
+      select: {
+        ...documentMetadataSelect,
+        textContent: true,
+        transcript: true,
+        imageDescription: true,
+      },
+    });
+
+    if (!row) return null;
+    const { textContent, transcript, imageDescription } = row;
+
+    return {
+      ...presentMetadata(row),
+      textContent,
+      transcript,
+      imageDescription,
+    };
+  }
+
   async update(
     userId: string,
     id: string,

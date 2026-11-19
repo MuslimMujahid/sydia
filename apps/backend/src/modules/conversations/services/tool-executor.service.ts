@@ -318,6 +318,10 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, LocalizedToolLabel>> = {
   },
   list_documents: { en: 'List files', id: 'Menampilkan file' },
   read_document: { en: 'Read document', id: 'Membaca dokumen' },
+  find_in_document: {
+    en: 'Find text in document',
+    id: 'Mencari teks dalam dokumen',
+  },
   save_attached_files: {
     en: 'Save attached files',
     id: 'Menyimpan file terlampir',
@@ -638,7 +642,10 @@ export class ToolExecutorService {
           }
         : context;
 
-      if (scope && call.name === 'read_document') {
+      if (
+        scope &&
+        (call.name === 'read_document' || call.name === 'find_in_document')
+      ) {
         const input = argumentsValue as Record<string, unknown>;
         if (!scope.documentIds.includes(String(input.documentId)))
           throw new Error('Read a file from the selected sources.');

@@ -75,6 +75,35 @@ describe('PrismaDocumentRepository ordered reads', () => {
   });
 });
 
+test('file search loads saved text only from an owned ready document outside deletion', async () => {
+  const findFirst = jest
+    .fn<(input: unknown) => Promise<unknown>>()
+    .mockResolvedValue({
+      ...document,
+      textContent: 'Searchable document text',
+      transcript: null,
+      imageDescription: null,
+    });
+
+  const repository = new PrismaDocumentRepository({
+    document: { findFirst },
+  } as unknown as PrismaService);
+
+  const result = await repository.findReadyContent('owner-1', 'doc-1');
+
+  expect(findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: {
+        userId: 'owner-1',
+        id: 'doc-1',
+        status: 'ready',
+        deletingOperationId: null,
+      },
+    }),
+  );
+  expect(result?.textContent).toBe('Searchable document text');
+});
+
 describe('PrismaDocumentRepository processing state guards', () => {
   test.each(['ready', 'failed', 'deleted'] as const)(
     'late worker writes preserve a %s document',

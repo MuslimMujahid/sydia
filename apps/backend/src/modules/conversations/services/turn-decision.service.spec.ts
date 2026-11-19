@@ -146,7 +146,7 @@ test.each([
   ],
   [
     'group_documents',
-    'Does responding to the latest message in this conversation require any of these tools: list_documents, read_document, save_attached_files, send_file, search_documents?',
+    'Does responding to the latest message in this conversation require any of these tools: list_documents, read_document, find_in_document, save_attached_files, send_file, search_documents?',
   ],
   [
     'recall',
@@ -388,7 +388,7 @@ test.each([
 );
 test('registry covers note clarification tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(66);
+  expect(names).toHaveLength(67);
   expect(TOOL_GROUPS.planning).toEqual(['update_plan']);
   expect(TOOL_GROUPS.time).toEqual(['get_current_datetime', 'set_timezone']);
   expect(TOOL_GROUPS.notes).toEqual(

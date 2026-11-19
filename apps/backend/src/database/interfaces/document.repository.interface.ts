@@ -35,6 +35,14 @@ export interface IDocumentRepository {
     id: string,
     chunks?: boolean,
   ): Promise<Document | null>;
+  findReadyContent(
+    userId: string,
+    id: string,
+  ): Promise<
+    | (DocumentMetadata &
+        Pick<Document, 'textContent' | 'transcript' | 'imageDescription'>)
+    | null
+  >;
   /** Owner-scoped rename/description write. Returns null when the document is not the caller's. */
   update(
     userId: string,

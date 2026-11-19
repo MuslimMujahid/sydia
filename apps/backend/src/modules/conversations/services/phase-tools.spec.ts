@@ -41,6 +41,38 @@ function tools(
 }
 
 describe('phase 5 and 6 assistant tools', () => {
+  test('the file text search tool preserves literal whitespace and defaults to case-sensitive search', async () => {
+    const findInDocument = jest
+      .fn<DocumentService['findInDocument']>()
+      .mockResolvedValue({
+        documentId: 'document-1',
+        filename: 'invoice.txt',
+        fileKind: 'document',
+        totalMatches: 0,
+        matches: [],
+        nextOffset: null,
+      });
+
+    const search = tools({
+      documents: { findInDocument } as unknown as DocumentService,
+    }).find(({ definition }) => definition.name === 'find_in_document')!;
+
+    await search.execute({
+      userId: 'user-1',
+      sourceMessageId: 'message-1',
+      idempotencyKey: 'find-text',
+      arguments: { documentId: 'document-1', pattern: ' exact text ' },
+    });
+
+    expect(findInDocument).toHaveBeenCalledWith('user-1', 'document-1', {
+      pattern: ' exact text ',
+      mode: 'literal',
+      caseSensitive: true,
+      offset: 0,
+      limit: 10,
+    });
+  });
+
   test('saves and resolves a contact through structured repositories', async () => {
     const create = jest
       .fn<
@@ -1255,7 +1287,7 @@ describe('phase 5 and 6 assistant tools', () => {
       if (schema.items) visit(schema.items);
     };
 
-    expect(available).toHaveLength(18);
+    expect(available).toHaveLength(19);
 
     for (const assistantTool of available) {
       if (assistantTool.definition.name === 'get_calendar_sync_status')

@@ -833,6 +833,51 @@ describe('ToolExecutorService', () => {
   });
 });
 
+test.each(['read_document', 'find_in_document'])(
+  '%s refuses files outside the selected sources',
+  async (name) => {
+    const pending = { id: 'tool-1', status: 'pending' };
+    const repository = {
+      createToolInvocation: resolved(pending),
+      claimToolInvocation: resolved(true),
+      findSourceScope: resolved({
+        segments: [],
+        documentIds: ['selected'],
+        noteRefs: [],
+      }),
+      updateToolInvocation: jest
+        .fn()
+        .mockImplementation((_id: unknown, update: unknown) =>
+          Promise.resolve({ ...pending, ...(update as object) }),
+        ),
+    } as unknown as IConversationRepository;
+
+    const read = resolved({ content: 'Unselected document' });
+    const executor = new ToolExecutorService(repository, [
+      {
+        definition: {
+          name,
+          label: 'Read file',
+          description: 'Read file text.',
+          parameters: { type: 'object' },
+        },
+        parseArguments: (value) => value as Prisma.InputJsonValue,
+        execute: read,
+      },
+    ]);
+
+    const result = await executor.execute('owner', 'run', 'message', {
+      id: 'call',
+      name,
+      arguments: { documentId: 'unselected', pattern: 'text' },
+    });
+
+    expect(result.invocation.status).toBe('failed');
+    expect(result.content).toContain('Read a file from the selected sources.');
+    expect(read).not.toHaveBeenCalled();
+  },
+);
+
 describe('selected sources with an open note', () => {
   test.each([
     ['selected', 'completed', true],

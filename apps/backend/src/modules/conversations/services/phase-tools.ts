@@ -11,7 +11,11 @@ import type {
 import { CalendarService } from '../../calendar/calendar.service';
 import type { CalendarReadService } from '../../calendar/calendar-read.service';
 import type { CalendarSyncService } from '../../calendar/calendar-sync.service';
-import { DocumentService } from '../../documents/document.service';
+import {
+  DOCUMENT_MATCH_LIMIT,
+  DOCUMENT_PATTERN_LIMIT,
+  type DocumentService,
+} from '../../documents';
 import type { AssistantTool } from './tool-executor.service';
 
 const logger = new Logger('PhaseTools');
@@ -661,6 +665,75 @@ documentId is required; cursor defaults to 0 and limit defaults to 4 (1 through 
           nextCursor: result.nextCursor,
           hasMore: result.nextCursor !== null,
         };
+      },
+    },
+    {
+      definition: {
+        name: 'find_in_document',
+        label: 'Find text in document',
+        description: `Use this tool to scan one file's full saved text.
+
+Use it when asked to locate or count exact text or regex matches in a file.
+
+Do not use it for topic discovery across files.
+
+Returns the total count of non-overlapping matches, extracted-text line and column positions, and excerpts. Continue with nextOffset. skippedImageCount signals partial visual coverage.`,
+        parameters: schema(
+          {
+            documentId: {
+              ...string,
+              description: 'Saved document ID.',
+            },
+            pattern: {
+              ...string,
+              minLength: 1,
+              maxLength: DOCUMENT_PATTERN_LIMIT,
+              description: 'Exact text or RE2 pattern. Preserve whitespace.',
+            },
+            mode: {
+              ...string,
+              enum: ['literal', 'regex'],
+              description:
+                'Defaults to literal. Regex uses RE2 with line anchors.',
+            },
+            caseSensitive: {
+              type: 'boolean',
+              description: 'Case-sensitive by default.',
+            },
+            offset: {
+              type: 'integer',
+              minimum: 0,
+              description: 'Matches to skip. Defaults to 0.',
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: DOCUMENT_MATCH_LIMIT,
+              description: 'Matches per call. Defaults to 10.',
+            },
+          },
+          ['documentId', 'pattern'],
+        ),
+      },
+      readOnly: true,
+      parseArguments,
+      execute: async ({ userId, arguments: raw }) => {
+        const a = record(raw);
+        const { pattern, mode = 'literal', caseSensitive = true } = a;
+        if (typeof pattern !== 'string')
+          throw new Error('Pattern must be text.');
+        if (mode !== 'literal' && mode !== 'regex')
+          throw new Error('Search mode must be literal or regex.');
+        if (typeof caseSensitive !== 'boolean')
+          throw new Error('caseSensitive must be a boolean.');
+
+        return deps.documents.findInDocument(userId, text(a, 'documentId')!, {
+          pattern,
+          mode,
+          caseSensitive,
+          offset: integer(a, 'offset', 0),
+          limit: integer(a, 'limit', 10),
+        });
       },
     },
     {
