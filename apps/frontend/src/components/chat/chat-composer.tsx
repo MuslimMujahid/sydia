@@ -17,11 +17,13 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type ChangeEvent,
   type ClipboardEvent,
   type FormEvent,
+  type Ref,
 } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +53,12 @@ export type ComposerAttachment = {
   skippedImageCount?: number;
 };
 
+export type ChatComposerHandle = {
+  addFiles: (files: File[]) => Promise<void>;
+};
+
 type ChatComposerProps = {
+  ref?: Ref<ChatComposerHandle>;
   conversationId?: string;
   initialAttachmentId?: string;
   /** Draft text to start with, e.g. an example opened from an empty page. */
@@ -132,6 +139,7 @@ function AttachmentIcon({ kind }: { kind: FileKind }) {
 }
 
 export function ChatComposer({
+  ref,
   conversationId,
   initialAttachmentId,
   initialDraft,
@@ -345,6 +353,9 @@ export function ChatComposer({
   }
 
   async function addFiles(files: File[]) {
+    if (files.length === 0 || disabled || isSending || submittingRef.current)
+      return;
+
     const selected = files.map((file) => ({
       localId: crypto.randomUUID(),
       name: file.name,
@@ -357,6 +368,8 @@ export function ChatComposer({
     setAttachments((current) => [...current, ...selected]);
     for (const attachment of selected) await uploadAttachment(attachment);
   }
+
+  useImperativeHandle(ref, () => ({ addFiles }));
 
   function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
@@ -635,7 +648,7 @@ export function ChatComposer({
               size="icon"
               className="size-9 rounded-full border-hairline text-ink-muted hover:border-ink/16 hover:bg-ink/5 [&_svg]:transition-[rotate] [&_svg]:duration-200 [&_svg]:ease-out hover:[&_svg]:-rotate-12"
               aria-label={locale === "en" ? "Add file" : "Tambahkan file"}
-              disabled={disabled || isSending}
+              disabled={disabled || isSending || submitting}
               onClick={() => fileInputRef.current?.click()}
             >
               <Paperclip />

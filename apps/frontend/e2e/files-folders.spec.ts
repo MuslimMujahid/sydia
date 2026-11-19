@@ -18,11 +18,12 @@ async function payload<T>(response: APIResponse): Promise<T> {
 }
 
 async function account(page: Page, origin: string) {
+  const email = `files-${randomUUID()}@example.test`;
   const result = await page.request.post(`${backend}/api/auth/sign-up/email`, {
     headers: { Origin: origin },
     data: {
       name: "Files workspace test",
-      email: `files-${randomUUID()}@example.test`,
+      email,
       password: "Files-workspace-QA-2026!",
     },
   });
@@ -31,6 +32,39 @@ async function account(page: Page, origin: string) {
     result.ok(),
     `Account setup HTTP ${result.status()}: ${await result.text()}`
   ).toBe(true);
+
+  const delivery = await page.request.post(
+    `${backend}/api/auth/email-otp/send-verification-otp`,
+    {
+      headers: { Origin: origin },
+      data: { email, type: "email-verification" },
+    }
+  );
+
+  await expect(delivery).toBeOK();
+
+  let otp: string | undefined;
+  await expect
+    .poll(async () => {
+      const inbox = await page.request.get("http://127.0.0.1:8026/messages");
+      await expect(inbox).toBeOK();
+      const { messages } = (await inbox.json()) as {
+        messages: { to: string[]; text: string }[];
+      };
+
+      otp = messages
+        .find((message) => message.to.includes(email))
+        ?.text.match(/Kode Anda: (\d{6})/)?.[1];
+
+      return otp;
+    })
+    .toMatch(/^\d{6}$/);
+  await expect(
+    await page.request.post(`${backend}/api/auth/email-otp/verify-email`, {
+      headers: { Origin: origin },
+      data: { email, otp },
+    })
+  ).toBeOK();
   await payload(
     await page.request.patch(`${backend}/users/me`, {
       data: {
@@ -418,6 +452,50 @@ test.describe("Files and folders", () => {
     await expect(
       page.getByRole("button", { name: "Coba ulang unggahan gagal" })
     ).not.toBeVisible();
+  });
+
+  test("files dropped into the workspace upload to the open folder", async ({
+    page,
+  }) => {
+    const work = await folder(page, "Kerja");
+    await page.goto(`/files?folder=${work.id}`);
+    await expect(
+      page.getByRole("button", { name: "Unggah file", exact: true })
+    ).toBeEnabled();
+    const uploads: string[] = [];
+    await page.route(`${backend}/documents`, async (route) => {
+      uploads.push(route.request().postData() ?? "");
+      await route.fulfill({
+        json: { data: { id: randomUUID(), status: "processing" } },
+      });
+    });
+
+    await page.getByRole("region", { name: "Pustaka file" }).drop({
+      files: [
+        {
+          name: "agenda.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("Meeting agenda"),
+        },
+        {
+          name: "minutes.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("Meeting minutes"),
+        },
+      ],
+    });
+
+    await expect(
+      page
+        .getByRole("region", { name: "Hasil unggahan" })
+        .getByText("2 selesai", { exact: true })
+    ).toBeVisible();
+    expect(uploads[0]).toContain('filename="agenda.txt"');
+    expect(uploads[1]).toContain('filename="minutes.txt"');
+    expect(uploads).toEqual([
+      expect.stringContaining(`name="folderId"\r\n\r\n${work.id}`),
+      expect.stringContaining(`name="folderId"\r\n\r\n${work.id}`),
+    ]);
   });
 
   test("authenticated API boundaries reject another user's folders and deletion receipts", async ({

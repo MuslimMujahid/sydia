@@ -33,11 +33,13 @@ import {
 } from "@/components/domain/domain-page";
 import { SelectField, type SelectOption } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
+import { FileDropHint } from "@/components/ui/file-drop-hint";
 import { TopbarTitle } from "@/components/dashboard/topbar-slots";
 import "./file-library.css";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useFileDrop } from "@/lib/hooks/use-file-drop";
 import { ApiClientError } from "@/lib/services/api/api";
 import { documentQueryOptions } from "@/lib/services/api/documents/documents.queries";
 import {
@@ -134,6 +136,17 @@ export function DocumentPage() {
   );
 
   const folder = useQuery(libraryFolderOptions(folderId));
+  const uploadDisabled =
+    !hydrated ||
+    uploads.pending ||
+    Boolean(folder.data?.data.folder.deletingOperationId) ||
+    Boolean(folderId && !folder.data);
+
+  const { isDraggingFiles, fileDropProps } = useFileDrop({
+    disabled: uploadDisabled || dialog !== null,
+    onFiles: startUpload,
+  });
+
   const total = query.data?.pagination.total;
   const offset = search.offset ?? 0;
 
@@ -284,9 +297,8 @@ export function DocumentPage() {
     setDragged([]);
   };
 
-  function handleFiles(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  function startUpload(files: File[]) {
+    if (uploadDisabled) return;
     uploads.start(
       files,
       folderId,
@@ -294,6 +306,13 @@ export function DocumentPage() {
         ? `File saya / ${folder.data.data.path.map((crumb) => crumb.name).join(" / ")}`
         : "File saya"
     );
+  }
+
+  function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
+    input.value = "";
+    startUpload(files);
   }
 
   const renderItem = (item: LibraryItem) => {
@@ -361,7 +380,11 @@ export function DocumentPage() {
         view === "grid" && "files-grid-view",
         search.q && "files-searching"
       )}
+      {...fileDropProps}
     >
+      {isDraggingFiles ? (
+        <FileDropHint>Lepas file untuk mengunggah</FileDropHint>
+      ) : null}
       <TopbarTitle>File</TopbarTitle>
       <header className="files-header">
         <h1 className="hidden lg:block">File</h1>
@@ -379,12 +402,7 @@ export function DocumentPage() {
             Folder baru
           </Button>
           <Button
-            disabled={
-              !hydrated ||
-              uploads.pending ||
-              Boolean(folder.data?.data.folder.deletingOperationId) ||
-              Boolean(folderId && !folder.data)
-            }
+            disabled={uploadDisabled}
             onClick={() => input.current?.click()}
           >
             <Upload />

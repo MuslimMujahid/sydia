@@ -224,6 +224,64 @@ test("a pasted screenshot can be sent without typing a message", async ({
     .toEqual(["clipboard-image"]);
 });
 
+test("dropping a file on the conversation adds it to the draft", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await mockImageUpload(page);
+  const composer = page.getByRole("textbox", { name: "Pesan untuk Sydia" });
+  await composer.fill("Summarize this screenshot");
+
+  await page.getByRole("heading", { level: 1 }).drop({
+    files: {
+      name: "Screenshot.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("Synthetic screenshot"),
+    },
+  });
+
+  const attachment = page
+    .getByRole("list", { name: "Lampiran pesan" })
+    .getByRole("listitem")
+    .filter({ hasText: "Screenshot.png" });
+
+  await expect(attachment.getByText("Siap", { exact: true })).toBeVisible();
+  await expect(composer).toHaveText("Summarize this screenshot");
+  expect(state.sends).toEqual([]);
+
+  await page.getByRole("button", { name: "Kirim pesan", exact: true }).click();
+  await expect
+    .poll(() => state.sends[0])
+    .toMatchObject({
+      content: "Summarize this screenshot",
+      attachmentIds: ["clipboard-image"],
+    });
+});
+
+test("the conversation drop hint stays visible between children and clears on exit", async ({
+  page,
+}) => {
+  await setup(page);
+  const heading = page.getByRole("heading", { level: 1 });
+  const composer = page.getByRole("textbox", { name: "Pesan untuk Sydia" });
+  const hint = page.getByText("Lepas file untuk melampirkan", { exact: true });
+  const dataTransfer = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(["A draft"], "draft.txt"));
+
+    return transfer;
+  });
+
+  await heading.dispatchEvent("dragenter", { dataTransfer });
+  await expect(hint).toBeVisible();
+  await composer.dispatchEvent("dragenter", { dataTransfer });
+  await heading.dispatchEvent("dragleave", { dataTransfer });
+  await expect(hint).toBeVisible();
+
+  await composer.dispatchEvent("dragleave", { dataTransfer });
+  await expect(hint).not.toBeVisible();
+});
+
 test("a document with skipped images shows a warning and can still be sent", async ({
   page,
 }) => {

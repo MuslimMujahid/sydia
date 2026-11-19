@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { FileDropHint } from "@/components/ui/file-drop-hint";
+import { useFileDrop } from "@/lib/hooks/use-file-drop";
 import {
   conversationQueryOptions,
   useRetryAssistantRun,
@@ -14,7 +16,7 @@ import type {
   SendMessageResult,
 } from "@/lib/services/api/conversations/conversations.api";
 import type { SupportedLocale } from "@/lib/services/api/users/users.queries";
-import { ChatComposer } from "./chat-composer";
+import { ChatComposer, type ChatComposerHandle } from "./chat-composer";
 import { chatGreeting, hourInZone } from "./chat-greeting";
 import { MessageHistory } from "./message-history";
 import { TodayAgenda } from "./today-agenda";
@@ -118,6 +120,7 @@ function ChatPageContent({
   const queryClient = useQueryClient();
   const { timezone, name } = useRouteContext({ from: "/_app" });
   const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<ChatComposerHandle>(null);
   const conversationQuery = useQuery(
     conversationQueryOptions(conversationId ?? "")
   );
@@ -258,6 +261,11 @@ function ChatPageContent({
       (conversationQuery.isPending || conversationQuery.isError)
     );
 
+  const { isDraggingFiles, fileDropProps } = useFileDrop({
+    disabled: composerDisabled || isSending,
+    onFiles: (files) => void composerRef.current?.addFiles(files),
+  });
+
   const optimisticMessage =
     isSending && !hasActiveRun && !streamCompleted
       ? {
@@ -292,7 +300,17 @@ function ChatPageContent({
   const isNewConversation = !conversationId;
 
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-col bg-canvas">
+    <section
+      className="flex h-full min-h-0 min-w-0 flex-col bg-canvas"
+      {...fileDropProps}
+    >
+      {isDraggingFiles ? (
+        <FileDropHint>
+          {locale === "en"
+            ? "Drop files to attach"
+            : "Lepas file untuk melampirkan"}
+        </FileDropHint>
+      ) : null}
       {conversationId ? (
         // Visually hidden so the page keeps its heading for screen readers.
         <h1 className="sr-only">
@@ -332,6 +350,7 @@ function ChatPageContent({
               >
                 <ChatComposer
                   key="new-home"
+                  ref={composerRef}
                   initialAttachmentId={initialAttachmentId}
                   initialDraft={initialDraft}
                   isSending={isSending}
@@ -393,6 +412,7 @@ function ChatPageContent({
       {!isNewConversation ? (
         <ChatComposer
           key={conversationId ?? "new-sending"}
+          ref={composerRef}
           conversationId={conversationId}
           initialAttachmentId={initialAttachmentId}
           initialDraft={initialDraft}
