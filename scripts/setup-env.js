@@ -6,7 +6,7 @@ const path = require("node:path");
 const repoRoot = path.resolve(__dirname, "..");
 const rootEnvPath = path.join(repoRoot, ".env");
 const rootEnvExamplePath = path.join(repoRoot, ".env.example");
-const appNames = ["frontend", "backend"];
+const appNames = ["frontend", "backend", "mobile"];
 const force = process.argv.slice(2).includes("--force");
 const unexpectedArguments = process.argv
   .slice(2)
@@ -33,7 +33,7 @@ function pathExists(filePath) {
 
 function printSymlinkHint() {
   console.error(
-    "Creating environment symlinks failed. On Windows, enable Developer Mode or run this command from an elevated shell.",
+    "Creating environment symlinks failed. On Windows, enable Developer Mode or run this command from an elevated shell."
   );
 }
 
@@ -47,13 +47,16 @@ function createAppSymlink(appName) {
     try {
       fs.unlinkSync(appEnvPath);
     } catch (error) {
-      console.error(`${appName}: could not remove the existing .env symlink.`, error);
+      console.error(
+        `${appName}: could not remove the existing .env symlink.`,
+        error
+      );
       return false;
     }
   } else if (status.exists) {
     if (!force) {
       console.error(
-        `${appName}: existing .env is a real file or directory; refusing to overwrite. Re-run with --force to back it up and replace it with a symlink.`,
+        `${appName}: existing .env is a real file or directory; refusing to overwrite. Re-run with --force to back it up and replace it with a symlink.`
       );
       return false;
     }
@@ -64,7 +67,7 @@ function createAppSymlink(appName) {
     try {
       fs.renameSync(appEnvPath, backupPath);
       console.log(
-        `${appName}: backed up existing .env to ${path.basename(backupPath)}.`,
+        `${appName}: backed up existing .env to ${path.basename(backupPath)}.`
       );
     } catch (error) {
       console.error(`${appName}: could not back up the existing .env.`, error);
@@ -91,7 +94,7 @@ function createAppSymlink(appName) {
 function main() {
   if (unexpectedArguments.length > 0) {
     console.error(
-      `Unknown option${unexpectedArguments.length === 1 ? "" : "s"}: ${unexpectedArguments.join(", ")}`,
+      `Unknown option${unexpectedArguments.length === 1 ? "" : "s"}: ${unexpectedArguments.join(", ")}`
     );
     printUsage();
     process.exitCode = 1;

@@ -22,7 +22,7 @@ The app has no `dev` script on purpose: the root `bun run dev` starts only the w
 
 ## Local setup
 
-1. Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to the backend URL **as seen from the device**: your computer's LAN IP on a phone, `http://10.0.2.2:5000` on the Android emulator. `localhost` works only in the iOS simulator. On WSL2, the phone cannot reach WSL directly unless mirrored networking or a Windows port proxy is set up.
+1. Run `bun run setup-env` from the repository root; it symlinks `apps/mobile/.env` to the shared root `.env`. Only `EXPO_PUBLIC_*` variables are inlined into the app bundle. Set `EXPO_PUBLIC_API_URL` in the root `.env` to the backend URL **as seen from the device**: your computer's LAN IP on a phone, `http://10.0.2.2:5000` on the Android emulator. `localhost` works only in the iOS simulator. On WSL2, the phone cannot reach WSL directly unless mirrored networking or a Windows port proxy is set up.
 2. Run the backend with `NODE_ENV=development` so it trusts the Expo Go `exp://` origins (see `apps/backend/src/shared/mobile-origins.ts`).
 
 ## Structure

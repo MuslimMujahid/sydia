@@ -30,29 +30,30 @@ The monorepo uses one shared root `.env` as the single source of truth. Set it u
 bun run setup-env
 ```
 
-This is an alias for `node scripts/setup-env.js`. It creates `.env` from `.env.example` when needed, then creates relative symlinks from `apps/frontend/.env` and `apps/backend/.env` to `../../.env`, so the repository stays movable.
+This is an alias for `node scripts/setup-env.js`. It creates `.env` from `.env.example` when needed, then creates relative symlinks from `apps/frontend/.env`, `apps/backend/.env`, and `apps/mobile/.env` to `../../.env`, so the repository stays movable.
 
-If either app already has an environment file, pass `--force` to back it up to `.env.backup-<timestamp>` before replacing it with the symlink:
+If any app already has an environment file, pass `--force` to back it up to `.env.backup-<timestamp>` before replacing it with the symlink:
 
 ```sh
 bun run setup-env --force
 ```
 
-Shared variables are prefixed with the app that owns the value (`FRONTEND_*` or `BACKEND_*`). Vite public variables use the `VITE_*` prefix:
+Shared variables are prefixed with the app that owns the value (`FRONTEND_*` or `BACKEND_*`). Public client variables use the `VITE_*` (web) and `EXPO_PUBLIC_*` (mobile) prefixes:
 
-| Variable              | Default                                             | Consumed by                                  |
-| --------------------- | --------------------------------------------------- | -------------------------------------------- |
-| `FRONTEND_PORT`       | `3000`                                              | Frontend dev server; compose port mapping    |
-| `FRONTEND_URL`        | `http://localhost:3000`                             | Backend CORS and Better Auth trusted origin  |
-| `BACKEND_PORT`        | `5000`                                              | Backend listen port                          |
-| `VITE_API_URL`        | `http://localhost:5000`                             | Frontend API client                          |
-| `BACKEND_DB_URL`      | `postgresql://postgres:postgres@localhost:5432/app` | Backend, Prisma CLI, and seed connection URL |
-| `BACKEND_DB_PORT`     | `5432`                                              | Dev-compose port mapping only                |
-| `BACKEND_DB_USER`     | `postgres`                                          | Dev-compose container provisioning only      |
-| `BACKEND_DB_PASSWORD` | `postgres`                                          | Dev-compose container provisioning only      |
-| `BACKEND_DB_NAME`     | `app`                                               | Dev-compose container provisioning only      |
-| `BACKEND_REDIS_URL`   | `redis://localhost:6379`                            | Backend and worker BullMQ connection URL     |
-| `BACKEND_REDIS_PORT`  | `6379`                                              | Dev-compose port mapping only                |
+| Variable              | Default                                             | Consumed by                                           |
+| --------------------- | --------------------------------------------------- | ----------------------------------------------------- |
+| `FRONTEND_PORT`       | `3000`                                              | Frontend dev server; compose port mapping             |
+| `FRONTEND_URL`        | `http://localhost:3000`                             | Backend CORS and Better Auth trusted origin           |
+| `BACKEND_PORT`        | `5000`                                              | Backend listen port                                   |
+| `VITE_API_URL`        | `http://localhost:5000`                             | Frontend API client                                   |
+| `EXPO_PUBLIC_API_URL` | `http://localhost:5000`                             | Mobile API and auth clients; use a LAN IP for devices |
+| `BACKEND_DB_URL`      | `postgresql://postgres:postgres@localhost:5432/app` | Backend, Prisma CLI, and seed connection URL          |
+| `BACKEND_DB_PORT`     | `5432`                                              | Dev-compose port mapping only                         |
+| `BACKEND_DB_USER`     | `postgres`                                          | Dev-compose container provisioning only               |
+| `BACKEND_DB_PASSWORD` | `postgres`                                          | Dev-compose container provisioning only               |
+| `BACKEND_DB_NAME`     | `app`                                               | Dev-compose container provisioning only               |
+| `BACKEND_REDIS_URL`   | `redis://localhost:6379`                            | Backend and worker BullMQ connection URL              |
+| `BACKEND_REDIS_PORT`  | `6379`                                              | Dev-compose port mapping only                         |
 
 `FRONTEND_URL` must be an absolute `http` or `https` URL with no path, query, or hash. Set it to the exact public frontend origin in deployed environments.
 
