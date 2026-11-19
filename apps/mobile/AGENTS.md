@@ -18,7 +18,9 @@ bun run check-types          # tsc --noEmit
 bun run doctor               # expo-doctor
 ```
 
-The app has no `dev` script on purpose: the root `bun run dev` starts only the web frontend and backend. Start Metro separately.
+The app has no `dev` script on purpose: the root `bun run dev` starts only the web frontend and backend. Start Metro separately, either here with `bun run start` or from the repository root with `bun run mobile`.
+
+Do not start Metro through `bun --filter mobile start` or `turbo run`. They run it without an interactive terminal, so Expo shows no QR code and ignores shortcut keys. The app has no web target (`react-native-web` is not installed), so any web bundle request then fails with `Unable to resolve "react-native-web/dist/index"`.
 
 ## Local setup
 

@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev dev:worker",
+    "mobile": "bun run --cwd apps/mobile start",
     "gowa": "bash apps/backend/scripts/gowa-run.sh",
     "lint": "turbo run lint",
     "setup-env": "node scripts/setup-env.js",
