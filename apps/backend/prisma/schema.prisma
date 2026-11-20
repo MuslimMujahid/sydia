@@ -320,7 +320,11 @@ model ChannelConversation {
   externalIdentityId String
   chatExternalId     String
   conversationId     String           @unique
+  /// The last user message; only this keeps the conversation active.
   lastInboundAt      DateTime
+  /// The last reminder delivered into the current conversation. It never keeps
+  /// the conversation active; it only lets the user reply to that reminder.
+  lastReminderAt     DateTime?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @default(now()) @updatedAt
   externalIdentity   ExternalIdentity @relation(fields: [externalIdentityId], references: [id], onDelete: Cascade)

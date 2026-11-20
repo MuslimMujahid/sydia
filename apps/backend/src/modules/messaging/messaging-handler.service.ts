@@ -8,10 +8,12 @@ import {
   Injectable,
   Logger,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { User, SupportedLocale } from '../../database/entities';
 import {
-  CHANNEL_CONVERSATION_ACTIVE_MS,
+  CHANNEL_CONVERSATION_IDLE_MS,
   CONVERSATION_REPOSITORY,
   USER_REPOSITORY,
   NOTIFICATION_REPOSITORY,
@@ -105,6 +107,8 @@ export class MessagingHandlerService implements OnModuleDestroy {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly burstWindowMs = 2_000;
   private readonly leaseMs = 5 * 60_000;
+  /** BACKEND_CHANNEL_CONVERSATION_IDLE_MS: idle time before a new conversation. */
+  private readonly idleMs: number;
   private stopping = false;
 
   constructor(
@@ -115,7 +119,13 @@ export class MessagingHandlerService implements OnModuleDestroy {
     @Inject(USER_REPOSITORY) private readonly users: IUserRepository,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly notifications: INotificationRepository,
-  ) {}
+    @Optional() config: ConfigService = new ConfigService(),
+  ) {
+    this.idleMs = config.get<number>(
+      'BACKEND_CHANNEL_CONVERSATION_IDLE_MS',
+      CHANNEL_CONVERSATION_IDLE_MS,
+    );
+  }
 
   onModuleDestroy(): Promise<void> {
     return this.stopAndDrain();
@@ -164,7 +174,8 @@ export class MessagingHandlerService implements OnModuleDestroy {
       chatExternalId: channelAddress(input.message),
       userId: input.user.id,
       title: input.message.text,
-      activeAfter: new Date(now.getTime() - CHANNEL_CONVERSATION_ACTIVE_MS),
+      kind: 'inbound',
+      activeAfter: new Date(now.getTime() - this.idleMs),
       receivedAt: now,
     });
 

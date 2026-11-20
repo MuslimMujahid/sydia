@@ -34,8 +34,12 @@ export type UserMessageWriteResult = {
   replayed: boolean;
 };
 
-/** Channel conversations stay active this long after their last inbound message. */
-export const CHANNEL_CONVERSATION_ACTIVE_MS = 24 * 60 * 60_000;
+/**
+ * Default for BACKEND_CHANNEL_CONVERSATION_IDLE_MS: a channel conversation
+ * stays active this long after the user's last message, and a delivered
+ * reminder can be answered in its conversation for this long.
+ */
+export const CHANNEL_CONVERSATION_IDLE_MS = 4 * 60 * 60_000;
 
 export type ChannelReminderMessageWrite = {
   userId: string;
@@ -51,6 +55,8 @@ export type ChannelReminderMessageWrite = {
     important: boolean;
   };
   at: Date;
+  /** Start of the idle window ending at `at`. */
+  activeAfter: Date;
 };
 
 export type ChannelConversationInput = {
@@ -59,7 +65,14 @@ export type ChannelConversationInput = {
   chatExternalId: string;
   userId: string;
   title: string;
+  /**
+   * A user message counts as activity. A delivered reminder does not: it is
+   * recorded only so the user can reply to it within the idle window.
+   */
+  kind: 'inbound' | 'reminder';
+  /** Start of the idle window ending at `receivedAt`. */
   activeAfter: Date;
+  /** When the user message arrived or the reminder was delivered. */
   receivedAt: Date;
 };
 
@@ -188,8 +201,9 @@ export interface IConversationRepository {
     content: string,
   ): Promise<Message>;
   /**
-   * Records a delivered reminder in the channel's active conversation (a stale
-   * one is rotated exactly like an inbound message would). Null when the user
+   * Records a delivered reminder in the channel's active conversation, or in a
+   * new one when the user has been idle (a same-day conversation holding only
+   * reminders is reused). It never counts as user activity. Null when the user
    * never chatted on that channel. Idempotent per delivery.
    */
   appendChannelReminderMessage(

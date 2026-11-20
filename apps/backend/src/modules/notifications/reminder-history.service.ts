@@ -1,5 +1,7 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
+  CHANNEL_CONVERSATION_IDLE_MS,
   CONVERSATION_REPOSITORY,
   NOTIFICATION_REPOSITORY,
   type IConversationRepository,
@@ -16,19 +18,28 @@ const REMINDER_HISTORY_KINDS = new Set([
 
 /**
  * Writes a delivered reminder into the channel's active conversation so the
- * assistant can resolve "oke" or "ingatkan 15 menit lagi" against it.
+ * assistant can resolve "oke" or "ingatkan 15 menit lagi" against it. The
+ * reminder is not user activity: a reply is kept beside it only within the
+ * channel idle window.
  * Delivery already succeeded, so a failure here is logged, never rethrown.
  */
 @Injectable()
 export class ReminderHistoryService {
   private readonly logger = new Logger(ReminderHistoryService.name);
+  private readonly idleMs: number;
 
   constructor(
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversations: IConversationRepository,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly notifications: INotificationRepository,
-  ) {}
+    @Optional() config: ConfigService = new ConfigService(),
+  ) {
+    this.idleMs = config.get<number>(
+      'BACKEND_CHANNEL_CONVERSATION_IDLE_MS',
+      CHANNEL_CONVERSATION_IDLE_MS,
+    );
+  }
 
   async recordDelivered(job: NotificationJob, at = new Date()): Promise<void> {
     if (!REMINDER_HISTORY_KINDS.has(job.kind) || !job.reminderOccurrenceId)
@@ -62,6 +73,7 @@ export class ReminderHistoryService {
           important: reminder.important,
         },
         at,
+        activeAfter: new Date(at.getTime() - this.idleMs),
       });
     } catch (error) {
       this.logger.error(

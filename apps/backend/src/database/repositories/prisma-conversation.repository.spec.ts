@@ -8,7 +8,8 @@ const input = {
   chatExternalId: 'chat-1',
   userId: 'user-1',
   title: 'Halo',
-  activeAfter: new Date('2026-09-09T12:00:00.000Z'),
+  kind: 'inbound' as const,
+  activeAfter: new Date('2026-09-10T08:00:00.000Z'),
   receivedAt: new Date('2026-09-10T12:00:00.000Z'),
 };
 
@@ -156,6 +157,155 @@ describe('PrismaConversationRepository channel conversations', () => {
     expect(upsert?.update).toEqual({
       conversationId: 'conversation-2',
       lastInboundAt: input.receivedAt,
+      lastReminderAt: null,
+    });
+  });
+
+  describe('reminder reply window', () => {
+    const current = {
+      id: 'conversation-1',
+      title: 'Halo',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const rotated = { ...current, id: 'conversation-2' };
+
+    function channelTransaction(
+      mapping: { lastInboundAt: Date; lastReminderAt: Date | null },
+      options: { hasUserMessage?: boolean } = {},
+    ) {
+      return {
+        $executeRaw: jest.fn(() => Promise.resolve(1)),
+        channelConversation: {
+          findUnique: jest.fn(() =>
+            Promise.resolve({
+              id: 'channel-1',
+              ...mapping,
+              conversation: current,
+            }),
+          ),
+          updateMany: jest.fn<(input: unknown) => Promise<{ count: number }>>(
+            () => Promise.resolve({ count: 1 }),
+          ),
+          upsert: jest.fn<(input: unknown) => Promise<{ id: string }>>(() =>
+            Promise.resolve({ id: 'channel-1' }),
+          ),
+        },
+        conversation: { create: jest.fn(() => Promise.resolve(rotated)) },
+        message: {
+          findFirst: jest.fn(() =>
+            Promise.resolve(
+              options.hasUserMessage ? { id: 'message-1' } : null,
+            ),
+          ),
+        },
+        user: {
+          findUnique: jest.fn(() =>
+            Promise.resolve({ timezone: 'Asia/Jakarta' }),
+          ),
+        },
+      };
+    }
+
+    const idleUser = new Date('2026-09-10T02:00:00.000Z');
+
+    it("keeps a reply to a recent reminder in that reminder's conversation", async () => {
+      const transaction = channelTransaction({
+        lastInboundAt: idleUser,
+        lastReminderAt: new Date('2026-09-10T09:00:00.000Z'),
+      });
+
+      const resolved = await new PrismaConversationRepository(
+        prismaWithTransaction(transaction),
+      ).resolveChannelConversation(input);
+
+      expect(resolved.conversation.id).toBe('conversation-1');
+      expect(transaction.conversation.create).not.toHaveBeenCalled();
+      expect(
+        transaction.channelConversation.updateMany.mock.calls[0]?.[0],
+      ).toMatchObject({ data: { lastInboundAt: input.receivedAt } });
+    });
+
+    it('starts a new conversation for a reply after the reminder window', async () => {
+      const transaction = channelTransaction({
+        lastInboundAt: idleUser,
+        lastReminderAt: new Date('2026-09-10T07:59:00.000Z'),
+      });
+
+      const resolved = await new PrismaConversationRepository(
+        prismaWithTransaction(transaction),
+      ).resolveChannelConversation(input);
+
+      expect(resolved.conversation.id).toBe('conversation-2');
+    });
+
+    it('records a reminder in an active conversation without counting it as activity', async () => {
+      const transaction = channelTransaction({
+        lastInboundAt: new Date('2026-09-10T11:00:00.000Z'),
+        lastReminderAt: null,
+      });
+
+      await new PrismaConversationRepository(
+        prismaWithTransaction(transaction),
+      ).resolveChannelConversation({ ...input, kind: 'reminder' });
+
+      expect(transaction.conversation.create).not.toHaveBeenCalled();
+      // Only the reply window moves; lastInboundAt is left as it was.
+      expect(
+        (
+          transaction.channelConversation.updateMany.mock.calls[0]?.[0] as
+            { data?: unknown } | undefined
+        )?.data,
+      ).toEqual({ lastReminderAt: input.receivedAt });
+    });
+
+    it('starts a new conversation for a reminder after the user went idle, leaving activity untouched', async () => {
+      const transaction = channelTransaction(
+        { lastInboundAt: idleUser, lastReminderAt: null },
+        { hasUserMessage: true },
+      );
+
+      const resolved = await new PrismaConversationRepository(
+        prismaWithTransaction(transaction),
+      ).resolveChannelConversation({ ...input, kind: 'reminder' });
+
+      expect(resolved.conversation.id).toBe('conversation-2');
+      const upsert = transaction.channelConversation.upsert.mock
+        .calls[0]?.[0] as { update?: Record<string, unknown> } | undefined;
+
+      expect(upsert?.update).toEqual({
+        conversationId: 'conversation-2',
+        lastReminderAt: input.receivedAt,
+      });
+    });
+
+    it('adds a reminder to a conversation holding only reminders from the same local day', async () => {
+      // 01:00 and 19:00 on 10 Sep in Jakarta, although the first is 9 Sep in UTC.
+      const transaction = channelTransaction({
+        lastInboundAt: idleUser,
+        lastReminderAt: new Date('2026-09-09T18:00:00.000Z'),
+      });
+
+      const resolved = await new PrismaConversationRepository(
+        prismaWithTransaction(transaction),
+      ).resolveChannelConversation({ ...input, kind: 'reminder' });
+
+      expect(resolved.conversation.id).toBe('conversation-1');
+    });
+
+    it('starts a new conversation for a reminder on the next local day', async () => {
+      // 23:00 on 9 Sep, then 19:00 on 10 Sep, in Jakarta.
+      const transaction = channelTransaction({
+        lastInboundAt: idleUser,
+        lastReminderAt: new Date('2026-09-09T16:00:00.000Z'),
+      });
+
+      const resolved = await new PrismaConversationRepository(
+        prismaWithTransaction(transaction),
+      ).resolveChannelConversation({ ...input, kind: 'reminder' });
+
+      expect(resolved.conversation.id).toBe('conversation-2');
     });
   });
 

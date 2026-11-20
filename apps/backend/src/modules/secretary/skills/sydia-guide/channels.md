@@ -42,7 +42,7 @@ To disconnect, turn the WhatsApp switch off and confirm **Putuskan WhatsApp**. D
 - Text, photos, voice notes (transcribed), and documents; received files are saved to the user's Files.
 - Sydia can send saved files back as attachments.
 - Groups are ignored: Sydia only answers private chats with its owner.
-- `/new` (or `/reset`) starts a fresh conversation; `/stop` cancels work in progress. A chat also starts fresh after 24 hours of silence.
+- `/new` (or `/reset`) starts a fresh conversation; `/stop` cancels work in progress. A chat also starts fresh after 4 hours without a message from the user; a reminder Sydia sends does not count, but a reply to it within 4 hours stays with that reminder.
 
 ## Where reminders arrive
 

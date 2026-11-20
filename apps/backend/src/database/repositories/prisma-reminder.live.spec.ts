@@ -289,25 +289,48 @@ const at = new Date('2026-11-13T01:00:00.000Z');
     });
 
     describe('channel history', () => {
-      async function channel(lastInboundAt: Date) {
-        const identity = await db.externalIdentity.create({
+      const IDLE_MS = 4 * 3_600_000;
+      const hours = (value: number) =>
+        new Date(at.getTime() + value * 3_600_000);
+
+      let identity: { id: string; externalId: string };
+
+      beforeEach(async () => {
+        identity = await db.externalIdentity.create({
           data: {
             userId,
             provider: 'telegram',
             externalId: `contract-${randomUUID()}`,
             verifiedAt: at,
           },
+          select: { id: true, externalId: true },
         });
+      });
 
-        return conversations.resolveChannelConversation({
+      /** A user message on Telegram, resolved and stored as the handler would. */
+      async function inbound(when: Date, content = 'Halo') {
+        const resolved = await conversations.resolveChannelConversation({
           provider: 'telegram',
           externalIdentityId: identity.id,
           chatExternalId: identity.externalId,
           userId,
-          title: 'Halo',
-          activeAfter: new Date(0),
-          receivedAt: lastInboundAt,
+          title: content,
+          kind: 'inbound',
+          activeAfter: new Date(when.getTime() - IDLE_MS),
+          receivedAt: when,
         });
+
+        await db.message.create({
+          data: {
+            conversationId: resolved.conversation.id,
+            userId,
+            role: 'user',
+            content,
+            createdAt: when,
+          },
+        });
+
+        return resolved;
       }
 
       const write = (deliveryId: string, when: Date) =>
@@ -325,10 +348,21 @@ const at = new Date('2026-11-13T01:00:00.000Z');
             important: true,
           },
           at: when,
+          activeAfter: new Date(when.getTime() - IDLE_MS),
+        });
+
+      const mapping = () =>
+        db.channelConversation.findFirstOrThrow({
+          where: { externalIdentityId: identity.id },
+          select: {
+            conversationId: true,
+            lastInboundAt: true,
+            lastReminderAt: true,
+          },
         });
 
       test('writes once into the active conversation with its reference', async () => {
-        const active = await channel(new Date(at.getTime() - 60_000));
+        const active = await inbound(hours(-1));
         const first = await write('delivery-1', at);
         const replay = await write('delivery-1', at);
 
@@ -344,23 +378,92 @@ const at = new Date('2026-11-13T01:00:00.000Z');
             where: { conversationId: active.conversation.id, type: 'reminder' },
           }),
         ).toBe(1);
+        // A delivery is not user activity.
+        expect(await mapping()).toMatchObject({
+          lastInboundAt: hours(-1),
+          lastReminderAt: at,
+        });
       });
 
-      test('a stale conversation is rotated like an inbound message would be', async () => {
-        const stale = await channel(new Date(at.getTime() - 2 * 86_400_000));
+      test('a reminder after the user went idle starts a new conversation without counting as activity', async () => {
+        const stale = await inbound(hours(-5));
         const message = await write('delivery-2', at);
 
         expect(message?.conversationId).not.toBe(stale.conversation.id);
-        expect(
-          await db.channelConversation.findUnique({
-            where: { id: stale.channelConversationId },
-            select: { conversationId: true },
-          }),
-        ).toEqual({ conversationId: message?.conversationId });
+        expect(await mapping()).toEqual({
+          conversationId: message?.conversationId,
+          lastInboundAt: hours(-5),
+          lastReminderAt: at,
+        });
+      });
+
+      test('an unquoted reply after web chats stays with its reminder', async () => {
+        await inbound(hours(-12));
+        const reminder = await write('delivery-3', at);
+
+        for (const [index, content] of [
+          'Jadwal sekolah minggu depan',
+          'Resep makan malam',
+          'Daftar belanja',
+        ].entries())
+          await conversations
+            .writeUserMessage({
+              userId,
+              content,
+              idempotencyKey: `web-${randomUUID()}`,
+              channel: 'web',
+            })
+            .then(({ conversation }) =>
+              db.conversation.update({
+                where: { id: conversation.id },
+                data: { lastMessageAt: hours(0.5 + index) },
+              }),
+            );
+
+        const reply = await inbound(hours(3), 'oke, sudah');
+
+        expect(reply.conversation.id).toBe(reminder?.conversationId);
+        expect((await mapping()).lastInboundAt).toEqual(hours(3));
+      });
+
+      test('a reply after the reminder window starts a new conversation', async () => {
+        await inbound(hours(-12));
+        const reminder = await write('delivery-4', at);
+        const reply = await inbound(hours(4.01), 'oke');
+
+        expect(reply.conversation.id).not.toBe(reminder?.conversationId);
+        expect((await mapping()).lastReminderAt).toBeNull();
+      });
+
+      test('reminders without a reply share one conversation per local day', async () => {
+        await inbound(hours(-12));
+        // 08:00, 14:00 and 23:00 in Jakarta, then 08:00 the next day.
+        const morning = await write('delivery-5', at);
+        const afternoon = await write('delivery-6', hours(6));
+        const night = await write('delivery-7', hours(15));
+        const tomorrow = await write('delivery-8', hours(24));
+
+        expect(afternoon?.conversationId).toBe(morning?.conversationId);
+        expect(night?.conversationId).toBe(morning?.conversationId);
+        expect(tomorrow?.conversationId).not.toBe(morning?.conversationId);
+      });
+
+      test('resetting the chat closes an open reminder window', async () => {
+        await inbound(hours(-12));
+        const reminder = await write('delivery-9', at);
+
+        await conversations.resetChannelConversation(
+          'telegram',
+          identity.id,
+          identity.externalId,
+        );
+        const reply = await inbound(hours(1), 'oke');
+
+        expect(reply.conversation.id).not.toBe(reminder?.conversationId);
       });
 
       test('without any prior chat on the channel nothing is written', async () => {
-        expect(await write('delivery-3', at)).toBeNull();
+        expect(await write('delivery-10', at)).toBeNull();
       });
     });
   },

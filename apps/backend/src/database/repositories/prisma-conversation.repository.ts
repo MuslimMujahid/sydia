@@ -31,7 +31,6 @@ import type {
   ToolInvocationStatus,
 } from '../entities';
 import {
-  CHANNEL_CONVERSATION_ACTIVE_MS,
   ConversationNotFoundError,
   type ChannelReminderMessageWrite,
   type ChannelConversationInput,
@@ -49,6 +48,63 @@ const conversationSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+/** Calendar date (YYYY-MM-DD) of an instant in the owner's time zone. */
+function localDay(at: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at);
+}
+
+/**
+ * Whether a channel event belongs to the mapped conversation. A user message
+ * continues it while the user was active within the idle window, or while a
+ * reminder delivered into it can still be answered. A reminder joins it while
+ * the user is active, or when the conversation holds only reminders delivered
+ * the same local day, so reminders to a user who never replies do not each
+ * start a conversation.
+ */
+async function continuesConversation(
+  transaction: Prisma.TransactionClient,
+  existing: {
+    lastInboundAt: Date;
+    lastReminderAt: Date | null;
+    conversation: { id: string };
+  },
+  input: ChannelConversationInput,
+): Promise<boolean> {
+  if (existing.lastInboundAt >= input.activeAfter) return true;
+
+  if (input.kind === 'inbound')
+    return (
+      existing.lastReminderAt !== null &&
+      existing.lastReminderAt >= input.activeAfter
+    );
+
+  const lastReminderAt = existing.lastReminderAt;
+  if (!lastReminderAt) return false;
+
+  const [userMessage, owner] = await Promise.all([
+    transaction.message.findFirst({
+      where: { conversationId: existing.conversation.id, role: 'user' },
+      select: { id: true },
+    }),
+    transaction.user.findUnique({
+      where: { id: input.userId },
+      select: { timezone: true },
+    }),
+  ]);
+
+  if (userMessage || !owner) return false;
+
+  return (
+    localDay(lastReminderAt, owner.timezone) ===
+    localDay(input.receivedAt, owner.timezone)
+  );
+}
 
 /** Messaging-channel conversations belong to their channel apps, not the dashboard. */
 const CHANNEL_PROVIDERS: MessageProvider[] = ['whatsapp', 'telegram'];
@@ -328,18 +384,35 @@ export class PrismaConversationRepository implements IConversationRepository {
         select: {
           id: true,
           lastInboundAt: true,
+          lastReminderAt: true,
           conversation: { select: conversationSelect },
         },
       });
 
-      if (existing && existing.lastInboundAt >= input.activeAfter) {
-        await transaction.channelConversation.updateMany({
-          where: {
-            id: existing.id,
-            lastInboundAt: { lt: input.receivedAt },
-          },
-          data: { lastInboundAt: input.receivedAt },
-        });
+      if (
+        existing &&
+        (await continuesConversation(transaction, existing, input))
+      ) {
+        // Only a user message is activity; a reminder just opens a reply window.
+        if (input.kind === 'inbound')
+          await transaction.channelConversation.updateMany({
+            where: {
+              id: existing.id,
+              lastInboundAt: { lt: input.receivedAt },
+            },
+            data: { lastInboundAt: input.receivedAt },
+          });
+        else
+          await transaction.channelConversation.updateMany({
+            where: {
+              id: existing.id,
+              OR: [
+                { lastReminderAt: null },
+                { lastReminderAt: { lt: input.receivedAt } },
+              ],
+            },
+            data: { lastReminderAt: input.receivedAt },
+          });
 
         return {
           channelConversationId: existing.id,
@@ -356,6 +429,13 @@ export class PrismaConversationRepository implements IConversationRepository {
         select: conversationSelect,
       });
 
+      // lastReminderAt always describes the current conversation, so a user
+      // message that starts a new one clears the old reply window.
+      const activity =
+        input.kind === 'inbound'
+          ? { lastInboundAt: input.receivedAt, lastReminderAt: null }
+          : { lastReminderAt: input.receivedAt };
+
       const mapping = await transaction.channelConversation.upsert({
         where: {
           provider_externalIdentityId_chatExternalId: {
@@ -369,12 +449,12 @@ export class PrismaConversationRepository implements IConversationRepository {
           externalIdentityId: input.externalIdentityId,
           chatExternalId: input.chatExternalId,
           conversationId: conversation.id,
-          lastInboundAt: input.receivedAt,
+          // A reminder never creates the first mapping (it needs a prior chat);
+          // if it ever did, the epoch keeps it from counting as activity.
+          lastInboundAt: new Date(0),
+          ...activity,
         },
-        update: {
-          conversationId: conversation.id,
-          lastInboundAt: input.receivedAt,
-        },
+        update: { conversationId: conversation.id, ...activity },
         select: { id: true },
       });
 
@@ -714,7 +794,8 @@ export class PrismaConversationRepository implements IConversationRepository {
   ): Promise<void> {
     await this.prisma.channelConversation.updateMany({
       where: { provider, externalIdentityId, chatExternalId },
-      data: { lastInboundAt: new Date(0) },
+      // An open reminder reply window must not hold the old conversation open.
+      data: { lastInboundAt: new Date(0), lastReminderAt: null },
     });
   }
 
@@ -1083,9 +1164,8 @@ export class PrismaConversationRepository implements IConversationRepository {
       chatExternalId: mapping.chatExternalId,
       userId: input.userId,
       title: input.title,
-      activeAfter: new Date(
-        input.at.getTime() - CHANNEL_CONVERSATION_ACTIVE_MS,
-      ),
+      kind: 'reminder',
+      activeAfter: input.activeAfter,
       receivedAt: input.at,
     });
 

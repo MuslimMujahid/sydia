@@ -38,6 +38,7 @@ import { ModelUsageModule } from './infra/model-usage';
 import { AppService } from './app.service';
 import { SecretsModule } from './modules/secrets/secrets.module';
 import { parseTimeOfDay } from './shared/date-time';
+import { CHANNEL_CONVERSATION_IDLE_MS } from './database/interfaces';
 import { validateHindsightEnvironment } from './infra/hindsight';
 import { validateDecisionEnvironment } from './infra/decision-gateway';
 import { validateDocumentParserEnvironment } from './infra/document-parser';
@@ -87,6 +88,7 @@ function parsePositiveInteger(
     | 'BACKEND_MEMORY_DREAM_MIN_TOKENS'
     | 'BACKEND_MEMORY_DREAM_IDLE_MS'
     | 'BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS'
+    | 'BACKEND_CHANNEL_CONVERSATION_IDLE_MS'
     | 'BACKEND_EMBEDDING_CONCURRENCY'
     | 'BACKEND_WHATSAPP_COMMAND_TIMEOUT'
     | 'BACKEND_WHATSAPP_STATUS_POLL_MS'
@@ -368,6 +370,11 @@ export function validateEnvironment(
       config,
       'BACKEND_MEMORY_DREAM_SHORT_SEGMENT_AGE_MS',
       6 * 60 * 60 * 1000,
+    ),
+    BACKEND_CHANNEL_CONVERSATION_IDLE_MS: parsePositiveInteger(
+      config,
+      'BACKEND_CHANNEL_CONVERSATION_IDLE_MS',
+      CHANNEL_CONVERSATION_IDLE_MS,
     ),
     BACKEND_WHATSAPP_GOWA_URL:
       typeof config.BACKEND_WHATSAPP_GOWA_URL === 'string' &&
