@@ -31,6 +31,11 @@ import {
   ContextBuilderService,
   type ContextTokenUsage,
 } from '../../src/modules/conversations/services/context-builder.service';
+import {
+  renderTopicBlock,
+  type TopicContextService,
+} from '../../src/modules/topics/topic-context.service';
+import type { TopicItemSummary } from '../../src/database/entities';
 import { DomainToolsProvider } from '../../src/modules/conversations/services/domain-tools.provider';
 import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
 import { RecordCellReviewService } from '../../src/modules/conversations/services/record-cell-review.service';
@@ -80,12 +85,77 @@ export type Scenario = {
   }>;
   /** Unsolicited suggestion state; omitted means active. */
   assistance?: 'active' | 'paused';
+  /**
+   * The ongoing topic recognition attached to this turn, rendered with the
+   * production topic block (its id is always "topic-1"). Recognition itself is
+   * calibrated separately (test/topics).
+   */
+  topic?: TopicFixture;
   tools?: Record<string, ToolScript>;
   /** Scripts with per-run state (for example a table that shows its own
    * writes); created once per run and merged over `tools`. */
   freshTools?: () => Record<string, ToolScript>;
   checks: Check[];
 };
+
+export type TopicFixture = {
+  label: string;
+  aliases?: string[];
+  decisions?: string[];
+  nextSteps?: string[];
+  openQuestions?: string[];
+  items?: Array<{
+    type: TopicItemSummary['type'];
+    id: string;
+    title: string;
+    /** ISO instant. */
+    when?: string;
+    status: string;
+    active?: boolean;
+    recurring?: boolean;
+  }>;
+};
+
+/** The production topic block for a scenario's topic fixture. */
+function topicBlock(topic: TopicFixture, timezone: string, now: Date): string {
+  const claims = (
+    [
+      ['decision', topic.decisions],
+      ['next_step', topic.nextSteps],
+      ['open_question', topic.openQuestions],
+    ] as const
+  ).flatMap(([kind, texts]) =>
+    (texts ?? []).map((text, index) => ({
+      id: `${kind}-${index}`,
+      topicId: 'topic-1',
+      kind,
+      text,
+      explicit: true,
+      messageId: null,
+      createdAt: now,
+    })),
+  );
+
+  return renderTopicBlock(
+    { id: 'topic-1', label: topic.label, aliases: topic.aliases ?? [] },
+    claims,
+    (topic.items ?? []).map((item) => ({
+      topicId: 'topic-1',
+      type: item.type,
+      id: item.id,
+      title: item.title,
+      when: item.when ? new Date(item.when) : null,
+      day: null,
+      status: item.status,
+      active: item.active ?? true,
+      recurring: item.recurring ?? false,
+      origin: 'touched' as const,
+      linkedAt: now,
+    })),
+    timezone,
+    now,
+  );
+}
 
 export type EvalUser = {
   id: string;
@@ -359,6 +429,14 @@ function scriptedTools(
     stub,
     stub,
     stub,
+    // Record cell review, reminder lifecycle, delivery and config stay unset;
+    // the topic tools are registered as in production.
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    stub,
+    stub,
   );
 
   return provider.tools.map((tool) => {
@@ -533,6 +611,22 @@ export function createHarness(env: NodeJS.ProcessEnv): Harness {
           { now: () => now },
         ),
         { describeOpenOffers: () => Promise.resolve(null) } as never,
+        undefined,
+        undefined,
+        {
+          forTurn: () =>
+            Promise.resolve(
+              scenario.topic
+                ? {
+                    context: {
+                      topicId: 'topic-1',
+                      block: topicBlock(scenario.topic, user.timezone, now),
+                    },
+                    trace: { topicOutcome: 'attached', topicId: 'topic-1' },
+                  }
+                : { context: null, trace: null },
+            ),
+        } as unknown as TopicContextService,
       );
 
       let contextTokens: ContextTokenUsage | null = null;

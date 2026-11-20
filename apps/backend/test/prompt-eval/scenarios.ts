@@ -750,6 +750,288 @@ function noGuessedReference(name: string, items: ReferenceFixture[]): Check {
   };
 }
 
+/**
+ * Topic scenarios (docs/TOPIC_CONTEXT_SPEC.md, phases 2–3): how the assistant
+ * uses an attached topic and the topic tools. The topic block is the
+ * production renderer's output; recognition is calibrated in test/topics.
+ * Approved by the owner on 21 November 2026, with these decisions: pending
+ * steps are raised only when the request concerns them; forgetting,
+ * completing or disconnecting a topic never edits, renames or deletes an
+ * item unless the user asks for that change itself.
+ */
+/** Days from the scenario date to the next given weekday (0 = Sunday), 1–7. */
+function daysUntil(weekday: number): number {
+  const today = new Date(`${SCENARIO_DATE}T12:00:00Z`).getUTCDay();
+
+  return (weekday - today + 7) % 7 || 7;
+}
+
+const THURSDAY = daysUntil(4);
+const SATURDAY = daysUntil(6);
+
+const disconnectResult =
+  (label: string) => (args: Record<string, unknown>) => ({
+    status: 'done',
+    scope: args.scope,
+    topic: label,
+    effect: 'Applied.',
+  });
+
+const isScope =
+  (
+    scope: string,
+    extra: (args: Record<string, unknown>) => boolean = () => true,
+  ) =>
+  (args: Record<string, unknown>) =>
+    args.topicId === 'topic-1' && args.scope === scope && extra(args);
+
+const STUDY_TOUR_TOPIC = {
+  label: 'Study tour anak ke Bandung',
+  aliases: ['karyawisata'],
+  nextSteps: ['Bayar iuran Rp350.000 paling lambat Jumat'],
+  openQuestions: ['Bekal apa yang perlu dibawa?'],
+  items: [
+    {
+      type: 'reminder' as const,
+      id: 'r-iuran',
+      title: 'Bayar iuran study tour Rp350.000',
+      when: at(THURSDAY, '19:00'),
+      status: 'pending',
+    },
+  ],
+};
+
+const RAKA_PARTY_TOPIC = {
+  label: 'Pesta ulang tahun Raka',
+  aliases: ['ultah Raka'],
+  decisions: ['Pesta kecil di rumah', 'Kue ulang tahun rasa coklat'],
+  items: [
+    {
+      type: 'reminder' as const,
+      id: 'r-kue',
+      title: 'Beli kue untuk pesta ulang tahun Raka',
+      when: at(SATURDAY, '09:00'),
+      status: 'pending',
+    },
+  ],
+};
+
+const TOPIC_DIRECTORY = {
+  topics: [
+    {
+      topicId: 't-tour',
+      topic: 'Study tour anak ke Bandung',
+      alsoCalled: ['karyawisata'],
+      status: 'active',
+      lastDiscussed: SCENARIO_DATE,
+      nextStep: 'Bayar iuran Rp350.000 paling lambat Jumat',
+      pendingItems: 1,
+    },
+    {
+      topicId: 't-ibu',
+      topic: 'Ulang tahun Ibu',
+      status: 'active',
+      lastDiscussed: SCENARIO_DATE,
+      lastDecision: 'Makan malam keluarga tanggal 12',
+      pendingItems: 0,
+    },
+    {
+      topicId: 't-arisan',
+      topic: 'Iuran arisan RT',
+      status: 'unconfirmed (mentioned once)',
+      lastDiscussed: SCENARIO_DATE,
+      pendingItems: 0,
+    },
+  ],
+};
+
+const TOPIC_SCENARIOS: Scenario[] = [
+  {
+    id: 'topic-duplicate-reminder',
+    area: 'topics',
+    message: 'Ingatkan aku bayar iuran study tour Kamis malam jam 7 ya',
+    topic: STUDY_TOUR_TOPIC,
+    tools: {
+      list_reminders: {
+        reminders: [
+          {
+            id: 'r-iuran',
+            title: 'Bayar iuran study tour Rp350.000',
+            scheduledAt: at(THURSDAY, '19:00'),
+            recurrence: null,
+            status: 'scheduled',
+          },
+        ],
+        recentDeliveries: [],
+      },
+    },
+    checks: [noErrors(), notCalled('create_reminder'), inIndonesian()],
+  },
+  {
+    id: 'topic-uses-state',
+    area: 'topics',
+    message: 'Kue ultah buat Raka enaknya pesan rasa apa ya?',
+    topic: RAKA_PARTY_TOPIC,
+    checks: [
+      noErrors(),
+      matches(/co[ck]lat/i, 'builds on the chocolate decision'),
+      notCalled('disconnect_topic'),
+    ],
+  },
+  {
+    id: 'topic-disconnect-episode',
+    area: 'topics',
+    channel: 'telegram',
+    history: [
+      {
+        role: 'user',
+        content: 'Kue ultah buat Raka enaknya pesan rasa apa ya?',
+      },
+      {
+        role: 'assistant',
+        content:
+          'Untuk pesta Raka, Ibu sudah memutuskan kue coklat, jadi itu pilihan yang paling aman.',
+      },
+    ],
+    message:
+      'Eh bukan, ini Raka keponakanku, bukan pesta Raka anakku. Acaranya beda',
+    topic: RAKA_PARTY_TOPIC,
+    tools: { disconnect_topic: disconnectResult('Pesta ulang tahun Raka') },
+    checks: [
+      noErrors(),
+      called('disconnect_topic', isScope('episode'), 'episode'),
+      notCalled('update_reminder', 'delete_reminder'),
+    ],
+  },
+  {
+    id: 'topic-disconnect-item',
+    area: 'topics',
+    message:
+      'Soal pesta ulang tahun Raka: pengingat beli kue hari Sabtu itu sebenarnya buat arisan, bukan buat pestanya',
+    topic: RAKA_PARTY_TOPIC,
+    tools: { disconnect_topic: disconnectResult('Pesta ulang tahun Raka') },
+    checks: [
+      noErrors(),
+      called(
+        'disconnect_topic',
+        isScope('item', (args) => args.itemId === 'r-kue'),
+        'item r-kue',
+      ),
+      // The user corrected the link, not the reminder.
+      notCalled('update_reminder', 'delete_reminder'),
+    ],
+  },
+  {
+    id: 'topic-forget',
+    area: 'topics',
+    message:
+      'Tolong lupakan semua soal pesta ulang tahun Raka ya, nggak usah diingat lagi',
+    topic: RAKA_PARTY_TOPIC,
+    tools: { disconnect_topic: disconnectResult('Pesta ulang tahun Raka') },
+    checks: [
+      noErrors(),
+      called('disconnect_topic', isScope('topic_forget'), 'topic_forget'),
+      notCalled('delete_reminder'),
+    ],
+  },
+  {
+    id: 'topic-complete-on-request',
+    area: 'topics',
+    message: 'Topik study tour tutup aja ya, urusannya sudah selesai semua',
+    topic: STUDY_TOUR_TOPIC,
+    tools: { disconnect_topic: disconnectResult('Study tour anak ke Bandung') },
+    checks: [
+      noErrors(),
+      called('disconnect_topic', isScope('topic_complete'), 'topic_complete'),
+      notCalled('delete_reminder'),
+    ],
+  },
+  {
+    id: 'topic-no-recital',
+    area: 'topics',
+    message: 'Karyawisata nanti anak perlu bawa bekal apa aja ya?',
+    topic: STUDY_TOUR_TOPIC,
+    checks: [
+      noErrors(),
+      // The fee reminder has nothing to do with packing.
+      notMatches(/iuran|350/i, 'does not recite the unrelated fee'),
+      notCalled('disconnect_topic', 'create_reminder'),
+    ],
+  },
+  {
+    id: 'topic-list',
+    area: 'topics',
+    message: 'Topik apa saja yang kamu ingat tentang urusanku?',
+    tools: { list_topics: TOPIC_DIRECTORY },
+    checks: [
+      noErrors(),
+      called('list_topics'),
+      contains('study tour', 'ulang tahun ibu'),
+    ],
+  },
+  {
+    id: 'topic-forget-by-name',
+    area: 'topics',
+    message: 'Lupakan topik iuran arisan RT ya',
+    tools: {
+      list_topics: TOPIC_DIRECTORY,
+      disconnect_topic: disconnectResult('Iuran arisan RT'),
+    },
+    checks: [
+      noErrors(),
+      called(
+        'disconnect_topic',
+        (args) => args.topicId === 't-arisan' && args.scope === 'topic_forget',
+        't-arisan topic_forget',
+      ),
+    ],
+  },
+  {
+    id: 'topic-split',
+    area: 'topics',
+    message:
+      'Ganti kran kamar mandi itu beda urusan, pisahkan jadi topik sendiri: renovasi kamar mandi',
+    topic: {
+      label: 'Renovasi dapur',
+      decisions: ['Tukang mulai kerja Senin depan'],
+      items: [
+        {
+          type: 'task',
+          id: 'k-keramik',
+          title: 'Beli keramik dapur',
+          status: 'inbox',
+        },
+        {
+          type: 'task',
+          id: 'k-kran',
+          title: 'Ganti kran kamar mandi',
+          status: 'inbox',
+        },
+      ],
+    },
+    tools: { disconnect_topic: disconnectResult('Renovasi dapur') },
+    checks: [
+      noErrors(),
+      called(
+        'disconnect_topic',
+        isScope('split', (args) => {
+          const items = Array.isArray(args.items)
+            ? (args.items as Array<{ id?: unknown }>)
+            : [];
+
+          return (
+            typeof args.newLabel === 'string' &&
+            /kamar mandi/i.test(args.newLabel) &&
+            items.some((item) => item.id === 'k-kran') &&
+            !items.some((item) => item.id === 'k-keramik')
+          );
+        }),
+        'split k-kran into a bathroom topic',
+      ),
+    ],
+  },
+];
+
 export const SCENARIOS: Scenario[] = [
   {
     id: 'timezone-change-explicit',
@@ -2720,4 +3002,5 @@ export const SCENARIOS: Scenario[] = [
       notCalled('create_record_note', 'write_daily_note'),
     ],
   },
+  ...TOPIC_SCENARIOS,
 ];

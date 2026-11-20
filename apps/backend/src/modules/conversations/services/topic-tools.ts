@@ -96,7 +96,7 @@ export function createTopicTools(
         name: 'disconnect_topic',
         label: 'Disconnect a topic',
         description:
-          "Apply the user's correction to a topic (topicId from the topic context or list_topics). episode: this conversation is not about it. item: one listed item does not belong. split: listed items belong to another effort (newLabel, items). topic_complete: the effort is over. topic_forget: forget it. Only on the user's words.",
+          "Apply the user's correction to a topic (topicId from the topic context or list_topics). episode: this conversation is not about it. item: one listed item does not belong. split: listed items belong to another effort (newLabel, items). topic_complete: the effort is over. topic_forget: forget it. Changes no item. Only on the user's words.",
         parameters: {
           type: 'object',
           properties: {

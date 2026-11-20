@@ -318,20 +318,22 @@ Unit and integration coverage: salience update and lazy decay on the active-day 
 
 ## 16. Owner decisions
 
-| Date        | Decision                                                                                                                                          |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 20 Nov 2026 | "Currently working on" means several ongoing efforts recognized from any new conversation, not only the current conversation's topic.             |
-| 20 Nov 2026 | Topics work across channels, are fully implicit (no UI) and need no user-created projects.                                                        |
-| 20 Nov 2026 | Sydia must disconnect a topic when the user says it is unrelated.                                                                                 |
-| 20 Nov 2026 | Frequently raised topics rank higher; topics never raised again are retired.                                                                      |
-| 20 Nov 2026 | Reminder deliveries are not activity; channel conversations end after 4 idle hours (implemented in `09e7d35`).                                    |
-| 21 Nov 2026 | Topic tracking follows `automaticMemoryEnabled`.                                                                                                  |
-| 21 Nov 2026 | A plain "bukan itu" disconnects for the episode; permanent only when the item or topic is named.                                                  |
-| 21 Nov 2026 | Sydia states the connection briefly when it changes the answer, and asks only when two topics both fit.                                           |
-| 21 Nov 2026 | Decay uses the user's active days.                                                                                                                |
-| 21 Nov 2026 | Dismissed topics are kept for revival and deleted after one year without activity.                                                                |
-| 21 Nov 2026 | At most 50 active topics per user.                                                                                                                |
-| 21 Nov 2026 | Sydia may start conversations on WhatsApp or Telegram on its own (for topic-aware and other proactive help); designing that outreach is deferred. |
+| Date        | Decision                                                                                                                                                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 20 Nov 2026 | "Currently working on" means several ongoing efforts recognized from any new conversation, not only the current conversation's topic.                                                                                                                  |
+| 20 Nov 2026 | Topics work across channels, are fully implicit (no UI) and need no user-created projects.                                                                                                                                                             |
+| 20 Nov 2026 | Sydia must disconnect a topic when the user says it is unrelated.                                                                                                                                                                                      |
+| 20 Nov 2026 | Frequently raised topics rank higher; topics never raised again are retired.                                                                                                                                                                           |
+| 20 Nov 2026 | Reminder deliveries are not activity; channel conversations end after 4 idle hours (implemented in `09e7d35`).                                                                                                                                         |
+| 21 Nov 2026 | Topic tracking follows `automaticMemoryEnabled`.                                                                                                                                                                                                       |
+| 21 Nov 2026 | A plain "bukan itu" disconnects for the episode; permanent only when the item or topic is named.                                                                                                                                                       |
+| 21 Nov 2026 | Sydia states the connection briefly when it changes the answer, and asks only when two topics both fit.                                                                                                                                                |
+| 21 Nov 2026 | Decay uses the user's active days.                                                                                                                                                                                                                     |
+| 21 Nov 2026 | Dismissed topics are kept for revival and deleted after one year without activity.                                                                                                                                                                     |
+| 21 Nov 2026 | At most 50 active topics per user.                                                                                                                                                                                                                     |
+| 21 Nov 2026 | Sydia may start conversations on WhatsApp or Telegram on its own (for topic-aware and other proactive help); designing that outreach is deferred.                                                                                                      |
+| 21 Nov 2026 | With a topic attached, Sydia raises a pending step only when the request concerns it; no "btw" reminders of other steps.                                                                                                                               |
+| 21 Nov 2026 | Forgetting, completing, splitting or disconnecting a topic changes only the topic. Reminders, tasks, notes and events are edited, renamed or deleted only when the user asks for that change itself; "forget everything about it" does not cover them. |
 
 ## 17. Out of scope
 
@@ -426,3 +428,7 @@ Formation prompt check after these changes: 10 scenarios, 30 of 30 over three ru
 ### Telemetry (TOPIC-OBS-02)
 
 Every turn of a user with topics enabled adds topic fields to the generation trace in Langfuse, next to `toolsOffered`: `topicOutcome` (`attached`, `none`, `gate_failed`, `degraded`, `skipped`, or `no_budget` when the block did not fit), plus `topicId`, `topicChoice`, `topicConfidence`, `topicCandidates`, `topicReason` or `topicElapsedMs` as they apply. IDs, scores and reasons only; no message text or topic state.
+
+### Prompt evaluation (TOPIC-E scenarios)
+
+Ten owner-approved scenarios in `apps/backend/test/prompt-eval/scenarios.ts` (area `topics`) run through the production context builder and tool definitions, with the scenario's topic rendered by the production topic block: duplicate reminder, uses state, disconnect for the episode (Telegram), disconnect one item, forget, complete on request, no recital of unrelated steps, list topics, forget by name, and split. The harness now registers the topic tools in every scenario, as production does. After the decisions above, the topic scenarios passed 59 of 60 runs over two rounds (one unasked reminder rename).
