@@ -2,6 +2,7 @@ import { recordBillingEvent } from './billing.telemetry';
 import {
   BILLING_STORAGE_BYTES,
   BILLING_FILE_BYTES,
+  BILLING_TRIAL_DAYS,
 } from '../../shared/billing-policy';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -57,7 +58,10 @@ export class BillingService {
     if (!Number.isFinite(Date.parse(rollout)))
       throw new Error('Invalid billing rollout timestamp');
 
-    return this.repository.initializeTrials(new Date(rollout), 7);
+    return this.repository.initializeTrials(
+      new Date(rollout),
+      BILLING_TRIAL_DAYS,
+    );
   }
 
   async status(userId: string) {
@@ -76,7 +80,7 @@ export class BillingService {
       normalPrice: 59_000,
       price: this.config.getOrThrow<number>('BACKEND_BILLING_PRICE_IDR'),
       durationDays: 30,
-      trialDays: 7,
+      trialDays: BILLING_TRIAL_DAYS,
       storage: {
         usedBytes,
         limitBytes: BILLING_STORAGE_BYTES,

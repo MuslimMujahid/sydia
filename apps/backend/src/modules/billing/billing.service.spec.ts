@@ -9,7 +9,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { billingRepositoryFixture } from '../../../test/support/billing-fixtures';
 import type { BillingAccount, BillingOrder } from '../../database/entities';
-import type { IUserRepository } from '../../database/interfaces';
+import type {
+  IBillingRepository,
+  IUserRepository,
+} from '../../database/interfaces';
 import {
   PaymentGatewayError,
   type PaymentGateway,
@@ -189,6 +192,48 @@ afterEach(() => {
 });
 
 describe('Single-plan prepaid billing', () => {
+  test('billing access provisions new trials for fourteen days', async () => {
+    const { access, repository } = runtime();
+    const ensureAccount = jest.fn<IBillingRepository['ensureAccount']>(() =>
+      Promise.resolve(account()),
+    );
+
+    repository.ensureAccount = ensureAccount;
+
+    await access.snapshot('owner', now);
+
+    expect(ensureAccount).toHaveBeenCalledWith(
+      'owner',
+      new Date('2026-10-22T00:00:00Z'),
+      14,
+    );
+  });
+
+  test('bulk trial initialization provisions fourteen days', async () => {
+    const { service, repository } = runtime();
+    const initializeTrials = jest.fn<IBillingRepository['initializeTrials']>(
+      () => Promise.resolve(1),
+    );
+
+    repository.initializeTrials = initializeTrials;
+
+    await service.initializeTrials();
+
+    expect(initializeTrials).toHaveBeenCalledWith(
+      new Date('2026-10-22T00:00:00Z'),
+      14,
+    );
+  });
+
+  test('billing status advertises a fourteen-day trial', async () => {
+    const { service, repository } = runtime();
+    repository.storageUsed = () => Promise.resolve(0);
+
+    await expect(service.status('owner')).resolves.toMatchObject({
+      trialDays: 14,
+    });
+  });
+
   test('expired trial blocks new work with a billing link', async () => {
     await expect(
       runtime().access.assertActive('owner', 'en'),

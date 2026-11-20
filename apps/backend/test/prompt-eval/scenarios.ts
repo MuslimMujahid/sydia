@@ -856,7 +856,7 @@ export const SCENARIOS: Scenario[] = [
     checks: [
       noErrors(),
       called('load_skill', (args) => args.name === 'sydia-guide', 'guide'),
-      matches(/7 hari/, 'free trial'),
+      matches(/14 hari/, 'free trial'),
       matches(/Rp ?\d/, 'price'),
       notMatches(/(tidak|nggak|gak) berbayar/i, 'claims Sydia is free'),
       inIndonesian(),
@@ -865,7 +865,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'guide-trial-end-data',
     area: 'guide',
-    message: 'Kalo trial 7 hari habis, chat dan data saya hilang?',
+    message: 'Kalo trial 14 hari habis, chat dan data saya hilang?',
     tools: {},
     checks: [
       noErrors(),

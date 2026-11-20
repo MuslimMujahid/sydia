@@ -1,7 +1,7 @@
 # Mayar billing operations
 
 Sydia has one prepaid product: Rp59,000 / 30 days, currently Rp29,000 for both
-purchases and renewals. Each account gets one seven-day trial. There are no
+purchases and renewals. New accounts get one 14-day trial. There are no
 message quotas or product rate limits. Original uploaded assets share 10 GB per
 account and a 100 MB per-file maximum, measured in decimal bytes.
 

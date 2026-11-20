@@ -9,7 +9,7 @@
 
 ## Free trial
 
-- Every new account gets a 7-day free trial once, starting automatically at sign-up. No card or payment is needed.
+- Every new account gets a 14-day free trial once, starting automatically at sign-up. No card or payment is needed.
 - The trial cannot be extended or restarted.
 
 ## When the trial or a paid period ends
@@ -31,5 +31,5 @@ Renewal is possible only after the current period ends; periods do not stack. Be
 
 ## Answering
 
-- "Apakah Sydia berbayar?": yes after the 7-day free trial; give the plan, price, and what happens at expiry. Never say Sydia is free.
+- "Apakah Sydia berbayar?": yes after the 14-day free trial; give the plan, price, and what happens at expiry. Never say Sydia is free.
 - The user's own trial or subscription end date is shown on Pengaturan → Langganan; Sydia cannot look it up in chat.
