@@ -34,6 +34,7 @@ import {
   type MemoryDeliveryJob,
   type MemoryIngestionJob,
   type NoteOrganizationJob,
+  type TopicFormationJob,
 } from './infra/queue';
 import { DocumentService, processDocumentJob } from './modules/documents';
 import { MessagingHandlerService } from './modules/messaging';
@@ -44,6 +45,7 @@ import { CalendarSyncService } from './modules/calendar/calendar-sync.service';
 import { DailyNoteService } from './modules/daily-notes/daily-note.service';
 import { NotesService } from './modules/notes/notes.service';
 import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
+import { TopicFormationService } from './modules/topics';
 import {
   DailyBriefingService,
   FollowUpService,
@@ -108,6 +110,7 @@ async function bootstrap(): Promise<void> {
   const dailyNotes = context.get(DailyNoteService);
   const notes = context.get(NotesService);
   const conversationSummarizer = context.get(ConversationSummarizerService);
+  const topicFormation = context.get(TopicFormationService);
   const notifications = context.get(NotificationService);
   const briefings = context.get(DailyBriefingService);
   const followUps = context.get(FollowUpService);
@@ -279,6 +282,21 @@ async function bootstrap(): Promise<void> {
     { connection },
   );
 
+  // One job at a time: two passes over the same conversation would race on
+  // its formation cursor.
+  const topicFormationWorker = backgroundWorker<TopicFormationJob>(
+    'topic-formations',
+    (job) => topicFormation.process(job.data.userId, job.data.conversationId),
+    { connection, concurrency: 1 },
+  );
+
+  topicFormationWorker.on('failed', (job, error) =>
+    Logger.error(
+      `Topic formation failed for conversation ${job?.data.conversationId ?? 'unknown'}; it retries, and the next turn resumes from the saved cursor.`,
+      error.stack,
+    ),
+  );
+
   const briefingWorker = backgroundWorker<BriefingJob>(
     'briefings',
     async (job) =>
@@ -357,6 +375,7 @@ async function bootstrap(): Promise<void> {
       dailyNoteIndexWorker.close(),
       briefingWorker.close(),
       conversationSummaryWorker.close(),
+      topicFormationWorker.close(),
       followUpWorker.close(),
       calendarSyncWorker.close(),
     ]);

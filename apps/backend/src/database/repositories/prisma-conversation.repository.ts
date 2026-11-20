@@ -1279,6 +1279,8 @@ export class PrismaConversationRepository implements IConversationRepository {
         where: { id: message.conversationId },
         data: { title: titleFromContent(replacement) },
       }),
+      // Topic state derived from the masked words must go with them (TOPIC-PRIV-03).
+      this.prisma.topicClaim.deleteMany({ where: { messageId } }),
     ]);
 
     return true;

@@ -35,3 +35,4 @@ export * from './prisma-attribution.repository';
 
 export * from './prisma-admin-analytics.repository';
 export * from './prisma-model-usage.repository';
+export * from './prisma-topic.repository';

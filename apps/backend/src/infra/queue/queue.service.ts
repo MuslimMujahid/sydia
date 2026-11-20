@@ -36,6 +36,7 @@ export type ConversationSummaryJob = {
   userId: string;
   conversationId: string;
 };
+export type TopicFormationJob = { userId: string; conversationId: string };
 export type MemoryDeliveryJob =
   { kind: 'recover' } | { kind: 'bank'; bankId: string };
 export type MemoryIngestionJob = { kind: 'recover' };
@@ -77,6 +78,7 @@ export class QueueService implements OnModuleDestroy {
   readonly memoryDeliveries: Queue<MemoryDeliveryJob>;
   readonly memoryIngestions: Queue<MemoryIngestionJob>;
   readonly conversationSummaries: Queue<ConversationSummaryJob>;
+  readonly topicFormations: Queue<TopicFormationJob>;
   readonly whatsappNotifications: Queue<NotificationJob>;
   readonly telegramNotifications: Queue<NotificationJob>;
   readonly briefings: Queue<BriefingJob>;
@@ -125,6 +127,10 @@ export class QueueService implements OnModuleDestroy {
         defaultJobOptions,
       },
     );
+    this.topicFormations = new Queue<TopicFormationJob>('topic-formations', {
+      connection,
+      defaultJobOptions,
+    });
     this.whatsappNotifications = new Queue<NotificationJob>(
       'notifications-whatsapp',
       { connection, defaultJobOptions },
@@ -168,6 +174,7 @@ export class QueueService implements OnModuleDestroy {
       this.memoryDeliveries.close(),
       this.memoryIngestions.close(),
       this.conversationSummaries.close(),
+      this.topicFormations.close(),
       this.whatsappNotifications.close(),
       this.telegramNotifications.close(),
       this.briefings.close(),

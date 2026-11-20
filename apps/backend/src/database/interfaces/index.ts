@@ -35,3 +35,4 @@ export * from './attribution.repository.interface';
 
 export * from './admin-analytics.repository.interface';
 export * from './model-usage.repository.interface';
+export * from './topic.repository.interface';

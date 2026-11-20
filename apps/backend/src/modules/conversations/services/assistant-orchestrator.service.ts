@@ -7,6 +7,7 @@ import {
 } from './assistant-execution';
 import { activeTurnTools } from './turn-tool-discovery';
 import { NoteOrganizationSchedulerService } from '../../notes/note-organization-scheduler.service';
+import { TopicSchedulerService } from '../../topics/topic-scheduler.service';
 import {
   ChatSourceUnavailableError,
   ChatSourceConflictError,
@@ -220,6 +221,7 @@ export class AssistantOrchestratorService {
     @Optional()
     private readonly noteOrganization?: NoteOrganizationSchedulerService,
     @Optional() config: ConfigService = new ConfigService(),
+    @Optional() private readonly topicScheduler?: TopicSchedulerService,
   ) {
     this.executionSettings = new AssistantExecutionSettings(config);
   }
@@ -1107,6 +1109,12 @@ export class AssistantOrchestratorService {
               error instanceof Error ? error.stack : undefined,
             );
           }
+
+          // Topic formation logs its own enqueue failures and never throws.
+          await this.topicScheduler?.schedule(
+            state.user.id,
+            state.conversation.id,
+          );
 
           // An offer becomes visible only once the message showing it persists.
           if (this.assistantActions) {

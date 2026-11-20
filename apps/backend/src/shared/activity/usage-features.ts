@@ -50,6 +50,7 @@ export function toolFeature(name: string): UsageFeature | null {
 /** Background queues whose spend belongs to one feature. */
 const JOB_FEATURES: Readonly<Record<string, UsageFeature>> = {
   'conversation-summaries': 'chat',
+  'topic-formations': 'memory',
   'memory-dreams': 'memory',
   documents: 'documents',
   'note-organizations': 'notes',
@@ -66,6 +67,7 @@ const JOB_FEATURES: Readonly<Record<string, UsageFeature>> = {
 const STAGE_FEATURES: ReadonlyArray<readonly [string, UsageFeature]> = [
   ['decision.', 'overhead'],
   ['conversation-summary', 'chat'],
+  ['topic', 'memory'],
   ['media.', 'chat'],
   ['memory', 'memory'],
   ['hindsight', 'memory'],

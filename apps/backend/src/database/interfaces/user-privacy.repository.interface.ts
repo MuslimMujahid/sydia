@@ -316,6 +316,33 @@ export const USER_EXPORT_SELECT = {
       },
     },
   },
+  // Implicit topics (TOPIC-PRIV-03); embeddings and internal scores stay out.
+  topics: {
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      label: true,
+      aliases: true,
+      status: true,
+      dismissedReason: true,
+      lastActiveAt: true,
+      createdAt: true,
+      claims: {
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { kind: true, text: true, explicit: true, createdAt: true },
+      },
+      links: {
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: {
+          itemType: true,
+          itemId: true,
+          origin: true,
+          createdAt: true,
+          removedAt: true,
+        },
+      },
+    },
+  },
   auditEvents: {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: {

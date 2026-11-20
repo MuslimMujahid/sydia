@@ -21,8 +21,8 @@ enum AssistantPersona {
 }
 
 model User {
-  noteWork NoteWork[]
-  noteEditorPresences NoteEditorPresence[]
+  noteWork                 NoteWork[]
+  noteEditorPresences      NoteEditorPresence[]
   id                       String                    @id
   name                     String
   email                    String                    @unique
@@ -84,6 +84,8 @@ model User {
   storageReservations      StorageReservation[]
   assistantActions         AssistantAction[]
   assistancePreference     AssistancePreference?
+  topics                   Topic[]
+  topicUserState           TopicUserState?
 
   @@index([role])
   @@index([banned])
@@ -92,13 +94,13 @@ model User {
 }
 
 model BillingAccount {
-  userId           String   @id
-  trialStartsAt    DateTime
-  trialEndsAt      DateTime
-  paidUntil        DateTime?
-  lastActivatedAt  DateTime?
-  createdAt        DateTime @default(now())
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String    @id
+  trialStartsAt   DateTime
+  trialEndsAt     DateTime
+  paidUntil       DateTime?
+  lastActivatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("billing_account")
 }
@@ -136,25 +138,25 @@ model BillingMember {
 }
 
 model BillingOrder {
-  id                    String   @id @default(cuid())
+  id                    String          @id @default(cuid())
   userId                String?
   environment           String
   idempotencyKey        String
   amount                Int
-  durationDays          Int      @default(30)
-  status                String   @default("creating")
+  durationDays          Int             @default(30)
+  status                String          @default("creating")
   providerInvoiceId     String?
   providerTransactionId String?
   paymentUrl            String?
   paymentMethod         String?
   expiresAt             DateTime
   appliedAt             DateTime?
-  nextCheckAt           DateTime @default(now())
-  attempts              Int      @default(0)
+  nextCheckAt           DateTime        @default(now())
+  attempts              Int             @default(0)
   errorCode             String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  user                  User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   payment               BillingPayment?
 
   @@unique([userId, idempotencyKey])
@@ -166,8 +168,8 @@ model BillingOrder {
 }
 
 model BillingPayment {
-  id                    String   @id @default(cuid())
-  orderId               String   @unique
+  id                    String       @id @default(cuid())
+  orderId               String       @unique
   environment           String
   providerTransactionId String
   amount                Int
@@ -180,15 +182,15 @@ model BillingPayment {
 }
 
 model BillingWebhook {
-  id            String   @id
+  id            String    @id
   environment   String
   event         String
   transactionId String?
   invoiceId     String?
-  status        String   @default("pending")
-  receivedAt    DateTime @default(now())
+  status        String    @default("pending")
+  receivedAt    DateTime  @default(now())
   processedAt   DateTime?
-  attempts      Int      @default(0)
+  attempts      Int       @default(0)
   errorCode     String?
 
   @@index([status, receivedAt])
@@ -291,16 +293,16 @@ model Verification {
 }
 
 model Conversation {
-  id                          String                 @id @default(cuid())
+  id                          String                  @id @default(cuid())
   userId                      String
-  channel                     String                 @default("web")
+  channel                     String                  @default("web")
   title                       String?
   rollingSummary              String?
   summaryThroughMessageId     String?
-  lastMessageAt               DateTime               @default(now())
-  createdAt                   DateTime               @default(now())
-  updatedAt                   DateTime               @default(now()) @updatedAt
-  user                        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastMessageAt               DateTime                @default(now())
+  createdAt                   DateTime                @default(now())
+  updatedAt                   DateTime                @default(now()) @updatedAt
+  user                        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages                    Message[]
   summaries                   ConversationSummary[]
   assistantRuns               AssistantRun[]
@@ -309,6 +311,9 @@ model Conversation {
   memoryDeletionMarkers       MemoryDeletionMarker[]
   channelConversations        ChannelConversation[]
   planRevisions               AssistantPlanRevision[]
+  topicState                  TopicConversationState?
+  topicEvents                 TopicEvent[]
+  topicRecognitions           TopicRecognitionLog[]
 
   @@index([userId, lastMessageAt])
   @@map("conversation")
@@ -360,23 +365,25 @@ model ChannelTurn {
 }
 
 model Message {
-  id                String              @id @default(cuid())
+  id                String                @id @default(cuid())
   conversationId    String
   userId            String
   role              String
-  type              String              @default("text")
+  type              String                @default("text")
   content           String
   providerMessageId String?
   metadata          Json?
   activeNoteRef     String?
   sourceSegments    Json?
-  sourceDocumentIds String[] @default([])
+  sourceDocumentIds String[]              @default([])
   attachments       MessageAttachment[]
   idempotencyKey    String?
-  createdAt         DateTime            @default(now())
-  conversation      Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inputForRuns      AssistantRun[]      @relation("AssistantRunInput")
+  createdAt         DateTime              @default(now())
+  conversation      Conversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inputForRuns      AssistantRun[]        @relation("AssistantRunInput")
+  topicClaims       TopicClaim[]
+  topicRecognitions TopicRecognitionLog[]
 
   @@unique([conversationId, providerMessageId])
   @@unique([userId, idempotencyKey])
@@ -399,25 +406,25 @@ model ConversationSummary {
 }
 
 model AssistantRun {
-  id                 String           @id @default(cuid())
+  id                 String                  @id @default(cuid())
   conversationId     String
   inputMessageId     String
-  idempotencyKey     String           @unique
+  idempotencyKey     String                  @unique
   assistantMessageId String?
   retryOfRunId       String?
-  status             String           @default("queued")
+  status             String                  @default("queued")
   provider           String
   model              String
   errorMessage       String?
-  costUsd            Decimal?         @db.Decimal(18, 8)
+  costUsd            Decimal?                @db.Decimal(18, 8)
   inputTokens        Int?
   outputTokens       Int?
   startedAt          DateTime?
   completedAt        DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @default(now()) @updatedAt
-  conversation       Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  inputMessage       Message          @relation("AssistantRunInput", fields: [inputMessageId], references: [id], onDelete: Cascade)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @default(now()) @updatedAt
+  conversation       Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  inputMessage       Message                 @relation("AssistantRunInput", fields: [inputMessageId], references: [id], onDelete: Cascade)
   toolInvocations    ToolInvocation[]
   planRevisions      AssistantPlanRevision[]
 
@@ -432,36 +439,36 @@ model AssistantRun {
 /// the admin cost metrics. `userId` survives account deletion as NULL so spend
 /// totals never shrink.
 model ModelUsage {
-  id             String   @id @default(cuid())
-  createdAt      DateTime @default(now())
-  userId         String?
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  userId            String?
   /// message | background | hindsight | other
-  kind           String
+  kind              String
   /// Background queue or sweep name, e.g. conversation-summaries.
-  job            String?
+  job               String?
   /// Caller stage, e.g. assistant.turn, decision.turn, embedding, transcription.
-  stage          String
-  provider       String
-  model          String
-  attempt        Int      @default(1)
+  stage             String
+  provider          String
+  model             String
+  attempt           Int      @default(1)
   /// ok | failed
-  status         String
-  inputTokens    Int?
-  outputTokens   Int?
+  status            String
+  inputTokens       Int?
+  outputTokens      Int?
   /// Known billed cost. Partial when `costMissing` is true.
-  costUsd        Decimal? @db.Decimal(18, 8)
+  costUsd           Decimal? @db.Decimal(18, 8)
   /// The provider did not report the cost of all or part of this call.
-  costMissing    Boolean  @default(false)
-  conversationId String?
-  runId          String?
+  costMissing       Boolean  @default(false)
+  conversationId    String?
+  runId             String?
   /// Product feature the whole cost belongs to (chat, notes, memory, …).
-  feature        String   @default("other")
+  feature           String   @default("other")
   /// Per-feature cost split of a multi-step generation; null when `feature`
   /// holds all of it.
-  featureCosts   Json?
+  featureCosts      Json?
   /// Input tokens served from the provider's prompt cache.
   cachedInputTokens Int?
-  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([userId, createdAt])
@@ -473,9 +480,10 @@ model ModelUsage {
 /// Last cumulative spend read from an external billing source (for example the
 /// OpenRouter key Hindsight uses); new spend is recorded as the difference.
 model ProviderUsageSnapshot {
-  source    String   @id
-  totalUsd  Decimal  @db.Decimal(18, 8)
-  takenAt   DateTime
+  source   String   @id
+  totalUsd Decimal  @db.Decimal(18, 8)
+  takenAt  DateTime
+
   @@map("provider_usage_snapshot")
 }
 
@@ -551,23 +559,23 @@ model TaskCategory {
 }
 
 model Reminder {
-  id              String               @id @default(cuid())
-  userId          String
-  title           String
-  notes           String?
-  scheduledAt     DateTime
-  timezone        String
-  recurrence      Json?
-  sourceType      String               @default("dashboard")
-  sourceMessageId String?
+  id                      String               @id @default(cuid())
+  userId                  String
+  title                   String
+  notes                   String?
+  scheduledAt             DateTime
+  timezone                String
+  recurrence              Json?
+  sourceType              String               @default("dashboard")
+  sourceMessageId         String?
   important               Boolean              @default(false)
   repeatIntervalMinutes   Int                  @default(5)
   snoozedFromOccurrenceId String?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @default(now()) @updatedAt
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  occurrences     ReminderOccurrence[]
-  snoozedFrom     ReminderOccurrence?  @relation("ReminderSnoozedFrom", fields: [snoozedFromOccurrenceId], references: [id], onDelete: SetNull)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @default(now()) @updatedAt
+  user                    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  occurrences             ReminderOccurrence[]
+  snoozedFrom             ReminderOccurrence?  @relation("ReminderSnoozedFrom", fields: [snoozedFromOccurrenceId], references: [id], onDelete: SetNull)
 
   @@index([userId, scheduledAt])
   @@index([userId, updatedAt])
@@ -634,31 +642,31 @@ model Memory {
 /// One diary entry per owner-local calendar day. `date` is the owner's local
 /// calendar date in `timezone`, so a note never shifts when the reader travels.
 model WorkspaceItem {
-  id           String          @id @default(cuid())
-  userId       String
-  kind         String
-  title        String
-  parentId     String?
-  content      Json
-  text         String          @default("")
-  revision     Int             @default(1)
-  indexPending Boolean         @default(true)
+  id             String               @id @default(cuid())
+  userId         String
+  kind           String
+  title          String
+  parentId       String?
+  content        Json
+  text           String               @default("")
+  revision       Int                  @default(1)
+  indexPending   Boolean              @default(true)
   indexSignature String?
-  trashedAt    DateTime?
-  trashBatchId String?
-  sourceType   String          @default("dashboard")
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @default(now()) @updatedAt
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent       WorkspaceItem?   @relation("WorkspaceHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, map: "workspace_item_parent_owner_fkey")
-  children     WorkspaceItem[]  @relation("WorkspaceHierarchy")
-  chunks       WorkspaceNoteChunk[]
-  recordTable  RecordTable?
-  format       String @default("rich-text")
+  trashedAt      DateTime?
+  trashBatchId   String?
+  sourceType     String               @default("dashboard")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @default(now()) @updatedAt
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent         WorkspaceItem?       @relation("WorkspaceHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, map: "workspace_item_parent_owner_fkey")
+  children       WorkspaceItem[]      @relation("WorkspaceHierarchy")
+  chunks         WorkspaceNoteChunk[]
+  recordTable    RecordTable?
+  format         String               @default("rich-text")
 
+  @@unique([userId, id], map: "workspace_item_owner_id_key")
   @@index([userId, trashedAt, parentId])
   @@index([userId, trashBatchId])
-  @@unique([userId, id], map: "workspace_item_owner_id_key")
   @@map("workspace_item")
 }
 
@@ -934,26 +942,26 @@ model MessageAttachment {
 }
 
 model Document {
-  id               String          @id @default(cuid())
-  userId           String
-  fileAssetId      String          @unique
-  folderId         String?
-  organizationRevision Int        @default(1)
-  deletingOperationId String?
-  status           String          @default("processing")
-  title            String
-  description      String?
-  textContent      String?
-  transcript       String?
-  imageDescription String?
-  structuredData   Json?
-  errorMessage     String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @default(now()) @updatedAt
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileAsset        FileAsset       @relation(fields: [fileAssetId], references: [id], onDelete: Cascade)
-  folder           FileFolder?     @relation(fields: [userId, folderId], references: [userId, id], onDelete: Restrict)
-  chunks           DocumentChunk[]
+  id                   String          @id @default(cuid())
+  userId               String
+  fileAssetId          String          @unique
+  folderId             String?
+  organizationRevision Int             @default(1)
+  deletingOperationId  String?
+  status               String          @default("processing")
+  title                String
+  description          String?
+  textContent          String?
+  transcript           String?
+  imageDescription     String?
+  structuredData       Json?
+  errorMessage         String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @default(now()) @updatedAt
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileAsset            FileAsset       @relation(fields: [fileAssetId], references: [id], onDelete: Cascade)
+  folder               FileFolder?     @relation(fields: [userId, folderId], references: [userId, id], onDelete: Restrict)
+  chunks               DocumentChunk[]
 
   @@index([userId, createdAt])
   @@index([userId, status])
@@ -962,19 +970,19 @@ model Document {
 }
 
 model FileFolder {
-  id             String       @id @default(cuid())
-  userId         String
-  parentId       String?
-  name           String
-  normalizedName String
-  revision       Int          @default(1)
+  id                  String       @id @default(cuid())
+  userId              String
+  parentId            String?
+  name                String
+  normalizedName      String
+  revision            Int          @default(1)
   deletingOperationId String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @default(now()) @updatedAt
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent         FileFolder?  @relation("FileFolderHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict)
-  children       FileFolder[] @relation("FileFolderHierarchy")
-  documents      Document[]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @default(now()) @updatedAt
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent              FileFolder?  @relation("FileFolderHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict)
+  children            FileFolder[] @relation("FileFolderHierarchy")
+  documents           Document[]
 
   @@unique([userId, id])
   @@index([userId, parentId])
@@ -982,18 +990,18 @@ model FileFolder {
 }
 
 model FileDeletionOperation {
-  id             String   @id @default(cuid())
+  id             String             @id @default(cuid())
   userId         String
-  status         String   @default("preview")
+  status         String             @default("preview")
   idempotencyKey String?
   selection      Json
   fingerprint    String
   expiresAt      DateTime
   leaseUntil     DateTime?
-  workerFailures Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workerFailures Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @default(now()) @updatedAt
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   items          FileDeletionItem[]
 
   @@unique([userId, idempotencyKey])
@@ -1012,9 +1020,9 @@ model FileDeletionItem {
   revision    Int
   depth       Int
   storageKey  String?
-  state       String @default("pending")
+  state       String                @default("pending")
   error       String?
-  attempts    Int @default(0)
+  attempts    Int                   @default(0)
   operation   FileDeletionOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
 
   @@id([operationId, kind, itemId])
@@ -1389,35 +1397,35 @@ model SecretVaultUnlock {
 
 // One provider device per login generation; historical rows remain fenced after revocation.
 model WhatsAppConnection {
-  id                  String   @id @default(cuid())
+  id                  String                      @id @default(cuid())
   userId              String
-  deviceId            String   @unique
-  generation          Int      @default(1)
-  active              Boolean  @default(true)
+  deviceId            String                      @unique
+  generation          Int                         @default(1)
+  active              Boolean                     @default(true)
   assistantExternalId String?
   ownerExternalId     String?
   ownerIdentityId     String?
   ownerVerifiedAt     DateTime?
-  setupPhase          String   @default("pairing")
-  status              String   @default("awaiting_pair")
+  setupPhase          String                      @default("pairing")
+  status              String                      @default("awaiting_pair")
   reason              String?
   qrImage             Bytes?
   qrAttemptId         String?
   qrExpiresAt         DateTime?
-  ownerCodeHash       String?  @unique
+  ownerCodeHash       String?                     @unique
   ownerCodeExpiresAt  DateTime?
   outageId            String?
   disconnectedAt      DateTime?
-  reconnectAttempts   Int      @default(0)
+  reconnectAttempts   Int                         @default(0)
   nextReconnectAt     DateTime?
-  cleanupAttempts     Int      @default(0)
-  cleanupNeeded       Boolean  @default(false)
+  cleanupAttempts     Int                         @default(0)
+  cleanupNeeded       Boolean                     @default(false)
   lastConnectedAt     DateTime?
   lastEventAt         DateTime?
   revokedAt           DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @default(now()) @updatedAt
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @default(now()) @updatedAt
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   inboundMessages     WhatsAppConnectionInbound[]
 
   // Active ownership uniqueness is enforced by partial indexes in the migration.
@@ -1427,12 +1435,12 @@ model WhatsAppConnection {
 }
 
 model WhatsAppConnectionInbound {
-  id                String   @id @default(cuid())
+  id                String             @id @default(cuid())
   connectionId      String
   generation        Int
   providerMessageId String
   senderExternalId  String
-  status            String   @default("pending")
+  status            String             @default("pending")
   error             String?
   receivedAt        DateTime
   processedAt       DateTime?
@@ -1646,24 +1654,26 @@ model UserPreference {
 }
 
 model WhatsAppDeliveryBinding {
-  deliveryId     String @id
-  connectionId   String?
-  generation     Int?
-  outageId       String?
-  missedAt       DateTime?
-  scheduledAt    DateTime?
-  payload        Json?
-  summarizedAt   DateTime?
-  delivery       NotificationDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId   String               @id
+  connectionId String?
+  generation   Int?
+  outageId     String?
+  missedAt     DateTime?
+  scheduledAt  DateTime?
+  payload      Json?
+  summarizedAt DateTime?
+  delivery     NotificationDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
   @@index([connectionId, outageId, summarizedAt])
   @@map("whatsapp_delivery_binding")
 }
 
 model WhatsAppConsent {
-  userId String
-  kind String
+  userId    String
+  kind      String
   grantedAt DateTime
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@id([userId, kind])
   @@map("whatsapp_consent")
 }
@@ -1729,11 +1739,11 @@ model AssistancePreference {
 
 /// Live owner-scoped editor leases; note refs include empty daily-note dates.
 model NoteEditorPresence {
-  userId String
-  ref String
+  userId    String
+  ref       String
   sessionId String
   expiresAt DateTime
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, ref, sessionId])
   @@index([userId, ref, expiresAt])
@@ -1743,26 +1753,27 @@ model NoteEditorPresence {
 /// Independent durable ledger for capture, organization, and linking.
 model NoteWork {
   clarificationMessageId String?
-  id String @id @default(cuid())
-  userId String
-  key String
-  sourceKind String
-  sourceRef String
-  sourceVersion String
-  sourceAt DateTime
-  timezone String
-  sourceContent String
-  destinationRef String?
-  stage String
-  status String @default("pending")
-  payload Json
-  result Json?
-  attempts Int @default(0)
-  nextAttemptAt DateTime @default(now())
-  lastErrorCode String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                     String   @id @default(cuid())
+  userId                 String
+  key                    String
+  sourceKind             String
+  sourceRef              String
+  sourceVersion          String
+  sourceAt               DateTime
+  timezone               String
+  sourceContent          String
+  destinationRef         String?
+  stage                  String
+  status                 String   @default("pending")
+  payload                Json
+  result                 Json?
+  attempts               Int      @default(0)
+  nextAttemptAt          DateTime @default(now())
+  lastErrorCode          String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, key])
   @@index([status, nextAttemptAt])
   @@index([userId, sourceKind, sourceRef])
@@ -1771,39 +1782,45 @@ model NoteWork {
 
 /// Feature activation boundary prevents accidental historical backfills.
 model NoteOrganizationState {
-  id String @id
+  id          String   @id
   activatedAt DateTime @default(now())
+
   @@map("note_organization_state")
 }
 
 /// Typed record data is separate from rich text. Workspace revision is authoritative.
 model RecordTable {
-  noteId String @id
-  description String @default("")
-  columns Json
-  stats Json
-  nextPosition Int @default(1)
-  item WorkspaceItem @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  rows RecordRow[]
+  noteId       String        @id
+  description  String        @default("")
+  columns      Json
+  stats        Json
+  nextPosition Int           @default(1)
+  item         WorkspaceItem @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  rows         RecordRow[]
+
   @@map("record_table")
 }
+
 model RecordRow {
-  id String @id
-  noteId String
+  id       String      @id
+  noteId   String
   position Int
-  cells Json
-  sources Json
-  table RecordTable @relation(fields: [noteId], references: [noteId], onDelete: Cascade)
+  cells    Json
+  sources  Json
+  table    RecordTable @relation(fields: [noteId], references: [noteId], onDelete: Cascade)
+
   @@unique([noteId, position], map: "record_row_note_position")
   @@map("record_row")
 }
+
 model RecordReceipt {
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "record_receipt_owner_fkey")
-  userId String
-  key String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "record_receipt_owner_fkey")
+  userId      String
+  key         String
   fingerprint String
-  result Json
-  createdAt DateTime @default(now())
+  result      Json
+  createdAt   DateTime @default(now())
+
   @@id([userId, key])
   @@map("record_receipt")
 }
@@ -1823,4 +1840,144 @@ model AssistantPlanRevision {
 
   @@unique([conversationId, revision])
   @@map("assistant_plan_revision")
+}
+
+/// An ongoing effort Sydia recognized implicitly (docs/TOPIC_CONTEXT_SPEC.md).
+/// A rebuildable interpretation: item state is always read from its own store.
+model Topic {
+  id                    String       @id @default(cuid())
+  userId                String
+  label                 String
+  aliases               String[]     @default([])
+  /// Embedding of label, aliases and current claims; empty until embedded.
+  embedding             Float[]      @default([])
+  /// candidate | active | dormant | dismissed
+  status                String       @default("candidate")
+  dismissedReason       String?
+  /// Decaying sum of user events, measured on the owner's active-day clock.
+  salience              Float        @default(1)
+  salienceAtActiveDay   Int          @default(0)
+  /// Raised by disconnects; decays back on the active-day clock.
+  gateCutoffOffset      Float        @default(0)
+  gateOffsetAtActiveDay Int          @default(0)
+  /// Distinct episodes the topic was assigned in; promotes a candidate at two.
+  episodeCount          Int          @default(1)
+  lastEpisodeKey        String?
+  lastActiveAt          DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @default(now()) @updatedAt
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  claims                TopicClaim[]
+  links                 TopicLink[]
+  events                TopicEvent[]
+
+  @@index([userId, status])
+  @@map("topic")
+}
+
+/// One statement of a topic's state, with the user message that supports it.
+/// Deleting or masking that message removes the claim.
+model TopicClaim {
+  id        String   @id @default(cuid())
+  topicId   String
+  /// decision | next_step | open_question
+  kind      String
+  text      String
+  explicit  Boolean
+  messageId String?
+  createdAt DateTime @default(now())
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([topicId, kind, createdAt])
+  @@index([messageId])
+  @@map("topic_claim")
+}
+
+/// A topic's item. A removed link stays as a suppression so it is never re-added.
+model TopicLink {
+  id         String    @id @default(cuid())
+  topicId    String
+  /// note (custom:/daily: ref) | reminder | task | calendar_event | contact | document
+  itemType   String
+  itemId     String
+  /// touched | user_stated | inferred
+  origin     String
+  confidence Float     @default(1)
+  createdAt  DateTime  @default(now())
+  removedAt  DateTime?
+  topic      Topic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, itemType, itemId])
+  @@index([itemType, itemId])
+  @@map("topic_link")
+}
+
+/// Salience and disconnect log, at most one per topic, episode and kind.
+model TopicEvent {
+  id             String        @id @default(cuid())
+  topicId        String
+  /// assigned | returned | item_edit | disconnect
+  kind           String
+  weight         Float
+  episodeKey     String
+  conversationId String?
+  activeDay      Int
+  createdAt      DateTime      @default(now())
+  topic          Topic         @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@unique([topicId, episodeKey, kind])
+  @@map("topic_event")
+}
+
+/// Formation progress and the current episode of one conversation.
+model TopicConversationState {
+  conversationId     String       @id
+  userId             String
+  processedThroughAt DateTime?
+  episodeKey         String
+  episodeStartedAt   DateTime
+  lastUserMessageAt  DateTime
+  currentTopicId     String?
+  noneStreak         Int          @default(0)
+  updatedAt          DateTime     @default(now()) @updatedAt
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("topic_conversation_state")
+}
+
+/// The owner's active-day clock: local days with at least one user message.
+model TopicUserState {
+  userId        String   @id
+  activeDays    Int      @default(0)
+  lastActiveDay String?
+  updatedAt     DateTime @default(now()) @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("topic_user_state")
+}
+
+/// Shadow-mode recognition outcome for one user message (IDs and scores only).
+model TopicRecognitionLog {
+  id              String       @id @default(cuid())
+  userId          String
+  conversationId  String
+  messageId       String
+  mode            String
+  /// [{ topicId, status, similarity, salience, score }]
+  candidates      Json
+  choice          String?
+  confidence      Float?
+  accepted        Boolean
+  /// Topic the formation pass assigned, for comparing with the gate.
+  assignedTopicId String?
+  createdAt       DateTime     @default(now())
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message         Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId])
+  @@index([userId, createdAt])
+  @@map("topic_recognition_log")
 }

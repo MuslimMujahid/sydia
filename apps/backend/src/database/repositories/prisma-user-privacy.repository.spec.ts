@@ -122,6 +122,12 @@ describe('PrismaUserPrivacyRepository exportData', () => {
     expect(select.calendarIntegrations.select).not.toHaveProperty(
       'refreshToken',
     );
+    // Topics are exported with their state and links, not internal scores.
+    expect(select.topics.select).toEqual(
+      expect.objectContaining({ label: true, claims: expect.anything() }),
+    );
+    expect(select.topics.select).not.toHaveProperty('embedding');
+    expect(select.topics.select).not.toHaveProperty('salience');
   });
 
   test('returns null for an unknown user', async () => {

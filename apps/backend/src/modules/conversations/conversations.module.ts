@@ -28,6 +28,7 @@ import {
 import { ChatPreviewService } from './services/chat-preview.service';
 import { ActiveNoteService } from './services/active-note.service';
 import { ConversationsController } from './conversations.controller';
+import { TopicsModule } from '../topics/topics.module';
 import { NoteAgentCoordinatorService } from './services/note-agent-coordinator.service';
 import { NoteOrganizationController } from './note-organization.controller';
 import {
@@ -55,6 +56,7 @@ import {
     SecretsModule,
     SecretaryModule,
     UserProfileModule,
+    TopicsModule,
   ],
   controllers: [ConversationsController, NoteOrganizationController],
   providers: [

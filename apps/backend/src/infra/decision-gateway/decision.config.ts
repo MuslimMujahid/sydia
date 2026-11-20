@@ -10,6 +10,7 @@ export const DECISION_FEATURES = {
   tools: 'BACKEND_TOOL_GROUP_SELECTION_MODE',
   cells: 'BACKEND_RECORD_CELL_REVIEW_MODE',
   scope: 'BACKEND_TURN_DAY_SCOPE_MODE',
+  topics: 'BACKEND_TOPIC_RECOGNITION_MODE',
 } as const;
 export type DecisionFeature = keyof typeof DECISION_FEATURES;
 export type DecisionMode = 'off' | 'shadow' | 'reject-only' | 'enabled';
@@ -41,6 +42,12 @@ export const DEFAULT_DECISION_THRESHOLDS = {
    * (today, last week). Provisional until a reviewed calibration exists.
    */
   dayScope: 0.6,
+  /**
+   * Confidence the latest message is about an existing topic before it is
+   * accepted (docs/TOPIC_CONTEXT_SPEC.md, TOPIC-RECOG-02). Provisional until
+   * calibrated from shadow-mode logs.
+   */
+  topicChoice: 0.6,
 } as const;
 /**
  * Thresholds that no longer apply but may still be set in deployed

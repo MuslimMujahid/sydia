@@ -90,6 +90,8 @@ Standing permissions, automatic rescheduling, booking attendees, external messag
 
 ### SEC-01: Maintain account-scoped work context
 
+These records are implemented as implicit topics; see the [topic context specification](./TOPIC_CONTEXT_SPEC.md) for formation, recognition, ranking, disconnecting and retirement.
+
 Maintain derived records describing an ongoing effort without requiring users to create projects first. A record contains:
 
 - Stable identity and authenticated owner.
