@@ -57,6 +57,8 @@ export type TopicRecognitionCandidateLog = {
   similarity: number;
   salience: number;
   score: number;
+  /** Whether it passed the floor and was offered to the gate. */
+  offered: boolean;
 };
 
 export type NewTopicRecognitionLog = {

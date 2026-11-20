@@ -8,13 +8,20 @@ import type { TopicClaimKind, TopicStatus } from '../../database/entities';
 export const TOPIC_SETTINGS = {
   /** Salience half-life, in the owner's active days (TOPIC-RANK-02). */
   halfLifeActiveDays: 14,
-  /** Minimum similarity to be a candidate without an explicit anchor. */
+  /**
+   * Minimum similarity to be offered to the gate without an explicit anchor.
+   * Kept low on purpose: on 21 Nov 2026 a cross-language synonym scored 0.32
+   * against its topic while unrelated family messages scored 0.31–0.38, so
+   * similarity only drops clear non-matches and the gate decides.
+   */
   similarityFloor: {
     candidate: 1,
-    active: 0.35,
-    dormant: 0.5,
+    active: 0.2,
+    dormant: 0.3,
     dismissed: 0.7,
   } satisfies Record<TopicStatus, number>,
+  /** Topics logged per message for calibration, offered to the gate or not. */
+  loggedTopics: 5,
   /** α, β, γ, δ of TOPIC-RANK-03. */
   rankWeights: {
     frequency: 0.05,

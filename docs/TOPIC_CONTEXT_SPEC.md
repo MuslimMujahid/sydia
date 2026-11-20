@@ -269,18 +269,18 @@ Log candidate IDs, similarity, salience, urgency, final scores, gate choice and 
 
 All values are provisional and calibrated in shadow mode.
 
-| Setting                                                     | Default                                          |
-| ----------------------------------------------------------- | ------------------------------------------------ |
-| Feature mode `topics` (decision settings)                   | `off`                                            |
-| Half-life `H`                                               | 14 active days                                   |
-| Similarity floor (active / dormant / dismissed)             | 0.35 / 0.5 / 0.7                                 |
-| α, β, γ, δ                                                  | 0.05, 0.1, 0.1, 0.1                              |
-| Gate base cutoff; disconnect step; cap                      | 0.6; +0.1; +0.3                                  |
-| Dormant threshold; reactivation threshold                   | 0.3; 1.0                                         |
-| Grace period; dismiss after dormant; delete after dismissed | 7 active days; 60 active days; 365 calendar days |
-| Active topic cap                                            | 50                                               |
-| Topic block budget; topics per turn                         | 500 tokens; 2                                    |
-| Formation debounce                                          | 2 minutes                                        |
+| Setting                                                     | Default                                               |
+| ----------------------------------------------------------- | ----------------------------------------------------- |
+| Feature mode `topics` (decision settings)                   | `off`                                                 |
+| Half-life `H`                                               | 14 active days                                        |
+| Similarity floor (active / dormant / dismissed)             | 0.2 / 0.3 / 0.7 (lowered 21 Nov 2026, see section 18) |
+| α, β, γ, δ                                                  | 0.05, 0.1, 0.1, 0.1                                   |
+| Gate base cutoff; disconnect step; cap                      | 0.6; +0.1; +0.3                                       |
+| Dormant threshold; reactivation threshold                   | 0.3; 1.0                                              |
+| Grace period; dismiss after dormant; delete after dismissed | 7 active days; 60 active days; 365 calendar days      |
+| Active topic cap                                            | 50                                                    |
+| Topic block budget; topics per turn                         | 500 tokens; 2                                         |
+| Formation debounce                                          | 2 minutes                                             |
 
 ## 14. Rollout
 
@@ -357,3 +357,8 @@ Verification run on 21 November 2026:
 - PostgreSQL contract (`TOPIC_CONTRACT_ENABLED=true`, `prisma-topic.live.spec.ts`): active-day counting under concurrency, link suppression, event uniqueness, claim pruning, claim removal on masking and deletion, formation input, export and account erasure.
 - Formation prompt against the configured model (`TOPIC_EXTRACTION_LIVE=true`, `test/topics/topic-extraction.live.spec.ts`): 6 scenarios (new effort with its item, synonym, thanks, one-off fact, similar names, unrelated errand) passed 18/18 over three runs.
 - One end-to-end pass with the real model and gateway: a study-tour message created an active topic linked to its reminder; six hours later "Karyawisata ... bawa bekal apa?" scored similarity 0.46 (floor 0.35), the gate chose the topic at 0.92, and formation assigned the same topic. Synonym similarity sits close to the floor, which the shadow calibration should check.
+- Live run through the running app (21 November 2026): two new accounts, 11 messages in separate chats via the conversation API, formed by the dev worker.
+  - Correct: a new effort created an active topic linked to its reminder; "makasih" and a capital-city question formed nothing; a mother's and a son's birthday stayed separate topics, and a later "kue ultah Raka" went to the son's; a cross-language synonym, a progress update and a travel question went to the study tour; a haircut question went nowhere; a message with a password left no trace; the memory-off account formed nothing and its cursor moved on.
+  - Gate: 7 of 7 decisions it was asked to make were right (4 topic choices at 0.96–0.97, 3 "none" at 1.00).
+  - Missed recall: the first synonym message ("Karyawisata … bekal") scored similarity 0.32, below the 0.35 floor, while unrelated family messages scored 0.31–0.38 against the same topic. Similarity cannot separate them; the gate can. Floors were lowered to 0.2 (active) and 0.3 (dormant), and every message now logs its top five topics with `offered` true or false, so near misses are visible. After the topic learned "Karyawisata" as an alias, the same kind of message scored 0.56.
+  - Open gap: state claims are only added, never resolved. After "iuran sudah ditransfer", the topic still lists "bayar iuran paling lambat Jumat" as a next step. Formation should mark listed claims as done or obsolete before phase 2 shows state to the assistant.

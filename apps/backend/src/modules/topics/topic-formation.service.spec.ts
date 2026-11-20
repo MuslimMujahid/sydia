@@ -455,6 +455,7 @@ describe('topic formation', () => {
             similarity: 0.8,
             salience: 1,
             score: 0.85,
+            offered: true,
           },
         ],
         choice: 'topic-1',

@@ -101,7 +101,7 @@ export class TopicRecognitionService {
     ]);
 
     const anchoredIds = new Set(anchored);
-    const ranked = eligible
+    const scored = eligible
       .map((topic) => {
         const similarity =
           vector && topic.embedding.length
@@ -130,15 +130,28 @@ export class TopicRecognitionService {
               sticky: topic.id === input.stickyTopicId,
               recentDisconnects: 0,
             }),
+            offered: false as boolean,
           } satisfies TopicRecognitionCandidateLog,
         };
       })
+      .sort((a, b) => b.log.score - a.log.score);
+
+    const ranked = scored
       .filter((entry) => entry.eligible)
-      .sort((a, b) => b.log.score - a.log.score)
       .slice(0, TOPIC_SETTINGS.candidatesPerTurn);
 
-    if (!ranked.length) return none;
-    const candidates = ranked.map((entry) => entry.log);
+    for (const entry of ranked) entry.log.offered = true;
+    // Calibration needs the near misses too, not only what passed the floor.
+    const candidates = [
+      ...new Set([
+        ...ranked.map((entry) => entry.log),
+        ...scored
+          .slice(0, TOPIC_SETTINGS.loggedTopics)
+          .map((entry) => entry.log),
+      ]),
+    ];
+
+    if (!ranked.length) return { ...none, candidates };
 
     try {
       const result = await this.gateway.decide({

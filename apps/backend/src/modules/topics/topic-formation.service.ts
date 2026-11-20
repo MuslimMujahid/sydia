@@ -335,11 +335,13 @@ export class TopicFormationService {
   /** Recognized candidates, the episode's topic, then the most recent ones. */
   private topicsToShow(
     known: readonly Topic[],
-    candidates: ReadonlyArray<{ topicId: string }>,
+    candidates: ReadonlyArray<{ topicId: string; offered: boolean }>,
     episode: Episode,
   ): Topic[] {
     const preferred = [
-      ...candidates.map(({ topicId }) => topicId),
+      ...candidates
+        .filter(({ offered }) => offered)
+        .map(({ topicId }) => topicId),
       ...(episode.currentTopicId ? [episode.currentTopicId] : []),
     ];
 

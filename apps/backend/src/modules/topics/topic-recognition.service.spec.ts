@@ -126,7 +126,13 @@ describe('topic recognition', () => {
       ]),
     );
 
-    expect(result.candidates.map((c) => c.topicId)).toEqual(['closer', 'near']);
+    expect(
+      result.candidates.filter((c) => c.offered).map((c) => c.topicId),
+    ).toEqual(['closer', 'near']);
+    // The near miss is still logged for calibration.
+    expect(result.candidates.find((c) => c.topicId === 'far')?.offered).toBe(
+      false,
+    );
     const criteria = decide.mock.calls[0]?.[0].questions.topic;
     expect(
       criteria?.type === 'choice' && Object.keys(criteria.criteria),
@@ -189,7 +195,9 @@ describe('topic recognition', () => {
       }),
     );
 
-    expect(result.candidates.map((c) => c.topicId)).toEqual(['sticky']);
+    expect(
+      result.candidates.filter((c) => c.offered).map((c) => c.topicId),
+    ).toEqual(['sticky']);
     expect(result.topicId).toBe('sticky');
   });
 });

@@ -82,8 +82,8 @@ describe('topic candidate floor', () => {
   });
 
   it('asks more of dormant topics and needs a strong match for dismissed ones', () => {
-    expect(passesFloor('dormant', 0.45, false)).toBe(false);
-    expect(passesFloor('dormant', 0.55, false)).toBe(true);
+    expect(passesFloor('dormant', 0.25, false)).toBe(false);
+    expect(passesFloor('dormant', 0.35, false)).toBe(true);
     expect(passesFloor('dismissed', 0.6, true)).toBe(false);
     expect(passesFloor('dismissed', 0.75, false)).toBe(true);
   });
