@@ -40,6 +40,23 @@ export type TopicTurnInput = {
 
 export type TopicTurnContext = { topicId: string; block: string };
 
+/**
+ * What topic recognition did on one turn, for the trace (TOPIC-OBS-02): IDs,
+ * scores and reasons only, never message text or topic state.
+ */
+export type TopicTurnTrace = Readonly<Record<string, string>>;
+
+export type TopicTurnResult = {
+  context: TopicTurnContext | null;
+  /** Null when the feature is not enabled for this user. */
+  trace: TopicTurnTrace | null;
+};
+
+const skipped = (reason: string): TopicTurnResult => ({
+  context: null,
+  trace: { topicOutcome: 'skipped', topicReason: reason },
+});
+
 /** Owner-local `YYYY-MM-DD HH:mm`. */
 function localTime(at: Date, timeZone: string): string {
   const parts = Object.fromEntries(
@@ -200,8 +217,8 @@ export class TopicContextService {
     return this.settings.mode('topics', userId) === 'enabled';
   }
 
-  async forTurn(input: TopicTurnInput): Promise<TopicTurnContext | null> {
-    if (!this.enabledFor(input.userId)) return null;
+  async forTurn(input: TopicTurnInput): Promise<TopicTurnResult> {
+    if (!this.enabledFor(input.userId)) return { context: null, trace: null };
     const started = Date.now();
     const deadline = new AbortController();
     const timer = setTimeout(() => deadline.abort(), this.deadlineMs);
@@ -215,20 +232,17 @@ export class TopicContextService {
             ...(input.abortSignal ? [input.abortSignal] : []),
           ]),
         ),
-        new Promise<null>((resolve) =>
+        new Promise<TopicTurnResult>((resolve) =>
           deadline.signal.addEventListener('abort', () => {
-            this.degraded('deadline', Date.now() - started);
-            resolve(null);
+            resolve(this.degraded('deadline', Date.now() - started));
           }),
         ),
       ]);
     } catch (error) {
-      this.degraded(
+      return this.degraded(
         error instanceof Error ? error.name : 'UnknownError',
         Date.now() - started,
       );
-
-      return null;
     } finally {
       clearTimeout(timer);
     }
@@ -237,15 +251,16 @@ export class TopicContextService {
   private async build(
     input: TopicTurnInput,
     abortSignal: AbortSignal,
-  ): Promise<TopicTurnContext | null> {
+  ): Promise<TopicTurnResult> {
     const current = input.messages.find(
       (message) => message.id === input.messageId && message.role === 'user',
     );
 
-    if (!current?.content.trim() || containsDecisionCredential(current.content))
-      return null;
+    if (!current?.content.trim()) return skipped('no_text');
+    if (containsDecisionCredential(current.content))
+      return skipped('credential');
     const user = await this.users.findById(input.userId);
-    if (!user?.automaticMemoryEnabled) return null;
+    if (!user?.automaticMemoryEnabled) return skipped('memory_off');
 
     const since = episodeStart(input.messages, current, this.idleMs);
     const [known, suppressed, activeDay, state] = await Promise.all([
@@ -266,7 +281,7 @@ export class TopicContextService {
       (topic) => !suppressed.includes(topic.id) || named.has(topic.id),
     );
 
-    if (!topics.length) return null;
+    if (!topics.length) return skipped('no_topics');
 
     const ids = topics.map(({ id }) => id);
     const [claims, items] = await Promise.all([
@@ -312,22 +327,44 @@ export class TopicContextService {
       assignedTopicId: null,
     });
 
+    const offered = recognized.candidates.filter((c) => c.offered);
+    const trace = {
+      topicCandidates: String(offered.length),
+      ...(recognized.choice ? { topicChoice: recognized.choice } : {}),
+      ...(recognized.confidence !== null
+        ? { topicConfidence: recognized.confidence.toFixed(2) }
+        : {}),
+    };
+
     const topic = topics.find(({ id }) => id === recognized.topicId);
-    if (!topic) return null;
+    if (!topic)
+      return {
+        context: null,
+        trace: {
+          topicOutcome:
+            offered.length && recognized.choice === null
+              ? 'gate_failed'
+              : 'none',
+          ...trace,
+        },
+      };
 
     return {
-      topicId: topic.id,
-      block: renderTopicBlock(
-        topic,
-        claims.filter((claim) => claim.topicId === topic.id),
-        items.filter((item) => item.topicId === topic.id),
-        input.timezone,
-        input.now,
-      ),
+      context: {
+        topicId: topic.id,
+        block: renderTopicBlock(
+          topic,
+          claims.filter((claim) => claim.topicId === topic.id),
+          items.filter((item) => item.topicId === topic.id),
+          input.timezone,
+          input.now,
+        ),
+      },
+      trace: { topicOutcome: 'attached', topicId: topic.id, ...trace },
     };
   }
 
-  private degraded(reason: string, elapsedMs: number): void {
+  private degraded(reason: string, elapsedMs: number): TopicTurnResult {
     this.logger.warn(
       JSON.stringify({
         event: 'topic_context_degraded',
@@ -338,5 +375,14 @@ export class TopicContextService {
           'This turn continues without topic context; check embedding and decision gateway latency.',
       }),
     );
+
+    return {
+      context: null,
+      trace: {
+        topicOutcome: 'degraded',
+        topicReason: reason,
+        topicElapsedMs: String(elapsedMs),
+      },
+    };
   }
 }

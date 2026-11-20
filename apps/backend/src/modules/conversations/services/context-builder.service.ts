@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import { TopicContextService } from '../../topics/topic-context.service';
+import {
+  TopicContextService,
+  type TopicTurnTrace,
+} from '../../topics/topic-context.service';
 import { TOPIC_SETTINGS } from '../../topics/topic-settings';
 import { ActiveNoteService } from './active-note.service';
 import {
@@ -307,6 +310,8 @@ export type BuiltContext = {
   decision?: TurnDecision;
   /** The topic whose context this turn carries, if any. */
   topicId?: string;
+  /** Topic recognition outcome for the trace (TOPIC-OBS-02). */
+  topicTrace?: TopicTurnTrace;
 };
 
 @Injectable()
@@ -686,7 +691,8 @@ export class ContextBuilderService {
     ]);
 
     const decision = await decisionPromise;
-    const topic = await topicPromise;
+    const topicResult = await topicPromise;
+    const topic = topicResult?.context ?? null;
     const turnMessage = decision.dayScope
       ? `${completeTurnContext}\n${dayScopeContext(decision.dayScope, local.date)}`
       : completeTurnContext;
@@ -841,6 +847,14 @@ export class ContextBuilderService {
       tokenUsage,
       decision,
       ...(topic && tokenUsage.topics > 0 ? { topicId: topic.topicId } : {}),
+      ...(topicResult?.trace
+        ? {
+            topicTrace:
+              topic && tokenUsage.topics === 0
+                ? { ...topicResult.trace, topicOutcome: 'no_budget' }
+                : topicResult.trace,
+          }
+        : {}),
     };
   }
 

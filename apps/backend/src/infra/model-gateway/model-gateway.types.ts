@@ -60,6 +60,8 @@ export type GenerateRequest = {
   /** Keep model/token/cost tracing while withholding additional copies of sensitive content. */
   traceContent?: boolean;
   traceName?: string;
+  /** Extra string fields for the generation trace (IDs and scores, not content). */
+  traceMetadata?: Readonly<Record<string, string>>;
   abortSignal?: AbortSignal;
   onTextDelta?: (delta: string) => void;
   onToolCall?: (toolName: string) => void;

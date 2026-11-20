@@ -1351,6 +1351,8 @@ describe('OpenRouterLanguageModel', () => {
       activeTools: () => ['search_documents'],
       onTextDelta: jest.fn(),
       onToolCall: jest.fn(),
+      // Topic recognition fields travel with the tool usage (TOPIC-OBS-02).
+      traceMetadata: { topicOutcome: 'attached', topicId: 'topic-1' },
     });
 
     expect(tracing.updates.at(-1)).toMatchObject({
@@ -1360,6 +1362,8 @@ describe('OpenRouterLanguageModel', () => {
         toolsOfferedCount: '1',
         toolsOffered: 'search_documents',
         toolsCalled: 'search_documents',
+        topicOutcome: 'attached',
+        topicId: 'topic-1',
       },
     });
   });

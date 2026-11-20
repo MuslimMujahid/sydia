@@ -125,6 +125,7 @@ type ExecutionObserver = {
 
 const AssistantTurnState = Annotation.Root({
   selectedToolNames: Annotation<readonly string[] | undefined>(),
+  topicTrace: Annotation<Readonly<Record<string, string>> | undefined>(),
   user: Annotation<TurnUser>(),
   conversation: Annotation<Conversation>(),
   inputMessage: Annotation<Message>(),
@@ -924,6 +925,7 @@ export class AssistantOrchestratorService {
             context: built.messages,
             contextTokenUsage: built.tokenUsage,
             selectedToolNames: built.decision?.toolNames,
+            topicTrace: built.topicTrace,
           };
         } catch (error) {
           this.logger.error(
@@ -989,6 +991,7 @@ export class AssistantOrchestratorService {
               userId: state.user.id,
               conversationId: state.conversation.id,
               runId: state.run.id,
+              ...(state.topicTrace ? { traceMetadata: state.topicTrace } : {}),
               abortSignal,
               tools,
               retrySafeTools: this.toolExecutor.retrySafeTools(),

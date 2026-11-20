@@ -183,7 +183,7 @@ function setup(options: {
             score: 0.6,
             offered: true,
           })),
-          choice: options.choose ?? null,
+          choice: options.choose ?? 'none',
           confidence: 0.9,
           topicId: options.choose ?? null,
         }),
@@ -250,14 +250,17 @@ describe('topic context for a turn', () => {
   it('stays out of turns while the feature is only in shadow mode', async () => {
     const { turn, recognize } = setup({ mode: 'shadow', choose: 't-1' });
 
-    expect(await turn()).toBeNull();
+    expect(await turn()).toEqual({ context: null, trace: null });
     expect(recognize).not.toHaveBeenCalled();
   });
 
   it('stays out when the user turned automatic memory off', async () => {
     const { turn, recognize } = setup({ memory: false, choose: 't-1' });
 
-    expect(await turn()).toBeNull();
+    expect(await turn()).toEqual({
+      context: null,
+      trace: { topicOutcome: 'skipped', topicReason: 'memory_off' },
+    });
     expect(recognize).not.toHaveBeenCalled();
   });
 
@@ -266,8 +269,15 @@ describe('topic context for a turn', () => {
 
     const result = await turn();
 
-    expect(result?.topicId).toBe('t-1');
-    expect(result?.block).toContain('"topic":"Study tour"');
+    expect(result.context?.topicId).toBe('t-1');
+    expect(result.context?.block).toContain('"topic":"Study tour"');
+    expect(result.trace).toEqual({
+      topicOutcome: 'attached',
+      topicId: 't-1',
+      topicCandidates: '2',
+      topicChoice: 't-1',
+      topicConfidence: '0.90',
+    });
     expect(logs).toEqual([
       expect.objectContaining({
         messageId: 'm-1',
@@ -304,7 +314,10 @@ describe('topic context for a turn', () => {
   it('gives no context when recognition chooses none', async () => {
     const { turn } = setup({ choose: null });
 
-    expect(await turn()).toBeNull();
+    expect(await turn()).toMatchObject({
+      context: null,
+      trace: { topicOutcome: 'none', topicChoice: 'none' },
+    });
   });
 
   it('gives up at its deadline instead of holding the turn', async () => {
@@ -315,7 +328,10 @@ describe('topic context for a turn', () => {
       const pending = turn();
       await jest.advanceTimersByTimeAsync(2200);
 
-      expect(await pending).toBeNull();
+      expect(await pending).toMatchObject({
+        context: null,
+        trace: { topicOutcome: 'degraded', topicReason: 'deadline' },
+      });
     } finally {
       jest.useRealTimers();
     }

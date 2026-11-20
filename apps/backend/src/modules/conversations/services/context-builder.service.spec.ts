@@ -275,7 +275,10 @@ describe('ContextBuilderService topics', () => {
 
     const forTurn = jest
       .fn<TopicContextService['forTurn']>()
-      .mockResolvedValue({ topicId: 't-1', block: '{"topic":"Study tour"}' });
+      .mockResolvedValue({
+        context: { topicId: 't-1', block: '{"topic":"Study tour"}' },
+        trace: { topicOutcome: 'attached', topicId: 't-1' },
+      });
 
     const result = await createBuilder(10_000, {
       messages: [message('current', 'user', 'Iuran sudah dibayar')],
@@ -293,6 +296,10 @@ describe('ContextBuilderService topics', () => {
     expect(blockIndex).toBeLessThan(result.messages.length - 1);
     expect(result.messages.at(-1)?.content).toBe('Iuran sudah dibayar');
     expect(result.topicId).toBe('t-1');
+    expect(result.topicTrace).toEqual({
+      topicOutcome: 'attached',
+      topicId: 't-1',
+    });
     expect(result.tokenUsage.topics).toBeGreaterThan(0);
     expect(result.decision?.toolNames).toBeUndefined();
   });
@@ -304,7 +311,7 @@ describe('ContextBuilderService topics', () => {
 
     const forTurn = jest
       .fn<TopicContextService['forTurn']>()
-      .mockResolvedValue(null);
+      .mockResolvedValue({ context: null, trace: { topicOutcome: 'none' } });
 
     const result = await createBuilder(10_000, {
       messages: [message('current', 'user', 'makasih ya')],
@@ -313,6 +320,7 @@ describe('ContextBuilderService topics', () => {
     }).build(user, 'conversation-1', 'current');
 
     expect(result.topicId).toBeUndefined();
+    expect(result.topicTrace).toEqual({ topicOutcome: 'none' });
     expect(result.tokenUsage.topics).toBe(0);
     expect(result.decision?.toolNames).toEqual([]);
   });

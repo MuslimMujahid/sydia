@@ -211,16 +211,21 @@ function cacheUsage(value: unknown): CacheUsage {
 function toolUsageMetadata(
   offered: ReadonlySet<string>,
   called: ReadonlySet<string>,
+  extra?: Readonly<Record<string, string>>,
 ): { metadata?: Record<string, string> } {
-  if (offered.size === 0 && called.size === 0) return {};
+  const tools: Record<string, string> =
+    offered.size === 0 && called.size === 0
+      ? {}
+      : {
+          toolsOfferedCount: String(offered.size),
+          toolsOffered: [...offered].sort().join(','),
+          toolsCalled: [...called].join(','),
+        };
 
-  return {
-    metadata: {
-      toolsOfferedCount: String(offered.size),
-      toolsOffered: [...offered].sort().join(','),
-      toolsCalled: [...called].join(','),
-    },
-  };
+  // The caller's fields (topic recognition, for one) join the tool usage.
+  const metadata = { ...tools, ...extra };
+
+  return Object.keys(metadata).length ? { metadata } : {};
 }
 
 function errorObject(value: unknown): Error {
@@ -955,7 +960,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                   outputTokens: normalizedUsage.outputTokens,
                   ...cache,
                   costUsd: normalizedUsage.costUsd,
-                  ...toolUsageMetadata(offered, executedToolNames),
+                  ...toolUsageMetadata(
+                    offered,
+                    executedToolNames,
+                    request.traceMetadata,
+                  ),
                 });
 
                 if (attempt > 1) {
@@ -1041,7 +1050,11 @@ export class OpenRouterLanguageModel implements LanguageModelGateway {
                 outputTokens: normalizedUsage.outputTokens,
                 ...cache,
                 costUsd: normalizedUsage.costUsd,
-                ...toolUsageMetadata(offered, executedToolNames),
+                ...toolUsageMetadata(
+                  offered,
+                  executedToolNames,
+                  request.traceMetadata,
+                ),
               });
 
               return {
