@@ -275,7 +275,7 @@ All values are provisional and calibrated in shadow mode.
 | Half-life `H`                                               | 14 active days                                        |
 | Similarity floor (active / dormant / dismissed)             | 0.2 / 0.3 / 0.7 (lowered 21 Nov 2026, see section 18) |
 | α, β, γ, δ                                                  | 0.05, 0.1, 0.1, 0.1                                   |
-| Gate base cutoff; disconnect step; cap                      | 0.6; +0.1; +0.3                                       |
+| Gate base cutoff; disconnect step; cap                      | 0.7 (calibrated 21 Nov 2026); +0.1; +0.3              |
 | Dormant threshold; reactivation threshold                   | 0.3; 1.0                                              |
 | Grace period; dismiss after dormant; delete after dismissed | 7 active days; 60 active days; 365 calendar days      |
 | Active topic cap                                            | 50                                                    |
@@ -284,12 +284,12 @@ All values are provisional and calibrated in shadow mode.
 
 ## 14. Rollout
 
-| Phase    | Deliverable                                                                                                                           | Exit criteria                                                                                                                                               |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 (done) | Channel conversations end after 4 idle hours; reminders are not activity (`09e7d35`)                                                  | —                                                                                                                                                           |
-| 1 Shadow | Schema, formation, recognition with `topics` = `shadow` (logged, never injected), active-day clock, memory toggle, export and erasure | On an owner-labeled sample: gate precision ≥ 0.9, correct topic in top 3 ≥ 0.85, and no topic created from a one-off question (targets need owner approval) |
-| 2 Enable | Topic block, `disconnect_topic` (all four scopes), `get_work_context` `topicId`, `work-resumption` update                             | Prompt eval TOPIC-E01–E14 pass on held-out phrasings; disconnect rate per 100 recognitions tracked in production                                            |
-| 3 Refine | Lifecycle sweep and deletion, split, list tool, state rebuild on deletion, topic-aware proactive suggestions                          | Share of dismissed topics later revived stays low                                                                                                           |
+| Phase    | Deliverable                                                                                                                           | Exit criteria                                                                                                                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 (done) | Channel conversations end after 4 idle hours; reminders are not activity (`09e7d35`)                                                  | —                                                                                                                                                                                                                        |
+| 1 Shadow | Schema, formation, recognition with `topics` = `shadow` (logged, never injected), active-day clock, memory toggle, export and erasure | On an owner-labeled sample: gate precision ≥ 0.9, correct topic in top 3 ≥ 0.85, and no topic created from a one-off question. Met on 21 Nov 2026 with a labeled calibration set instead of a shadow period (section 18) |
+| 2 Enable | Topic block, `disconnect_topic` (all four scopes), `get_work_context` `topicId`, `work-resumption` update                             | Prompt eval TOPIC-E01–E14 pass on held-out phrasings; disconnect rate per 100 recognitions tracked in production                                                                                                         |
+| 3 Refine | Lifecycle sweep and deletion, split, list tool, state rebuild on deletion, topic-aware proactive suggestions                          | Share of dismissed topics later revived stays low                                                                                                                                                                        |
 
 Privacy items (TOPIC-PRIV-01, -03, -04) ship in phase 1 because phase 1 already stores topic data.
 
@@ -362,3 +362,17 @@ Verification run on 21 November 2026:
   - Gate: 7 of 7 decisions it was asked to make were right (4 topic choices at 0.96–0.97, 3 "none" at 1.00).
   - Missed recall: the first synonym message ("Karyawisata … bekal") scored similarity 0.32, below the 0.35 floor, while unrelated family messages scored 0.31–0.38 against the same topic. Similarity cannot separate them; the gate can. Floors were lowered to 0.2 (active) and 0.3 (dormant), and every message now logs its top five topics with `offered` true or false, so near misses are visible. After the topic learned "Karyawisata" as an alias, the same kind of message scored 0.56.
   - Claims are now resolved: formation sees each topic's state under short refs (`s1`, `s2`, …) and returns the ones the new messages complete, answer or replace, which are removed before the replacement is recorded. Only the chosen topic's own refs are accepted. Live prompt check: 8 scenarios, 23 of 23 decisions correct over three runs (one run lost a scenario to the provider returning no output, which the job retries).
+
+### Recognition calibration (21 November 2026)
+
+The owner chose a labeled calibration set over a shadow period. `test/topics/topic-recognition-calibration.live.spec.ts` holds one household account with eight topics (two birthdays, two school efforts, one child with both a birthday and braces, a trip, a renovation, a tax payment) and 34 owner-approved messages: 22 that belong to a topic, including English phrasings and context-dependent follow-ups, and 12 that belong to none, including hard negatives that name a family member or share a theme. It runs the production recognition service with real embeddings and the real decision gateway.
+
+| Metric (34 messages × 2 runs)         | Cutoff 0.6 | Cutoff 0.7 (adopted) |
+| ------------------------------------- | ---------- | -------------------- |
+| Gate precision                        | 0.97       | 1.00                 |
+| Correct topic among the three offered | 1.00       | 1.00                 |
+| Gate recall                           | 0.86       | 0.86                 |
+| Wrong topic chosen                    | 0          | 0                    |
+| "None" message accepted as a topic    | 1          | 0                    |
+
+Correct choices scored 0.85–1.00. The only wrong choice ("Kulkas di dapur bunyi aneh" → kitchen renovation) scored 0.56–0.60. The misses are messages that only imply their topic ("Bandung … perlu bawa jaket?", "Dekorasi balon buat hari Minggu", "Tukangnya minta DP"), at 0.36–0.53; missing one leaves the turn as it is today. Similarity separates nothing on its own: hard negatives reached 0.49 while some real matches sat at 0.41–0.44, which confirms the low floors and the gate as the precision check. Keep these messages out of prompts and skill text so the set stays held out.

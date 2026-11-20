@@ -44,10 +44,13 @@ export const DEFAULT_DECISION_THRESHOLDS = {
   dayScope: 0.6,
   /**
    * Confidence the latest message is about an existing topic before it is
-   * accepted (docs/TOPIC_CONTEXT_SPEC.md, TOPIC-RECOG-02). Provisional until
-   * calibrated from shadow-mode logs.
+   * accepted (docs/TOPIC_CONTEXT_SPEC.md, TOPIC-RECOG-02). Owner-approved
+   * calibration of 21 Nov 2026
+   * (test/topics/topic-recognition-calibration.live.spec.ts, 34 labeled
+   * messages x 2 runs): correct choices scored 0.85-1.00, the only wrong one
+   * 0.56-0.60, implied-only matches 0.36-0.53.
    */
-  topicChoice: 0.6,
+  topicChoice: 0.7,
 } as const;
 /**
  * Thresholds that no longer apply but may still be set in deployed

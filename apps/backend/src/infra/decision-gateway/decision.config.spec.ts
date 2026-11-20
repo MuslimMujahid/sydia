@@ -40,7 +40,7 @@ describe('decision configuration', () => {
       factDurable: 0.75,
       cellStated: 0.4,
       dayScope: 0.6,
-      topicChoice: 0.6,
+      topicChoice: 0.7,
     });
     expect(() =>
       validateDecisionEnvironment({
