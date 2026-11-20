@@ -15,6 +15,8 @@ bunx expo install <package>  # ALWAYS use instead of `bun add` — picks SDK-com
 bun run start                # Metro dev server (scan the QR code with Expo Go or a dev build)
 bun run lint                 # ESLint (eslint-config-expo), zero warnings
 bun run check-types          # tsc --noEmit
+bun run test                 # Bun unit tests
+bun run build:editor         # rebuild the embedded Tiptap HTML after editing editor/
 bun run doctor               # expo-doctor
 ```
 
@@ -26,6 +28,7 @@ Do not start Metro through `bun --filter mobile start` or `turbo run`. They run 
 
 1. Run `bun run setup-env` from the repository root; it symlinks `apps/mobile/.env` to the shared root `.env`. Only `EXPO_PUBLIC_*` variables are inlined into the app bundle. Set `EXPO_PUBLIC_API_URL` in the root `.env` to the backend URL **as seen from the device**: your computer's LAN IP on a phone, `http://10.0.2.2:5000` on the Android emulator. `localhost` works only in the iOS simulator. On WSL2, the phone cannot reach WSL directly unless mirrored networking or a Windows port proxy is set up.
 2. Run the backend with `NODE_ENV=development` so it trusts the Expo Go `exp://` origins (see `apps/backend/src/shared/mobile-origins.ts`).
+3. Set `EXPO_PUBLIC_WEB_URL` to your device-reachable web URL for Google Calendar consent and Google account reauthentication. Set `EXPO_PUBLIC_WHATSAPP_ENABLED=true` when the backend has WhatsApp enabled.
 
 ## Structure
 
@@ -38,7 +41,7 @@ Do not start Metro through `bun --filter mobile start` or `turbo run`. They run 
 
 - `src/lib/auth-client.ts` is the only Better Auth client. The Expo plugin stores the session cookie in SecureStore; never store tokens yourself.
 - Auth gating happens in `src/app/_layout.tsx` with `Stack.Protected`. Add signed-in screens inside the `isSignedIn` guard.
-- `src/lib/api.ts` is the Axios client for the REST API. It attaches the session cookie manually because React Native has no cookie jar. Mirror the frontend's service conventions (`apps/frontend/src/lib/services/api/AGENTS.md`) and its `toApiError` fallback messages.
+- `src/lib/services/api/api.ts` is the Axios client for the REST API. It attaches the session cookie manually because React Native has no cookie jar. Mirror the frontend's service conventions (`apps/frontend/src/lib/services/api/AGENTS.md`) and its `toApiError` fallback messages.
 - The app scheme is `sydia`. If you change it in `app.json`, update `MOBILE_APP_SCHEME` in the backend too.
 
 ## Native code and dependencies

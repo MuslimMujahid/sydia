@@ -1,0 +1,131 @@
+import assert from "node:assert/strict";
+import { describe, it } from "bun:test";
+import type { ToolInvocation } from "@/lib/services/api/conversations/conversations.api";
+import { collectChatEntities } from "./chat-entities";
+import { parseAssistantMarkdown } from "@/components/markdown/markdown-model";
+
+function tool(
+  name: string,
+  output: ToolInvocation["output"],
+  status: ToolInvocation["status"] = "completed"
+): ToolInvocation {
+  return {
+    id: "call",
+    assistantRunId: "run",
+    name,
+    label: name,
+    status,
+    output,
+    objectId: null,
+    objectType: null,
+    state: null,
+    createdAt: "2026-10-18T08:00:00Z",
+    updatedAt: "2026-10-18T08:00:00Z",
+  };
+}
+
+describe("confirmed note references", () => {
+  it("does not report a missing reference for a deferred note write", () => {
+    const result = collectChatEntities([
+      tool("write_daily_note", {
+        status: "deferred",
+        reason: "note_open",
+        workId: "pending-1",
+        saved: false,
+      }),
+    ]);
+
+    assert.deepEqual(result.entities, []);
+    assert.deepEqual(result.diagnostics, []);
+  });
+
+  it("turns the previously plain custom-note title into a confirmed mention", () => {
+    const { entities } = collectChatEntities([
+      tool("search_notes", {
+        notes: [
+          { ref: "custom:design", title: "Keputusan desain", kind: "note" },
+        ],
+      }),
+    ]);
+
+    assert.deepEqual(
+      [...parseAssistantMarkdown("**Keputusan desain**", entities).mentioned],
+      ["note:custom:design"]
+    );
+  });
+
+  it("uses identity to distinguish notes with identical titles", () => {
+    const { entities } = collectChatEntities([
+      tool("search_notes", {
+        notes: [
+          { ref: "custom:a", title: "Design" },
+          { ref: "custom:b", title: "Design" },
+        ],
+      }),
+    ]);
+
+    assert.deepEqual(
+      [
+        ...parseAssistantMarkdown("[Design](#note/custom%3Ab)", entities)
+          .mentioned,
+      ],
+      ["note:custom:b"]
+    );
+  });
+
+  it("normalizes dated search results without database IDs", () => {
+    const { entities } = collectChatEntities([
+      tool("search_daily_notes", {
+        notes: [{ date: "2026-10-18", passage: "Meeting" }],
+      }),
+    ]);
+
+    assert.equal(entities[0]?.id, "daily:2026-10-18");
+  });
+
+  it("normalizes a daily write as a mutation", () => {
+    const { entities } = collectChatEntities([
+      tool("write_daily_note", {
+        date: "2026-10-18",
+        noteId: "row",
+        written: "Meeting",
+      }),
+    ]);
+
+    assert.equal(entities[0]?.mutation, true);
+    assert.equal(entities[0]?.id, "daily:2026-10-18");
+  });
+
+  it("does not expose folders, trash, absent days, or failed tools", () => {
+    const { entities } = collectChatEntities([
+      tool(
+        "create_custom_note",
+        { id: "a", title: "Design", kind: "note" },
+        "failed"
+      ),
+      tool("manage_notes_item", {
+        id: "folder",
+        title: "Folder",
+        kind: "folder",
+      }),
+      tool("manage_notes_item", {
+        id: "a",
+        title: "Design",
+        kind: "note",
+        trashedAt: "2026-10-18T08:00:00Z",
+      }),
+      tool("read_daily_note", { date: "2026-10-18", found: false }),
+    ]);
+
+    assert.deepEqual(entities, []);
+  });
+
+  it("rejects malformed daily dates rather than creating a guessed reference", () => {
+    const result = collectChatEntities([
+      tool("read_daily_note", { date: "2026-02-31", found: true }),
+    ]);
+
+    assert.deepEqual(result.entities, []);
+    assert.equal(result.diagnostics.length, 1);
+  });
+});
