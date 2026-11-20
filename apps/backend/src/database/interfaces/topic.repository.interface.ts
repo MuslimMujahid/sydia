@@ -102,6 +102,8 @@ export interface ITopicRepository {
     claims: readonly NewTopicClaim[],
     limit: Readonly<Record<TopicClaimKind, number>>,
   ): Promise<void>;
+  /** Removes claims of one topic (resolved by later messages). */
+  removeClaims(topicId: string, claimIds: readonly string[]): Promise<void>;
   /** Records an event once per topic, episode and kind; false when it existed. */
   recordEvent(input: NewTopicEvent): Promise<boolean>;
   conversationState(

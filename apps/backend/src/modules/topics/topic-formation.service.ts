@@ -364,6 +364,24 @@ export class TopicFormationService {
     items: ReadonlyArray<{ item: TopicItemRef; title: string | null }>,
   ) {
     let userIndex = 0;
+    // Short refs stand for claim ids, so the model never handles raw ids.
+    const refToClaim = new Map<string, string>();
+    const stateRefs = new Map<string, Set<string>>();
+    const stateOf = (topicId: string) =>
+      claims
+        .filter((claim) => claim.topicId === topicId)
+        .slice(0, TOPIC_SETTINGS.formationStatePerTopic)
+        .map(({ id, kind, text }) => {
+          const ref = `s${refToClaim.size + 1}`;
+          refToClaim.set(ref, id);
+          stateRefs.set(
+            topicId,
+            (stateRefs.get(topicId) ?? new Set()).add(ref),
+          );
+
+          return { ref, kind, text };
+        });
+
     const result = await this.model.generate({
       userId: segment.episode.userId,
       conversationId: segment.episode.conversationId,
@@ -379,10 +397,7 @@ export class TopicFormationService {
               id: topic.id,
               label: topic.label,
               aliases: topic.aliases,
-              state: claims
-                .filter((claim) => claim.topicId === topic.id)
-                .slice(0, 4)
-                .map(({ kind, text }) => ({ kind, text })),
+              state: stateOf(topic.id),
             })),
             messages: segment.messages.map(({ role, content }) => ({
               ...(role === 'user' ? { userMessageIndex: userIndex++ } : {}),
@@ -399,10 +414,22 @@ export class TopicFormationService {
       ],
     });
 
-    return parseTopicExtraction(result.text, {
+    const extraction = parseTopicExtraction(result.text, {
       items: items.length,
       userMessages: segment.userMessages.length,
+      stateRefs,
     });
+
+    return extraction.action === 'none'
+      ? extraction
+      : {
+          ...extraction,
+          resolved: extraction.resolved.flatMap((ref) => {
+            const id = refToClaim.get(ref);
+
+            return id ? [id] : [];
+          }),
+        };
   }
 
   private async apply(
@@ -471,6 +498,11 @@ export class TopicFormationService {
       'touched',
     );
 
+    // Statements the new messages completed, answered or replaced (resolved
+    // holds claim ids here) go before the new ones are added.
+    if (!context.isNew && extraction.resolved.length)
+      await this.topics.removeClaims(topic.id, extraction.resolved);
+
     const newClaims: NewTopicClaim[] = extraction.claims.map((claim) => ({
       kind: claim.kind,
       text: claim.text,
@@ -502,7 +534,12 @@ export class TopicFormationService {
       salience: update.salience ?? topic.salience,
     });
 
-    if (context.isNew || update.aliases || newClaims.length) {
+    if (
+      context.isNew ||
+      update.aliases ||
+      newClaims.length ||
+      extraction.resolved.length
+    ) {
       const embedding = await this.embed(topic, aliases, newClaims);
       if (embedding) update.embedding = embedding;
     }

@@ -137,6 +137,14 @@ class MemoryTopicRepository implements ITopicRepository {
     return Promise.resolve();
   }
 
+  removeClaims(topicId: string, claimIds: readonly string[]) {
+    this.claimRows = this.claimRows.filter(
+      (claim) => claim.topicId !== topicId || !claimIds.includes(claim.id),
+    );
+
+    return Promise.resolve();
+  }
+
   recordEvent(input: NewTopicEvent) {
     if (
       this.events.some(
@@ -191,7 +199,15 @@ class MemoryTopicRepository implements ITopicRepository {
   }
 }
 
+type Payload = {
+  topics: Array<{
+    id: string;
+    state: Array<{ ref: string; kind: string; text: string }>;
+  }>;
+};
+
 type Extraction = {
+  resolved?: string[];
   action: 'existing' | 'new' | 'none';
   topicId?: string;
   label?: string;
@@ -213,10 +229,13 @@ function setup(
   } = {},
 ) {
   const repository = new MemoryTopicRepository();
-  const outputs: Extraction[] = [];
+  const outputs: Array<Extraction | ((payload: Payload) => Extraction)> = [];
   const generate = jest.fn((request: GenerateRequest) => {
-    void request;
-    const next = outputs.shift() ?? { action: 'none' };
+    const queued = outputs.shift() ?? { action: 'none' };
+    const next =
+      typeof queued === 'function'
+        ? queued(JSON.parse(request.messages[1]?.content as string) as Payload)
+        : queued;
 
     return Promise.resolve({
       text: JSON.stringify({
@@ -476,6 +495,68 @@ describe('topic formation', () => {
         accepted: true,
         assignedTopicId: 'topic-1',
       }),
+    ]);
+  });
+
+  it('replaces a step the user finished and ignores refs of other topics', async () => {
+    const { service, repository, outputs, say } = setup();
+    say('Study tour Selasa, iuran harus dibayar Jumat', at(0));
+    outputs.push({
+      action: 'new',
+      label: 'Study tour',
+      claims: [
+        {
+          kind: 'next_step',
+          text: 'Bayar iuran Jumat',
+          explicit: true,
+          messageIndex: 0,
+        },
+      ],
+    });
+    await run(service);
+    say('Pesta Raka hari Minggu di rumah', at(6));
+    outputs.push({
+      action: 'new',
+      label: 'Pesta Raka',
+      claims: [
+        {
+          kind: 'decision',
+          text: 'Pesta di rumah',
+          explicit: true,
+          messageIndex: 0,
+        },
+      ],
+    });
+    await run(service);
+
+    say('Iuran study tour sudah aku transfer', at(12));
+    outputs.push((payload) => {
+      const refOf = (text: string) =>
+        payload.topics
+          .flatMap((topic) => topic.state)
+          .find((entry) => entry.text === text)!.ref;
+
+      return {
+        action: 'existing',
+        topicId: 'topic-1',
+        resolved: [refOf('Bayar iuran Jumat'), refOf('Pesta di rumah')],
+        claims: [
+          {
+            kind: 'decision',
+            text: 'Iuran sudah ditransfer',
+            explicit: true,
+            messageIndex: 0,
+          },
+        ],
+      };
+    });
+    await run(service);
+
+    expect(
+      repository.claimRows.map(({ topicId, text }) => [topicId, text]),
+    ).toEqual([
+      ['topic-1', 'Iuran sudah ditransfer'],
+      ['topic-2', 'Pesta di rumah'],
     ]);
   });
 

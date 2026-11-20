@@ -79,7 +79,7 @@ After a turn completes, as a background job debounced per conversation (about 2 
 
 ### TOPIC-FORM-03: Assign, create or skip
 
-An extraction call proposes: assign to an existing topic, start a new one (label, aliases), or none; plus state updates with evidence. Deterministic rules then apply:
+An extraction call proposes: assign to an existing topic, start a new one (label, aliases), or none; plus state updates with evidence, and which existing state statements the new messages complete, answer or replace (those are removed). Deterministic rules then apply:
 
 - **Assign** links the touched items, updates state and records a salience event.
 - **Create** a `candidate` topic. It becomes `active` only when it has at least one linked active item (pending reminder, open task, upcoming event), or the same subject appears in a second episode. A one-off question never becomes a topic. Unconfirmed candidates expire after 30 days.
@@ -361,4 +361,4 @@ Verification run on 21 November 2026:
   - Correct: a new effort created an active topic linked to its reminder; "makasih" and a capital-city question formed nothing; a mother's and a son's birthday stayed separate topics, and a later "kue ultah Raka" went to the son's; a cross-language synonym, a progress update and a travel question went to the study tour; a haircut question went nowhere; a message with a password left no trace; the memory-off account formed nothing and its cursor moved on.
   - Gate: 7 of 7 decisions it was asked to make were right (4 topic choices at 0.96–0.97, 3 "none" at 1.00).
   - Missed recall: the first synonym message ("Karyawisata … bekal") scored similarity 0.32, below the 0.35 floor, while unrelated family messages scored 0.31–0.38 against the same topic. Similarity cannot separate them; the gate can. Floors were lowered to 0.2 (active) and 0.3 (dormant), and every message now logs its top five topics with `offered` true or false, so near misses are visible. After the topic learned "Karyawisata" as an alias, the same kind of message scored 0.56.
-  - Open gap: state claims are only added, never resolved. After "iuran sudah ditransfer", the topic still lists "bayar iuran paling lambat Jumat" as a next step. Formation should mark listed claims as done or obsolete before phase 2 shows state to the assistant.
+  - Claims are now resolved: formation sees each topic's state under short refs (`s1`, `s2`, …) and returns the ones the new messages complete, answer or replace, which are removed before the replacement is recorded. Only the chosen topic's own refs are accepted. Live prompt check: 8 scenarios, 23 of 23 decisions correct over three runs (one run lost a scenario to the provider returning no output, which the job retries).

@@ -23,7 +23,14 @@ const studyTour = {
   id: 'topic-study-tour',
   label: 'Study tour anak',
   aliases: ['karyawisata'],
-  state: [{ kind: 'open_question', text: 'Iuran Rp350 rb belum dibayar' }],
+  state: [
+    {
+      ref: 's1',
+      kind: 'next_step',
+      text: 'Bayar iuran Rp350 rb paling lambat Jumat',
+    },
+    { ref: 's2', kind: 'open_question', text: 'Bekal apa yang perlu dibawa?' },
+  ],
 };
 
 type Scenario = {
@@ -35,6 +42,51 @@ type Scenario = {
 };
 
 const SCENARIOS: Scenario[] = [
+  {
+    name: 'a finished step is resolved and the open question kept',
+    topics: [studyTour],
+    messages: [
+      {
+        role: 'user',
+        content: 'Iuran study tour udah aku transfer tadi siang',
+      },
+    ],
+    check(result) {
+      expect(result.action).toBe('existing');
+      if (result.action === 'none') return;
+      expect(result.resolved).toEqual(['s1']);
+      expect(result.claims.length).toBeGreaterThan(0);
+    },
+  },
+  {
+    name: 'a changed decision replaces the old one',
+    topics: [
+      {
+        id: 'topic-raka',
+        label: 'Ulang tahun Raka',
+        aliases: [],
+        state: [
+          { ref: 's1', kind: 'decision', text: 'Pesta di rumah hari Minggu' },
+          { ref: 's2', kind: 'next_step', text: 'Beli kue hari Sabtu' },
+        ],
+      },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content:
+          'Pesta Raka nggak jadi di rumah, pindah ke restoran dekat sekolah aja',
+      },
+    ],
+    check(result) {
+      expect(result.action).toBe('existing');
+      if (result.action === 'none') return;
+      expect(result.resolved).toEqual(['s1']);
+      expect(result.claims.some((claim) => claim.kind === 'decision')).toBe(
+        true,
+      );
+    },
+  },
   {
     name: 'a new ongoing effort links the item made for it',
     topics: [],
@@ -95,7 +147,9 @@ const SCENARIOS: Scenario[] = [
         id: 'topic-raka',
         label: 'Ulang tahun Raka',
         aliases: ['ultah Raka'],
-        state: [{ kind: 'decision', text: 'Pesta di rumah hari Minggu' }],
+        state: [
+          { ref: 's3', kind: 'decision', text: 'Pesta di rumah hari Minggu' },
+        ],
       },
     ],
     messages: [
@@ -162,9 +216,24 @@ const SCENARIOS: Scenario[] = [
         ],
       });
 
+      const stateRefs = new Map(
+        (
+          scenario.topics as Array<{
+            id: string;
+            state: Array<{ ref?: string }>;
+          }>
+        ).map((topic) => [
+          topic.id,
+          new Set(
+            topic.state.flatMap((entry) => (entry.ref ? [entry.ref] : [])),
+          ),
+        ]),
+      );
+
       const parsed = parseTopicExtraction(result.text, {
         items: items.length,
         userMessages: userIndex,
+        stateRefs,
       });
 
       process.stdout.write(`${scenario.name}: ${JSON.stringify(parsed)}\n`);

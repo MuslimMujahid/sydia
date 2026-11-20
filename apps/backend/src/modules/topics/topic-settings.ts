@@ -40,6 +40,8 @@ export const TOPIC_SETTINGS = {
   } satisfies Record<TopicClaimKind, number>,
   /** Existing topics shown to the formation model. */
   formationTopicLimit: 8,
+  /** State statements shown per topic, newest first; all are resolvable. */
+  formationStatePerTopic: 8,
   /** Debounce after a turn before formation runs (TOPIC-FORM-01). */
   formationDelayMs: 2 * 60_000,
   /** Characters of each message the formation model reads. */

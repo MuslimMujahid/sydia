@@ -203,6 +203,14 @@ export class PrismaTopicRepository implements ITopicRepository {
     });
   }
 
+  async removeClaims(topicId: string, claimIds: readonly string[]) {
+    if (!claimIds.length) return;
+
+    await this.prisma.topicClaim.deleteMany({
+      where: { topicId, id: { in: [...claimIds] } },
+    });
+  }
+
   async recordEvent(input: NewTopicEvent): Promise<boolean> {
     const { count } = await this.prisma.topicEvent.createMany({
       data: [input],

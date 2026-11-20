@@ -28,6 +28,7 @@ describe('topic extraction parsing', () => {
       label: null,
       aliases: ['karyawisata'],
       linkedItems: [1],
+      resolved: [],
       claims: [
         {
           kind: 'decision',
@@ -74,6 +75,30 @@ describe('topic extraction parsing', () => {
       linkedItems: [0],
       claims: [{ kind: 'next_step', text: 'Bayar Jumat', messageIndex: 0 }],
     });
+  });
+
+  it("keeps only resolutions of the chosen topic's own statements", () => {
+    const stateRefs = new Map([
+      ['t-1', new Set(['s1', 's2'])],
+      ['t-2', new Set(['s3'])],
+    ]);
+
+    const parsed = parseTopicExtraction(
+      JSON.stringify({
+        action: 'existing',
+        topicId: 't-1',
+        resolved: ['s2', 's3', 's9', 's2'],
+      }),
+      { ...bounds, stateRefs },
+    );
+
+    expect(parsed).toMatchObject({ resolved: ['s2'] });
+    expect(
+      parseTopicExtraction(
+        JSON.stringify({ action: 'new', label: 'Baru', resolved: ['s1'] }),
+        { ...bounds, stateRefs },
+      ),
+    ).toMatchObject({ resolved: [] });
   });
 
   it('fails loudly on output that is not JSON, so the job retries', () => {
