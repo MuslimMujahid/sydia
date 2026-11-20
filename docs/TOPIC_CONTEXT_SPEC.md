@@ -3,7 +3,7 @@
 | Field        | Value                                                                                                                          |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | Date         | 21 November 2026                                                                                                               |
-| Status       | Phase 1 (shadow) implemented; see section 18                                                                                   |
+| Status       | Phases 1 and 2 implemented; see sections 18 and 19                                                                             |
 | Scope        | Implicit topics per user, across channels: formation, recognition, related active items, disconnecting, ranking and retirement |
 | Prerequisite | Channel conversations end after 4 idle hours; reminders do not count as activity (`09e7d35`, done)                             |
 | Related      | [Proactive secretary](./PROACTIVE_SECRETARY_SPEC.md) SEC-01–03, [Memory system](./MEMORY_SYSTEM.md)                            |
@@ -376,3 +376,33 @@ The owner chose a labeled calibration set over a shadow period. `test/topics/top
 | "None" message accepted as a topic    | 1          | 0                    |
 
 Correct choices scored 0.85–1.00. The only wrong choice ("Kulkas di dapur bunyi aneh" → kitchen renovation) scored 0.56–0.60. The misses are messages that only imply their topic ("Bandung … perlu bawa jaket?", "Dekorasi balon buat hari Minggu", "Tukangnya minta DP"), at 0.36–0.53; missing one leaves the turn as it is today. Similarity separates nothing on its own: hard negatives reached 0.49 while some real matches sat at 0.41–0.44, which confirms the low floors and the gate as the precision check. Keep these messages out of prompts and skill text so the set stays held out.
+
+## 19. Phase 2 implementation notes
+
+Turned on per user with `BACKEND_TOPIC_RECOGNITION_MODE=enabled`, which (like other decision features) applies only to users in `BACKEND_DECISION_COHORT` and needs `BACKEND_DECISION_CALIBRATION_VERSION`. Users outside the cohort stay in shadow behavior.
+
+- **Recognition on the turn** (`TopicContextService`): runs beside the turn decision as its own interactive gate request rather than as a question inside it, so its embedding call never delays the turn decision. It gives up after the interactive decision timeout plus 1.5 s (a fixed 2.5 s cut off 2 of 13 live turns while the gate was still answering) and the turn continues without a topic. It excludes topics suppressed in the current episode, uses episode stickiness from the formation state, and adds urgency from fresh item reads and the decayed disconnect penalty. The result is logged to `topic_recognition_log`, and formation reuses it instead of asking the gate again.
+- **Topic block:** topic id, label, aliases, state (decisions, next steps, open questions) and up to six linked items read fresh, owner-local times, TOPIC-RANK-05 order, at most 500 tokens, placed with the other reference blocks after history. A turn with a block keeps every tool, as open notes and awaiting reminders already do. The usage guidance travels in the block, so the stable system prompt and its cache are unchanged.
+- **`disconnect_topic`** in its own tool group (`topics`), which the gate does not route. Scopes as in TOPIC-DISC-01; episode disconnects take back the episode's credit, apply the −1 penalty and raise the topic's gate cutoff by 0.1 (cap 0.3).
+- **Completion is also detected by formation.** Live, the chat model twice acknowledged "study tour sudah selesai" ("topiknya sudah tuntas") without calling `topic_complete`, so the extraction now reports `completed` when the user says the whole effort is over and formation closes the topic. The tool scope remains for explicit requests.
+- **Formation skips messages that led to a `disconnect_topic` call.** Found live: after "lupakan semua soal pesta Raka" deleted the son's party topic, formation reread the message, attached it to the remaining "Raka" topic (a nephew's birthday) and closed that one.
+- **Claims use calendar dates.** Formation now sees each message's owner-local send date; "Minggu depan" sent on Saturday 21 November is stored as Sunday 29 November 2026 instead of a relative phrase that drifts.
+- **Extraction runs at medium reasoning effort with 2,000 output tokens.** With the deployment's default high effort, DeepSeek V4.1 Flash spent the 800-token limit reasoning and returned no output on about one in seven calls; low effort dropped user dates from claims.
+- **Not built yet:** lifting an episode suppression when the user brings the topic back; the topic list tool, split and the lifecycle sweep, candidate expiry and topic cap (phase 3).
+- **Scope note on TOPIC-E03:** a conflict is caught when the message is about the topic (its items are in the block). A plan that only collides with a topic, and whose date exists only as a claim rather than a calendar event, is not recognized as that topic and is not checked by `check_availability`. Live, "berenang hari Minggu tanggal 29" was not linked to Raka's party on the 29th.
+
+### Live verification (21 November 2026)
+
+A temporary API with topics enabled only for a QA parent account, against the dev database, with the dev worker forming topics.
+
+| Scenario                                                                                                          | Result                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Duplicate reminder request for a linked item (TOPIC-E04)                                                          | Recognized at 0.98; no duplicate created; the existing reminder was named and the paid fee from the topic state mentioned                                        |
+| Unrelated message (TOPIC-E05)                                                                                     | No topic (1.00); no recap                                                                                                                                        |
+| Same-name confusion, then "bukan, ini Raka keponakanku" (TOPIC-E07)                                               | Recognized at 0.94 and used the topic state; `disconnect_topic` (episode) suppressed it, penalty and cutoff applied; the follow-up in the same chat had no topic |
+| One item that does not belong (TOPIC-E09)                                                                         | `disconnect_topic` (item) removed the link (the assistant also renamed the reminder unasked — general assistant behavior)                                        |
+| "Study tour … sudah selesai" (TOPIC-E10)                                                                          | Recognized at 0.86–0.96; closed by formation as completed; a later vague mention was not linked (0.54)                                                           |
+| "Lupakan semua soal pesta Raka" (TOPIC-E11)                                                                       | `disconnect_topic` (topic_forget) deleted the topic                                                                                                              |
+| Ambiguous or merely related messages (flood in Bandung, a family trip to Bandung, a fee that might be the trip's) | Not linked: the gate stayed under 0.7 (0.38–0.67); corrections created new topics ("Acara keluarga ke Bandung", "Iuran arisan RT")                               |
+
+Formation prompt check after these changes: 10 scenarios, 30 of 30 over three runs. Recognition calibration unchanged: precision 1.00, correct topic in the top three 1.00.

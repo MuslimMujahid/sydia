@@ -30,6 +30,20 @@ export const TOPIC_SETTINGS = {
     disconnect: 0.1,
   },
   candidatesPerTurn: 3,
+  /** Gate cutoff added per disconnect, and its cap (TOPIC-RANK-04). */
+  disconnectStep: 0.1,
+  disconnectCap: 0.3,
+  /** Urgency counts items due within this many days (TOPIC-RANK-03). */
+  urgencyHorizonDays: 30,
+  /** Linked items shown per topic in the context block. */
+  blockItems: 6,
+  /** Token budget of the topic block. */
+  blockTokens: 500,
+  /**
+   * Added to the interactive decision timeout for the embedding and reads
+   * that run before the gate call; past it the turn goes without a topic.
+   */
+  turnEmbeddingHeadroomMs: 1500,
   /** A topic untouched this long counts as "returned to" (weight 1.5). */
   returnedAfterMs: 7 * 24 * 60 * 60_000,
   /** Newest claims kept per kind (TOPIC-DATA-01 keeps state bounded). */

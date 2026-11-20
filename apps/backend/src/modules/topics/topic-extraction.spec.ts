@@ -29,6 +29,7 @@ describe('topic extraction parsing', () => {
       aliases: ['karyawisata'],
       linkedItems: [1],
       resolved: [],
+      completed: false,
       claims: [
         {
           kind: 'decision',
@@ -99,6 +100,18 @@ describe('topic extraction parsing', () => {
         { ...bounds, stateRefs },
       ),
     ).toMatchObject({ resolved: [] });
+  });
+
+  it('marks an effort completed only for an existing topic', () => {
+    expect(
+      parse({ action: 'existing', topicId: 't-1', completed: true }),
+    ).toMatchObject({ completed: true });
+    expect(
+      parse({ action: 'new', label: 'Baru', completed: true }),
+    ).toMatchObject({ completed: false });
+    expect(parse({ action: 'existing', topicId: 't-1' })).toMatchObject({
+      completed: false,
+    });
   });
 
   it('fails loudly on output that is not JSON, so the job retries', () => {

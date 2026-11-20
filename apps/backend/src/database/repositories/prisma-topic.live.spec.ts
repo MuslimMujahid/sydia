@@ -282,4 +282,193 @@ const at = new Date('2026-11-21T02:00:00.000Z');
     expect(await db.topic.count({ where: { id: topic.id } })).toBe(0);
     expect(await db.topicClaim.count({ where: { topicId: topic.id } })).toBe(0);
   });
+
+  test('reads linked items fresh, owner-scoped, without deleted or trashed ones', async () => {
+    const topic = await newTopic();
+    const now = new Date();
+    const later = new Date(now.getTime() + 2 * 86_400_000);
+    const pending = await db.reminder.create({
+      data: {
+        userId,
+        title: 'Bayar iuran',
+        scheduledAt: later,
+        timezone: 'Asia/Jakarta',
+      },
+      select: { id: true },
+    });
+
+    const past = await db.reminder.create({
+      data: {
+        userId,
+        title: 'Lama',
+        scheduledAt: new Date(now.getTime() - 86_400_000),
+        timezone: 'Asia/Jakarta',
+      },
+      select: { id: true },
+    });
+
+    const done = await db.task.create({
+      data: { userId, title: 'Beli tas', status: 'done', completedAt: now },
+      select: { id: true },
+    });
+
+    const cancelled = await db.calendarEvent.create({
+      data: {
+        userId,
+        title: 'Rapat',
+        startAt: later,
+        endAt: new Date(later.getTime() + 3_600_000),
+        status: 'cancelled',
+      },
+      select: { id: true },
+    });
+
+    const trashed = await db.workspaceItem.create({
+      data: {
+        userId,
+        kind: 'note',
+        title: 'Dibuang',
+        trashedAt: now,
+        content: { type: 'doc', content: [] },
+      },
+      select: { id: true },
+    });
+
+    const otherUser = `${userId}-other`;
+    await db.user.create({
+      data: {
+        id: otherUser,
+        name: 'Other',
+        email: `${otherUser}@example.test`,
+        emailVerified: true,
+        timezone: 'Asia/Jakarta',
+        locale: 'id',
+      },
+    });
+    const foreign = await db.reminder.create({
+      data: {
+        userId: otherUser,
+        title: 'Punya orang',
+        scheduledAt: later,
+        timezone: 'Asia/Jakarta',
+      },
+      select: { id: true },
+    });
+
+    try {
+      await topics.linkItems(
+        topic.id,
+        [
+          { type: 'reminder', id: pending.id },
+          { type: 'reminder', id: past.id },
+          { type: 'task', id: done.id },
+          { type: 'calendar_event', id: cancelled.id },
+          { type: 'note', id: `custom:${trashed.id}` },
+          { type: 'reminder', id: foreign.id },
+          { type: 'reminder', id: 'deleted-reminder' },
+        ],
+        'touched',
+      );
+
+      const items = await topics.linkedItems(userId, [topic.id], now);
+      const byTitle = Object.fromEntries(
+        items.map((item) => [item.title, item]),
+      );
+
+      expect(Object.keys(byTitle).sort()).toEqual([
+        'Bayar iuran',
+        'Beli tas',
+        'Lama',
+        'Rapat',
+      ]);
+      expect(byTitle['Bayar iuran']).toMatchObject({
+        active: true,
+        status: 'pending',
+        when: later,
+      });
+      expect(byTitle.Lama).toMatchObject({ active: false, status: 'past' });
+      expect(byTitle['Beli tas']).toMatchObject({
+        active: false,
+        status: 'done',
+      });
+      expect(byTitle.Rapat).toMatchObject({
+        active: false,
+        status: 'cancelled',
+      });
+    } finally {
+      await db.user.deleteMany({ where: { id: otherUser } });
+    }
+  });
+
+  test('suppresses a topic from a point in the conversation on', async () => {
+    const topic = await newTopic();
+    const before = new Date(Date.now() - 1000);
+    await topics.suppress(topic.id, conversationId);
+
+    expect(await topics.suppressedTopicIds(conversationId, before)).toEqual([
+      topic.id,
+    ]);
+    expect(
+      await topics.suppressedTopicIds(
+        conversationId,
+        new Date(Date.now() + 60_000),
+      ),
+    ).toEqual([]);
+  });
+
+  test('removes a link once and keeps it from coming back', async () => {
+    const topic = await newTopic();
+    const reminder = { type: 'reminder' as const, id: 'r-1' };
+    await topics.linkItems(topic.id, [reminder], 'touched');
+
+    expect(await topics.removeLink(userId, topic.id, reminder)).toBe(true);
+    expect(await topics.removeLink(userId, topic.id, reminder)).toBe(false);
+    expect(await topics.linkItems(topic.id, [reminder], 'touched')).toBe(0);
+    expect(await topics.removeLink('someone-else', topic.id, reminder)).toBe(
+      false,
+    );
+  });
+
+  test('deletes a topic with everything derived for it, only for its owner', async () => {
+    const topic = await newTopic();
+    await topics.linkItems(topic.id, [{ type: 'task', id: 't-1' }], 'touched');
+    await topics.suppress(topic.id, conversationId);
+
+    expect(await topics.deleteTopic('someone-else', topic.id)).toBe(false);
+    expect(await topics.deleteTopic(userId, topic.id)).toBe(true);
+    expect(await db.topicLink.count({ where: { topicId: topic.id } })).toBe(0);
+    expect(
+      await db.topicSuppression.count({ where: { topicId: topic.id } }),
+    ).toBe(0);
+  });
+
+  test('returns the recognition logged during a turn', async () => {
+    const current = await message('Iuran study tour', at);
+    await topics.logRecognition({
+      userId,
+      conversationId,
+      messageId: current.id,
+      mode: 'enabled',
+      candidates: [
+        {
+          topicId: 't-1',
+          status: 'active',
+          similarity: 0.6,
+          salience: 1,
+          score: 0.65,
+          offered: true,
+        },
+      ],
+      choice: 't-1',
+      confidence: 0.9,
+      accepted: true,
+      assignedTopicId: null,
+    });
+
+    expect(await topics.recognitionFor(current.id)).toMatchObject({
+      choice: 't-1',
+      topicId: 't-1',
+      candidates: [expect.objectContaining({ topicId: 't-1', offered: true })],
+    });
+  });
 });

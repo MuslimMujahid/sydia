@@ -868,6 +868,7 @@ describe('AssistantOrchestratorService', () => {
         memory: 0,
         summary: 0,
         recentConversations: 0,
+        topics: 0,
         history: 0,
         turnContext: 0,
         total: 10,

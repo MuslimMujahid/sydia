@@ -7,6 +7,8 @@ import {
 import { DecisionGatewayModule } from '../../infra/decision-gateway';
 import { EmbeddingsModule } from '../../infra/embeddings';
 import { ModelGatewayModule } from '../../infra/model-gateway';
+import { TopicContextService } from './topic-context.service';
+import { TopicDisconnectService } from './topic-disconnect.service';
 import { TopicFormationService } from './topic-formation.service';
 import { TopicRecognitionService } from './topic-recognition.service';
 import { TopicSchedulerService } from './topic-scheduler.service';
@@ -20,7 +22,14 @@ import { TopicSchedulerService } from './topic-scheduler.service';
     TopicRecognitionService,
     TopicFormationService,
     TopicSchedulerService,
+    TopicContextService,
+    TopicDisconnectService,
   ],
-  exports: [TopicFormationService, TopicSchedulerService],
+  exports: [
+    TopicFormationService,
+    TopicSchedulerService,
+    TopicContextService,
+    TopicDisconnectService,
+  ],
 })
 export class TopicsModule {}

@@ -6,6 +6,7 @@ import { OpenRouterLanguageModel } from '../../src/infra/model-gateway';
 import {
   TOPIC_EXTRACTION_OUTPUT_TOKENS,
   TOPIC_EXTRACTION_PROMPT,
+  TOPIC_EXTRACTION_REASONING,
   TOPIC_EXTRACTION_SCHEMA,
   parseTopicExtraction,
   type TopicExtraction,
@@ -43,6 +44,40 @@ type Scenario = {
 
 const SCENARIOS: Scenario[] = [
   {
+    name: 'the user says the whole effort is over',
+    topics: [studyTour],
+    messages: [
+      {
+        role: 'user',
+        content:
+          'Study tour anak ke Bandung sudah selesai, anak-anak kemarin sudah pulang dengan selamat',
+      },
+    ],
+    check(result) {
+      expect(result.action).toBe('existing');
+      if (result.action === 'none') return;
+      expect(result.completed).toBe(true);
+    },
+  },
+  {
+    name: 'relative dates are stored as calendar dates',
+    topics: [],
+    messages: [
+      {
+        role: 'user',
+        content:
+          'Raka ulang tahun Minggu depan, mau bikin pesta kecil di rumah. Ingatkan aku beli kue hari Sabtu jam 9 pagi ya',
+      },
+    ],
+    check(result) {
+      expect(result.action).toBe('new');
+      if (result.action === 'none') return;
+      const text = result.claims.map((claim) => claim.text).join(' | ');
+      expect(text).toMatch(/29/);
+      expect(text).not.toMatch(/minggu depan/i);
+    },
+  },
+  {
     name: 'a finished step is resolved and the open question kept',
     topics: [studyTour],
     messages: [
@@ -54,8 +89,10 @@ const SCENARIOS: Scenario[] = [
     check(result) {
       expect(result.action).toBe('existing');
       if (result.action === 'none') return;
+      // Removing the finished step is the outcome; a "paid" note is optional.
       expect(result.resolved).toEqual(['s1']);
-      expect(result.claims.length).toBeGreaterThan(0);
+      // A finished step does not finish the effort.
+      expect(result.completed).toBe(false);
     },
   },
   {
@@ -178,7 +215,8 @@ const SCENARIOS: Scenario[] = [
       if (result.action === 'none') return;
       expect(result.topicId).toBe(studyTour.id);
       expect(result.linkedItems).toEqual([]);
-      expect(result.claims.length).toBeGreaterThan(0);
+      // The fee was paid, so the pay-the-fee step is done.
+      expect(result.resolved).toContain('s1');
     },
   },
 ];
@@ -198,6 +236,7 @@ const SCENARIOS: Scenario[] = [
         traceName: 'topic-formation',
         outputSchema: TOPIC_EXTRACTION_SCHEMA,
         maxOutputTokens: TOPIC_EXTRACTION_OUTPUT_TOKENS,
+        reasoningEffort: TOPIC_EXTRACTION_REASONING,
         messages: [
           { role: 'system', content: TOPIC_EXTRACTION_PROMPT },
           {
@@ -208,6 +247,7 @@ const SCENARIOS: Scenario[] = [
                 ...(message.role === 'user'
                   ? { userMessageIndex: userIndex++ }
                   : {}),
+                sentOn: 'Saturday 2026-11-21',
                 ...message,
               })),
               items: items.map((item, index) => ({ index, ...item })),

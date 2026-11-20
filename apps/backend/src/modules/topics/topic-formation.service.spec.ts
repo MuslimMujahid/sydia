@@ -192,6 +192,73 @@ class MemoryTopicRepository implements ITopicRepository {
     });
   }
 
+  suppressions: Array<{ topicId: string; conversationId: string; at: Date }> =
+    [];
+
+  recognitionFor(messageId: string) {
+    const log = this.logs.find((entry) => entry.messageId === messageId);
+
+    return Promise.resolve(
+      log
+        ? {
+            candidates: log.candidates,
+            choice: log.choice,
+            confidence: log.confidence,
+            topicId: log.accepted ? log.choice : null,
+          }
+        : null,
+    );
+  }
+
+  find(_userId: string, topicId: string) {
+    return Promise.resolve(
+      this.topics.find(({ id }) => id === topicId) ?? null,
+    );
+  }
+
+  linkedItems() {
+    return Promise.resolve([]);
+  }
+
+  activeDayCount() {
+    return Promise.resolve(this.activeDays);
+  }
+
+  suppressedTopicIds(conversationId: string, since: Date) {
+    return Promise.resolve(
+      this.suppressions
+        .filter((s) => s.conversationId === conversationId && s.at >= since)
+        .map((s) => s.topicId),
+    );
+  }
+
+  suppress(topicId: string, conversationId: string) {
+    this.suppressions.push({ topicId, conversationId, at: new Date() });
+
+    return Promise.resolve();
+  }
+
+  removeLink(_userId: string, topicId: string, item: TopicItemRef) {
+    const link = this.links.find(
+      (entry) =>
+        entry.topicId === topicId &&
+        entry.type === item.type &&
+        entry.id === item.id &&
+        !entry.removed,
+    );
+
+    if (link) link.removed = true;
+
+    return Promise.resolve(Boolean(link));
+  }
+
+  deleteTopic(_userId: string, topicId: string) {
+    const before = this.topics.length;
+    this.topics = this.topics.filter(({ id }) => id !== topicId);
+
+    return Promise.resolve(this.topics.length < before);
+  }
+
   logRecognition(input: NewTopicRecognitionLog) {
     this.logs.push(input);
 
@@ -208,6 +275,7 @@ type Payload = {
 
 type Extraction = {
   resolved?: string[];
+  completed?: boolean;
   action: 'existing' | 'new' | 'none';
   topicId?: string;
   label?: string;
@@ -558,6 +626,41 @@ describe('topic formation', () => {
       ['topic-1', 'Iuran sudah ditransfer'],
       ['topic-2', 'Pesta di rumah'],
     ]);
+  });
+
+  it('closes a topic the user says is over', async () => {
+    const { service, repository, outputs, say } = setup();
+    say('Study tour Selasa ke Bandung', at(0));
+    outputs.push({ action: 'new', label: 'Study tour' });
+    await run(service);
+    say('Study tour sudah selesai, anak sudah pulang', at(6));
+    outputs.push({ action: 'existing', topicId: 'topic-1', completed: true });
+    await run(service);
+
+    expect(repository.topics[0]).toMatchObject({
+      status: 'dismissed',
+      dismissedReason: 'completed',
+    });
+  });
+
+  it('does not re-form topics from a message the user used to correct one', async () => {
+    const { service, repository, outputs, say, generate } = setup();
+    const message = say('Lupakan semua soal pesta Raka', at(0));
+    repository.invocations.push({
+      inputMessageId: message.id,
+      name: 'disconnect_topic',
+      arguments: { topicId: 'gone', scope: 'topic_forget' },
+      result: { status: 'done' },
+    });
+    outputs.push({ action: 'existing', topicId: 'topic-1', completed: true });
+
+    await run(service);
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(repository.topics).toHaveLength(0);
+    expect(repository.states.get('conversation-1')?.processedThroughAt).toEqual(
+      at(0),
+    );
   });
 
   it('reads only messages after the saved cursor', async () => {

@@ -9,6 +9,8 @@ import {
   type TopicClaimKind,
   type TopicConversationState,
   type TopicItemRef,
+  type TopicItemSummary,
+  type TopicItemType,
   type TopicLinkOrigin,
   type TopicSourceInvocation,
   type TopicSourceMessage,
@@ -20,8 +22,16 @@ import type {
   NewTopicClaim,
   NewTopicEvent,
   NewTopicRecognitionLog,
+  TopicRecognitionCandidateLog,
   TopicUpdate,
 } from '../interfaces';
+
+const OPEN_OCCURRENCE = ['pending', 'snoozed'];
+const LINK_ORIGINS = new Set(['touched', 'user_stated', 'inferred']);
+
+function dateKey(value: Date | null): string | null {
+  return value ? value.toISOString().slice(0, 10) : null;
+}
 
 const topicSelect = {
   id: true,
@@ -345,5 +355,325 @@ export class PrismaTopicRepository implements ITopicRepository {
       create: { ...rest, candidates },
       update: { ...rest, candidates },
     });
+  }
+
+  async recognitionFor(messageId: string) {
+    const row = await this.prisma.topicRecognitionLog.findUnique({
+      where: { messageId },
+      select: {
+        candidates: true,
+        choice: true,
+        confidence: true,
+        accepted: true,
+      },
+    });
+
+    if (!row) return null;
+
+    return {
+      candidates: (Array.isArray(row.candidates)
+        ? row.candidates
+        : []) as unknown as TopicRecognitionCandidateLog[],
+      choice: row.choice,
+      confidence: row.confidence,
+      topicId: row.accepted ? row.choice : null,
+    };
+  }
+
+  async find(userId: string, topicId: string): Promise<Topic | null> {
+    const row = await this.prisma.topic.findFirst({
+      where: { id: topicId, userId },
+      select: topicSelect,
+    });
+
+    return row ? toTopic(row) : null;
+  }
+
+  async linkedItems(
+    userId: string,
+    topicIds: readonly string[],
+    now: Date,
+  ): Promise<TopicItemSummary[]> {
+    if (!topicIds.length) return [];
+    const links = await this.prisma.topicLink.findMany({
+      where: {
+        topicId: { in: [...topicIds] },
+        removedAt: null,
+        topic: { userId },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      select: {
+        topicId: true,
+        itemType: true,
+        itemId: true,
+        origin: true,
+        createdAt: true,
+      },
+    });
+
+    const ids = (type: TopicItemType, prefix = '') => [
+      ...new Set(
+        links
+          .filter(
+            (link) => link.itemType === type && link.itemId.startsWith(prefix),
+          )
+          .map((link) => link.itemId.slice(prefix.length)),
+      ),
+    ];
+
+    const today = dateKey(now)!;
+
+    // Every read is owner-scoped, so a link can never expose another user's item.
+    const [reminders, tasks, events, notes, dailies, contacts, documents] =
+      await Promise.all([
+        this.prisma.reminder.findMany({
+          where: { userId, id: { in: ids('reminder') } },
+          select: {
+            id: true,
+            title: true,
+            scheduledAt: true,
+            recurrence: true,
+            occurrences: {
+              where: {
+                OR: [
+                  {
+                    status: { in: OPEN_OCCURRENCE },
+                    occurrenceAt: { gte: now },
+                  },
+                  { status: 'awaiting_ack' },
+                ],
+              },
+              orderBy: { occurrenceAt: 'asc' },
+              take: 3,
+              select: { occurrenceAt: true, status: true },
+            },
+          },
+        }),
+        this.prisma.task.findMany({
+          where: { userId, id: { in: ids('task') } },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            dueAt: true,
+            completedAt: true,
+          },
+        }),
+        this.prisma.calendarEvent.findMany({
+          where: { userId, id: { in: ids('calendar_event') } },
+          select: {
+            id: true,
+            title: true,
+            startAt: true,
+            endAt: true,
+            allDayStartDate: true,
+            allDayEndDate: true,
+            recurrence: true,
+            status: true,
+          },
+        }),
+        this.prisma.workspaceItem.findMany({
+          where: {
+            userId,
+            id: { in: ids('note', 'custom:') },
+            kind: 'note',
+            trashedAt: null,
+          },
+          select: { id: true, title: true },
+        }),
+        this.prisma.dailyNote.findMany({
+          where: { userId, date: { in: ids('note', 'daily:') } },
+          select: { date: true },
+        }),
+        this.prisma.contact.findMany({
+          where: { userId, id: { in: ids('contact') } },
+          select: { id: true, name: true },
+        }),
+        this.prisma.document.findMany({
+          where: { userId, id: { in: ids('document') } },
+          select: { id: true, title: true, status: true },
+        }),
+      ]);
+
+    const found = new Map<
+      string,
+      Omit<TopicItemSummary, 'topicId' | 'origin' | 'linkedAt'>
+    >();
+
+    const put = (
+      item: Omit<TopicItemSummary, 'topicId' | 'origin' | 'linkedAt'>,
+    ) => found.set(`${item.type}:${item.id}`, item);
+
+    for (const reminder of reminders) {
+      const awaiting = reminder.occurrences.find(
+        (o) => o.status === 'awaiting_ack',
+      );
+
+      const next =
+        reminder.occurrences.find((o) => o.status !== 'awaiting_ack')
+          ?.occurrenceAt ??
+        (reminder.scheduledAt >= now ? reminder.scheduledAt : null);
+
+      put({
+        type: 'reminder',
+        id: reminder.id,
+        title: reminder.title,
+        when: awaiting?.occurrenceAt ?? next,
+        day: null,
+        status: awaiting
+          ? 'awaiting_acknowledgement'
+          : next
+            ? 'pending'
+            : 'past',
+        active: Boolean(awaiting || next),
+        recurring: reminder.recurrence !== null,
+      });
+    }
+
+    for (const task of tasks)
+      put({
+        type: 'task',
+        id: task.id,
+        title: task.title,
+        when: task.dueAt,
+        day: null,
+        status: task.completedAt ? 'done' : task.status,
+        active: !task.completedAt && task.status === 'inbox',
+        recurring: false,
+      });
+
+    for (const event of events) {
+      const recurring = event.recurrence.length > 0;
+      const ends = event.endAt ?? event.startAt;
+      const lastDay = dateKey(event.allDayEndDate ?? event.allDayStartDate);
+
+      put({
+        type: 'calendar_event',
+        id: event.id,
+        title: event.title,
+        when: event.startAt,
+        day: dateKey(event.allDayStartDate),
+        status: event.status,
+        active:
+          event.status !== 'cancelled' &&
+          (recurring ||
+            (ends !== null && ends >= now) ||
+            (lastDay !== null && lastDay >= today)),
+        recurring,
+      });
+    }
+
+    for (const note of notes)
+      put({
+        type: 'note',
+        id: `custom:${note.id}`,
+        title: note.title,
+        when: null,
+        day: null,
+        status: 'saved',
+        active: true,
+        recurring: false,
+      });
+
+    for (const daily of dailies)
+      put({
+        type: 'note',
+        id: `daily:${daily.date}`,
+        title: `Daily note ${daily.date}`,
+        when: null,
+        day: daily.date,
+        status: 'saved',
+        active: true,
+        recurring: false,
+      });
+
+    for (const contact of contacts)
+      put({
+        type: 'contact',
+        id: contact.id,
+        title: contact.name,
+        when: null,
+        day: null,
+        status: 'saved',
+        active: true,
+        recurring: false,
+      });
+
+    for (const document of documents)
+      put({
+        type: 'document',
+        id: document.id,
+        title: document.title,
+        when: null,
+        day: null,
+        status: document.status,
+        active: document.status !== 'failed',
+        recurring: false,
+      });
+
+    return links.flatMap((link) => {
+      const item = found.get(`${link.itemType}:${link.itemId}`);
+
+      return item
+        ? [
+            {
+              ...item,
+              topicId: link.topicId,
+              origin: (LINK_ORIGINS.has(link.origin)
+                ? link.origin
+                : 'inferred') as TopicItemSummary['origin'],
+              linkedAt: link.createdAt,
+            },
+          ]
+        : [];
+    });
+  }
+
+  async activeDayCount(userId: string): Promise<number> {
+    const row = await this.prisma.topicUserState.findUnique({
+      where: { userId },
+      select: { activeDays: true },
+    });
+
+    return row?.activeDays ?? 0;
+  }
+
+  async suppressedTopicIds(conversationId: string, since: Date) {
+    const rows = await this.prisma.topicSuppression.findMany({
+      where: { conversationId, createdAt: { gte: since } },
+      distinct: ['topicId'],
+      select: { topicId: true },
+    });
+
+    return rows.map((row) => row.topicId);
+  }
+
+  async suppress(topicId: string, conversationId: string) {
+    await this.prisma.topicSuppression.create({
+      data: { topicId, conversationId },
+    });
+  }
+
+  async removeLink(userId: string, topicId: string, item: TopicItemRef) {
+    const { count } = await this.prisma.topicLink.updateMany({
+      where: {
+        topicId,
+        topic: { userId },
+        itemType: item.type,
+        itemId: item.id,
+        removedAt: null,
+      },
+      data: { removedAt: new Date() },
+    });
+
+    return count > 0;
+  }
+
+  async deleteTopic(userId: string, topicId: string) {
+    const { count } = await this.prisma.topic.deleteMany({
+      where: { id: topicId, userId },
+    });
+
+    return count > 0;
   }
 }

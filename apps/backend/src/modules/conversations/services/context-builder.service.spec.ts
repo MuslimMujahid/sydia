@@ -1,3 +1,4 @@
+import type { TopicContextService } from '../../topics/topic-context.service';
 import { jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import type {
@@ -121,6 +122,7 @@ type RepositoryOptions = {
   turnDecisions?: TurnDecisionService;
   activeNotes?: ActiveNoteService;
   noteWork?: INoteWorkRepository;
+  topicContext?: TopicContextService;
 };
 
 function createBuilder(
@@ -161,6 +163,8 @@ function createBuilder(
     undefined,
     undefined,
     options.noteWork,
+    undefined,
+    options.topicContext,
   );
 }
 
@@ -260,6 +264,57 @@ describe('ContextBuilderService day scope', () => {
     }).build(user, 'conversation-1', 'current');
 
     expect(turnContext(result.messages)).not.toContain('limited to');
+  });
+});
+
+describe('ContextBuilderService topics', () => {
+  it('adds the accepted topic before the current request and keeps every tool', async () => {
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false, toolNames: [] });
+
+    const forTurn = jest
+      .fn<TopicContextService['forTurn']>()
+      .mockResolvedValue({ topicId: 't-1', block: '{"topic":"Study tour"}' });
+
+    const result = await createBuilder(10_000, {
+      messages: [message('current', 'user', 'Iuran sudah dibayar')],
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+      topicContext: { forTurn } as unknown as TopicContextService,
+    }).build(user, 'conversation-1', 'current');
+
+    const blockIndex = result.messages.findIndex(
+      (entry) =>
+        typeof entry.content === 'string' &&
+        entry.content.includes('{"topic":"Study tour"}'),
+    );
+
+    expect(blockIndex).toBeGreaterThan(-1);
+    expect(blockIndex).toBeLessThan(result.messages.length - 1);
+    expect(result.messages.at(-1)?.content).toBe('Iuran sudah dibayar');
+    expect(result.topicId).toBe('t-1');
+    expect(result.tokenUsage.topics).toBeGreaterThan(0);
+    expect(result.decision?.toolNames).toBeUndefined();
+  });
+
+  it('leaves the turn unchanged when no topic is recognized', async () => {
+    const decide = jest
+      .fn<TurnDecisionService['decide']>()
+      .mockResolvedValue({ recall: false, toolNames: [] });
+
+    const forTurn = jest
+      .fn<TopicContextService['forTurn']>()
+      .mockResolvedValue(null);
+
+    const result = await createBuilder(10_000, {
+      messages: [message('current', 'user', 'makasih ya')],
+      turnDecisions: { decide } as unknown as TurnDecisionService,
+      topicContext: { forTurn } as unknown as TopicContextService,
+    }).build(user, 'conversation-1', 'current');
+
+    expect(result.topicId).toBeUndefined();
+    expect(result.tokenUsage.topics).toBe(0);
+    expect(result.decision?.toolNames).toEqual([]);
   });
 });
 

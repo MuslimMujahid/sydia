@@ -388,8 +388,9 @@ test.each([
 );
 test('registry covers note clarification tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(67);
+  expect(names).toHaveLength(68);
   expect(TOOL_GROUPS.planning).toEqual(['update_plan']);
+  expect(TOOL_GROUPS.topics).toEqual(['disconnect_topic']);
   expect(TOOL_GROUPS.time).toEqual(['get_current_datetime', 'set_timezone']);
   expect(TOOL_GROUPS.notes).toEqual(
     expect.arrayContaining(['list_note_questions', 'respond_to_note_question']),
@@ -487,4 +488,12 @@ describe('day scope', () => {
       'dayScope',
     );
   });
+});
+
+test('does not route the topic tool, which arrives with topic context', async () => {
+  const { service, decide } = setup();
+  await service.decide('user', input);
+
+  expect(decide.mock.calls[0]![0].questions).not.toHaveProperty('group_topics');
+  expect(decide.mock.calls[0]![0].questions).toHaveProperty('group_tasks');
 });

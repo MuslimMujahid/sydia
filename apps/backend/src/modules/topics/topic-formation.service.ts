@@ -26,6 +26,7 @@ import { addSalience } from './salience';
 import {
   TOPIC_EXTRACTION_OUTPUT_TOKENS,
   TOPIC_EXTRACTION_PROMPT,
+  TOPIC_EXTRACTION_REASONING,
   TOPIC_EXTRACTION_SCHEMA,
   parseTopicExtraction,
 } from './topic-extraction';
@@ -46,6 +47,16 @@ function localDay(at: Date, timeZone: string): string {
     month: '2-digit',
     day: '2-digit',
   }).format(at);
+}
+
+/** Owner-local send date with its weekday, e.g. "Saturday 2026-11-21". */
+function sentOn(at: Date, timeZone: string): string {
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    weekday: 'long',
+  }).format(at);
+
+  return `${weekday} ${localDay(at, timeZone)}`;
 }
 
 type Episode = Omit<TopicConversationState, 'processedThroughAt'>;
@@ -135,7 +146,7 @@ export class TopicFormationService {
     // The cursor moves after each segment, so a retry after a failed model
     // call resumes there instead of repeating segments already written.
     for (const [index, segment] of segments.entries()) {
-      const episode = await this.form(segment, activeDay, mode);
+      const episode = await this.form(segment, activeDay, mode, user.timezone);
       const isLast = index === segments.length - 1;
 
       await this.topics.saveConversationState({
@@ -218,6 +229,7 @@ export class TopicFormationService {
     segment: Segment,
     activeDay: number,
     mode: ReturnType<DecisionSettings['mode']>,
+    timezone: string,
   ): Promise<Episode> {
     const { episode, userMessages } = segment;
     const latest = userMessages.at(-1)!;
@@ -230,29 +242,45 @@ export class TopicFormationService {
     )
       return episode;
 
-    const known = await this.topics.list(userId, [
-      'candidate',
-      'active',
-      'dormant',
-      'dismissed',
+    // A correction made through disconnect_topic is already applied. Reading
+    // the same messages again would attach them to whatever topic is left
+    // (a forgotten topic's sibling, say) and must leave no trace of "forget".
+    if (segment.invocations.some(({ name }) => name === 'disconnect_topic'))
+      return episode;
+
+    // A topic the user disconnected in this episode stays out of it (TOPIC-DISC-01).
+    const [all, suppressed] = await Promise.all([
+      this.topics.list(userId, ['candidate', 'active', 'dormant', 'dismissed']),
+      this.topics.suppressedTopicIds(
+        episode.conversationId,
+        episode.episodeStartedAt,
+      ),
     ]);
+
+    const known = all.filter((topic) => !suppressed.includes(topic.id));
 
     const claims = await this.topics.claims(known.map(({ id }) => id));
     const anchors = uniqueItems(userMessages.flatMap(messageAnchors));
 
-    const recognized = await this.recognition.recognize({
-      userId,
-      activeDay,
-      latest: latest.content,
-      recent: segment.messages
-        .filter((message) => message !== latest)
-        .map(({ role, content }) => ({ role, content })),
-      anchors,
-      stickyTopicId: episode.currentTopicId,
-      topics: known,
-      claims,
-      mode,
-    });
+    // When the feature is enabled the turn already recognized this message;
+    // reuse that answer instead of asking the gate again.
+    const recognized =
+      (mode === 'enabled'
+        ? await this.topics.recognitionFor(latest.id)
+        : null) ??
+      (await this.recognition.recognize({
+        userId,
+        activeDay,
+        latest: latest.content,
+        recent: segment.messages
+          .filter((message) => message !== latest)
+          .map(({ role, content }) => ({ role, content })),
+        anchors,
+        stickyTopicId: episode.currentTopicId,
+        topics: known,
+        claims,
+        mode,
+      }));
 
     const touched = segment.invocations.flatMap((invocation) =>
       touchedItems(invocation).map((item) => ({
@@ -270,7 +298,13 @@ export class TopicFormationService {
     }));
 
     const shown = this.topicsToShow(known, recognized.candidates, episode);
-    const extraction = await this.extract(segment, shown, claims, items);
+    const extraction = await this.extract(
+      segment,
+      shown,
+      claims,
+      items,
+      timezone,
+    );
 
     let assigned: Topic | null = null;
 
@@ -362,6 +396,7 @@ export class TopicFormationService {
     shown: readonly Topic[],
     claims: Awaited<ReturnType<ITopicRepository['claims']>>,
     items: ReadonlyArray<{ item: TopicItemRef; title: string | null }>,
+    timezone: string,
   ) {
     let userIndex = 0;
     // Short refs stand for claim ids, so the model never handles raw ids.
@@ -388,6 +423,7 @@ export class TopicFormationService {
       traceName: 'topic-formation',
       outputSchema: TOPIC_EXTRACTION_SCHEMA,
       maxOutputTokens: TOPIC_EXTRACTION_OUTPUT_TOKENS,
+      reasoningEffort: TOPIC_EXTRACTION_REASONING,
       messages: [
         { role: 'system', content: TOPIC_EXTRACTION_PROMPT },
         {
@@ -399,8 +435,10 @@ export class TopicFormationService {
               aliases: topic.aliases,
               state: stateOf(topic.id),
             })),
-            messages: segment.messages.map(({ role, content }) => ({
+            messages: segment.messages.map(({ role, content, createdAt }) => ({
               ...(role === 'user' ? { userMessageIndex: userIndex++ } : {}),
+              // Relative dates in a message resolve against this (owner-local).
+              sentOn: sentOn(createdAt, timezone),
               role,
               content: content.slice(0, TOPIC_SETTINGS.formationMessageChars),
             })),
@@ -529,10 +567,15 @@ export class TopicFormationService {
 
     if (aliases.length !== topic.aliases.length) update.aliases = aliases;
 
-    update.status = await this.nextStatus(topic, {
-      episodeCount: update.episodeCount ?? topic.episodeCount,
-      salience: update.salience ?? topic.salience,
-    });
+    // The user said the effort is over: close it like topic_complete would.
+    if (!context.isNew && extraction.completed) {
+      update.status = 'dismissed';
+      update.dismissedReason = 'completed';
+    } else
+      update.status = await this.nextStatus(topic, {
+        episodeCount: update.episodeCount ?? topic.episodeCount,
+        salience: update.salience ?? topic.salience,
+      });
 
     if (
       context.isNew ||

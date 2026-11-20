@@ -115,8 +115,9 @@ export class TurnDecisionService implements OnModuleDestroy {
     if (toolMode !== 'off') {
       for (const [group, names] of Object.entries(TOOL_GROUPS)) {
         // Assistance capabilities are discovered through skills during the
-        // turn rather than routed up front.
-        if (group === 'assistance') continue;
+        // turn rather than routed up front; topic tools come with the topic
+        // context, which keeps every tool on its turn.
+        if (group === 'assistance' || group === 'topics') continue;
         questions[`group_${group}`] = {
           type: 'noul',
           instructions: `Does responding to the latest message in this conversation require any of these tools: ${names.join(', ')}?`,

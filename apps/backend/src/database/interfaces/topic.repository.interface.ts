@@ -1,5 +1,6 @@
 import type {
   Topic,
+  TopicItemSummary,
   TopicClaim,
   TopicClaimKind,
   TopicConversationState,
@@ -32,7 +33,9 @@ export type TopicUpdate = Partial<
     | 'episodeCount'
     | 'lastEpisodeKey'
     | 'lastActiveAt'
-  >
+    | 'gateCutoffOffset'
+    | 'gateOffsetAtActiveDay'
+  > & { dismissedReason: string | null }
 >;
 
 export type NewTopicClaim = {
@@ -128,6 +131,37 @@ export interface ITopicRepository {
     invocations: TopicSourceInvocation[];
   }>;
   logRecognition(input: NewTopicRecognitionLog): Promise<void>;
+  /** The recognition already logged for a message (made during its turn). */
+  recognitionFor(messageId: string): Promise<{
+    candidates: TopicRecognitionCandidateLog[];
+    choice: string | null;
+    confidence: number | null;
+    topicId: string | null;
+  } | null>;
+  /** One owned topic. */
+  find(userId: string, topicId: string): Promise<Topic | null>;
+  /**
+   * Live linked items of these owned topics, read fresh from their stores.
+   * Items that no longer exist are left out.
+   */
+  linkedItems(
+    userId: string,
+    topicIds: readonly string[],
+    now: Date,
+  ): Promise<TopicItemSummary[]>;
+  /** The owner's active-day count, without advancing it. */
+  activeDayCount(userId: string): Promise<number>;
+  /** Topics suppressed in a conversation at or after `since`. */
+  suppressedTopicIds(conversationId: string, since: Date): Promise<string[]>;
+  suppress(topicId: string, conversationId: string): Promise<void>;
+  /** Removes a link; the removed row stays as a suppression. False if absent. */
+  removeLink(
+    userId: string,
+    topicId: string,
+    item: TopicItemRef,
+  ): Promise<boolean>;
+  /** Deletes a topic with its claims, links, events and suppressions. */
+  deleteTopic(userId: string, topicId: string): Promise<boolean>;
 }
 
 export const TOPIC_REPOSITORY = Symbol('ITopicRepository');

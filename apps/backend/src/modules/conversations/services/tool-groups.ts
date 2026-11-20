@@ -65,6 +65,8 @@ export const TOOL_GROUPS = {
   ],
   time: ['get_current_datetime', 'set_timezone'],
   planning: ['update_plan'],
+  // Offered on every turn that carries topic context (TOPIC-DISC-01).
+  topics: ['disconnect_topic'],
   assistance: [
     'load_skill',
     'get_work_context',

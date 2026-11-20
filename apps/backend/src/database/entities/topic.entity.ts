@@ -91,6 +91,26 @@ export type TopicSourceInvocation = {
   result: unknown;
 };
 
+/**
+ * A linked item as it stands now, read from its own store (TOPIC-CTX-01).
+ * `when` is the next pending reminder time, a task's due time, or an event's
+ * start; `day` is set instead for all-day events.
+ */
+export type TopicItemSummary = {
+  topicId: string;
+  type: TopicItemType;
+  id: string;
+  title: string;
+  when: Date | null;
+  day: string | null;
+  status: string;
+  /** Pending reminder, open task, upcoming or recurring event, live note. */
+  active: boolean;
+  recurring: boolean;
+  origin: TopicLinkOrigin;
+  linkedAt: Date;
+};
+
 export function isTopicStatus(value: unknown): value is TopicStatus {
   return TOPIC_STATUSES.includes(value as TopicStatus);
 }

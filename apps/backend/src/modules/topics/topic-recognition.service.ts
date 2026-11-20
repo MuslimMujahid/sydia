@@ -36,6 +36,11 @@ export type TopicRecognitionInput = {
   topics: readonly Topic[];
   claims: readonly TopicClaim[];
   mode: DecisionMode;
+  /** 1 / (1 + days until the topic's nearest pending item), by topic id. */
+  urgency?: ReadonlyMap<string, number>;
+  /** Interactive on the reply path; background while forming. */
+  lane?: 'interactive' | 'background';
+  abortSignal?: AbortSignal;
 };
 
 export type TopicRecognition = {
@@ -112,6 +117,12 @@ export class TopicRecognitionService {
           anchoredIds.has(topic.id) || topic.id === input.stickyTopicId;
 
         const salience = currentSalience(topic, input.activeDay);
+        // Each disconnect adds one step to the offset; its decayed size is the
+        // recent-disconnect count of TOPIC-RANK-03.
+        const offset = decay(
+          topic.gateCutoffOffset,
+          input.activeDay - topic.gateOffsetAtActiveDay,
+        );
 
         return {
           topic,
@@ -121,14 +132,12 @@ export class TopicRecognitionService {
             status: topic.status,
             similarity,
             salience,
-            // Urgency needs fresh item reads, which arrive with the topic
-            // block in phase 2; disconnects arrive with the disconnect tool.
             score: candidateScore({
               similarity,
               salience,
-              urgency: 0,
+              urgency: input.urgency?.get(topic.id) ?? 0,
               sticky: topic.id === input.stickyTopicId,
-              recentDisconnects: 0,
+              recentDisconnects: offset / TOPIC_SETTINGS.disconnectStep,
             }),
             offered: false as boolean,
           } satisfies TopicRecognitionCandidateLog,
@@ -157,8 +166,9 @@ export class TopicRecognitionService {
       const result = await this.gateway.decide({
         stage: 'topic',
         version: this.settings.version,
-        lane: 'background',
+        lane: input.lane ?? 'background',
         featureModes: { topics: input.mode },
+        ...(input.abortSignal ? { abortSignal: input.abortSignal } : {}),
         state: JSON.stringify({
           messages: [
             ...input.recent.slice(-RECENT_MESSAGES).map((message) => ({
