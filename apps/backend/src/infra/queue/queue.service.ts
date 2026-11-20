@@ -36,7 +36,9 @@ export type ConversationSummaryJob = {
   userId: string;
   conversationId: string;
 };
-export type TopicFormationJob = { userId: string; conversationId: string };
+export type TopicFormationJob =
+  | { kind?: 'form'; userId: string; conversationId: string }
+  | { kind: 'lifecycle' };
 export type MemoryDeliveryJob =
   { kind: 'recover' } | { kind: 'bank'; bankId: string };
 export type MemoryIngestionJob = { kind: 'recover' };

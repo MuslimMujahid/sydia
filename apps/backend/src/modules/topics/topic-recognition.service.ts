@@ -38,6 +38,8 @@ export type TopicRecognitionInput = {
   mode: DecisionMode;
   /** 1 / (1 + days until the topic's nearest pending item), by topic id. */
   urgency?: ReadonlyMap<string, number>;
+  /** Topics the message names outright (label or alias). */
+  namedTopicIds?: ReadonlySet<string>;
   /** Interactive on the reply path; background while forming. */
   lane?: 'interactive' | 'background';
   abortSignal?: AbortSignal;
@@ -126,7 +128,12 @@ export class TopicRecognitionService {
 
         return {
           topic,
-          eligible: passesFloor(topic.status, similarity, anchoredTopic),
+          eligible: passesFloor(
+            topic.status,
+            similarity,
+            anchoredTopic,
+            input.namedTopicIds?.has(topic.id) ?? false,
+          ),
           log: {
             topicId: topic.id,
             status: topic.status,

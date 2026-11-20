@@ -35,6 +35,7 @@ export type TopicUpdate = Partial<
     | 'lastActiveAt'
     | 'gateCutoffOffset'
     | 'gateOffsetAtActiveDay'
+    | 'statusAtActiveDay'
   > & { dismissedReason: string | null }
 >;
 
@@ -160,6 +161,8 @@ export interface ITopicRepository {
     topicId: string,
     item: TopicItemRef,
   ): Promise<boolean>;
+  /** Owners that have at least one topic (for the lifecycle sweep). */
+  usersWithTopics(): Promise<string[]>;
   /** Deletes a topic with its claims, links, events and suppressions. */
   deleteTopic(userId: string, topicId: string): Promise<boolean>;
 }

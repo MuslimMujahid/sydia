@@ -28,6 +28,7 @@ function topic(id: string, embedding: number[], extra: Partial<Topic> = {}) {
     gateOffsetAtActiveDay: 0,
     episodeCount: 2,
     lastEpisodeKey: null,
+    statusAtActiveDay: 0,
     lastActiveAt: new Date(0),
     createdAt: new Date(0),
     ...extra,

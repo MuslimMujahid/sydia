@@ -91,11 +91,14 @@ export function passesFloor(
   status: TopicStatus,
   similarity: number,
   anchored: boolean,
+  named = false,
 ): boolean {
   if (status === 'candidate') return false;
-  // A dismissed topic needs a strong match even when something anchors it.
+  // A dismissed topic returns only when named or matched strongly.
   if (status === 'dismissed')
-    return similarity >= TOPIC_SETTINGS.similarityFloor.dismissed;
+    return named || similarity >= TOPIC_SETTINGS.similarityFloor.dismissed;
 
-  return anchored || similarity >= TOPIC_SETTINGS.similarityFloor[status];
+  return (
+    anchored || named || similarity >= TOPIC_SETTINGS.similarityFloor[status]
+  );
 }

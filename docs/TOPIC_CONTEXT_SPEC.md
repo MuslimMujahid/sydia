@@ -3,7 +3,7 @@
 | Field        | Value                                                                                                                          |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | Date         | 21 November 2026                                                                                                               |
-| Status       | Phases 1 and 2 implemented; see sections 18 and 19                                                                             |
+| Status       | Phases 1–3 implemented; see sections 18–20                                                                                     |
 | Scope        | Implicit topics per user, across channels: formation, recognition, related active items, disconnecting, ranking and retirement |
 | Prerequisite | Channel conversations end after 4 idle hours; reminders do not count as activity (`09e7d35`, done)                             |
 | Related      | [Proactive secretary](./PROACTIVE_SECRETARY_SPEC.md) SEC-01–03, [Memory system](./MEMORY_SYSTEM.md)                            |
@@ -406,3 +406,18 @@ A temporary API with topics enabled only for a QA parent account, against the de
 | Ambiguous or merely related messages (flood in Bandung, a family trip to Bandung, a fee that might be the trip's) | Not linked: the gate stayed under 0.7 (0.38–0.67); corrections created new topics ("Acara keluarga ke Bandung", "Iuran arisan RT")                               |
 
 Formation prompt check after these changes: 10 scenarios, 30 of 30 over three runs. Recognition calibration unchanged: precision 1.00, correct topic in the top three 1.00.
+
+## 20. Phase 3 implementation notes
+
+- **Lifecycle sweep** (`TopicLifecycleService`, daily at 03:30 on the `topic-formations` queue): unconfirmed candidates are deleted after 30 days; an active topic goes dormant when its decayed salience falls below 0.3, no reminder, task or event of it is pending, and 7 active days have passed since its last status change; a dormant topic is dismissed (reason `inactive`) after 60 active days without a pending item; a dismissed topic untouched for 365 calendar days is deleted; over 50 active topics, the weakest without a pending item go dormant. A new `statusAtActiveDay` column times grace and dormancy on the owner's active-day clock, so a user who is away loses nothing. One owner's failure is logged and does not stop the others.
+- **`list_topics`** (read-only, in the `topics` tool group): every kept topic with status (active, quiet, unconfirmed, closed), last decision, next step and pending item count. It answers "what do you remember" questions (TOPIC-PRIV-02) and gives the assistant topic ids, so a topic that is not in the turn's context can still be completed, split or forgotten.
+- **Split** (`disconnect_topic` scope `split`, TOPIC-DISC-02): moves listed items into a new topic the user named. The new topic starts active and embedded; the moved links are removed from the old topic and never come back. Items not linked to the topic are refused before anything is created.
+- **Naming a topic** (label or alias as whole words, four characters or more) lifts an episode suppression and makes a dismissed topic eligible again, on the turn and in formation.
+- **Tool budget:** the two topic tools add about 1.3 KB to every turn's tool definitions (after trimming); the size budget moved from 94,000 to 95,500 bytes.
+- **Not built:** salience events for edits made in the app (`item_edit`), which need hooks in the task, reminder and note services; topic-aware proactive suggestions in the background secretary. Both reach into other features and wait for an owner decision.
+
+### Live verification (21 November 2026)
+
+- PostgreSQL contract: the sweep made a quiet topic dormant, kept a topic with a pending reminder active, and deleted a 40-day-old candidate.
+- Through the app (temporary API, topics enabled for a QA account): "Topik apa saja yang kamu ingat?" called `list_topics` and answered with every topic and its status, including unconfirmed and closed ones. "Lupakan topik iuran arisan RT", an unconfirmed topic never in context, was found with `list_topics` and forgotten with `disconnect_topic`. After "bukan itu, ini acara kantor suamiku" the gate itself dropped the family-trip topic (0.20, then 0.12), and naming it again ("balik lagi soal acara keluarga ke Bandung") brought it back at 0.96. Suppression lifting and split are covered by unit tests; the live runs did not need them.
+- One recognition gave up at its 6.5 s deadline while the decision provider was slow; the turn continued without a topic. Degraded events now log the time waited.

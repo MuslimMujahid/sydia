@@ -51,6 +51,7 @@ const topic: Topic = {
   gateOffsetAtActiveDay: 0,
   episodeCount: 2,
   lastEpisodeKey: null,
+  statusAtActiveDay: 0,
   lastActiveAt: ago(30),
   createdAt: ago(60),
 };
@@ -167,6 +168,7 @@ function setup(options: {
   suppressed?: string[];
   choose?: string | null;
   slow?: boolean;
+  content?: string;
 }) {
   const logs: NewTopicRecognitionLog[] = [];
   const recognize = jest.fn((input: TopicRecognitionInput) =>
@@ -189,7 +191,10 @@ function setup(options: {
 
   const repository = {
     list: () =>
-      Promise.resolve([topic, { ...topic, id: 't-2', label: 'Pesta' }]),
+      Promise.resolve([
+        topic,
+        { ...topic, id: 't-2', label: 'Pesta', aliases: [] },
+      ]),
     suppressedTopicIds: () => Promise.resolve(options.suppressed ?? []),
     activeDayCount: () => Promise.resolve(3),
     conversationState: () => Promise.resolve(null),
@@ -230,7 +235,7 @@ function setup(options: {
         {
           id: 'm-1',
           role: 'user',
-          content: 'Iuran study tour?',
+          content: options.content ?? 'Iurannya kapan dibayar?',
           createdAt: now,
         },
       ],
@@ -280,6 +285,20 @@ describe('topic context for a turn', () => {
     expect(recognize.mock.calls[0]![0].topics.map(({ id }) => id)).toEqual([
       't-2',
     ]);
+  });
+
+  it('lifts the suppression when the user names the topic again', async () => {
+    const { turn, recognize } = setup({
+      suppressed: ['t-1'],
+      choose: 't-1',
+      content: 'Balik lagi soal karyawisata, berangkat jam berapa?',
+    });
+
+    await turn();
+
+    const input = recognize.mock.calls[0]![0];
+    expect(input.topics.map(({ id }) => id)).toEqual(['t-1', 't-2']);
+    expect([...(input.namedTopicIds ?? [])]).toEqual(['t-1']);
   });
 
   it('gives no context when recognition chooses none', async () => {

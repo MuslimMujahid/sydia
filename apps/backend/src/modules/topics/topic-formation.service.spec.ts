@@ -84,6 +84,7 @@ class MemoryTopicRepository implements ITopicRepository {
       gateOffsetAtActiveDay: 0,
       episodeCount: 1,
       lastEpisodeKey: input.episodeKey,
+      statusAtActiveDay: 0,
       lastActiveAt: input.at,
       createdAt: input.at,
     };
@@ -250,6 +251,12 @@ class MemoryTopicRepository implements ITopicRepository {
     if (link) link.removed = true;
 
     return Promise.resolve(Boolean(link));
+  }
+
+  usersWithTopics() {
+    return Promise.resolve([
+      ...new Set(this.topics.map(({ userId }) => userId)),
+    ]);
   }
 
   deleteTopic(_userId: string, topicId: string) {

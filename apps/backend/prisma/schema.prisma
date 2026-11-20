@@ -1864,6 +1864,8 @@ model Topic {
   /// Distinct episodes the topic was assigned in; promotes a candidate at two.
   episodeCount          Int                @default(1)
   lastEpisodeKey        String?
+  /// Active day of the last status change: grace period and dormancy timing.
+  statusAtActiveDay     Int                @default(0)
   lastActiveAt          DateTime           @default(now())
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @default(now()) @updatedAt

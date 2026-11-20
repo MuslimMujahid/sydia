@@ -388,9 +388,9 @@ test.each([
 );
 test('registry covers note clarification tools and rejects missing prerequisites', () => {
   const names = Object.values(TOOL_GROUPS).flat();
-  expect(names).toHaveLength(68);
+  expect(names).toHaveLength(69);
   expect(TOOL_GROUPS.planning).toEqual(['update_plan']);
-  expect(TOOL_GROUPS.topics).toEqual(['disconnect_topic']);
+  expect(TOOL_GROUPS.topics).toEqual(['list_topics', 'disconnect_topic']);
   expect(TOOL_GROUPS.time).toEqual(['get_current_datetime', 'set_timezone']);
   expect(TOOL_GROUPS.notes).toEqual(
     expect.arrayContaining(['list_note_questions', 'respond_to_note_question']),

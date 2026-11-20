@@ -46,6 +46,7 @@ const topicSelect = {
   gateOffsetAtActiveDay: true,
   episodeCount: true,
   lastEpisodeKey: true,
+  statusAtActiveDay: true,
   lastActiveAt: true,
   createdAt: true,
 } as const satisfies Prisma.TopicSelect;
@@ -147,6 +148,7 @@ export class PrismaTopicRepository implements ITopicRepository {
         salienceAtActiveDay: input.activeDay,
         episodeCount: 1,
         lastEpisodeKey: input.episodeKey,
+        statusAtActiveDay: input.activeDay,
         lastActiveAt: input.at,
       },
       select: topicSelect,
@@ -667,6 +669,15 @@ export class PrismaTopicRepository implements ITopicRepository {
     });
 
     return count > 0;
+  }
+
+  async usersWithTopics(): Promise<string[]> {
+    const rows = await this.prisma.topic.findMany({
+      distinct: ['userId'],
+      select: { userId: true },
+    });
+
+    return rows.map((row) => row.userId);
   }
 
   async deleteTopic(userId: string, topicId: string) {

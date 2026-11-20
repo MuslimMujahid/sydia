@@ -14,6 +14,7 @@ import type {
 } from '../../database/entities';
 import { DecisionSettings } from '../../infra/decision-gateway';
 import { containsDecisionCredential } from '../../shared/decision-privacy';
+import { namesTopic } from './topic-naming';
 import { TopicRecognitionService } from './topic-recognition.service';
 import { TOPIC_SETTINGS } from './topic-settings';
 
@@ -201,6 +202,7 @@ export class TopicContextService {
 
   async forTurn(input: TopicTurnInput): Promise<TopicTurnContext | null> {
     if (!this.enabledFor(input.userId)) return null;
+    const started = Date.now();
     const deadline = new AbortController();
     const timer = setTimeout(() => deadline.abort(), this.deadlineMs);
 
@@ -215,13 +217,16 @@ export class TopicContextService {
         ),
         new Promise<null>((resolve) =>
           deadline.signal.addEventListener('abort', () => {
-            this.degraded('deadline');
+            this.degraded('deadline', Date.now() - started);
             resolve(null);
           }),
         ),
       ]);
     } catch (error) {
-      this.degraded(error instanceof Error ? error.name : 'UnknownError');
+      this.degraded(
+        error instanceof Error ? error.name : 'UnknownError',
+        Date.now() - started,
+      );
 
       return null;
     } finally {
@@ -250,7 +255,17 @@ export class TopicContextService {
       this.topics.conversationState(input.conversationId),
     ]);
 
-    const topics = known.filter((topic) => !suppressed.includes(topic.id));
+    // Naming a suppressed topic again lifts its suppression (TOPIC-DISC-01).
+    const named = new Set(
+      known
+        .filter((topic) => namesTopic(current.content, topic))
+        .map(({ id }) => id),
+    );
+
+    const topics = known.filter(
+      (topic) => !suppressed.includes(topic.id) || named.has(topic.id),
+    );
+
     if (!topics.length) return null;
 
     const ids = topics.map(({ id }) => id);
@@ -279,6 +294,7 @@ export class TopicContextService {
       claims,
       mode: 'enabled',
       urgency: topicUrgency(items, input.now),
+      namedTopicIds: named,
       lane: 'interactive',
       abortSignal,
     });
@@ -311,11 +327,13 @@ export class TopicContextService {
     };
   }
 
-  private degraded(reason: string): void {
+  private degraded(reason: string, elapsedMs: number): void {
     this.logger.warn(
       JSON.stringify({
         event: 'topic_context_degraded',
         reason,
+        elapsedMs,
+        deadlineMs: this.deadlineMs,
         remediation:
           'This turn continues without topic context; check embedding and decision gateway latency.',
       }),

@@ -290,6 +290,7 @@ function topicText(topic: TopicFixture): string {
       gateOffsetAtActiveDay: 0,
       episodeCount: 2,
       lastEpisodeKey: null,
+      statusAtActiveDay: 0,
       lastActiveAt: new Date(),
       createdAt: new Date(),
     }));

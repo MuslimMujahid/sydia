@@ -50,7 +50,7 @@ export function schemaOnlyTools(selected?: readonly string[]): ToolSet {
     ...createNotesWorkspaceTools(unavailable()),
     ...createRecordNoteTools(unavailable()),
     ...createNoteQuestionResponseTools(unavailable()),
-    ...createTopicTools(unavailable()),
+    ...createTopicTools(unavailable(), unavailable()),
   ].map(({ definition }) => definition);
 
   validateToolGroups(

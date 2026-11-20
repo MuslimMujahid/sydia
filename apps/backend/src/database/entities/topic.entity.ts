@@ -51,6 +51,7 @@ export type Topic = Pick<
   | 'gateOffsetAtActiveDay'
   | 'episodeCount'
   | 'lastEpisodeKey'
+  | 'statusAtActiveDay'
   | 'lastActiveAt'
   | 'createdAt'
 > & { status: TopicStatus };

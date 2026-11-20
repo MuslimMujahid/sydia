@@ -6,6 +6,7 @@ import type {
   TopicUpdate,
 } from '../../database/interfaces';
 import type { ApiException } from '../../shared/errors';
+import type { EmbeddingsService } from '../../infra/embeddings';
 import { TopicDisconnectService } from './topic-disconnect.service';
 
 /** The refusal text the model receives (the tool executor reads it from the response). */
@@ -34,6 +35,7 @@ const topic: Topic = {
   gateOffsetAtActiveDay: 5,
   episodeCount: 3,
   lastEpisodeKey: 'c-1:m-1',
+  statusAtActiveDay: 0,
   lastActiveAt: new Date(),
   createdAt: new Date(),
 };
@@ -44,6 +46,9 @@ function setup(options: { linked?: boolean; exists?: boolean } = {}) {
   const suppress = jest.fn(() => Promise.resolve());
   const deleteTopic = jest.fn(() => Promise.resolve(true));
   const removeLink = jest.fn(() => Promise.resolve(options.linked ?? true));
+  const linked: Array<{ topicId: string; items: unknown[]; origin: string }> =
+    [];
+
   const repository = {
     find: () => Promise.resolve(options.exists === false ? null : topic),
     activeDayCount: () => Promise.resolve(5),
@@ -61,10 +66,30 @@ function setup(options: { linked?: boolean; exists?: boolean } = {}) {
     },
     removeLink,
     deleteTopic,
+    linkedItems: () =>
+      Promise.resolve([
+        { topicId: 't-1', type: 'reminder', id: 'r-1', active: true },
+        { topicId: 't-1', type: 'task', id: 'k-1', active: true },
+      ]),
+    create: (input: { label: string }) =>
+      Promise.resolve({
+        ...topic,
+        id: 't-new',
+        label: input.label,
+        status: 'candidate',
+      }),
+    linkItems: (topicId: string, items: unknown[], origin: string) => {
+      linked.push({ topicId, items, origin });
+
+      return Promise.resolve(items.length);
+    },
   } as unknown as ITopicRepository;
 
   return {
-    service: new TopicDisconnectService(repository),
+    service: new TopicDisconnectService(repository, {
+      embed: () => Promise.resolve([1, 0]),
+    } as unknown as EmbeddingsService),
+    linked,
     updates,
     events,
     suppress,
@@ -143,6 +168,7 @@ describe('topic disconnect', () => {
     expect(closed.updates[0]).toEqual({
       status: 'dismissed',
       dismissedReason: 'completed',
+      statusAtActiveDay: 5,
     });
 
     const forgotten = setup();
@@ -165,5 +191,48 @@ describe('topic disconnect', () => {
       ),
     ).toContain('does not exist');
     expect(deleteTopic).not.toHaveBeenCalled();
+  });
+
+  it('splits named items into a new confirmed topic the user named', async () => {
+    const { service, removeLink, linked, updates } = setup();
+
+    await service.disconnect('user-1', 'c-1', {
+      topicId: 't-1',
+      scope: 'split',
+      newLabel: 'Renovasi kamar mandi',
+      items: [{ type: 'task', id: 'k-1' }],
+    });
+
+    expect(removeLink).toHaveBeenCalledWith('user-1', 't-1', {
+      type: 'task',
+      id: 'k-1',
+    });
+    expect(linked).toEqual([
+      {
+        topicId: 't-new',
+        items: [{ type: 'task', id: 'k-1' }],
+        origin: 'user_stated',
+      },
+    ]);
+    expect(updates.at(-1)).toMatchObject({
+      status: 'active',
+      embedding: [1, 0],
+    });
+  });
+
+  it('refuses to split items the topic does not hold, before creating anything', async () => {
+    const { service, linked } = setup();
+
+    expect(
+      await refusal(
+        service.disconnect('user-1', 'c-1', {
+          topicId: 't-1',
+          scope: 'split',
+          newLabel: 'Lain',
+          items: [{ type: 'task', id: 'not-linked' }],
+        }),
+      ),
+    ).toContain('not linked');
+    expect(linked).toEqual([]);
   });
 });

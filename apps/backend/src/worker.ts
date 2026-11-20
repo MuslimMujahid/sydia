@@ -45,7 +45,7 @@ import { CalendarSyncService } from './modules/calendar/calendar-sync.service';
 import { DailyNoteService } from './modules/daily-notes/daily-note.service';
 import { NotesService } from './modules/notes/notes.service';
 import { ConversationSummarizerService } from './modules/conversations/services/conversation-summarizer.service';
-import { TopicFormationService } from './modules/topics';
+import { TopicFormationService, TopicLifecycleService } from './modules/topics';
 import {
   DailyBriefingService,
   FollowUpService,
@@ -111,6 +111,7 @@ async function bootstrap(): Promise<void> {
   const notes = context.get(NotesService);
   const conversationSummarizer = context.get(ConversationSummarizerService);
   const topicFormation = context.get(TopicFormationService);
+  const topicLifecycle = context.get(TopicLifecycleService);
   const notifications = context.get(NotificationService);
   const briefings = context.get(DailyBriefingService);
   const followUps = context.get(FollowUpService);
@@ -286,13 +287,26 @@ async function bootstrap(): Promise<void> {
   // its formation cursor.
   const topicFormationWorker = backgroundWorker<TopicFormationJob>(
     'topic-formations',
-    (job) => topicFormation.process(job.data.userId, job.data.conversationId),
+    (job) =>
+      job.data.kind === 'lifecycle'
+        ? topicLifecycle.sweep()
+        : topicFormation.process(job.data.userId, job.data.conversationId),
     { connection, concurrency: 1 },
+  );
+
+  // Daily lifecycle sweep (TOPIC-LIFE-01): candidates expire, quiet topics
+  // go dormant, then dismissed, then deleted after a year.
+  await queues.topicFormations.upsertJobScheduler(
+    'topic-lifecycle',
+    { pattern: '30 3 * * *' },
+    { name: 'lifecycle', data: { kind: 'lifecycle' } },
   );
 
   topicFormationWorker.on('failed', (job, error) =>
     Logger.error(
-      `Topic formation failed for conversation ${job?.data.conversationId ?? 'unknown'}; it retries, and the next turn resumes from the saved cursor.`,
+      job?.data.kind === 'lifecycle'
+        ? 'Topic lifecycle sweep failed; topics keep their status until the next daily sweep.'
+        : `Topic formation failed for conversation ${job?.data.conversationId ?? 'unknown'}; it retries, and the next turn resumes from the saved cursor.`,
       error.stack,
     ),
   );

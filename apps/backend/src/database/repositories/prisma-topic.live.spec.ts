@@ -14,6 +14,7 @@ import { PrismaService } from '../../infra/prisma';
 import { PrismaConversationRepository } from './prisma-conversation.repository';
 import { PrismaTopicRepository } from './prisma-topic.repository';
 import { PrismaUserPrivacyRepository } from './prisma-user-privacy.repository';
+import { TopicLifecycleService } from '../../modules/topics/topic-lifecycle.service';
 
 /**
  * Topic persistence contracts against PostgreSQL (docs/TOPIC_CONTEXT_SPEC.md).
@@ -470,5 +471,71 @@ const at = new Date('2026-11-21T02:00:00.000Z');
       topicId: 't-1',
       candidates: [expect.objectContaining({ topicId: 't-1', offered: true })],
     });
+  });
+
+  test('the daily sweep retires quiet topics but keeps ones with a pending reminder', async () => {
+    // 40 active days have passed since these topics last changed status.
+    await db.topicUserState.create({
+      data: { userId, activeDays: 40, lastActiveDay: '2026-11-21' },
+    });
+    const make = (label: string, data: Record<string, unknown>) =>
+      db.topic.create({
+        data: {
+          userId,
+          label,
+          status: 'active',
+          salience: 1,
+          salienceAtActiveDay: 0,
+          statusAtActiveDay: 0,
+          ...data,
+        },
+        select: { id: true },
+      });
+
+    const quiet = await make('Quiet', {});
+    const pending = await make('Pending', {});
+    const guess = await make('Old guess', {
+      status: 'candidate',
+      createdAt: new Date(Date.now() - 40 * 86_400_000),
+    });
+
+    const reminder = await db.reminder.create({
+      data: {
+        userId,
+        title: 'Bayar',
+        scheduledAt: new Date(Date.now() + 86_400_000),
+        timezone: 'Asia/Jakarta',
+      },
+      select: { id: true },
+    });
+
+    await topics.linkItems(
+      pending.id,
+      [{ type: 'reminder', id: reminder.id }],
+      'touched',
+    );
+
+    const counts = await new TopicLifecycleService(topics).sweepUser(
+      userId,
+      new Date(),
+    );
+
+    expect(counts).toEqual({ dormant: 1, dismissed: 0, deleted: 1 });
+    expect(
+      await db.topic.findUnique({
+        where: { id: quiet.id },
+        select: { status: true, statusAtActiveDay: true },
+      }),
+    ).toEqual({ status: 'dormant', statusAtActiveDay: 40 });
+    expect(
+      (
+        await db.topic.findUnique({
+          where: { id: pending.id },
+          select: { status: true },
+        })
+      )?.status,
+    ).toBe('active');
+    expect(await db.topic.count({ where: { id: guess.id } })).toBe(0);
+    expect(await topics.usersWithTopics()).toContain(userId);
   });
 });

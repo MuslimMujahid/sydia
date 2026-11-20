@@ -48,6 +48,7 @@ import { validateToolGroups } from './tool-groups';
 import { createTimezoneTool } from './timezone-tool';
 import { createTopicTools } from './topic-tools';
 import { TopicDisconnectService } from '../../topics/topic-disconnect.service';
+import { TopicDirectoryService } from '../../topics/topic-directory.service';
 import {
   AssistancePolicyService,
   AssistantActionService,
@@ -92,6 +93,7 @@ export class DomainToolsProvider {
     @Optional() delivery?: ReminderDeliveryService,
     @Optional() config?: ConfigService,
     @Optional() topicDisconnect?: TopicDisconnectService,
+    @Optional() topicDirectory?: TopicDirectoryService,
   ) {
     const protectedTools = protectNoteTools(
       [
@@ -122,7 +124,9 @@ export class DomainToolsProvider {
         ...createNotesWorkspaceTools(notes),
         ...createRecordNoteTools(records),
         ...createNoteQuestionResponseTools(noteWork),
-        ...(topicDisconnect ? createTopicTools(topicDisconnect) : []),
+        ...(topicDisconnect && topicDirectory
+          ? createTopicTools(topicDisconnect, topicDirectory)
+          : []),
         ...(skills && workContext && availability && actions && policy
           ? createSecretaryTools({
               skills: skills.skills,
@@ -148,7 +152,7 @@ export class DomainToolsProvider {
     // Harnesses without the secretary module register only domain tools.
     validateToolGroups(names, [
       ...(skills ? [] : (['assistance'] as const)),
-      ...(topicDisconnect ? [] : (['topics'] as const)),
+      ...(topicDisconnect && topicDirectory ? [] : (['topics'] as const)),
     ]);
     skills?.validateTools(names);
   }

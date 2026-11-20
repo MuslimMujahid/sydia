@@ -11,13 +11,17 @@ import type { AssistantToolDefinition } from './tool-executor.service';
  * already stated elsewhere.
  */
 // Raised from 89_000 for acknowledge_reminder and snooze_reminder (specs/010),
-// then from 92_500 for find_in_document.
-const TOOL_DEFINITION_BUDGET_BYTES = 94_000;
+// then from 92_500 for find_in_document, then from 94_000 for the topic
+// tools list_topics and disconnect_topic (trimmed to about 1.3 KB).
+const TOOL_DEFINITION_BUDGET_BYTES = 95_500;
 
 function registeredTools(): AssistantToolDefinition[] {
   const stub = {} as never;
   const dependencies: unknown[] = Array.from({ length: 25 }, () => stub);
   dependencies[20] = new SkillCatalogService();
+  // Topic tools (directory and disconnect) are registered in production too.
+  dependencies[29] = stub;
+  dependencies[30] = stub;
   const Provider = DomainToolsProvider as unknown as new (
     ...args: unknown[]
   ) => DomainToolsProvider;

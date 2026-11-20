@@ -89,6 +89,14 @@ describe('topic candidate floor', () => {
   });
 });
 
+describe('naming a topic', () => {
+  it('admits a named topic, including a dismissed one, regardless of similarity', () => {
+    expect(passesFloor('dismissed', 0.3, false, true)).toBe(true);
+    expect(passesFloor('active', 0.05, false, true)).toBe(true);
+    expect(passesFloor('candidate', 0.9, true, true)).toBe(false);
+  });
+});
+
 describe('cosine similarity', () => {
   it('is 1 for the same direction and 0 for mismatched vectors', () => {
     expect(cosineSimilarity([1, 2], [2, 4])).toBeCloseTo(1);

@@ -1,9 +1,20 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import {
   TOPIC_REPOSITORY,
   type ITopicRepository,
 } from '../../database/interfaces';
-import { TOPIC_ITEM_TYPES, type TopicItemType } from '../../database/entities';
+import {
+  TOPIC_ITEM_TYPES,
+  type TopicItemRef,
+  type TopicItemType,
+} from '../../database/entities';
+import { EmbeddingsService } from '../../infra/embeddings';
 import { ApiException, ErrorCodes } from '../../shared/errors';
 import { addSalience, decay } from './salience';
 import { TOPIC_EVENT_WEIGHTS, TOPIC_SETTINGS } from './topic-settings';
@@ -11,6 +22,7 @@ import { TOPIC_EVENT_WEIGHTS, TOPIC_SETTINGS } from './topic-settings';
 export const DISCONNECT_SCOPES = [
   'episode',
   'item',
+  'split',
   'topic_complete',
   'topic_forget',
 ] as const;
@@ -21,6 +33,9 @@ export type DisconnectInput = {
   scope: DisconnectScope;
   itemType?: TopicItemType;
   itemId?: string;
+  /** split: the new topic's name and the listed items that move to it. */
+  newLabel?: string;
+  items?: TopicItemRef[];
 };
 
 function refused(message: string): ApiException {
@@ -37,8 +52,11 @@ function refused(message: string): ApiException {
  */
 @Injectable()
 export class TopicDisconnectService {
+  private readonly logger = new Logger(TopicDisconnectService.name);
+
   constructor(
     @Inject(TOPIC_REPOSITORY) private readonly topics: ITopicRepository,
+    @Optional() private readonly embeddings?: EmbeddingsService,
   ) {}
 
   async disconnect(
@@ -139,10 +157,13 @@ export class TopicDisconnectService {
         );
       }
 
+      case 'split':
+        return done(await this.split(userId, conversationId, topic.id, input));
       case 'topic_complete':
         await this.topics.update(userId, topic.id, {
           status: 'dismissed',
           dismissedReason: 'completed',
+          statusAtActiveDay: await this.topics.activeDayCount(userId),
         });
 
         return done(
@@ -155,5 +176,72 @@ export class TopicDisconnectService {
           'The topic and everything Sydia derived for it are deleted.',
         );
     }
+  }
+
+  /** TOPIC-DISC-02: move the named items into a new topic the user named. */
+  private async split(
+    userId: string,
+    conversationId: string | undefined,
+    topicId: string,
+    input: DisconnectInput,
+  ): Promise<string> {
+    const label = input.newLabel?.trim().replace(/\s+/g, ' ') ?? '';
+    const items = input.items ?? [];
+    if (!label || label.length > 80 || !items.length)
+      throw refused(
+        'A split needs the new topic name and at least one listed item. Changed nothing.',
+      );
+    const now = new Date();
+    const linked = await this.topics.linkedItems(userId, [topicId], now);
+    const missing = items.filter(
+      (item) =>
+        !linked.some(
+          (entry) => entry.type === item.type && entry.id === item.id,
+        ),
+    );
+
+    if (missing.length)
+      throw refused(
+        'Some of those items are not linked to this topic. Changed nothing.',
+      );
+
+    const activeDay = await this.topics.activeDayCount(userId);
+    const created = await this.topics.create({
+      userId,
+      label,
+      aliases: [],
+      episodeKey: `${conversationId ?? 'split'}:${now.toISOString()}`,
+      activeDay,
+      at: now,
+    });
+
+    for (const item of items)
+      await this.topics.removeLink(userId, topicId, item);
+    await this.topics.linkItems(created.id, items, 'user_stated');
+
+    let embedding: number[] | null = null;
+
+    try {
+      embedding = (await this.embeddings?.embed(label)) ?? null;
+    } catch (error) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'topic_embedding_failed',
+          topicId: created.id,
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          remediation:
+            'The new topic is found by its links until its next update embeds it.',
+        }),
+      );
+    }
+
+    // The user named this effort, so it is confirmed from the start.
+    await this.topics.update(userId, created.id, {
+      status: 'active',
+      statusAtActiveDay: activeDay,
+      ...(embedding ? { embedding } : {}),
+    });
+
+    return `Moved ${items.length} item(s) into the new topic "${label}"; they will not be linked back to the old one.`;
   }
 }

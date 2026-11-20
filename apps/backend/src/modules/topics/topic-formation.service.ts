@@ -36,6 +36,7 @@ import {
   touchedItems,
   uniqueItems,
 } from './topic-item-references';
+import { namesTopic } from './topic-naming';
 import { TopicRecognitionService } from './topic-recognition.service';
 import { TOPIC_EVENT_WEIGHTS, TOPIC_SETTINGS } from './topic-settings';
 
@@ -257,7 +258,18 @@ export class TopicFormationService {
       ),
     ]);
 
-    const known = all.filter((topic) => !suppressed.includes(topic.id));
+    const named = new Set(
+      all
+        .filter((topic) =>
+          userMessages.some((message) => namesTopic(message.content, topic)),
+        )
+        .map(({ id }) => id),
+    );
+
+    // Naming a suppressed topic again lifts its suppression.
+    const known = all.filter(
+      (topic) => !suppressed.includes(topic.id) || named.has(topic.id),
+    );
 
     const claims = await this.topics.claims(known.map(({ id }) => id));
     const anchors = uniqueItems(userMessages.flatMap(messageAnchors));
@@ -280,6 +292,7 @@ export class TopicFormationService {
         topics: known,
         claims,
         mode,
+        namedTopicIds: named,
       }));
 
     const touched = segment.invocations.flatMap((invocation) =>
@@ -576,6 +589,8 @@ export class TopicFormationService {
         episodeCount: update.episodeCount ?? topic.episodeCount,
         salience: update.salience ?? topic.salience,
       });
+    // The lifecycle times grace and dormancy from the last status change.
+    if (update.status !== topic.status) update.statusAtActiveDay = activeDay;
 
     if (
       context.isNew ||
