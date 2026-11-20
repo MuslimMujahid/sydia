@@ -1,7 +1,15 @@
 import type { BillingAccount, BillingOrder, BillingWebhook } from '../entities';
 
 export const BILLING_REPOSITORY = Symbol('IBillingRepository');
+export type BillingGift = {
+  id: string;
+  durationDays: number;
+  paidUntil: string;
+};
+
 export interface IBillingRepository {
+  pendingGifts(userId: string, now: Date): Promise<BillingGift[]>;
+  acknowledgeGifts(userId: string, giftIds: string[], now: Date): Promise<void>;
   ensureAccount(
     userId: string,
     rolloutAt: Date,

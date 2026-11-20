@@ -1,9 +1,20 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post } from '@nestjs/common';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
-import { IsString, IsUUID, Matches } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { AllowInactiveBilling } from './billing-access.interceptor';
 import { BillingService } from './billing.service';
+import { BILLING_GIFT_BATCH_SIZE } from '../../shared/billing-policy';
 
 export class CheckoutDto {
   @IsUUID() idempotencyKey!: string;
@@ -13,6 +24,17 @@ export class CheckoutDto {
   @IsString()
   @Matches(/^\+?[0-9]{8,15}$/)
   mobile!: string;
+}
+
+class AcknowledgeGiftsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(BILLING_GIFT_BATCH_SIZE)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MinLength(1, { each: true })
+  @MaxLength(100, { each: true })
+  giftIds!: string[];
 }
 
 @AllowInactiveBilling()
@@ -26,6 +48,20 @@ export class BillingController {
 
   @Get('orders') orders(@Session() session: UserSession) {
     return this.billing.orders(session.user.id);
+  }
+
+  @Get('gifts')
+  @Header('Cache-Control', 'private, no-store')
+  gifts(@Session() session: UserSession) {
+    return this.billing.pendingGifts(session.user.id);
+  }
+
+  @Post('gifts/acknowledge')
+  acknowledgeGifts(
+    @Session() session: UserSession,
+    @Body() input: AcknowledgeGiftsDto,
+  ) {
+    return this.billing.acknowledgeGifts(session.user.id, input.giftIds);
   }
 
   @Post('checkouts') checkout(

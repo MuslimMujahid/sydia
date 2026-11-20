@@ -7,13 +7,12 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { BillingPage } from "../src/components/settings/billing-page";
+import { GiftCelebration } from "../src/components/billing/gift-celebration";
 import { SettingsNav } from "../src/components/settings/settings-nav";
 import "../src/styles/globals.css";
 
-const locale =
-  new URLSearchParams(window.location.search).get("lang") === "en"
-    ? "en"
-    : "id";
+const search = new URLSearchParams(window.location.search);
+const locale = search.get("lang") === "en" ? "en" : "id";
 
 function Fixture() {
   return (
@@ -24,6 +23,13 @@ function Fixture() {
           <BillingPage locale={locale} timezone="Asia/Makassar" />
         </div>
       </div>
+      {search.has("celebrate") && (
+        <GiftCelebration
+          id="gift-recipient"
+          locale={locale}
+          timezone="Asia/Makassar"
+        />
+      )}
     </main>
   );
 }

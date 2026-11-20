@@ -7,13 +7,13 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
+import { Route as AppRoute } from "../src/routes/_app";
 import { Route as OnboardingRoute } from "../src/routes/onboarding";
 import { Route as WelcomeRoute } from "../src/routes/welcome";
 import "../src/styles/globals.css";
 import { createQueryClient } from "../src/lib/query-client";
 
-// Mounts the real /onboarding route (loader, guards, wizard) in isolation;
-// the specs supply the API responses.
+// Exercise the production route guards and layouts with an isolated chat destination.
 const queryClient = createQueryClient();
 queryClient.setDefaultOptions({ queries: { retry: false } });
 
@@ -30,8 +30,13 @@ const welcome = WelcomeRoute.update({
   getParentRoute: () => rootRoute,
 } as never);
 
-const home = createRoute({
+const app = AppRoute.update({
+  id: "/_app",
   getParentRoute: () => rootRoute,
+} as never);
+
+const home = createRoute({
+  getParentRoute: () => app,
   path: "/",
   validateSearch: (search: Record<string, unknown>) => ({
     conversation:
@@ -45,8 +50,12 @@ const home = createRoute({
 });
 
 const router = createRouter({
-  routeTree: rootRoute.addChildren([onboarding, welcome, home]) as never,
-  history: createMemoryHistory({ initialEntries: ["/onboarding"] }),
+  routeTree: rootRoute.addChildren([
+    onboarding,
+    welcome,
+    app.addChildren([home]),
+  ]) as never,
+  history: createMemoryHistory({ initialEntries: ["/"] }),
   context: { queryClient } as never,
 });
 

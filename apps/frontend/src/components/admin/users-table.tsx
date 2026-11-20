@@ -26,6 +26,7 @@ import {
   type CostFlag,
 } from "./users/user-metrics";
 import { cn } from "@/lib/utils/cn";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type RowContext = {
   now: number;
@@ -37,9 +38,31 @@ type RowContext = {
   onGiftPlus: OnGiftPlus;
   onAction: (user: AdminUser, action: AdminUserAction) => void;
   onSelectUser: (userId: string) => void;
+  onToggleUser: (userId: string, checked: boolean) => void;
 };
 
-type UserRowProps = RowContext & { user: AdminUser; selected: boolean };
+type UserRowProps = RowContext & {
+  user: AdminUser;
+  selected: boolean;
+  checked: boolean;
+};
+
+function UserCheckbox({
+  user,
+  checked,
+  actionsDisabled,
+  onToggleUser,
+}: UserRowProps) {
+  return (
+    <Checkbox
+      aria-label={`Pilih ${user.name}`}
+      checked={checked}
+      disabled={actionsDisabled}
+      onCheckedChange={(next) => onToggleUser(user.id, next)}
+      className="relative size-5 after:absolute after:-inset-2"
+    />
+  );
+}
 
 function UserIdentity({
   user,
@@ -198,7 +221,12 @@ function openFromRow(
   const target = event.target;
   if (!(target instanceof Element) || !event.currentTarget.contains(target))
     return;
-  if (target.closest("button, a, input, select, label, [role='menu']")) return;
+  if (
+    target.closest(
+      "button, a, input, select, label, [role='menu'], [role='checkbox']"
+    )
+  )
+    return;
   onSelectUser(userId);
 }
 
@@ -210,11 +238,14 @@ const UserTableRow = memo(function UserTableRow(props: UserRowProps) {
       onClick={(event) => openFromRow(event, user.id, onSelectUser)}
       className={cn(
         "cursor-pointer border-b border-ink/6 last:border-0 hover:bg-ink/[0.025]",
-        selected && "bg-brand/[0.04]"
+        (selected || props.checked) && "bg-brand/[0.04]"
       )}
     >
       <td className="py-3 pr-4 pl-5">
-        <UserIdentity user={user} onSelectUser={onSelectUser} />
+        <div className="flex items-center gap-4">
+          <UserCheckbox {...props} />
+          <UserIdentity user={user} onSelectUser={onSelectUser} />
+        </div>
       </td>
       <td className="py-3 pr-4">
         <PlanBadge user={user} now={now} />
@@ -257,14 +288,17 @@ const UserCard = memo(function UserCard(props: UserRowProps) {
       onClick={(event) => openFromRow(event, user.id, onSelectUser)}
       className={cn(
         "space-y-3 border-b border-ink/6 px-4 py-4 last:border-0 sm:px-5",
-        selected && "bg-brand/[0.04]"
+        (selected || props.checked) && "bg-brand/[0.04]"
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <UserIdentity user={user} onSelectUser={onSelectUser} />
+        <div className="flex min-w-0 items-center gap-3">
+          <UserCheckbox {...props} />
+          <UserIdentity user={user} onSelectUser={onSelectUser} />
+        </div>
         <PlanBadge user={user} now={now} />
       </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 pl-11 text-xs sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 pl-[76px] text-xs sm:grid-cols-4">
         <div className="col-span-2 sm:col-span-1">
           <dt className="mb-1 text-ink-muted">
             Aktivitas {periodPhrase(period)}
@@ -305,6 +339,7 @@ type UsersTableProps = Omit<RowContext, "typical"> & {
   users: AdminUser[];
   selectedUserId: string | null;
   sortedByCost: boolean;
+  checkedIds: ReadonlySet<string>;
   onSortByCost?: () => void;
 };
 
@@ -315,6 +350,7 @@ export function UsersTable({
   users,
   selectedUserId,
   sortedByCost,
+  checkedIds,
   onSortByCost,
   ...context
 }: UsersTableProps) {
@@ -342,7 +378,7 @@ export function UsersTable({
           </colgroup>
           <thead>
             <tr className="border-b border-ink/6">
-              <th scope="col" className={cn(HEADER_CELL, "pl-5")}>
+              <th scope="col" className={cn(HEADER_CELL, "pl-14")}>
                 Pengguna
               </th>
               <th scope="col" className={HEADER_CELL}>
@@ -398,6 +434,7 @@ export function UsersTable({
                 key={user.id}
                 user={user}
                 selected={user.id === selectedUserId}
+                checked={checkedIds.has(user.id)}
                 typical={typical}
                 {...context}
               />
@@ -411,6 +448,7 @@ export function UsersTable({
             key={user.id}
             user={user}
             selected={user.id === selectedUserId}
+            checked={checkedIds.has(user.id)}
             typical={typical}
             {...context}
           />

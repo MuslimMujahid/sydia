@@ -714,3 +714,151 @@ test("the user drawer fits the viewport on phones and desktops", async ({
     animations: "disabled",
   });
 });
+
+test("bulk selection applies only to the current page", async ({ page }) => {
+  await openUsers(page);
+
+  const selectPage = page.getByRole("checkbox", {
+    name: "Pilih semua di halaman ini",
+  });
+
+  await page
+    .getByRole("checkbox", { name: "Pilih User 1", exact: true })
+    .click();
+  await expect(selectPage).toHaveAttribute("aria-checked", "mixed");
+  await page.getByText("Pilih semua di halaman ini", { exact: true }).click();
+  await expect(selectPage).toBeChecked();
+  await expect(page.getByText("25 dipilih")).toBeVisible();
+
+  await page.getByRole("button", { name: "Berikutnya", exact: true }).click();
+  await expect(
+    page.getByRole("checkbox", { name: "Pilih User 26", exact: true })
+  ).toBeEnabled();
+  await expect(selectPage).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Aksi massal" })).toHaveCount(
+    0
+  );
+});
+
+test("bulk gifts retry only unconfirmed recipients using the original request", async ({
+  page,
+}, info) => {
+  const requests: {
+    userId: string;
+    durationDays: number;
+    requestId: string;
+  }[] = [];
+
+  await page.route("**/admin/users/*/gift-plus", async (route) => {
+    const userId = new URL(route.request().url()).pathname.split("/").at(-2)!;
+    const input = route.request().postDataJSON();
+    requests.push({ userId, ...input });
+
+    if (
+      userId === "user-2" &&
+      requests.filter((request) => request.userId === userId).length === 1
+    ) {
+      await route.fulfill({
+        status: 503,
+        json: {
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Hadiah belum terkonfirmasi.",
+          },
+        },
+      });
+
+      return;
+    }
+
+    await route.fulfill({
+      json: { data: { paidUntil: "2026-12-12T00:00:00Z" } },
+    });
+  });
+  await openUsers(page, 3);
+  await page
+    .getByRole("checkbox", { name: "Pilih User 1", exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", { name: "Pilih User 2", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Aksi massal" }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "Hadiah Sydia Plus" })
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("bulk-actions.png"),
+    animations: "disabled",
+  });
+  await page.getByRole("menuitem", { name: "Hadiah Sydia Plus" }).click();
+  const dialog = page.getByRole("dialog", { name: "Hadiah Sydia Plus" });
+  await expect(
+    dialog.getByRole("button", { name: "30 hari", exact: true })
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByText("2 pengguna.")).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("bulk-gift.png"),
+    animations: "disabled",
+  });
+  await dialog.getByRole("button", { name: "Kirim hadiah" }).click();
+  await expect(dialog.getByRole("status")).toHaveText(
+    "1 berhasil · 1 belum terkonfirmasi"
+  );
+  await expect(dialog.getByText("user2@example.com")).toBeVisible();
+  await dialog.getByRole("button", { name: "Tutup", exact: true }).click();
+  await page.getByRole("button", { name: "Aksi massal" }).click();
+  await page.getByRole("menuitem", { name: "Hadiah Sydia Plus" }).click();
+
+  await dialog.getByRole("button", { name: "Coba lagi" }).click();
+
+  await expect(dialog.getByRole("status")).toHaveText("2 berhasil");
+  expect(requests.map(({ userId }) => userId).sort()).toEqual([
+    "user-1",
+    "user-2",
+    "user-2",
+  ]);
+  expect(requests.map(({ durationDays }) => durationDays)).toEqual([
+    30, 30, 30,
+  ]);
+  expect(new Set(requests.map(({ requestId }) => requestId)).size).toBe(1);
+});
+
+test("bulk delete confirms the recipients and reports success after their rows disappear", async ({
+  page,
+}) => {
+  const removals: string[] = [];
+  await page.route(/\/admin\/users\/user-[12]$/, async (route) => {
+    const userId = new URL(route.request().url()).pathname.split("/").at(-1)!;
+    expect(route.request().method()).toBe("PATCH");
+    expect(route.request().postDataJSON()).toEqual({ action: "delete" });
+    removals.push(userId);
+    await route.fulfill({ json: { data: { success: true } } });
+  });
+  await openUsers(page, 2);
+  await page.route("**/admin/users?**", async (route) => {
+    if (removals.length < 2) return route.fallback();
+    await route.fulfill({
+      json: { data: [], pagination: { offset: 0, limit: 25, total: 0 } },
+    });
+  });
+  await page
+    .getByRole("checkbox", { name: "Pilih semua di halaman ini" })
+    .click();
+  await page.getByRole("button", { name: "Aksi massal" }).click();
+  await page.getByRole("menuitem", { name: "Hapus pengguna" }).click();
+  const dialog = page.getByRole("dialog", { name: "Hapus pengguna" });
+  await expect(
+    dialog
+      .getByRole("list", { name: "Akun yang akan dihapus" })
+      .getByRole("listitem")
+  ).toHaveText(["user1@example.com", "user2@example.com"]);
+  expect(removals).toEqual([]);
+
+  await dialog.getByRole("button", { name: "Hapus permanen" }).click();
+
+  await expect(dialog.getByRole("status")).toHaveText("2 berhasil");
+  await dialog.getByRole("button", { name: "Tutup", exact: true }).click();
+  await expect(
+    page.getByText("Belum ada pengguna", { exact: true })
+  ).toBeVisible();
+});

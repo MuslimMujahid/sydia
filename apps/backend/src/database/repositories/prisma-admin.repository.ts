@@ -1,4 +1,7 @@
-import { BILLING_TRIAL_DAYS } from '../../shared/billing-policy';
+import {
+  BILLING_GIFT_EVENT,
+  BILLING_TRIAL_DAYS,
+} from '../../shared/billing-policy';
 import {
   actionsSql,
   costRowsSql,
@@ -93,7 +96,7 @@ export class PrismaAdminRepository implements IAdminRepository {
       const previous = await tx.auditEvent.findFirst({
         where: {
           userId: input.userId,
-          eventType: 'admin.user.gift-plus',
+          eventType: BILLING_GIFT_EVENT,
           metadata: { path: ['requestId'], equals: input.requestId },
         },
         select: { metadata: true },
@@ -159,7 +162,7 @@ export class PrismaAdminRepository implements IAdminRepository {
       await tx.auditEvent.create({
         data: {
           userId: input.userId,
-          eventType: 'admin.user.gift-plus',
+          eventType: BILLING_GIFT_EVENT,
           metadata: {
             actorId: input.actorId,
             requestId: input.requestId,

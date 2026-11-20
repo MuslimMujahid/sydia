@@ -1,4 +1,8 @@
-import { queryOptions } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api, toApiError } from "../api";
 import type { ApiResponse } from "../api.types";
 
@@ -29,6 +33,12 @@ export type BillingOrder = {
   createdAt: string;
 };
 
+export type BillingGift = {
+  id: string;
+  durationDays: number;
+  paidUntil: string;
+};
+
 async function billingRequest<T>(
   request: Promise<{ data: ApiResponse<T> }>
 ): Promise<T> {
@@ -43,7 +53,38 @@ async function billingRequest<T>(
 export const billingKeys = {
   status: ["billing", "status"] as const,
   orders: ["billing", "orders"] as const,
+  gifts: (userId: string) => ["billing", "gifts", userId] as const,
 };
+
+export const billingGiftsQueryOptions = (userId: string) =>
+  queryOptions({
+    queryKey: billingKeys.gifts(userId),
+    queryFn: () =>
+      billingRequest(api.get<ApiResponse<BillingGift[]>>("/billing/gifts")),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+export function useAcknowledgeBillingGifts(userId: string) {
+  const queryClient = useQueryClient();
+  const queryKey = billingKeys.gifts(userId);
+
+  return useMutation({
+    mutationFn: (giftIds: string[]) =>
+      billingRequest(
+        api.post<ApiResponse<{ success: true }>>("/billing/gifts/acknowledge", {
+          giftIds,
+        })
+      ),
+    onSuccess: async (_, giftIds) => {
+      queryClient.setQueryData<BillingGift[]>(queryKey, (gifts) =>
+        gifts?.filter(({ id }) => !giftIds.includes(id))
+      );
+      await queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}
+
 export const billingStatusQueryOptions = () =>
   queryOptions({
     queryKey: billingKeys.status,

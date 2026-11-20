@@ -1,11 +1,42 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma';
-import type { IBillingRepository } from '../interfaces';
+import {
+  BILLING_GIFT_EVENT,
+  BILLING_GIFT_BATCH_SIZE,
+} from '../../shared/billing-policy';
+import type { BillingGift, IBillingRepository } from '../interfaces';
 
 @Injectable()
 export class PrismaBillingRepository implements IBillingRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  pendingGifts(userId: string, now: Date): Promise<BillingGift[]> {
+    return this.prisma.$queryRaw<BillingGift[]>`
+      SELECT id, (metadata->>'durationDays')::int AS "durationDays",
+        metadata->>'paidUntil' AS "paidUntil"
+      FROM audit_event
+      WHERE "userId" = ${userId} AND "eventType" = ${BILLING_GIFT_EVENT}
+        AND NOT (metadata ? 'celebratedAt')
+        AND metadata->>'paidUntil' > ${now.toISOString()}
+      ORDER BY "paidUntil" DESC, id
+      LIMIT ${BILLING_GIFT_BATCH_SIZE}
+    `;
+  }
+
+  async acknowledgeGifts(
+    userId: string,
+    giftIds: string[],
+    now: Date,
+  ): Promise<void> {
+    await this.prisma.$executeRaw`
+      UPDATE audit_event
+      SET metadata = metadata || jsonb_build_object('celebratedAt', ${now.toISOString()}::text)
+      WHERE "userId" = ${userId} AND "eventType" = ${BILLING_GIFT_EVENT}
+        AND NOT (metadata ? 'celebratedAt')
+        AND id IN (${Prisma.join(giftIds)})
+    `;
+  }
 
   async ensureAccount(userId: string, rolloutAt: Date, trialDays: number) {
     return this.prisma.$transaction(async (tx) => {

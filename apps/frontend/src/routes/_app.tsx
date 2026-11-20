@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { FileLibraryUploadResults } from "@/components/documents/file-library-upload-results";
 import { FileUploadProvider } from "@/components/documents/file-upload-provider";
+import { GiftCelebration } from "@/components/billing/gift-celebration";
 import { ErrorState, LoadingState } from "@/components/app-states";
 import { requireCompletedOnboarding } from "@/lib/auth";
 import { DevToolbar } from "@/components/dev/dev-toolbar";
@@ -32,6 +33,13 @@ function AppLayout() {
       <DashboardShell user={user}>
         <Outlet />
         <FileLibraryUploadResults />
+        {/* Show gifts in the main app after onboarding and its welcome screen. */}
+        <GiftCelebration
+          key={user.id}
+          id={user.id}
+          locale={user.locale}
+          timezone={user.timezone}
+        />
         {/* eslint-disable-next-line turbo/no-undeclared-env-vars -- Vite build-time constant. */}
         {import.meta.env.DEV ? <DevToolbar locale={user.locale} /> : null}
       </DashboardShell>

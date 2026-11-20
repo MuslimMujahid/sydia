@@ -19,6 +19,7 @@ import {
   useAdminUsersList,
   useAdminUserAction,
   useAdminGiftPlus,
+  useAdminBulkAction,
 } from "@/lib/services/api/admin/admin.queries";
 
 export const Route = createFileRoute("/admin/users")({
@@ -86,6 +87,7 @@ function UsersContent({
   const list = useAdminUsersList({ attention, period, ...(q ? { q } : {}) });
   const action = useAdminUserAction();
   const { mutateAsync: giftPlus } = useAdminGiftPlus();
+  const { mutateAsync: bulkAction } = useAdminBulkAction();
   const onGiftPlus = useCallback<OnGiftPlus>(
     (user, input) => giftPlus({ userId: user.id, input }),
     [giftPlus]
@@ -139,6 +141,7 @@ function UsersContent({
         void list.query.refetch();
       }}
       onGiftPlus={onGiftPlus}
+      onBulkAction={bulkAction}
       onBanUser={(user) => act(user, "ban")}
       onUnbanUser={(user) => act(user, "unban")}
       onForceSignOutUser={(user) => act(user, "force-sign-out")}

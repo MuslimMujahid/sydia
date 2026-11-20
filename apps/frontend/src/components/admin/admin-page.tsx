@@ -5,6 +5,8 @@ import { PeriodBar, Skeleton } from "./analytics/widgets";
 import { exportAdminUsers } from "./export-users";
 import type {
   AdminOverview,
+  AdminBulkAction,
+  AdminBulkFailure,
   AdminPeriod,
   AdminUser,
   AdminUserAction,
@@ -13,6 +15,7 @@ import type {
 } from "./types";
 import { UserActionDialog, type PendingUserAction } from "./user-actions";
 import { UserDrawer } from "./users/user-drawer";
+import { BulkUserActions } from "./users/bulk-user-actions";
 import { periodPhrase } from "./users/user-metrics";
 import { UsersToolbar, type StatusFilter } from "./users/users-toolbar";
 import { UsersPagination } from "./users-pagination";
@@ -21,6 +24,7 @@ import { EmptyState } from "@/components/app-states";
 import { adminPricingQueryOptions } from "@/lib/services/api/admin/admin.queries";
 import { DomainInlineError } from "@/components/domain/domain-page";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils/cn";
 
 export type AdminPageProps = {
@@ -50,6 +54,7 @@ export type AdminPageProps = {
   onForceSignOutUser: (user: AdminUser) => Promise<void>;
   onDeleteUser: (user: AdminUser) => Promise<void>;
   onGiftPlus: OnGiftPlus;
+  onBulkAction: (request: AdminBulkAction) => Promise<AdminBulkFailure[]>;
 };
 
 const DEFAULT_ERROR_MESSAGE = "Aksi gagal dijalankan. Coba lagi.";
@@ -246,6 +251,7 @@ export function AdminPage({
   onForceSignOutUser,
   onDeleteUser,
   onGiftPlus,
+  onBulkAction,
 }: AdminPageProps) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -258,6 +264,37 @@ export function AdminPage({
 
   const [pending, setPending] = useState<PendingUserAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const selectionScope = JSON.stringify([
+    query,
+    statusFilter,
+    period,
+    filters.plan,
+    filters.activity,
+    filters.attention,
+    filters.sort,
+    filters.offset ?? pagination.offset,
+  ]);
+
+  const [selection, setSelection] = useState({
+    scope: selectionScope,
+    ids: new Set<string>(),
+  });
+
+  if (selection.scope !== selectionScope) {
+    setSelection({ scope: selectionScope, ids: new Set() });
+  }
+
+  const checkedUsers = users.filter((user) => selection.ids.has(user.id));
+
+  function toggleUser(userId: string, checked: boolean) {
+    setSelection(({ scope, ids }) => {
+      const next = new Set(ids);
+      if (checked) next.add(userId);
+      else next.delete(userId);
+
+      return { scope, ids: next };
+    });
+  }
 
   const handleAction = useCallback(
     (user: AdminUser, action: AdminUserAction) => {
@@ -382,6 +419,41 @@ export function AdminPage({
             onResetFilters={onResetFilters}
           />
           <div className="overflow-hidden rounded-2xl border border-ink/6 bg-canvas shadow-card">
+            <div
+              className={cn(
+                "flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink/6 px-4 py-2.5 sm:px-5",
+                users.length === 0 && "hidden"
+              )}
+            >
+              <label className="mr-auto flex min-h-9 cursor-pointer items-center gap-3 text-sm text-ink-muted">
+                <Checkbox
+                  aria-label="Pilih semua di halaman ini"
+                  checked={checkedUsers.length === users.length}
+                  indeterminate={
+                    checkedUsers.length > 0 &&
+                    checkedUsers.length < users.length
+                  }
+                  disabled={actionsDisabled}
+                  onCheckedChange={() =>
+                    setSelection({
+                      scope: selectionScope,
+                      ids: new Set(
+                        checkedUsers.length === users.length
+                          ? []
+                          : users.map(({ id }) => id)
+                      ),
+                    })
+                  }
+                  className="relative size-5 after:absolute after:inset-x-1 after:h-px data-[indeterminate]:border-brand data-[indeterminate]:bg-brand/15 data-[indeterminate]:after:bg-ink [&[data-indeterminate]_svg]:hidden"
+                />
+                Pilih semua di halaman ini
+              </label>
+              <BulkUserActions
+                users={checkedUsers}
+                disabled={actionsDisabled}
+                onRun={onBulkAction}
+              />
+            </div>
             {users.length === 0 && !isFiltering ? (
               <EmptyState
                 title="Belum ada pengguna"
@@ -413,6 +485,8 @@ export function AdminPage({
                   onFiltersChange && (() => onFiltersChange({ sort: "cost" }))
                 }
                 actionsDisabled={actionsDisabled}
+                checkedIds={selection.ids}
+                onToggleUser={toggleUser}
                 onGiftPlus={onGiftPlus}
                 onAction={handleAction}
                 onSelectUser={handleSelectUser}

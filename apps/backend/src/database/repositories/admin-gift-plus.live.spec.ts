@@ -214,6 +214,70 @@ live('Admin Plus gift PostgreSQL contracts', () => {
     });
   });
 
+  test('an active gift is available until its recipient acknowledges it', async () => {
+    await admin.giftPlus(input);
+    const gifts = await billing.pendingGifts(userId, now);
+    expect(gifts).toEqual([
+      {
+        id: expect.any(String),
+        durationDays: 30,
+        paidUntil: '2026-12-01T00:00:00.000Z',
+      },
+    ]);
+
+    const giftIds = gifts.map(({ id }) => id);
+    await billing.acknowledgeGifts(userId, giftIds, now);
+    await billing.acknowledgeGifts(userId, giftIds, now);
+    await admin.giftPlus(input);
+
+    expect(await billing.pendingGifts(userId, now)).toEqual([]);
+  });
+
+  test('another user cannot acknowledge a gift by ID', async () => {
+    await admin.giftPlus(input);
+    const gifts = await billing.pendingGifts(userId, now);
+
+    await billing.acknowledgeGifts(
+      'another-user',
+      gifts.map(({ id }) => id),
+      now,
+    );
+
+    expect(await billing.pendingGifts(userId, now)).toEqual(gifts);
+  });
+
+  test('acknowledging a displayed gift leaves a later gift available', async () => {
+    await admin.giftPlus(input);
+    const displayed = await billing.pendingGifts(userId, now);
+    await admin.giftPlus({
+      ...input,
+      durationDays: 7,
+      requestId: '00000000-0000-4000-8000-000000000002',
+    });
+
+    await billing.acknowledgeGifts(
+      userId,
+      displayed.map(({ id }) => id),
+      now,
+    );
+
+    expect(await billing.pendingGifts(userId, now)).toEqual([
+      {
+        id: expect.any(String),
+        durationDays: 7,
+        paidUntil: '2026-12-08T00:00:00.000Z',
+      },
+    ]);
+  });
+
+  test('an expired gift is no longer shown', async () => {
+    await admin.giftPlus(input);
+
+    expect(
+      await billing.pendingGifts(userId, new Date('2026-12-01T00:00:00Z')),
+    ).toEqual([]);
+  });
+
   test('admin user results expose the gifted expiry', async () => {
     await admin.giftPlus(input);
     const page = await admin.users(now, {

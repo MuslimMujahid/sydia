@@ -16,6 +16,7 @@ import { AdminPage } from "../src/components/admin/admin-page";
 import {
   useAdminUsersList,
   useAdminGiftPlus,
+  useAdminBulkAction,
 } from "../src/lib/services/api/admin/admin.queries";
 import "../src/styles/globals.css";
 import { createQueryClient } from "../src/lib/query-client";
@@ -34,6 +35,7 @@ function AdminFixture() {
   );
 
   const { mutateAsync: giftPlus } = useAdminGiftPlus();
+  const { mutateAsync: bulkAction } = useAdminBulkAction();
   const handleGiftPlus = useCallback<OnGiftPlus>(
     (user, input) => giftPlus({ userId: user.id, input }),
     [giftPlus]
@@ -77,6 +79,7 @@ function AdminFixture() {
         error={list.query.error?.message}
         onRetry={() => void list.query.refetch()}
         onGiftPlus={handleGiftPlus}
+        onBulkAction={bulkAction}
         onBanUser={async () => {}}
         onUnbanUser={async () => {}}
         onForceSignOutUser={async () => {}}

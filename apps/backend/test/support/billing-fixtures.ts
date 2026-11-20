@@ -16,6 +16,8 @@ export function billingRepositoryFixture(
   overrides: Partial<IBillingRepository> = {},
 ): IBillingRepository {
   return {
+    pendingGifts: unused,
+    acknowledgeGifts: unused,
     ensureAccount: unused,
     initializeTrials: unused,
     reviewOrders: unused,

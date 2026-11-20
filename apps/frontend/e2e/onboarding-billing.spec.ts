@@ -130,6 +130,41 @@ async function setup(page: Page, user = profile) {
       json: { message: "Billing unavailable" },
     });
   });
+  await page.route("**/billing/gifts", (route) => {
+    state.billingRequests++;
+
+    return route.fulfill({ json: { data: [] } });
+  });
+  await page.route("**/billing/me", (route) => {
+    state.billingRequests++;
+
+    return route.fulfill({
+      json: {
+        data: {
+          enforced: false,
+          active: true,
+          state: "disabled",
+          trialEndsAt: null,
+          paidUntil: null,
+          lastActivatedAt: null,
+          checkoutEnabled: false,
+          environment: "sandbox",
+          normalPrice: 59000,
+          price: 29000,
+          durationDays: 30,
+          trialDays: 7,
+          storage: {
+            usedBytes: 0,
+            limitBytes: 100000000,
+            maxFileBytes: 100000000,
+          },
+        },
+      },
+    });
+  });
+  await page.route("http://localhost:5000/conversations", (route) =>
+    route.fulfill({ json: { data: [] } })
+  );
   await page.route("**/telegram/status", (route) =>
     route.fulfill({
       json: {
@@ -223,6 +258,7 @@ test("channel setup replaces billing and can be skipped without a billing reques
   await expect(
     page.getByRole("heading", { name: "Halo, Sari! Sydia siap menemanimu." })
   ).toBeVisible();
+  expect(state.billingRequests).toBe(0);
   await page.getByRole("button", { name: "Katakan Hai" }).click();
   await expect(
     page.getByRole("heading", { name: "Chat Sydia" })
@@ -233,8 +269,51 @@ test("channel setup replaces billing and can be skipped without a billing reques
       idempotencyKey: expect.any(String),
     },
   ]);
-  expect(state.billingRequests).toBe(0);
   expect(state.savedProfile).toMatchObject({ onboardingCompleted: true });
+});
+
+test("a pending Sydia Plus gift waits until the user leaves the onboarding welcome", async ({
+  page,
+}) => {
+  await setup(page);
+  let giftRequests = 0;
+  await page.route("**/billing/gifts", (route) => {
+    giftRequests++;
+
+    return route.fulfill({
+      json: {
+        data: [
+          {
+            id: "welcome-gift",
+            durationDays: 30,
+            paidUntil: "2026-12-08T00:00:00Z",
+          },
+        ],
+      },
+    });
+  });
+
+  await openChannels(page);
+  const celebration = page.getByRole("complementary", {
+    name: "Hadiah Sydia Plus",
+  });
+
+  const skip = page.getByRole("button", { name: "Lewati untuk sekarang" });
+  await expect(skip).toBeVisible();
+  await expect(celebration).toHaveCount(0);
+  expect(giftRequests).toBe(0);
+
+  await skip.click();
+  const greeting = page.getByRole("button", { name: "Katakan Hai" });
+  await expect(greeting).toBeVisible();
+  await expect(celebration).toHaveCount(0);
+  expect(giftRequests).toBe(0);
+
+  await greeting.click();
+  await expect(page.getByRole("heading", { name: "Chat Sydia" })).toBeVisible();
+  await expect(
+    celebration.getByRole("heading", { name: "Kamu dapat Sydia Plus!" })
+  ).toBeVisible();
 });
 
 test("returning from channels preserves name and persona for the welcome", async ({
@@ -455,14 +534,16 @@ test("saving failure keeps onboarding open and supports an explicit retry", asyn
 }) => {
   const state = await setup(page);
   await openChannels(page);
+  const skip = page.getByRole("button", { name: "Lewati untuk sekarang" });
+  await expect(skip).toBeVisible();
   state.preferenceFailure = true;
-  await page.getByRole("button", { name: "Lewati untuk sekarang" }).click();
+  await skip.click();
   await expect(page.getByRole("alert")).toContainText(
     "Preferensi belum dapat disimpan"
   );
   expect(state.savedProfile).toMatchObject({ onboardingCompleted: false });
   state.preferenceFailure = false;
-  await page.getByRole("button", { name: "Lewati untuk sekarang" }).click();
+  await skip.click();
   await expect(
     page.getByRole("heading", { name: /Halo, Sari!/ })
   ).toBeVisible();

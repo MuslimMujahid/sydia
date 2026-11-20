@@ -89,6 +89,16 @@ export class BillingService {
     return (await this.repository.listOrders(userId)).map(presentBillingOrder);
   }
 
+  pendingGifts(userId: string) {
+    return this.repository.pendingGifts(userId, new Date());
+  }
+
+  async acknowledgeGifts(userId: string, giftIds: string[]) {
+    await this.repository.acknowledgeGifts(userId, giftIds, new Date());
+
+    return { success: true };
+  }
+
   async checkout(
     userId: string,
     input: { idempotencyKey: string; mobile: string },

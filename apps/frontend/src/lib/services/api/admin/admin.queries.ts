@@ -20,6 +20,8 @@ import {
 import { billingKeys } from "../billing/billing.api";
 import type {
   ActivityFeature,
+  AdminBulkAction,
+  AdminBulkFailure,
   AdminUserAction,
   AdminPeriod,
   AdminUsersInput,
@@ -148,6 +150,55 @@ export function useAdminGiftPlus() {
       userId: string;
       input: AdminGiftPlusInput;
     }) => giftAdminUserPlus(userId, input),
+    meta: {
+      invalidateQueries: [
+        adminQueryKeys.users(),
+        adminQueryKeys.overview(),
+        adminQueryKeys.analytics(),
+        billingKeys.status,
+      ],
+    },
+  });
+}
+
+export function useAdminBulkAction() {
+  return useMutation({
+    mutationFn: async (request: AdminBulkAction) => {
+      const failures: AdminBulkFailure[] = [];
+      const concurrency = 4;
+
+      for (
+        let offset = 0;
+        offset < request.userIds.length;
+        offset += concurrency
+      ) {
+        const ids = request.userIds.slice(offset, offset + concurrency);
+        const results = await Promise.all(
+          ids.map(async (userId): Promise<AdminBulkFailure | null> => {
+            try {
+              await (request.action === "gift-plus"
+                ? giftAdminUserPlus(userId, request.input)
+                : updateAdminUser(userId, request.action));
+
+              return null;
+            } catch (error) {
+              // The API helpers log request failures before translating them.
+              return {
+                userId,
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Aksi belum dapat dikonfirmasi.",
+              };
+            }
+          })
+        );
+
+        failures.push(...results.filter((result) => result !== null));
+      }
+
+      return failures;
+    },
     meta: {
       invalidateQueries: [
         adminQueryKeys.users(),

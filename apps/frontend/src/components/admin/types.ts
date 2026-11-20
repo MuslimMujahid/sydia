@@ -61,6 +61,11 @@ export type AdminUserAction = "ban" | "unban" | "force-sign-out" | "delete";
 
 export type AdminGiftPlusInput = { durationDays: number; requestId: string };
 export type AdminGiftPlusResult = { paidUntil: string };
+export type AdminBulkAction =
+  | { action: AdminUserAction; userIds: string[] }
+  | { action: "gift-plus"; userIds: string[]; input: AdminGiftPlusInput };
+
+export type AdminBulkFailure = { userId: string; message: string };
 export type OnGiftPlus = (
   user: AdminUser,
   input: AdminGiftPlusInput
