@@ -26,6 +26,9 @@ const RESULTS = join(DIR, 'results');
 type ScenarioResult = {
   id: string;
   area: string;
+  message?: string;
+  history?: Scenario['history'];
+  summary?: string | null;
   passed: number;
   runs: Array<
     Pick<
@@ -230,6 +233,9 @@ function report(current: EvalFile, rows: ReturnType<typeof compare>): string {
           return {
             id: scenario.id,
             area: scenario.area,
+            message: scenario.message,
+            history: scenario.history ?? [],
+            summary: scenario.summary ?? null,
             passed: runs.filter((run) => !run.failures.length).length,
             runs,
           };

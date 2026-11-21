@@ -61,4 +61,13 @@ export default tseslint.config(
       '@typescript-eslint/unbound-method': 'off',
     },
   },
+  {
+    // The standalone launcher uses Bun's runtime and HTML imports.
+    files: ['test/prompt-eval/reviewer/serve.mjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: { Bun: 'readonly' },
+      sourceType: 'module',
+    },
+  },
 );

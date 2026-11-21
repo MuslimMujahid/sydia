@@ -48,6 +48,14 @@ Output goes to `test/prompt-eval/results/latest.json` and `latest.md`
 (git-ignored). Runs are traced to Langfuse under `prompt-eval.<scenario>`
 when Langfuse keys are configured.
 
+Run `bun run eval:prompts:review` from `apps/backend` and open
+<http://127.0.0.1:4175>. The standalone reviewer reads the latest report,
+archived JSON reports under `results/`, and the Git baseline. It runs on loopback
+and works without a Sydia server or database. Use **Refresh** after running an eval.
+New reports save the user message and any earlier turns or conversation summary
+supplied by the scenario. For older reports the reviewer recovers conversation
+content from the committed or current scenario fixture when available.
+
 Reports also record execution settings and per-run duration. A provider that
 does not return billing leaves cost unavailable. Additional multi-outcome and
 simple-turn checks run separately without changing the approved baseline:

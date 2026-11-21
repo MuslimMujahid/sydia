@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prompt eval reviewer</title>
+    <link rel="stylesheet" href="./reviewer.css" />
+    <script type="module" src="./reviewer.ts"></script>
+  </head>
+  <body>
+    <main>
+      <header class="page-header">
+        <div>
+          <h1>Prompt evals</h1>
+          <p class="subtitle">
+            Review failed checks and saved assistant replies.
+          </p>
+        </div>
+        <div class="report-controls">
+          <label class="report-picker"
+            >Saved report
+            <select id="report" disabled>
+              <option value="results/latest.json">Latest run</option>
+              <option value="baseline.json">Git baseline</option>
+              <optgroup id="archives" label="Archived runs" hidden></optgroup>
+            </select>
+          </label>
+          <button id="refresh" type="button" class="refresh" disabled>
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <div id="notice" role="status" aria-live="polite">
+        Loading saved reports…
+      </div>
+      <details id="issues" class="issues" hidden>
+        <summary>Some saved reports couldn’t be loaded</summary>
+        <ul id="issue-list"></ul>
+      </details>
+
+      <div id="review" hidden>
+        <div class="report-summary" aria-label="Report summary">
+          <p id="totals" class="totals"></p>
+          <p id="metadata" class="metadata"></p>
+        </div>
+
+        <section aria-labelledby="scenarios">
+          <div class="section-header">
+            <h2 id="scenarios">Scenarios</h2>
+            <input
+              id="search"
+              type="search"
+              placeholder="Search scenarios or areas"
+              aria-label="Search scenarios or areas"
+            />
+          </div>
+          <div class="filters" aria-label="Filter scenarios" role="group">
+            <button id="all" type="button" aria-pressed="true">All</button>
+            <button id="failed" type="button" aria-pressed="false">
+              Has failures
+            </button>
+            <button id="regression" type="button" aria-pressed="false">
+              Regressions
+            </button>
+          </div>
+          <p id="scoring" class="scoring" hidden>
+            This report and the Git baseline used different scoring versions.
+            Their pass counts reflect the checks saved with each report.
+          </p>
+          <div class="table-frame">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Scenario</th>
+                  <th scope="col" class="pass-column">
+                    <span class="desktop">Passed</span
+                    ><span class="mobile">Result</span>
+                  </th>
+                  <th scope="col" class="baseline-column" id="baseline-heading">
+                    Baseline
+                  </th>
+                  <th scope="col" class="change-column" id="change-heading">
+                    Change
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
