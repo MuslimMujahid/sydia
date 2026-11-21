@@ -6,6 +6,36 @@ function callsOf(run: RunRecord, name: string) {
   return run.calls.filter((call) => call.name === name);
 }
 
+/** Passes when any of the checks passes (owner-approved alternatives). */
+export function either(...checks: Check[]): Check {
+  return {
+    name: checks.map(({ name }) => name).join(' or '),
+    test: (run, scenario) => {
+      const failures: string[] = [];
+
+      for (const check of checks) {
+        const result = check.test(run, scenario);
+        if (result === true) return true;
+        failures.push(result || check.name);
+      }
+
+      return failures.join('; ');
+    },
+  };
+}
+
+/** The tool was not called and the reply asks the user a question instead. */
+export function asksInsteadOf(name: string): Check {
+  return {
+    name: `asks a clarifying question instead of calling ${name}`,
+    test: (run) => {
+      if (callsOf(run, name).length) return `${name} was called`;
+
+      return run.text.includes('?') || 'reply asks no question';
+    },
+  };
+}
+
 /** The tool was called, optionally with arguments satisfying a predicate. */
 export function called(
   name: string,

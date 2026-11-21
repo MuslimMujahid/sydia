@@ -10102,6 +10102,382 @@
           "retries": 0
         }
       ]
+    },
+    {
+      "id": "pause-task-followups",
+      "area": "suggestions",
+      "message": "Jangan kirim pengingat tugas dulu ya, minggu ini aku lagi sibuk banget",
+      "history": [],
+      "summary": null,
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 23381,
+          "text": "Oke, sudah aku jeda — semua saran dan pengingat tugas otomatis berhenti sampai Minggu, 22 November 2026, pukul 23.59.\n\nPengingat yang kamu buat sendiri tetap jalan seperti biasa ya. Kalau mau aku perpanjang sampai minggu depan, bilang saja. Semangat, Rin 💪",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-22 23:59"
+              }
+            },
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-29 23:59"
+              }
+            },
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-22 23:59"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 100286,
+            "outputTokens": 2283
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4002,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 11372,
+          "text": "Oke, sudah kumatikan — pengingat tugas dan saran otomatisnya berhenti sampai Minggu, 22 Nov 2026, 23.59.\n\nKalau yang kamu maksud sebenarnya minggu depan (23–29 Nov) juga, bilang saja, nanti aku perpanjang. Semangat, jangan lupa istirahat di sela kesibukannya 🙂",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-22 23:59"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49893,
+            "outputTokens": 1400
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4002,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 9072,
+          "text": "Siap, Rina — semua pengingat tugas dan saran otomatis aku jeda sampai Minggu, 22 Nov 2026 pukul 23.59, jadi minggu ini kamu bisa fokus tanpa gangguan.\n\nKalau maksudmu sibuknya sampai minggu depan juga, bilang saja nanti, aku perpanjang.",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-22 23:59"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49893,
+            "outputTokens": 801
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4002,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "pause-task-followups-until",
+      "area": "suggestions",
+      "message": "Stop dulu pengingat tugasnya sampai besok jam 8 pagi",
+      "history": [],
+      "summary": null,
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 8554,
+          "text": "Oke, pengingat tugas saya hentikan dulu sampai besok, Sabtu 22 November, jam 08.00 pagi. Setelah itu jalan lagi seperti biasa.",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-22 08:00"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49911,
+            "outputTokens": 666
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4043,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 10243,
+          "text": "Sudah kumatikan pengingat tugasnya sampai besok, Minggu 22 November 2026, jam 08.00. Setelah itu nyala lagi otomatis ya.",
+          "calls": [
+            {
+              "name": "list_reminders",
+              "args": {}
+            },
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-22 08:00"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": ["list_reminders"],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 74914,
+            "outputTokens": 828
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4043,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 6620,
+          "text": "Oke, semua pengingat dan saran otomatis saya hentikan dulu sampai besok, Minggu 22 Nov 2026, jam 08.00. Setelah itu aktif lagi sendiri ya.",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": true,
+                "pauseUntil": "2026-11-22 08:00"
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49911,
+            "outputTokens": 467
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4043,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "resume-task-followups",
+      "area": "suggestions",
+      "message": "Pengingat tugas boleh dikirim lagi sekarang",
+      "history": [],
+      "summary": null,
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 13163,
+          "text": "Siap, pengingat tugas sudah aktif lagi 👍 Kalau nanti ada tugas yang mendekati tenggat, aku akan mengingatkan. Saran-saran lain juga ikut aktif kembali — bilang saja kalau mau dibatasi lagi.",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": false,
+                "pauseBehaviors": [
+                  "meeting_preparation",
+                  "commitment",
+                  "work_resumption",
+                  "scheduling"
+                ]
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49892,
+            "outputTokens": 1443
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4004,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 8195,
+          "text": "Siap, pengingat tugas sudah aktif lagi. Kalau nanti ada tugas yang perlu ditindaklanjuti, saya akan mengingatkan.",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": false
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49855,
+            "outputTokens": 677
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4004,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 11196,
+          "text": "Oke, pengingat tugas sudah aktif lagi. Saran-saran otomatis juga bisa masuk kembali kalau memang relevan.",
+          "calls": [
+            {
+              "name": "set_assistance_preference",
+              "args": {
+                "pauseAll": false,
+                "pauseBehaviors": [
+                  "meeting_preparation",
+                  "commitment",
+                  "work_resumption",
+                  "scheduling"
+                ]
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49892,
+            "outputTokens": 1276
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 4004,
+          "failures": [],
+          "retries": 0
+        }
+      ]
+    },
+    {
+      "id": "reminder-request-not-pause",
+      "area": "suggestions",
+      "message": "Ingetin aku tugas laporan bulanan besok jam 9 pagi",
+      "history": [],
+      "summary": null,
+      "passed": 3,
+      "runs": [
+        {
+          "durationMs": 5871,
+          "text": "Sudah dijadwalkan: [Laporan bulanan](#reminder/r-laporan) — besok, Minggu 22 Nov 2026, 09.00.",
+          "calls": [
+            {
+              "name": "list_tasks",
+              "args": {
+                "query": "laporan bulanan"
+              }
+            },
+            {
+              "name": "create_reminder",
+              "args": {
+                "title": "Laporan bulanan",
+                "schedules": [
+                  {
+                    "date": "2026-11-22",
+                    "time": "09:00"
+                  }
+                ]
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": ["list_tasks"],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 49955,
+            "outputTokens": 529
+          },
+          "terminalAcknowledgement": false,
+          "contextTokens": 3995,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 3214,
+          "text": "Siap, pengingatnya sudah dibuat.\n\n- **Tugas laporan bulanan** — Pada 22 Nov 2026, 09.00",
+          "calls": [
+            {
+              "name": "create_reminder",
+              "args": {
+                "title": "Tugas laporan bulanan",
+                "schedules": [
+                  {
+                    "date": "2026-11-22",
+                    "time": "09:00"
+                  }
+                ]
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 24877,
+            "outputTokens": 367
+          },
+          "terminalAcknowledgement": true,
+          "contextTokens": 3995,
+          "failures": [],
+          "retries": 0
+        },
+        {
+          "durationMs": 2963,
+          "text": "Siap, pengingatnya sudah dibuat.\n\n- **Tugas laporan bulanan** — Pada 22 Nov 2026, 09.00",
+          "calls": [
+            {
+              "name": "create_reminder",
+              "args": {
+                "title": "Tugas laporan bulanan",
+                "schedules": [
+                  {
+                    "date": "2026-11-22",
+                    "time": "09:00"
+                  }
+                ]
+              }
+            }
+          ],
+          "refused": [],
+          "unscripted": [],
+          "routedTools": null,
+          "usage": {
+            "inputTokens": 24877,
+            "outputTokens": 134
+          },
+          "terminalAcknowledgement": true,
+          "contextTokens": 3995,
+          "failures": [],
+          "retries": 0
+        }
+      ]
     }
   ]
 }

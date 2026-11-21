@@ -13,6 +13,8 @@ import {
   notContains,
   notMatches,
   whatsappPlain,
+  either,
+  asksInsteadOf,
 } from './checks';
 import { EMPTY_DAY_SCOPE } from '../../src/modules/conversations/services/daily-note-tools';
 import {
@@ -49,6 +51,26 @@ export const SCENARIO_DATE = localDate();
 function at(offsetDays: number, time: string): string {
   return new Date(`${localDate(offsetDays)}T${time}:00+07:00`).toISOString();
 }
+
+/** set_assistance_preference's saved result for a pause or resume. */
+function assistanceSaved(pausedAll: boolean) {
+  return {
+    status: 'saved',
+    pausedAll,
+    pausedBehaviors: [],
+    instruction:
+      'Acknowledge the change briefly in the user’s words, then complete every other part of their request.',
+  };
+}
+
+/** Pausing reminders must not change the user's tasks or reminders. */
+const TASK_AND_REMINDER_MUTATIONS = [
+  'update_task',
+  'delete_reminder',
+  'update_reminder',
+  'snooze_reminder',
+  'acknowledge_reminder',
+] as const;
 
 function task(id: string, title: string, dueOffset = 1, time = '17:00') {
   return {
@@ -2083,6 +2105,93 @@ export const SCENARIOS: Scenario[] = [
     checks: [
       noErrors(),
       notCalled('prepare_action', 'create_reminder', 'create_task'),
+    ],
+  },
+  // Owner decision, 21 November 2026: a chat pause also stops scheduled task
+  // follow-up reminders (set_assistance_preference pauseAll). Cases approved
+  // by the owner the same day.
+  {
+    id: 'pause-task-followups',
+    area: 'suggestions',
+    message:
+      'Jangan kirim pengingat tugas dulu ya, minggu ini aku lagi sibuk banget',
+    tools: { set_assistance_preference: assistanceSaved(true) },
+    checks: [
+      noErrors(),
+      called(
+        'set_assistance_preference',
+        (args) => args.pauseAll === true,
+        'pauseAll',
+      ),
+      notCalled(...TASK_AND_REMINDER_MUTATIONS),
+      inIndonesian(),
+      noProcessTalk(),
+    ],
+  },
+  {
+    id: 'pause-task-followups-until',
+    area: 'suggestions',
+    channel: 'whatsapp',
+    message: 'Stop dulu pengingat tugasnya sampai besok jam 8 pagi',
+    tools: { set_assistance_preference: assistanceSaved(true) },
+    checks: [
+      noErrors(),
+      called(
+        'set_assistance_preference',
+        (args) =>
+          args.pauseAll === true && args.pauseUntil === `${localDate(1)} 08:00`,
+        'pauseAll until tomorrow 08:00',
+      ),
+      notCalled(...TASK_AND_REMINDER_MUTATIONS),
+      whatsappPlain(),
+      inIndonesian(),
+    ],
+  },
+  {
+    id: 'resume-task-followups',
+    area: 'suggestions',
+    assistance: 'paused',
+    message: 'Pengingat tugas boleh dikirim lagi sekarang',
+    tools: { set_assistance_preference: assistanceSaved(false) },
+    checks: [
+      noErrors(),
+      // Owner, 21 November 2026: asking whether to resume every suggestion
+      // (task follow-ups share the switch) is as good as resuming.
+      either(
+        called(
+          'set_assistance_preference',
+          (args) => args.pauseAll === false,
+          'pauseAll=false',
+        ),
+        asksInsteadOf('set_assistance_preference'),
+      ),
+      notCalled(...TASK_AND_REMINDER_MUTATIONS),
+      inIndonesian(),
+    ],
+  },
+  {
+    // A request for one reminder is not a pause.
+    id: 'reminder-request-not-pause',
+    area: 'suggestions',
+    message: 'Ingetin aku tugas laporan bulanan besok jam 9 pagi',
+    tools: {
+      create_reminder: (args: Record<string, unknown>) => ({
+        reminders: [
+          {
+            id: 'r-laporan',
+            title:
+              typeof args.title === 'string' ? args.title : 'Laporan bulanan',
+            scheduledAt: at(1, '09:00'),
+            recurrence: null,
+            status: 'scheduled',
+          },
+        ],
+      }),
+    },
+    checks: [
+      noErrors(),
+      called('create_reminder'),
+      notCalled('set_assistance_preference'),
     ],
   },
   {
