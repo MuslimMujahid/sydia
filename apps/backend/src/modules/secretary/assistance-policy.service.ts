@@ -57,6 +57,16 @@ export class AssistancePolicyService {
     return { allowed: true };
   }
 
+  /** Whether the user paused all unsolicited messages in conversation. */
+  async pausedAll(userId: string, now = this.clock.now()): Promise<boolean> {
+    const preference = await this.actions.getPreference(userId);
+
+    return Boolean(
+      preference?.pausedAll &&
+      (!preference.pausedUntil || preference.pausedUntil > now),
+    );
+  }
+
   /** Persists a conversational instruction; scope interpretation is the agent's job. */
   async remember(
     userId: string,

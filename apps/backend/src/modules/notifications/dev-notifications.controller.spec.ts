@@ -13,6 +13,7 @@ import type {
   CalendarEventForRead,
 } from '../../database/entities';
 import type {
+  IConversationRepository,
   INotificationRepository,
   IReminderRepository,
   ITaskRepository,
@@ -29,6 +30,7 @@ import {
 import { DailyBriefingService, FollowUpService } from './proactive.service';
 import { NotificationService } from './notification.service';
 import { NotificationComposerService } from './notification-composer.service';
+import type { AssistancePolicyService } from '../secretary/assistance-policy.service';
 
 const requestId = 'ce16784d-342b-4dbf-9a88-21a792543645';
 const session = { user: { id: 'owner' } } as UserSession;
@@ -85,6 +87,18 @@ function setup(
       }),
     );
 
+  const listSendTimesSince = jest
+    .fn<INotificationRepository['listSendTimesSince']>()
+    .mockResolvedValue([]);
+
+  const findLatestUserMessageAt = jest
+    .fn<IConversationRepository['findLatestUserMessageAt']>()
+    .mockResolvedValue(null);
+
+  const pausedAll = jest
+    .fn<AssistancePolicyService['pausedAll']>()
+    .mockResolvedValue(false);
+
   const notificationRepository = {
     getPreferences: jest
       .fn<INotificationRepository['getPreferences']>()
@@ -104,6 +118,7 @@ function setup(
       .fn<INotificationRepository['findDeliveryByIdempotencyKey']>()
       .mockResolvedValue(null),
     createDelivery,
+    listSendTimesSince,
   } as unknown as INotificationRepository;
 
   const add = jest.fn<() => Promise<void>>().mockResolvedValue();
@@ -164,6 +179,9 @@ function setup(
     tasks,
     notifications,
     new NotificationComposerService(users),
+    notificationRepository,
+    { findLatestUserMessageAt } as unknown as IConversationRepository,
+    { pausedAll } as unknown as AssistancePolicyService,
   );
 
   const controller = new DevNotificationsController(
@@ -183,6 +201,9 @@ function setup(
     listReminders,
     calendarRepository,
     notificationRepository,
+    listSendTimesSince,
+    findLatestUserMessageAt,
+    pausedAll,
   };
 }
 
@@ -956,6 +977,104 @@ test.each([
     ]);
   },
 );
+
+describe('task follow-up attention limits', () => {
+  const overdue: Task = {
+    id: 'overdue',
+    title: 'Pay invoice',
+    description: null,
+    status: 'inbox',
+    priority: 'medium',
+    dueAt: new Date('2026-10-08T02:00:00Z'),
+    completedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    categories: [],
+    source: { type: 'dashboard', label: null, messageId: null },
+  };
+
+  const minutesAgo = (minutes: number) =>
+    new Date(now.getTime() - minutes * 60_000);
+
+  function withDueTask() {
+    const context = setup('development');
+    context.listTasks.mockResolvedValue([overdue]);
+
+    return context;
+  }
+
+  test('a pause in chat stops scheduled follow-ups but not a manual one', async () => {
+    const { followUps, createDelivery, pausedAll } = withDueTask();
+    pausedAll.mockResolvedValue(true);
+
+    await expect(followUps.run('owner', now)).resolves.toMatchObject({
+      status: 'skipped_paused',
+    });
+    expect(createDelivery).not.toHaveBeenCalled();
+
+    await followUps.run('owner', now, requestId);
+    expect(createDelivery).toHaveBeenCalled();
+  });
+
+  test('stops after the daily cap of follow-ups', async () => {
+    const { followUps, createDelivery, listSendTimesSince } = withDueTask();
+    // Local day starts at 16:00 UTC (Asia/Makassar); these are all today.
+    listSendTimesSince.mockResolvedValue([10, 400, 500, 550].map(minutesAgo));
+
+    await expect(followUps.run('owner', now)).resolves.toMatchObject({
+      status: 'skipped_daily_cap',
+    });
+    expect(createDelivery).not.toHaveBeenCalled();
+  });
+
+  test('each unanswered follow-up doubles the wait before the next', async () => {
+    const { followUps, createDelivery, listSendTimesSince } = withDueTask();
+    // One unanswered send at a 60-minute interval: the next waits 120 minutes.
+    listSendTimesSince.mockResolvedValue([minutesAgo(119)]);
+    await expect(followUps.run('owner', now)).resolves.toMatchObject({
+      status: 'skipped_backoff',
+    });
+
+    listSendTimesSince.mockResolvedValue([minutesAgo(120)]);
+    await followUps.run('owner', now);
+    expect(createDelivery).toHaveBeenCalled();
+  });
+
+  test('two unanswered follow-ups wait four intervals', async () => {
+    const { followUps, listSendTimesSince } = withDueTask();
+    listSendTimesSince.mockResolvedValue([minutesAgo(200), minutesAgo(420)]);
+
+    await expect(followUps.run('owner', now)).resolves.toMatchObject({
+      status: 'skipped_backoff',
+    });
+  });
+
+  test('a reply from the user resets the wait', async () => {
+    const {
+      followUps,
+      createDelivery,
+      listSendTimesSince,
+      findLatestUserMessageAt,
+    } = withDueTask();
+
+    listSendTimesSince.mockResolvedValue([minutesAgo(60), minutesAgo(300)]);
+    findLatestUserMessageAt.mockResolvedValue(minutesAgo(30));
+
+    await followUps.run('owner', now);
+    expect(createDelivery).toHaveBeenCalled();
+  });
+
+  test('the wait never exceeds a day, so a silent user still hears daily', async () => {
+    const { followUps, createDelivery, listSendTimesSince } = withDueTask();
+    // Ten unanswered sends on earlier days; the latest was 25 hours ago.
+    listSendTimesSince.mockResolvedValue(
+      Array.from({ length: 10 }, (_, day) => minutesAgo(25 * 60 + day * 1440)),
+    );
+
+    await followUps.run('owner', now);
+    expect(createDelivery).toHaveBeenCalled();
+  });
+});
 
 describe('briefing introduction', () => {
   function briefingModel() {

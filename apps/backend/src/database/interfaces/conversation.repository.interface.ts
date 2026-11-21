@@ -117,6 +117,8 @@ export interface IConversationRepository {
   ): Promise<ConversationContextRecord | null>;
   /** The earliest retained user-authored message across all channels. */
   findFirstUserMessageId(userId: string): Promise<string | null>;
+  /** When the user last wrote to Sydia on any channel, if ever. */
+  findLatestUserMessageAt(userId: string): Promise<Date | null>;
   /** The user's three latest other conversations, with summaries and recent turns. */
   findRecentContexts(
     userId: string,

@@ -43,6 +43,12 @@ the existing notification pipeline to enabled Telegram and WhatsApp channels,
 respect notification preferences, and only include due tasks in follow-ups.
 These actions send real notifications for that account.
 
+Scheduled follow-ups also have attention limits that the manual follow-up
+action skips: a chat pause ("jangan kirim pesan dulu") stops them, a user gets
+at most 4 per local day, and each unanswered follow-up doubles the wait before
+the next (interval, 2×, 4×, … up to a day). Any message from the user on any
+channel resets the wait.
+
 Manual brief actions choose their exact format on any weekday, using today in
 the account's timezone as the start date. **Weekly brief only** groups all seven
 days by date, without a separate daily section; **Weekly + daily brief** sends

@@ -2,10 +2,12 @@ import { BillingAccessService } from '../billing';
 import { followUpIntervalKey } from './follow-up-interval';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
+  CONVERSATION_REPOSITORY,
   NOTIFICATION_REPOSITORY,
   REMINDER_REPOSITORY,
   TASK_REPOSITORY,
   USER_REPOSITORY,
+  type IConversationRepository,
   type INotificationRepository,
   type IReminderRepository,
   type ITaskRepository,
@@ -28,6 +30,7 @@ import { localeOf } from '../../shared/locale';
 import { renderScheduledBriefing } from './scheduled-briefing-formatting';
 import { briefingDayWindows, isWeeklyBriefingDay } from './briefing-schedule';
 import { CalendarReadService } from '../calendar/calendar-read.service';
+import { AssistancePolicyService } from '../secretary/assistance-policy.service';
 
 const BRIEFING_MAX_OUTPUT_TOKENS = 400;
 const BRIEFING_TEMPERATURE = 0.5;
@@ -368,6 +371,14 @@ export class DailyBriefingService {
   }
 }
 
+/** Most task follow-ups a user gets in one local day. */
+export const FOLLOW_UP_DAILY_CAP = 4;
+/** The longest wait between follow-ups while the user does not reply. */
+const FOLLOW_UP_MAX_WAIT_MS = 24 * 60 * 60_000;
+
+type FollowUpGate =
+  'skipped_paused' | 'skipped_daily_cap' | 'skipped_backoff' | null;
+
 @Injectable()
 export class FollowUpService {
   constructor(
@@ -376,6 +387,11 @@ export class FollowUpService {
     @Inject(TASK_REPOSITORY) private readonly tasks: ITaskRepository,
     private readonly notifications: NotificationService,
     private readonly composer: NotificationComposerService,
+    @Inject(NOTIFICATION_REPOSITORY)
+    private readonly history: INotificationRepository,
+    @Inject(CONVERSATION_REPOSITORY)
+    private readonly conversations: IConversationRepository,
+    private readonly policy: AssistancePolicyService,
   ) {}
 
   async run(userId: string, now = new Date(), requestId?: string) {
@@ -385,12 +401,18 @@ export class FollowUpService {
     if (!user)
       return { status: 'skipped_user_missing' as const, deliveries: [] };
 
+    // A manual (requestId) follow-up is an explicit request; scheduled ones
+    // respect a conversational pause.
+    if (!requestId && (await this.policy.pausedAll(userId, now)))
+      return { status: 'skipped_paused' as const, deliveries: [] };
+
     const preferences = await this.notifications.getPreferences(userId);
     // Users without a preference row use the same default as settings and DB.
+    const intervalMinutes = preferences?.followUpIntervalMinutes ?? 60;
     const intervalKey = followUpIntervalKey(
       now,
       user.timezone,
-      preferences?.followUpIntervalMinutes ?? 60,
+      intervalMinutes,
     );
 
     const [todayTasks, overdueTasks] = await Promise.all([
@@ -416,6 +438,17 @@ export class FollowUpService {
     if (dueTasks.length === 0)
       return { status: 'nothing_due' as const, deliveries: [] };
 
+    const gate = requestId
+      ? null
+      : await followUpGate(this.history, this.conversations, {
+          userId,
+          timezone: user.timezone,
+          intervalMinutes,
+          now,
+        });
+
+    if (gate) return { status: gate, deliveries: [] };
+
     const contentByChannel = this.composer.followUpTasksBodies(user, dueTasks);
     const result = await this.notifications.enqueue({
       userId,
@@ -437,6 +470,56 @@ export class FollowUpService {
       replayed: result.replayed,
     } as const;
   }
+}
+
+/**
+ * At most FOLLOW_UP_DAILY_CAP follow-ups per local day, and each unanswered
+ * follow-up doubles the wait before the next (interval × 2^unanswered, at
+ * most a day). Any message from the user, on any channel, resets the wait.
+ */
+async function followUpGate(
+  history: Pick<INotificationRepository, 'listSendTimesSince'>,
+  conversations: Pick<IConversationRepository, 'findLatestUserMessageAt'>,
+  input: {
+    userId: string;
+    timezone: string;
+    intervalMinutes: number;
+    now: Date;
+  },
+): Promise<FollowUpGate> {
+  const dayStart = dayWindow(input.now, input.timezone).start;
+  const lastReply = await conversations.findLatestUserMessageAt(input.userId);
+  // Sends older than this cannot change the outcome: the wait is capped at a day.
+  const horizon = new Date(input.now.getTime() - 7 * FOLLOW_UP_MAX_WAIT_MS);
+  const since = new Date(
+    Math.min(
+      dayStart.getTime(),
+      Math.max(lastReply?.getTime() ?? 0, horizon.getTime()),
+    ),
+  );
+
+  const sends = await history.listSendTimesSince(
+    input.userId,
+    'follow_up',
+    since,
+  );
+
+  if (sends.filter((at) => at >= dayStart).length >= FOLLOW_UP_DAILY_CAP)
+    return 'skipped_daily_cap';
+
+  const unanswered = sends.filter((at) => !lastReply || at > lastReply);
+
+  if (unanswered.length) {
+    const wait = Math.min(
+      input.intervalMinutes * 60_000 * 2 ** unanswered.length,
+      FOLLOW_UP_MAX_WAIT_MS,
+    );
+
+    if (input.now.getTime() < unanswered[0]!.getTime() + wait)
+      return 'skipped_backoff';
+  }
+
+  return null;
 }
 
 function dedupeById<T extends { id: string }>(items: readonly T[]): T[] {

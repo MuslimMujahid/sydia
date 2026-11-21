@@ -81,6 +81,16 @@ export interface INotificationRepository {
    * deliberately avoids per-user round trips.
    */
   listSchedulingTargets(): Promise<NotificationSchedulingTarget[]>;
+  /**
+   * When each notification of one kind was sent since an instant, newest
+   * first: one time per send however many channels it went to. Sends that
+   * were skipped or failed on every channel are left out.
+   */
+  listSendTimesSince(
+    userId: string,
+    kind: string,
+    since: Date,
+  ): Promise<Date[]>;
 }
 
 export type NotificationSchedulingTarget = {

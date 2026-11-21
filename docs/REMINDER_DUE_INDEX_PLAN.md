@@ -56,7 +56,7 @@ Migration `20261121200000_event_reminder_due_index`; code in `CalendarReminderSe
 ## 5. Order of work
 
 1. Event reminders (highest risk, 30 s per-user scan today).
-2. Task follow-ups and briefings, with the same shadow approach.
+2. Task follow-ups and briefings, with the same shadow approach. Follow-ups now also have attention limits (21 November 2026: a chat pause stops them, at most 4 per local day, and the wait doubles after each unanswered one, up to a day); the due time for a user must respect them, so `nextFollowUpAt` is the later of the next interval slot and the back-off time.
 3. Consider user-created reminders: today they are delayed jobs only, with no repair if Redis loses them. Their occurrences already store a due time and status, so the same due query can cover them.
 
 Related: [Proactive secretary](./PROACTIVE_SECRETARY_SPEC.md) (background sweep removed 21 November 2026; any future outreach is event-driven).

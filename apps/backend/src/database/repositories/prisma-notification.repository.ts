@@ -335,6 +335,27 @@ export class PrismaNotificationRepository implements INotificationRepository {
     });
   }
 
+  async listSendTimesSince(
+    userId: string,
+    kind: string,
+    since: Date,
+  ): Promise<Date[]> {
+    const sends = await this.prisma.notificationDelivery.groupBy({
+      by: ['idempotencyKey'],
+      where: {
+        userId,
+        kind,
+        createdAt: { gte: since },
+        status: { in: ['pending', 'processing', 'delivered'] },
+      },
+      _min: { createdAt: true },
+    });
+
+    return sends
+      .flatMap(({ _min }) => (_min.createdAt ? [_min.createdAt] : []))
+      .sort((left, right) => right.getTime() - left.getTime());
+  }
+
   async listSchedulingTargets(): Promise<NotificationSchedulingTarget[]> {
     const rows = await this.prisma.user.findMany({
       where: { banned: false },

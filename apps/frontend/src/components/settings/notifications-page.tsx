@@ -213,7 +213,9 @@ export function NotificationSettingsPage() {
               id="follow-up-description"
               className="mt-1.5 max-w-xl text-sm text-ink-muted"
             >
-              Kirim pengingat tugas setiap interval yang dipilih.
+              Kirim pengingat tugas setiap interval yang dipilih. Jika belum
+              dibalas, jeda berikutnya makin panjang, paling banyak 4 kali
+              sehari.
             </p>
             <SelectField
               id="follow-up-interval"

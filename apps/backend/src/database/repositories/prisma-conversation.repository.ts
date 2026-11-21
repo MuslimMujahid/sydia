@@ -334,6 +334,16 @@ export class PrismaConversationRepository implements IConversationRepository {
     return message ? message.id : null;
   }
 
+  async findLatestUserMessageAt(userId: string): Promise<Date | null> {
+    const message = await this.prisma.message.findFirst({
+      where: { userId, role: 'user' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { createdAt: true },
+    });
+
+    return message?.createdAt ?? null;
+  }
+
   async findRecentContexts(
     userId: string,
     excludeConversationId: string,
