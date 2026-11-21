@@ -23,6 +23,7 @@ import type {
   CalendarBindingSyncClaim,
   CalendarRequestFence,
   CancelledCalendarOccurrence,
+  EventReminderWork,
   CalendarCredentialRefreshClaim,
   CalendarInboundEventInput,
   CalendarMutationRequest,
@@ -1731,6 +1732,81 @@ export class PrismaCalendarRepository implements ICalendarRepository {
       orderBy: { id: 'asc' },
       take: limit,
       select: { id: true, timezone: true },
+    });
+  }
+
+  async listEventReminderWork(
+    now: Date,
+    afterUserId: string | null,
+    limit: number,
+  ): Promise<EventReminderWork[]> {
+    return this.prisma.$queryRaw<EventReminderWork[]>(Prisma.sql`
+      SELECT u.id AS "userId", u.timezone,
+        COALESCE(
+          array_agg(c.id::text ORDER BY c.id) FILTER (WHERE c.id IS NOT NULL),
+          ARRAY[]::text[]
+        ) AS "changeIds"
+      FROM (
+        SELECT "userId" FROM event_reminder_change
+        UNION
+        SELECT "userId" FROM event_reminder_schedule WHERE "dueAt" <= ${now}
+      ) due
+      JOIN "user" u ON u.id = due."userId"
+      LEFT JOIN event_reminder_change c ON c."userId" = due."userId"
+      WHERE ${afterUserId}::text IS NULL OR due."userId" > ${afterUserId}
+      GROUP BY u.id, u.timezone
+      ORDER BY u.id
+      LIMIT ${limit}
+    `);
+  }
+
+  async discardOrphanEventReminderChanges(): Promise<number> {
+    return this.prisma.$executeRaw(Prisma.sql`
+      DELETE FROM event_reminder_change c
+      WHERE NOT EXISTS (SELECT 1 FROM "user" u WHERE u.id = c."userId")
+    `);
+  }
+
+  async hasPendingEventReminderChange(userId: string): Promise<boolean> {
+    return (
+      (await this.prisma.eventReminderChange.findFirst({
+        where: { userId },
+        select: { id: true },
+      })) !== null
+    );
+  }
+
+  async hasEventReminders(userId: string): Promise<boolean> {
+    return (
+      (await this.prisma.calendarEvent.findFirst({
+        where: {
+          userId,
+          reminderMinutes: { not: null },
+          status: { not: 'cancelled' },
+        },
+        select: { id: true },
+      })) !== null
+    );
+  }
+
+  async completeEventReminderWork(
+    userId: string,
+    changeIds: readonly string[],
+    dueAt: Date | null,
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      if (changeIds.length)
+        await tx.eventReminderChange.deleteMany({
+          where: { userId, id: { in: changeIds.map((id) => BigInt(id)) } },
+        });
+
+      if (dueAt)
+        await tx.eventReminderSchedule.upsert({
+          where: { userId },
+          create: { userId, dueAt },
+          update: { dueAt },
+        });
+      else await tx.eventReminderSchedule.deleteMany({ where: { userId } });
     });
   }
 

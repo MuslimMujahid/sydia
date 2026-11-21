@@ -3,7 +3,7 @@
 | Field  | Value                                                     |
 | ------ | --------------------------------------------------------- |
 | Date   | 21 November 2026                                          |
-| Status | Decided; not implemented                                  |
+| Status | Event reminders: shadow period code written, not deployed |
 | Scope  | Event reminders first, then task follow-ups and briefings |
 | Owner  | Account owner decision, 21 November 2026                  |
 
@@ -23,7 +23,7 @@ The cost grows with the number of users, not with the number of reminders due. T
 
 **Store each item's next fire time and find due items with one indexed query.**
 
-- Event reminders: a `nextReminderAt` column on calendar events, indexed. Every write path keeps it current, and it advances after each send (for recurring events it holds the next occurrence).
+- Event reminders: a due time per user (see section 4), not per event. Recurring events, exceptions, Google tombstones and all-day events in the account timezone are already expanded correctly by the calendar read; storing a per-event time would have duplicated that logic.
 - Task follow-ups and briefings: `nextFollowUpAt` and `nextBriefingAt` on the user preference row, recomputed when settings change and after each send.
 - One query per tick selects rows due within the lookahead that have not been sent and enqueues them with the existing idempotency keys and job ids. Its cost depends on how many items are due, not how many users exist.
 - Correctness does not depend on Redis: a lost job or a missed column update is picked up by the next tick, at most one tick late. Delayed jobs are optional.
@@ -32,7 +32,7 @@ The cost grows with the number of users, not with the number of reminders due. T
 
 Production reminders must not go missing, even for a day. The owner chose a side-by-side (shadow) period over a one-time comparison.
 
-1. **Migration and backfill.** Add the columns and fill them for every existing event and user in the same release, including recurring events.
+1. **Migration and backfill.** Add the tables and triggers, and mark every user who has a reminder event, in the same release.
 2. **Shadow period.** Deploy the due-index query while the existing sweep keeps running. Both produce the same idempotency key and job id, so BullMQ and delivery records prevent double sends. The due-index query uses a slightly longer lookahead than the sweep's 2 minutes, so it should always enqueue first. Whenever the old sweep finds a due reminder with no existing job or delivery, log `reminder_due_index_miss` with the item id and kind (no content). The user still receives the reminder because the old sweep sends it.
 3. **Cutover.** Remove the old sweep only after a few days (at least three) with zero misses. Any miss is a bug in a write path or the backfill; fix it and restart the count. Rolling back during the shadow period means keeping the sweep, so no reminder ever depends on unproven code.
 
@@ -43,9 +43,15 @@ Production reminders must not go missing, even for a day. The owner chose a side
 | Delayed job per item plus a daily repair pass        | A missed hook or lost Redis data leaves a reminder unsent for up to a day.                                                                                         |
 | One-time comparison script before cutover, no shadow | Catches backfill and recurrence errors in existing data, but not a write path that forgets the column after deploy; those only appear when someone edits an event. |
 
-## 4. Event write paths that must maintain `nextReminderAt`
+## 4. Event reminders as built
 
-Create, update, cancel, copy to local, export to Google, restore from recovery, conflict resolution, Google inbound sync, materialising Google and local occurrences, recurring-series exceptions, all-day events in other timezones, and Google disconnect. The shadow period exists because missing any one of these is a silent miss.
+Migration `20261121200000_event_reminder_due_index`; code in `CalendarReminderService` (`apps/backend/src/modules/calendar/calendar-reminder.service.ts`).
+
+- **Change marks written by database triggers.** `event_reminder_change` gets a row for the owner whenever `calendar_event` or `calendar_event_link` rows are inserted, updated or deleted, when a `calendar_binding` or `calendar_integration` is deleted, and when the account timezone changes. Calendar events are written by many paths (create, update, cancel, copy to local, export to Google, recovery restore, conflict resolution, inbound sync, occurrence materialisation, recurring exceptions, disconnect), and triggers cover all of them, including future ones, without a hook in each. Event and link triggers are statement-level, so a sync batch adds one mark per user per statement. Binding and integration updates (sync cursors, tokens) do not mark.
+- **Due time per user.** `event_reminder_schedule.dueAt` is when the user next needs scheduling.
+- **Each 30 s tick** lists users with marks or a passed `dueAt` (one query, keyset-paged by user id). For each one it reads the same two-day calendar window as the old sweep, queues reminders due within 3 minutes, and stores the next `dueAt`: 3 minutes before the next future reminder, or one day later if none is in the window. Reminders lead by at most 60 minutes, so a day-later recheck is always early enough. A user stays due until each queued reminder's time passes, so a job lost from Redis is queued again on the next tick. A user with no reminder events loses their schedule row until the calendar changes again. Only the marks read at the start are cleared, so a change committed during processing is processed on the next tick.
+- **Shadow comparison.** The due index runs first in each tick, then the old sweep. When the old sweep would queue a future reminder that has no job yet, and the user has no unprocessed change mark, it logs `reminder_due_index_miss` with the user id, event id, start time and reminder time. Job ids are unchanged from the old sweep, so the two paths can never queue a reminder twice. A due-index failure is logged and never stops the old sweep.
+- **Verification.** Unit tests are in `calendar-reminder.service.spec.ts`. The trigger and repository contracts are in `prisma-event-reminder.live.spec.ts` (`EVENT_REMINDER_CONTRACT_ENABLED=true`, under the test lock).
 
 ## 5. Order of work
 

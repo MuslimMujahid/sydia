@@ -1,7 +1,11 @@
 import { billingTestAccess } from '../../../test/support/billing-fixtures';
 import { describe, expect, jest, test } from '@jest/globals';
+import { Logger } from '@nestjs/common';
 import type { CalendarEventForRead } from '../../database/entities';
-import type { ICalendarRepository } from '../../database/interfaces';
+import type {
+  EventReminderWork,
+  ICalendarRepository,
+} from '../../database/interfaces';
 import type {
   QueueService,
   CalendarReminderDispatch,
@@ -60,6 +64,28 @@ const dispatch: CalendarReminderDispatch = {
   timezone: 'UTC',
 };
 
+/** An idle due index, so legacy-sweep tests see only the sweep. */
+function dueIndexRepository(work: EventReminderWork[] = []) {
+  return {
+    discardOrphanEventReminderChanges: jest
+      .fn<ICalendarRepository['discardOrphanEventReminderChanges']>()
+      .mockResolvedValue(0),
+    listEventReminderWork: jest
+      .fn<ICalendarRepository['listEventReminderWork']>()
+      .mockResolvedValueOnce(work)
+      .mockResolvedValue([]),
+    hasEventReminders: jest
+      .fn<ICalendarRepository['hasEventReminders']>()
+      .mockResolvedValue(true),
+    hasPendingEventReminderChange: jest
+      .fn<ICalendarRepository['hasPendingEventReminderChange']>()
+      .mockResolvedValue(false),
+    completeEventReminderWork: jest
+      .fn<ICalendarRepository['completeEventReminderWork']>()
+      .mockResolvedValue(),
+  };
+}
+
 function setup(events: CalendarEventForRead[]) {
   const repository = {
     listReminderUsers: jest
@@ -69,6 +95,7 @@ function setup(events: CalendarEventForRead[]) {
     listCancelledRecurringInstances: jest
       .fn<ICalendarRepository['listCancelledRecurringInstances']>()
       .mockResolvedValue([]),
+    ...dueIndexRepository(),
   } as unknown as ICalendarRepository;
 
   const add = jest
@@ -390,4 +417,170 @@ test('recurring all-day reminders retain the account timezone after expansion', 
     }),
     expect.any(Object),
   );
+});
+
+describe('Event reminder due index', () => {
+  const work: EventReminderWork = {
+    userId: 'user-1',
+    timezone: 'Asia/Makassar',
+    changeIds: ['7', '9'],
+  };
+
+  /** A queue that remembers job ids, as BullMQ does. */
+  function dueIndexSetup(
+    events: CalendarEventForRead[],
+    options: { work?: EventReminderWork[]; legacyUsers?: boolean } = {},
+  ) {
+    const index = dueIndexRepository(options.work ?? [work]);
+    const repository = {
+      listReminderUsers: jest
+        .fn<ICalendarRepository['listReminderUsers']>()
+        .mockResolvedValueOnce(
+          options.legacyUsers === false
+            ? []
+            : [{ id: 'user-1', timezone: 'Asia/Makassar' }],
+        )
+        .mockResolvedValue([]),
+      list: jest.fn<ICalendarRepository['list']>().mockResolvedValue(events),
+      listCancelledRecurringInstances: jest
+        .fn<ICalendarRepository['listCancelledRecurringInstances']>()
+        .mockResolvedValue([]),
+      ...index,
+    } as unknown as ICalendarRepository;
+
+    const jobs = new Set<string>();
+    const add = jest
+      .fn<
+        (
+          name: string,
+          data: CalendarReminderJob,
+          options: { jobId: string },
+        ) => Promise<void>
+      >()
+      .mockImplementation((_name, _data, { jobId }) => {
+        jobs.add(jobId);
+
+        return Promise.resolve();
+      });
+
+    const getJob = (id: string) =>
+      Promise.resolve(
+        jobs.has(id)
+          ? { getState: () => Promise.resolve('delayed'), remove: jest.fn() }
+          : undefined,
+      );
+
+    const service = new CalendarReminderService(
+      repository,
+      new CalendarReadService(repository),
+      { calendarReminders: { add, getJob } } as unknown as QueueService,
+    );
+
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
+    return { service, add, index, warn };
+  }
+
+  test('queues a reminder inside its lookahead and keeps the user due until it fires', async () => {
+    const { service, add, index, warn } = dueIndexSetup([event()]);
+    await service.sweep(NOW);
+
+    expect(add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.objectContaining({ scheduledAt: '2026-10-14T08:50:00.000Z' }),
+      expect.objectContaining({ delay: 60_000 }),
+    );
+    // The legacy sweep adds the same job id, which BullMQ ignores.
+    expect(new Set(add.mock.calls.map(([, , { jobId }]) => jobId)).size).toBe(
+      1,
+    );
+    expect(index.completeEventReminderWork).toHaveBeenCalledWith(
+      'user-1',
+      ['7', '9'],
+      new Date('2026-10-14T08:47:00.000Z'),
+    );
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  test('stores the time a later reminder enters the lookahead', async () => {
+    const { service, add, index, warn } = dueIndexSetup(
+      [
+        event({
+          startAt: new Date('2026-10-14T15:00:00.000Z'),
+          endAt: new Date('2026-10-14T16:00:00.000Z'),
+          reminderMinutes: 30,
+        }),
+      ],
+      { legacyUsers: false },
+    );
+
+    await service.sweep(NOW);
+    expect(add).not.toHaveBeenCalled();
+    expect(index.completeEventReminderWork).toHaveBeenCalledWith(
+      'user-1',
+      ['7', '9'],
+      new Date('2026-10-14T14:27:00.000Z'),
+    );
+    warn.mockRestore();
+  });
+
+  test('checks a user again within a day when nothing is due in the read window', async () => {
+    const { service, index, warn } = dueIndexSetup([], { legacyUsers: false });
+    await service.sweep(NOW);
+    expect(index.completeEventReminderWork).toHaveBeenCalledWith(
+      'user-1',
+      ['7', '9'],
+      new Date(NOW.getTime() + 24 * 60 * 60_000),
+    );
+    warn.mockRestore();
+  });
+
+  test('a user with no reminder events leaves the index until the calendar changes', async () => {
+    const { service, index, warn } = dueIndexSetup([event()], {
+      legacyUsers: false,
+    });
+
+    index.hasEventReminders.mockResolvedValue(false);
+    await service.sweep(NOW);
+    expect(index.completeEventReminderWork).toHaveBeenCalledWith(
+      'user-1',
+      ['7', '9'],
+      null,
+    );
+    warn.mockRestore();
+  });
+
+  test('the legacy sweep reports a future reminder the due index did not queue', async () => {
+    const { service, add, warn } = dueIndexSetup([event()], { work: [] });
+    await service.sweep(NOW);
+
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"event":"reminder_due_index_miss"'),
+    );
+    warn.mockRestore();
+  });
+
+  test('a calendar change still waiting for the due index is not a miss', async () => {
+    const { service, index, warn } = dueIndexSetup([event()], { work: [] });
+    index.hasPendingEventReminderChange.mockResolvedValue(true);
+    await service.sweep(NOW);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  test('a due index failure still lets the legacy sweep queue the reminder', async () => {
+    const { service, add, index, warn } = dueIndexSetup([event()]);
+    index.listEventReminderWork.mockReset();
+    index.listEventReminderWork.mockRejectedValue(new Error('index down'));
+
+    await expect(service.sweep(NOW)).rejects.toThrow(
+      'Event reminder scheduling failed',
+    );
+    expect(add).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
 });

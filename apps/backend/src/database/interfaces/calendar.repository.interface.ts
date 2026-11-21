@@ -43,6 +43,12 @@ export type CalendarRequestFence =
       credentialGeneration: number;
     };
 
+export type EventReminderWork = {
+  userId: string;
+  timezone: string;
+  changeIds: string[];
+};
+
 export interface ICalendarRepository {
   listRecovery(
     userId: string,
@@ -59,6 +65,31 @@ export interface ICalendarRepository {
     afterId: string | null,
     limit: number,
   ): Promise<Array<{ id: string; timezone: string }>>;
+  /**
+   * Users whose event reminders need scheduling now, in id order after
+   * `afterUserId`: their calendar changed (a trigger-written change mark) or
+   * their stored due time has passed. `changeIds` are the marks read now.
+   */
+  listEventReminderWork(
+    now: Date,
+    afterUserId: string | null,
+    limit: number,
+  ): Promise<EventReminderWork[]>;
+  /** Drops change marks left by deleted users; returns how many. */
+  discardOrphanEventReminderChanges(): Promise<number>;
+  /** Whether a calendar change for the user is still waiting to be scheduled. */
+  hasPendingEventReminderChange(userId: string): Promise<boolean>;
+  /** Whether the user has any non-cancelled event with a reminder. */
+  hasEventReminders(userId: string): Promise<boolean>;
+  /**
+   * Stores when the user's reminders next need scheduling (null: never, until
+   * the calendar changes) and clears exactly the change marks that were read.
+   */
+  completeEventReminderWork(
+    userId: string,
+    changeIds: readonly string[],
+    dueAt: Date | null,
+  ): Promise<void>;
   canSendCalendarRequest(
     fence: CalendarRequestFence,
     minimumRemainingMs: number,
