@@ -61,7 +61,6 @@ import type { AssistantSkillState } from './tool-executor.service';
 import {
   ALWAYS_AVAILABLE_TOOLS,
   AssistantActionService,
-  BACKGROUND_TOOLS,
 } from '../../secretary';
 
 const ASSISTANT_MESSAGES = {
@@ -171,33 +170,6 @@ type AssistantTurnResult = {
   assistantRun: AssistantRun;
   toolInvocations: ToolInvocation[];
 };
-
-const NO_ACTION = /\bNO_ACTION\b:?\s*/i;
-
-/**
- * A background evaluation stays silent when it says NO_ACTION anywhere: the
- * token never belongs in a real message, and models often wrap it in quotes
- * or put a sentence before it, which must not reach the user.
- */
-export function backgroundDecision(text: string): {
-  text: string | null;
-  reason: string;
-} {
-  const marker = NO_ACTION.exec(text);
-
-  if (!text || marker) {
-    const reason = marker
-      ? text
-          .slice(marker.index + marker[0].length)
-          .replace(/["'`*_\s]+$/, '')
-          .slice(0, 200)
-      : '';
-
-    return { text: null, reason: reason || 'no_useful_assistance' };
-  }
-
-  return { text, reason: 'useful' };
-}
 
 @Injectable()
 export class AssistantOrchestratorService {
@@ -667,129 +639,6 @@ export class AssistantOrchestratorService {
         );
       }
     });
-  }
-
-  /**
-   * Background opportunity evaluated by the same agent, skills, and tools as
-   * chat. The trigger is reference context, not a user instruction; only
-   * read tools and offer preparation are available, never mutations. Returns
-   * the composed message, or null when the agent chose silence.
-   */
-  async evaluateBackground(input: {
-    user: TurnUser;
-    conversationId: string;
-    evaluationId: string;
-    trigger: string;
-    now: Date;
-    abortSignal?: AbortSignal;
-  }): Promise<{
-    text: string | null;
-    reason: string;
-    loadedSkills: Record<string, string>;
-    preparedActionIds: string[];
-  }> {
-    return withModelUsageScope(
-      {
-        kind: 'background',
-        userId: input.user.id,
-        conversationId: input.conversationId,
-      },
-      () => this.evaluateInBackground(input),
-    );
-  }
-
-  private async evaluateInBackground(input: {
-    user: TurnUser;
-    conversationId: string;
-    evaluationId: string;
-    trigger: string;
-    now: Date;
-    abortSignal?: AbortSignal;
-  }): Promise<{
-    text: string | null;
-    reason: string;
-    loadedSkills: Record<string, string>;
-    preparedActionIds: string[];
-  }> {
-    const built = await this.contextBuilder.build(
-      input.user,
-      input.conversationId,
-      undefined,
-      undefined,
-      input.abortSignal,
-      { now: input.now },
-    );
-
-    const skills: AssistantSkillState = {
-      loaded: new Map(),
-      activeTools: new Set(BACKGROUND_TOOLS),
-      allowedTools: new Set(BACKGROUND_TOOLS),
-      loads: 0,
-      evidence: new Set(),
-    };
-
-    const tools = this.toolExecutor.aiTools(
-      input.user.id,
-      input.evaluationId,
-      input.evaluationId,
-      undefined,
-      undefined,
-      input.abortSignal,
-      {
-        conversationId: input.conversationId,
-        runId: input.evaluationId,
-        trigger: 'background',
-        skills,
-        now: input.now,
-      },
-      BACKGROUND_TOOLS,
-    );
-
-    const generation = await this.languageModel.generate({
-      messages: [
-        ...built.messages,
-        {
-          role: 'system',
-          content: `Background evaluation (not a message from the user and not an instruction to act): ${input.trigger}\nDecide whether an unsolicited message would genuinely help now. Retrieve current context first. Only connect the event to work that the evidence explicitly ties to it (the same organization, project, or title); never attach unrelated efforts to a meeting. If no recorded work relates to this event, the relevant work is already done, the event no longer exists, the help was already given or declined, or nothing is useful, your entire reply must be the word NO_ACTION, a colon, and a short reason, with no quotes and nothing before it. Otherwise write one concise message to the user in their language, grounded only in verified facts. You cannot save anything; if a saved change would help, prepare it with prepare_action and ask in the message.`,
-        },
-      ],
-      userId: input.user.id,
-      conversationId: input.conversationId,
-      runId: input.evaluationId,
-      traceName: 'assistant.background',
-      abortSignal: input.abortSignal,
-      tools,
-      maxSteps: 6,
-      retrySafeTools: this.toolExecutor.retrySafeTools(),
-    });
-
-    const text = generation.text.trim();
-    const prepared = this.assistantActions
-      ? await this.assistantActions.preparedInRun(
-          input.user.id,
-          input.evaluationId,
-        )
-      : [];
-
-    const decision = backgroundDecision(text);
-    const silent = decision.text === null;
-
-    this.logger.log(
-      JSON.stringify({
-        event: 'assistant_skills',
-        runId: input.evaluationId,
-        trigger: 'background',
-        loadedSkills: Object.fromEntries(skills.loaded),
-        skillLoads: skills.loads,
-        outcome: silent ? 'suppress' : 'candidate',
-      }),
-    );
-
-    return {
-      ...decision,
-      loadedSkills: Object.fromEntries(skills.loaded),
-      preparedActionIds: prepared.map((action) => action.id),
-    };
   }
 
   async retry(

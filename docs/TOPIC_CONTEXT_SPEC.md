@@ -417,7 +417,7 @@ Formation prompt check after these changes: 10 scenarios, 30 of 30 over three ru
 - **Split** (`disconnect_topic` scope `split`, TOPIC-DISC-02): moves listed items into a new topic the user named. The new topic starts active and embedded; the moved links are removed from the old topic and never come back. Items not linked to the topic are refused before anything is created.
 - **Naming a topic** (label or alias as whole words, four characters or more) lifts an episode suppression and makes a dismissed topic eligible again, on the turn and in formation.
 - **Tool budget:** the two topic tools add about 1.3 KB to every turn's tool definitions (after trimming); the size budget moved from 94,000 to 95,500 bytes.
-- **Not built:** salience events for edits made in the app (`item_edit`), which need hooks in the task, reminder and note services; topic-aware proactive suggestions in the background secretary. Both reach into other features and wait for an owner decision.
+- **Not built:** salience events for edits made in the app (`item_edit`), which need hooks in the task, reminder and note services; topic-aware proactive suggestions. The background secretary sweep these would have used was removed on 21 November 2026; proactive suggestions, if built, will use per-item scheduled jobs. Both wait for an owner decision.
 
 ### Live verification (21 November 2026)
 

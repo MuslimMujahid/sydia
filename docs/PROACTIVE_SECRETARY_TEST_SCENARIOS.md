@@ -598,6 +598,8 @@ These scenarios exercise architecture as well as user-visible behavior. Use run 
 
 ### SKILL-07 — Background triggers use the same guidance and can choose silence
 
+> **Deferred:** no background trigger exists since 21 November 2026; see section 10.
+
 **Preconditions:** Actual background worker and controlled clock; eligible test destination; skill/run diagnostics and delivery records observable. Establish a timely Acme meeting with verified unfinished preparation as in BG-01.
 
 **Test steps:**
@@ -621,6 +623,8 @@ These scenarios exercise architecture as well as user-visible behavior. Use run 
 **Expected results:** In these controlled variants the user has made capture useful and specified its purpose: the first offers a reminder at D1 16:00 and the second a task due then. The skill does not universally force a task or a reminder. No record is created before acceptance; acceptance creates only the chosen action once. The current preference does not silently become a permanent memory or authorize an additional event/reminder/task. Run evidence records the chosen action and exact parameters rather than comparing response templates.
 
 ## 10. Background behavior: prompts alone are insufficient
+
+> **Deferred (21 November 2026):** the background secretary sweep was removed, so there is no background trigger to run SKILL-07 or the cases in this section against. Keep them as the acceptance bar for a future event-driven outreach design; see the note under POLICY-02 in the [specification](./PROACTIVE_SECRETARY_SPEC.md).
 
 These cases still specify account context, user prompts where relevant, steps, and expected outcomes. They additionally require an actual source/timer trigger and delivery evidence. A prompt asking Sydia to send a briefing cannot prove unrequested background initiative. Built-in secretary triggers must work without a separate secretary opt-in; existing manual daily-brief/follow-up buttons do not prove they are implemented. Existing channel linking and notification permissions remain prerequisites for delivery through those channels.
 

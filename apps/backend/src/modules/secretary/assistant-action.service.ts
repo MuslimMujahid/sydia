@@ -1215,15 +1215,6 @@ export class AssistantActionService {
     return this.actions.markOffered(userId, preparedBy, messageId, actionIds);
   }
 
-  async preparedInRun(
-    userId: string,
-    preparedBy: string,
-  ): Promise<AssistantAction[]> {
-    return (await this.actions.listPreparedBy(userId, preparedBy)).filter(
-      (action) => action.status === 'prepared',
-    );
-  }
-
   transition = (
     ...args: Parameters<IAssistantActionRepository['transition']>
   ) => this.actions.transition(...args);

@@ -13,9 +13,6 @@ import { ModelGatewayModule } from '../../infra/model-gateway';
 import { CalendarModule } from '../calendar/calendar.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { TasksModule } from '../tasks/tasks.module';
-import { ConversationsModule } from '../conversations/conversations.module';
-import { SecretaryModule } from '../secretary/secretary.module';
-import { SecretaryBackgroundService } from './secretary-background.service';
 import { NotificationService } from './notification.service';
 import { NotificationComposerService } from './notification-composer.service';
 import { ProactiveSchedulerService } from './proactive-scheduler.service';
@@ -24,14 +21,7 @@ import { DevNotificationsController } from './dev-notifications.controller';
 import { ReminderHistoryService } from './reminder-history.service';
 
 @Module({
-  imports: [
-    CalendarModule,
-    RemindersModule,
-    TasksModule,
-    ModelGatewayModule,
-    ConversationsModule,
-    SecretaryModule,
-  ],
+  imports: [CalendarModule, RemindersModule, TasksModule, ModelGatewayModule],
   controllers: [DevNotificationsController],
   providers: [
     {
@@ -48,12 +38,10 @@ import { ReminderHistoryService } from './reminder-history.service';
     ProactiveSchedulerService,
     DailyBriefingService,
     FollowUpService,
-    SecretaryBackgroundService,
     ReminderHistoryService,
   ],
   exports: [
     ReminderHistoryService,
-    SecretaryBackgroundService,
     NOTIFICATION_REPOSITORY,
     NotificationService,
     NotificationComposerService,

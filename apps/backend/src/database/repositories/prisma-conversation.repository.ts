@@ -1111,32 +1111,6 @@ export class PrismaConversationRepository implements IConversationRepository {
     });
   }
 
-  async appendAssistantMessage(
-    userId: string,
-    conversationId: string,
-    content: string,
-  ): Promise<Message> {
-    return this.prisma.$transaction(async (transaction) => {
-      const owned = await transaction.conversation.findFirst({
-        where: { id: conversationId, userId },
-        select: { id: true },
-      });
-
-      if (!owned) throw new ConversationNotFoundError();
-      const message = await transaction.message.create({
-        data: { conversationId, userId, role: 'assistant', content },
-        select: messageSelect,
-      });
-
-      await transaction.conversation.update({
-        where: { id: conversationId },
-        data: { lastMessageAt: message.createdAt },
-      });
-
-      return message;
-    });
-  }
-
   async appendChannelReminderMessage(
     input: ChannelReminderMessageWrite,
   ): Promise<Message | null> {
@@ -1202,16 +1176,6 @@ export class PrismaConversationRepository implements IConversationRepository {
         });
       throw error;
     }
-  }
-
-  async findLatestConversationId(userId: string): Promise<string | null> {
-    const conversation = await this.prisma.conversation.findFirst({
-      where: { userId, channel: 'web', messages: { some: {} } },
-      orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
-      select: { id: true },
-    });
-
-    return conversation?.id ?? null;
   }
 
   findUserMemoryEvidence(userId: string, messageId: string) {

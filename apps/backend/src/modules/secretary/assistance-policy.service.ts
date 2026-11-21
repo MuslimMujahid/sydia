@@ -19,9 +19,7 @@ export const ASSISTANCE_POLICY = {
   version: 'assistance-v1',
   quietStart: '21:00',
   quietEnd: '08:00',
-  dailyOutreachLimit: 2,
   briefingItemLimit: 3,
-  preparationWindowMs: { from: 24 * 60 * 60_000, to: 30 * 60_000 },
 } as const;
 
 export type PolicyGate = { allowed: true } | { allowed: false; reason: string };

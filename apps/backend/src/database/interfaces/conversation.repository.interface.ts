@@ -194,12 +194,6 @@ export interface IConversationRepository {
     conversationId: string,
     since: Date,
   ): Promise<Array<Pick<Message, 'id' | 'role' | 'content' | 'createdAt'>>>;
-  /** Persists an assistant message not tied to a user turn (background outreach). */
-  appendAssistantMessage(
-    userId: string,
-    conversationId: string,
-    content: string,
-  ): Promise<Message>;
   /**
    * Records a delivered reminder in the channel's active conversation, or in a
    * new one when the user has been idle (a same-day conversation holding only
@@ -209,8 +203,6 @@ export interface IConversationRepository {
   appendChannelReminderMessage(
     input: ChannelReminderMessageWrite,
   ): Promise<Message | null>;
-  /** The owner's most recently active web conversation, if any. */
-  findLatestConversationId(userId: string): Promise<string | null>;
   findUserMemoryEvidence(
     userId: string,
     messageId: string,

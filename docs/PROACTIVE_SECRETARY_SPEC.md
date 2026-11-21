@@ -196,13 +196,14 @@ These are built-in release policy values. Each evaluation diagnostic identifies 
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Contextual suggestions          | Built in; at most one useful suggestion per assistant turn, without activation                                                                         |
 | Secretary items in briefings    | Included when relevant in already enabled briefings; at most three; no separate secretary switch                                                       |
-| Immediate secretary outreach    | Built in for timely preparation or conflicts through an existing authorized conversation/channel; no separate secretary opt-in                         |
+| Immediate secretary outreach    | Not built. The five-minute background sweep was removed on 21 November 2026; see the note below this table                                             |
 | Immediate outreach budget       | At most two secretary notifications per owner-local day across destinations; existing requested reminders remain under their own policy                |
 | Quiet hours                     | 21:00–08:00 in the account timezone; an explicit conversational preference or existing account notification policy takes precedence                    |
-| Routine background sweep        | Every five minutes; source-event processing target within two minutes after the change is available                                                    |
 | Meeting preparation window      | From 24 hours to 30 minutes before the event, while the relevant work remains unfinished                                                               |
 | Proposal expiry                 | Earliest of 24 hours after creation, an invalidating source change, or the action's last useful time; a schedule offer expires no later than its start |
 | Default background retry budget | Three attempts total, with 1-minute and 5-minute retry delays; then a visible failed outcome                                                           |
+
+**Background outreach removed (21 November 2026).** A five-minute worker sweep used to evaluate every user's upcoming calendar events with the agent and post meeting-preparation messages into the latest web conversation. It was removed: it polled every user regardless of activity, never reached WhatsApp or Telegram, and topic context ([TOPIC_CONTEXT_SPEC.md](./TOPIC_CONTEXT_SPEC.md)) now brings related events and work into ordinary turns. The outreach budget, meeting preparation window and background retry budget above describe that removed behavior and apply again only if outreach returns. If it does, it must be event-driven: one delayed job scheduled when an item is saved or synced, revalidated (item, pause, quiet hours, budget) when it fires, not a periodic per-user sweep. Channel delivery is allowed. Quiet-hours and pause preferences are still saved through conversation.
 
 Acceptance scenarios can use an injected clock in a future harness. A user's prompt claiming a different date/time never changes the system clock. Background timing targets do not require tests to sleep; observe outcomes with a deadline.
 

@@ -36,22 +36,6 @@ export const ALWAYS_AVAILABLE_TOOLS: readonly string[] = [
   'set_assistance_preference',
 ];
 
-/** Tools a background evaluation may use: reads plus offer preparation, never mutations. */
-export const BACKGROUND_TOOLS: readonly string[] = [
-  'load_skill',
-  'get_work_context',
-  'check_availability',
-  'prepare_action',
-  'get_current_datetime',
-  'list_tasks',
-  'list_calendar_events',
-  'list_reminders',
-  'read_custom_note',
-  'read_daily_note',
-  'search_notes',
-  'search_memories',
-];
-
 /** Finite per-turn skill budget (FAIL-01). */
 export const SKILL_TURN_BUDGET = { loads: 4 } as const;
 

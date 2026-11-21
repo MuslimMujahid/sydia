@@ -52,7 +52,6 @@ import {
   NotificationComposerService,
   NotificationService,
   ProactiveSchedulerService,
-  SecretaryBackgroundService,
 } from './modules/notifications';
 
 const HINDSIGHT_USAGE_POLL_MS = 5 * 60_000;
@@ -331,28 +330,6 @@ async function bootstrap(): Promise<void> {
 
   await scheduler.register();
 
-  // Built-in background secretary: same agent and skills, every five minutes.
-  const secretaryBackground = context.get(SecretaryBackgroundService);
-  const secretarySweepMs = 5 * 60_000;
-  let secretarySweepRunning = false;
-  const secretaryTimer = setInterval(() => {
-    if (secretarySweepRunning) return;
-    secretarySweepRunning = true;
-    void withModelUsageScope({ kind: 'background', job: 'secretary' }, () =>
-      secretaryBackground.sweep(),
-    )
-      .catch((error: unknown) =>
-        Logger.error(
-          'Secretary background sweep failed; next sweep retries.',
-          error instanceof Error ? error.stack : undefined,
-          'SecretaryWorker',
-        ),
-      )
-      .finally(() => {
-        secretarySweepRunning = false;
-      });
-  }, secretarySweepMs);
-
   // Hindsight bills its own OpenRouter key; its spend is read from that key.
   const hindsightUsage = context.get(HindsightUsageService);
   const pollHindsightUsage = () =>
@@ -373,7 +350,6 @@ async function bootstrap(): Promise<void> {
   if (hindsightUsage.configured) pollHindsightUsage();
 
   const close = async () => {
-    clearInterval(secretaryTimer);
     clearInterval(hindsightUsageTimer);
     // A channel turn can still enqueue and await a document. Keep its worker
     // alive until preparation and the response finish.
