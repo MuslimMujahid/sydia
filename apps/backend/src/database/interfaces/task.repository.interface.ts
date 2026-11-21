@@ -13,6 +13,8 @@ export type TaskFilters = {
 
 export interface ITaskRepository {
   list(userId: string, filters?: TaskFilters): Promise<Task[]>;
+  /** The earliest due time among the user's open (inbox) tasks, if any. */
+  earliestInboxDueAt(userId: string): Promise<Date | null>;
   findById(userId: string, id: string): Promise<Task | null>;
   create(userId: string, input: TaskWrite): Promise<Task>;
   update(

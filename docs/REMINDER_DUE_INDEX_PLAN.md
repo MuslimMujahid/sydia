@@ -1,11 +1,11 @@
 # Reminder due-index plan
 
-| Field  | Value                                                     |
-| ------ | --------------------------------------------------------- |
-| Date   | 21 November 2026                                          |
-| Status | Event reminders: shadow period code written, not deployed |
-| Scope  | Event reminders first, then task follow-ups and briefings |
-| Owner  | Account owner decision, 21 November 2026                  |
+| Field  | Value                                                                                                                                        |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date   | 21 November 2026                                                                                                                             |
+| Status | Event reminders: shadow period in production since 21 November 2026. Briefings and task follow-ups: shadow period code written, not deployed |
+| Scope  | Event reminders first, then task follow-ups and briefings                                                                                    |
+| Owner  | Account owner decision, 21 November 2026                                                                                                     |
 
 ## 1. Problem
 
@@ -24,7 +24,7 @@ The cost grows with the number of users, not with the number of reminders due. T
 **Store each item's next fire time and find due items with one indexed query.**
 
 - Event reminders: a due time per user (see section 4), not per event. Recurring events, exceptions, Google tombstones and all-day events in the account timezone are already expanded correctly by the calendar read; storing a per-event time would have duplicated that logic.
-- Task follow-ups and briefings: `nextFollowUpAt` and `nextBriefingAt` on the user preference row, recomputed when settings change and after each send.
+- Task follow-ups and briefings: a due time per user and lane (see section 5), recomputed when settings, tasks, pauses or replies change and after each send.
 - One query per tick selects rows due within the lookahead that have not been sent and enqueues them with the existing idempotency keys and job ids. Its cost depends on how many items are due, not how many users exist.
 - Correctness does not depend on Redis: a lost job or a missed column update is picked up by the next tick, at most one tick late. Delayed jobs are optional.
 
@@ -53,10 +53,23 @@ Migration `20261121200000_event_reminder_due_index`; code in `CalendarReminderSe
 - **Shadow comparison.** The due index runs first in each tick, then the old sweep. When the old sweep would queue a future reminder that has no job yet, and the user has no unprocessed change mark, it logs `reminder_due_index_miss` with the user id, event id, start time and reminder time. Job ids are unchanged from the old sweep, so the two paths can never queue a reminder twice. A due-index failure is logged and never stops the old sweep.
 - **Verification.** Unit tests are in `calendar-reminder.service.spec.ts`. The trigger and repository contracts are in `prisma-event-reminder.live.spec.ts` (`EVENT_REMINDER_CONTRACT_ENABLED=true`, under the test lock).
 
-## 5. Order of work
+## 5. Briefings and task follow-ups as built
+
+Migration `20261121220000_proactive_due_index`; code in `ProactiveSchedulerService` (`apps/backend/src/modules/notifications/proactive-scheduler.service.ts`).
+
+- **Two lanes, `briefing` and `follow_up`,** in `proactive_schedule_change` (trigger-written marks) and `proactive_schedule` (due time per user and lane).
+- **Triggers.** A new account, a timezone or ban change, and any `user_preference` change mark both lanes. An `assistance_preference` change (pause or resume), any `task` write and any `message` the user sends (not assistant messages) mark the follow-up lane. Task and message triggers are statement-level.
+- **Each 5-minute tick** runs the lane's due index before its legacy sweep. A user is listed when they have marks or a passed due time.
+  - Briefing: queue today's briefing when the old rule says it is due (inside the 30-minute window after the briefing time, on a daily or weekly briefing day, channels on, billing active); store the next briefing time over the next eight days, or none.
+  - Follow-up: queue the current slot's follow-up when an open task is due and the user is not paused (channels on, billing active); the follow-up job still applies the pause, cap and back-off. Store the first slot at or after the latest of: the task's due time (or now), the end of a timed pause, and the cap or back-off release. An open-ended pause or no open dated task stores none until a mark.
+  - A banned account stores none.
+- **Shadow comparison.** Queued jobs carry `source: 'due_index' | 'legacy'`; job ids are unchanged, so whichever path queues first wins and nothing is queued twice. When a job the legacy sweep queued actually sends (`status: 'queued'`, not replayed), the worker logs `reminder_due_index_miss` with the lane, user id and time. A due-index failure is logged and never stops the legacy sweep.
+- **Verification.** Unit tests are in `proactive-scheduler.service.spec.ts`. Trigger and repository contracts are in `prisma-proactive-schedule.live.spec.ts` (`PROACTIVE_SCHEDULE_CONTRACT_ENABLED=true`, under the test lock).
+
+## 6. Order of work
 
 1. Event reminders (highest risk, 30 s per-user scan today).
-2. Task follow-ups and briefings, with the same shadow approach. Follow-ups now also have attention limits (21 November 2026: a chat pause stops them, at most 4 per local day, and the wait doubles after each unanswered one, up to a day); the due time for a user must respect them, so `nextFollowUpAt` is the later of the next interval slot and the back-off time.
+2. Task follow-ups and briefings, with the same shadow approach (built; section 5). Follow-ups also have attention limits (21 November 2026: a chat pause stops them, at most 4 per local day, and the wait doubles after each unanswered one, up to a day), which the stored follow-up due time respects.
 3. Consider user-created reminders: today they are delayed jobs only, with no repair if Redis loses them. Their occurrences already store a due time and status, so the same due query can cover them.
 
 Related: [Proactive secretary](./PROACTIVE_SECRETARY_SPEC.md) (background sweep removed 21 November 2026; any future outreach is event-driven).

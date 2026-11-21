@@ -82,6 +82,29 @@ export interface INotificationRepository {
    */
   listSchedulingTargets(): Promise<NotificationSchedulingTarget[]>;
   /**
+   * Users whose schedule in a lane needs work now, in id order after
+   * `afterUserId`: a trigger-written change mark exists or their stored due
+   * time has passed. `changeIds` are the marks read now.
+   */
+  listProactiveWork(
+    lane: ProactiveLane,
+    now: Date,
+    afterUserId: string | null,
+    limit: number,
+  ): Promise<ProactiveWork[]>;
+  /**
+   * Stores when the user next needs work in the lane (null: not until a
+   * change) and clears exactly the change marks that were read.
+   */
+  completeProactiveWork(
+    lane: ProactiveLane,
+    userId: string,
+    changeIds: readonly string[],
+    dueAt: Date | null,
+  ): Promise<void>;
+  /** Drops change marks left by deleted users; returns how many. */
+  discardOrphanProactiveChanges(): Promise<number>;
+  /**
    * When each notification of one kind was sent since an instant, newest
    * first: one time per send however many channels it went to. Sends that
    * were skipped or failed on every channel are left out.
@@ -92,6 +115,15 @@ export interface INotificationRepository {
     since: Date,
   ): Promise<Date[]>;
 }
+
+/** The two proactive schedules kept by the due index. */
+export type ProactiveLane = 'briefing' | 'follow_up';
+
+/** A user whose schedule in one lane needs work now, with the marks read. */
+export type ProactiveWork = NotificationSchedulingTarget & {
+  banned: boolean;
+  changeIds: string[];
+};
 
 export type NotificationSchedulingTarget = {
   userId: string;

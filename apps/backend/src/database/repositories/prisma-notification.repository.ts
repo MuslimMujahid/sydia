@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma';
-import type { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import type {
   INotificationRepository,
   NotificationSchedulingTarget,
+  ProactiveLane,
+  ProactiveWork,
 } from '../interfaces';
 
 const deliverySelect = {
@@ -354,6 +356,100 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return sends
       .flatMap(({ _min }) => (_min.createdAt ? [_min.createdAt] : []))
       .sort((left, right) => right.getTime() - left.getTime());
+  }
+
+  async listProactiveWork(
+    lane: ProactiveLane,
+    now: Date,
+    afterUserId: string | null,
+    limit: number,
+  ): Promise<ProactiveWork[]> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        userId: string;
+        timezone: string;
+        banned: boolean | null;
+        briefingEnabled: boolean | null;
+        weeklyBriefingEnabled: boolean | null;
+        weeklyBriefingDay: number | null;
+        briefingTime: string | null;
+        followUpIntervalMinutes: number | null;
+        telegramNotificationsEnabled: boolean | null;
+        whatsappNotificationsEnabled: boolean | null;
+        changeIds: string[];
+      }>
+    >(Prisma.sql`
+      SELECT u.id AS "userId", u.timezone, u.banned,
+        p."briefingEnabled", p."weeklyBriefingEnabled", p."weeklyBriefingDay",
+        p."briefingTime", p."followUpIntervalMinutes",
+        p."telegramNotificationsEnabled", p."whatsappNotificationsEnabled",
+        COALESCE(
+          array_agg(c.id::text ORDER BY c.id) FILTER (WHERE c.id IS NOT NULL),
+          ARRAY[]::text[]
+        ) AS "changeIds"
+      FROM (
+        SELECT "userId" FROM proactive_schedule_change WHERE lane = ${lane}
+        UNION
+        SELECT "userId" FROM proactive_schedule
+          WHERE lane = ${lane} AND "dueAt" <= ${now}
+      ) due
+      JOIN "user" u ON u.id = due."userId"
+      LEFT JOIN user_preference p ON p."userId" = u.id
+      LEFT JOIN proactive_schedule_change c
+        ON c."userId" = u.id AND c.lane = ${lane}
+      WHERE ${afterUserId}::text IS NULL OR u.id > ${afterUserId}
+      GROUP BY u.id, p."userId"
+      ORDER BY u.id
+      LIMIT ${limit}
+    `);
+
+    return rows.map((row) => ({
+      userId: row.userId,
+      timezone: row.timezone,
+      banned: row.banned ?? false,
+      briefingEnabled: row.briefingEnabled ?? true,
+      weeklyBriefingEnabled: row.weeklyBriefingEnabled ?? true,
+      weeklyBriefingDay: row.weeklyBriefingDay ?? 1,
+      briefingTime: row.briefingTime,
+      followUpIntervalMinutes: row.followUpIntervalMinutes ?? 60,
+      notifiable:
+        (row.telegramNotificationsEnabled ?? true) ||
+        (row.whatsappNotificationsEnabled ?? true),
+      changeIds: row.changeIds,
+    }));
+  }
+
+  async completeProactiveWork(
+    lane: ProactiveLane,
+    userId: string,
+    changeIds: readonly string[],
+    dueAt: Date | null,
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      if (changeIds.length)
+        await tx.proactiveScheduleChange.deleteMany({
+          where: {
+            userId,
+            lane,
+            id: { in: changeIds.map((id) => BigInt(id)) },
+          },
+        });
+
+      if (dueAt)
+        await tx.proactiveSchedule.upsert({
+          where: { userId_lane: { userId, lane } },
+          create: { userId, lane, dueAt },
+          update: { dueAt },
+        });
+      else await tx.proactiveSchedule.deleteMany({ where: { userId, lane } });
+    });
+  }
+
+  async discardOrphanProactiveChanges(): Promise<number> {
+    return this.prisma.$executeRaw(Prisma.sql`
+      DELETE FROM proactive_schedule_change c
+      WHERE NOT EXISTS (SELECT 1 FROM "user" u WHERE u.id = c."userId")
+    `);
   }
 
   async listSchedulingTargets(): Promise<NotificationSchedulingTarget[]> {

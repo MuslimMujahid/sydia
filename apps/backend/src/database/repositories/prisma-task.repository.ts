@@ -70,6 +70,16 @@ function categoryLinks(categoryIds: string[] | undefined) {
 export class PrismaTaskRepository implements ITaskRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async earliestInboxDueAt(userId: string): Promise<Date | null> {
+    const task = await this.prisma.task.findFirst({
+      where: { userId, status: 'inbox', dueAt: { not: null } },
+      orderBy: { dueAt: 'asc' },
+      select: { dueAt: true },
+    });
+
+    return task?.dueAt ?? null;
+  }
+
   async list(userId: string, filters: TaskFilters = {}): Promise<Task[]> {
     const now = filters.now ?? new Date();
     const { start, end } = dayWindow(now, filters.timezone ?? 'UTC');

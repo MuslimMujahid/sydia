@@ -57,10 +57,14 @@ export type NotificationJob = {
   sourceId?: string;
   reminderOccurrenceId?: string;
 };
+/** Which scheduling path queued a briefing or follow-up (shadow period). */
+export type ProactiveJobSource = 'legacy' | 'due_index';
 export type BriefingJob =
-  { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
+  | { kind: 'sweep' }
+  | { kind: 'user'; userId: string; at: string; source?: ProactiveJobSource };
 export type FollowUpJob =
-  { kind: 'sweep' } | { kind: 'user'; userId: string; at: string };
+  | { kind: 'sweep' }
+  | { kind: 'user'; userId: string; at: string; source?: ProactiveJobSource };
 export type DailyNoteIndexJob =
   | { kind: 'index'; userId: string; date: string }
   | { kind: 'custom-index'; userId: string; itemId: string }

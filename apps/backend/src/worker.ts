@@ -315,7 +315,11 @@ async function bootstrap(): Promise<void> {
     async (job) =>
       job.data.kind === 'sweep'
         ? scheduler.sweepBriefings()
-        : briefings.run(job.data.userId, new Date(job.data.at)),
+        : scheduler.reportLegacySend(
+            'briefing',
+            job.data,
+            await briefings.run(job.data.userId, new Date(job.data.at)),
+          ),
     { connection },
   );
 
@@ -324,7 +328,11 @@ async function bootstrap(): Promise<void> {
     async (job) =>
       job.data.kind === 'sweep'
         ? scheduler.sweepFollowUps()
-        : followUps.run(job.data.userId, new Date(job.data.at)),
+        : scheduler.reportLegacySend(
+            'follow_up',
+            job.data,
+            await followUps.run(job.data.userId, new Date(job.data.at)),
+          ),
     { connection },
   );
 

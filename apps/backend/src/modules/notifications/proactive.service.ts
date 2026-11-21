@@ -376,7 +376,7 @@ export const FOLLOW_UP_DAILY_CAP = 4;
 /** The longest wait between follow-ups while the user does not reply. */
 const FOLLOW_UP_MAX_WAIT_MS = 24 * 60 * 60_000;
 
-type FollowUpGate =
+export type FollowUpGate =
   'skipped_paused' | 'skipped_daily_cap' | 'skipped_backoff' | null;
 
 @Injectable()
@@ -440,12 +440,14 @@ export class FollowUpService {
 
     const gate = requestId
       ? null
-      : await followUpGate(this.history, this.conversations, {
-          userId,
-          timezone: user.timezone,
-          intervalMinutes,
-          now,
-        });
+      : (
+          await followUpAttention(this.history, this.conversations, {
+            userId,
+            timezone: user.timezone,
+            intervalMinutes,
+            now,
+          })
+        ).gate;
 
     if (gate) return { status: gate, deliveries: [] };
 
@@ -476,8 +478,10 @@ export class FollowUpService {
  * At most FOLLOW_UP_DAILY_CAP follow-ups per local day, and each unanswered
  * follow-up doubles the wait before the next (interval × 2^unanswered, at
  * most a day). Any message from the user, on any channel, resets the wait.
+ * Returns why a follow-up cannot be sent now (null when it can) and the
+ * earliest instant one may be sent.
  */
-async function followUpGate(
+export async function followUpAttention(
   history: Pick<INotificationRepository, 'listSendTimesSince'>,
   conversations: Pick<IConversationRepository, 'findLatestUserMessageAt'>,
   input: {
@@ -486,8 +490,8 @@ async function followUpGate(
     intervalMinutes: number;
     now: Date;
   },
-): Promise<FollowUpGate> {
-  const dayStart = dayWindow(input.now, input.timezone).start;
+): Promise<{ gate: FollowUpGate; allowedAt: Date }> {
+  const { start: dayStart, end: dayEnd } = dayWindow(input.now, input.timezone);
   const lastReply = await conversations.findLatestUserMessageAt(input.userId);
   // Sends older than this cannot change the outcome: the wait is capped at a day.
   const horizon = new Date(input.now.getTime() - 7 * FOLLOW_UP_MAX_WAIT_MS);
@@ -504,22 +508,30 @@ async function followUpGate(
     since,
   );
 
-  if (sends.filter((at) => at >= dayStart).length >= FOLLOW_UP_DAILY_CAP)
-    return 'skipped_daily_cap';
+  const capped =
+    sends.filter((at) => at >= dayStart).length >= FOLLOW_UP_DAILY_CAP;
 
   const unanswered = sends.filter((at) => !lastReply || at > lastReply);
+  const backoffUntil = unanswered.length
+    ? unanswered[0]!.getTime() +
+      Math.min(
+        input.intervalMinutes * 60_000 * 2 ** unanswered.length,
+        FOLLOW_UP_MAX_WAIT_MS,
+      )
+    : 0;
 
-  if (unanswered.length) {
-    const wait = Math.min(
-      input.intervalMinutes * 60_000 * 2 ** unanswered.length,
-      FOLLOW_UP_MAX_WAIT_MS,
-    );
+  const allowedAt = new Date(
+    Math.max(input.now.getTime(), capped ? dayEnd.getTime() : 0, backoffUntil),
+  );
 
-    if (input.now.getTime() < unanswered[0]!.getTime() + wait)
-      return 'skipped_backoff';
-  }
-
-  return null;
+  return {
+    gate: capped
+      ? 'skipped_daily_cap'
+      : backoffUntil > input.now.getTime()
+        ? 'skipped_backoff'
+        : null,
+    allowedAt,
+  };
 }
 
 function dedupeById<T extends { id: string }>(items: readonly T[]): T[] {
