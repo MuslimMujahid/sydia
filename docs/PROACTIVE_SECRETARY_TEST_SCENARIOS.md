@@ -642,6 +642,8 @@ These cases still specify account context, user prompts where relevant, steps, a
 
 ### BG-02 — Quiet hours defer a suggestion rather than sending it
 
+> **Obsolete:** quiet hours were removed on 21 November 2026. Keep this case only as history.
+
 **Preconditions:** A useful eligible background proposal exists; existing test channel is authorized; proposal remains useful afterward. Express quiet hours in conversation, for example **“Jangan kirim saran proaktif dari pukul [mulai] sampai [akhir] WITA.”**, using actual values that include the current time. Verify the persisted instruction and record the exact end. A controlled-clock harness may instead exercise the built-in 21:00–08:00 policy. No new secretary settings UI is used.
 
 **Test steps:**

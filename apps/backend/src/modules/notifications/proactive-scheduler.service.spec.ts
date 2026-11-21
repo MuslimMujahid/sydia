@@ -87,12 +87,12 @@ test('skips follow-ups when external notification channels are disabled', async 
   expect(add).not.toHaveBeenCalled();
 });
 
-test.each(['2026-10-15T14:00:00Z', '2026-10-15T23:55:00Z'])(
-  'skips follow-ups during local quiet hours at %s',
+test.each(['2026-10-15T14:00:00Z', '2026-10-15T18:00:00Z'])(
+  'dispatches follow-ups overnight at %s (no quiet hours)',
   async (instant) => {
     const { service, add } = setup(30);
     await service.sweepFollowUps(new Date(instant));
-    expect(add).not.toHaveBeenCalled();
+    expect(add).toHaveBeenCalledTimes(1);
   },
 );
 
@@ -133,12 +133,16 @@ test('both briefing switches off suppress the weekly day', async () => {
   expect(add).not.toHaveBeenCalled();
 });
 
-test('weekly briefing respects quiet hours even on the selected weekday', async () => {
+test('a late briefing time is honored on the selected weekday (no quiet hours)', async () => {
   const { service, add } = setup(60, true, {
     briefingEnabled: false,
     briefingTime: '23:00',
   });
 
   await service.sweepBriefings(new Date('2026-10-19T15:00:00Z'));
-  expect(add).not.toHaveBeenCalled();
+  expect(add).toHaveBeenCalledWith(
+    'briefing',
+    { kind: 'user', userId: 'owner', at: '2026-10-19T15:00:00.000Z' },
+    { jobId: 'briefing-owner-2026-10-19' },
+  );
 });

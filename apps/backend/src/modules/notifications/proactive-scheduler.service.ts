@@ -70,14 +70,12 @@ export class ProactiveSchedulerService {
 
   async sweepBriefings(now = new Date()): Promise<SweepOutcome> {
     return this.sweep('briefing', now, (target) => ({
-      due:
-        isDueInWindow(now, target.timezone, '08:00', 14 * 60) &&
-        isDueInWindow(
-          now,
-          target.timezone,
-          target.briefingTime ?? DEFAULT_BRIEFING_TIME,
-          this.windowMinutes,
-        ),
+      due: isDueInWindow(
+        now,
+        target.timezone,
+        target.briefingTime ?? DEFAULT_BRIEFING_TIME,
+        this.windowMinutes,
+      ),
       enabled:
         target.briefingEnabled ||
         (target.weeklyBriefingEnabled &&
@@ -86,10 +84,7 @@ export class ProactiveSchedulerService {
   }
 
   async sweepFollowUps(now = new Date()): Promise<SweepOutcome> {
-    return this.sweep('follow_up', now, (target) => ({
-      due: isDueInWindow(now, target.timezone, '08:00', 14 * 60),
-      enabled: true,
-    }));
+    return this.sweep('follow_up', now, () => ({ due: true, enabled: true }));
   }
 
   private async sweep(

@@ -49,8 +49,6 @@ const preferenceSelect = {
   pausedAll: true,
   pausedUntil: true,
   pausedBehaviors: true,
-  quietStart: true,
-  quietEnd: true,
   instructionMessageId: true,
   updatedAt: true,
 } as const;

@@ -187,8 +187,6 @@ class MemoryActions implements IAssistantActionRepository {
       pausedAll: false,
       pausedUntil: null,
       pausedBehaviors: [],
-      quietStart: null,
-      quietEnd: null,
       instructionMessageId: null,
       updatedAt: new Date(),
       ...this.preference,

@@ -10,38 +10,17 @@ import {
   type AssistanceBehavior,
   type AssistancePreference,
 } from '../../database/entities';
-import { localDateTime, localTime } from './local-time';
+import { localDateTime } from './local-time';
 import { schedulingInstant } from './scheduling';
 import { SECRETARY_CLOCK, type SecretaryClock } from './secretary-clock';
 
 /** Built-in v1 policy values (POLICY-02); not a user-facing settings surface. */
 export const ASSISTANCE_POLICY = {
   version: 'assistance-v1',
-  quietStart: '21:00',
-  quietEnd: '08:00',
   briefingItemLimit: 3,
 } as const;
 
 export type PolicyGate = { allowed: true } | { allowed: false; reason: string };
-
-function minutes(value: string): number {
-  const [hour, minute] = value.split(':').map(Number);
-
-  return hour! * 60 + minute!;
-}
-
-/** True when a local HH:mm lies in a [start, end) window that may wrap midnight. */
-export function inQuietHours(
-  time: string,
-  start: string,
-  end: string,
-): boolean {
-  const at = minutes(time);
-  const from = minutes(start);
-  const to = minutes(end);
-
-  return from <= to ? at >= from && at < to : at >= from || at < to;
-}
 
 /**
  * Hard gates enforced outside the model. Passing a gate is eligibility, not a
@@ -78,29 +57,6 @@ export class AssistancePolicyService {
     return { allowed: true };
   }
 
-  /** Delivery-time quiet-hours gate; returns the first permitted instant when blocked. */
-  async quietUntil(
-    userId: string,
-    now = this.clock.now(),
-  ): Promise<Date | null> {
-    const [user, preference] = await Promise.all([
-      this.users.findById(userId),
-      this.actions.getPreference(userId),
-    ]);
-
-    if (!user) return null;
-    const start = preference?.quietStart ?? ASSISTANCE_POLICY.quietStart;
-    const end = preference?.quietEnd ?? ASSISTANCE_POLICY.quietEnd;
-    const local = localDateTime(now, user.timezone);
-    if (!inQuietHours(localTime(now, user.timezone), start, end)) return null;
-    const today = local.slice(0, 10);
-    const candidate = schedulingInstant(today, end, user.timezone);
-
-    return candidate > now
-      ? candidate
-      : new Date(candidate.getTime() + 24 * 60 * 60_000);
-  }
-
   /** Persists a conversational instruction; scope interpretation is the agent's job. */
   async remember(
     userId: string,
@@ -110,8 +66,6 @@ export class AssistancePolicyService {
       pauseUntil?: string | null;
       pauseBehaviors?: AssistanceBehavior[];
       resumeBehaviors?: AssistanceBehavior[];
-      quietStart?: string | null;
-      quietEnd?: string | null;
     },
   ): Promise<{ saved: AssistancePreference; policyVersion: string }> {
     const user = await this.users.findById(userId);
@@ -139,18 +93,10 @@ export class AssistancePolicyService {
       pausedUntil = schedulingInstant(match[1]!, match[2]!, user.timezone);
     } else if (change.pauseAll !== undefined) pausedUntil = null;
 
-    for (const value of [change.quietStart, change.quietEnd])
-      if (value && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value))
-        throw new Error('Quiet hours must be HH:mm.');
-
     const saved = await this.actions.savePreference(userId, {
       ...(change.pauseAll !== undefined ? { pausedAll: change.pauseAll } : {}),
       ...(pausedUntil !== undefined ? { pausedUntil } : {}),
       pausedBehaviors: [...behaviors],
-      ...(change.quietStart !== undefined
-        ? { quietStart: change.quietStart }
-        : {}),
-      ...(change.quietEnd !== undefined ? { quietEnd: change.quietEnd } : {}),
       instructionMessageId: sourceMessageId,
     });
 

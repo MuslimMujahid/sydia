@@ -83,8 +83,8 @@ start time, with task priority breaking ties. The message shows the omitted coun
 and the worker logs `briefing_items_omitted` with per-channel counts. An individual
 row larger than the whole budget is omitted intact, never shortened. An oversized
 introduction/heading set fails visibly rather than producing an undeliverable
-message. Empty future periods are stated explicitly. Quiet hours apply to both
-briefing schedules. Manual actions select their requested format independently
+message. Empty future periods are stated explicitly. Briefings go out at the chosen time
+with no quiet-hours window. Manual actions select their requested format independently
 of the scheduled weekly day.
 
 Run the delivery worker from `apps/backend`:

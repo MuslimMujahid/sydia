@@ -96,8 +96,6 @@ export type AssistancePreference = Pick<
   | 'pausedAll'
   | 'pausedUntil'
   | 'pausedBehaviors'
-  | 'quietStart'
-  | 'quietEnd'
   | 'instructionMessageId'
   | 'updatedAt'
 >;
@@ -105,11 +103,6 @@ export type AssistancePreference = Pick<
 export type AssistancePreferenceWrite = Partial<
   Pick<
     AssistancePreference,
-    | 'pausedAll'
-    | 'pausedUntil'
-    | 'pausedBehaviors'
-    | 'quietStart'
-    | 'quietEnd'
-    | 'instructionMessageId'
+    'pausedAll' | 'pausedUntil' | 'pausedBehaviors' | 'instructionMessageId'
   >
 >;

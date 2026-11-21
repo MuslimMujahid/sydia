@@ -213,8 +213,7 @@ export function NotificationSettingsPage() {
               id="follow-up-description"
               className="mt-1.5 max-w-xl text-sm text-ink-muted"
             >
-              Kirim pengingat tugas setiap interval yang dipilih. Tidak ada
-              pengiriman antara pukul 22.00–08.00.
+              Kirim pengingat tugas setiap interval yang dipilih.
             </p>
             <SelectField
               id="follow-up-interval"
@@ -294,8 +293,7 @@ export function NotificationSettingsPage() {
                   className="mt-1.5 max-w-xl text-sm text-ink-muted"
                 >
                   Briefing harian dan mingguan memakai jam yang sama, sesuai
-                  zona waktu profil Anda. Tidak ada pengiriman antara pukul
-                  22.00–08.00.
+                  zona waktu profil Anda.
                 </p>
                 <input
                   id="briefing-time"

@@ -1722,14 +1722,12 @@ model AssistantAction {
   @@map("assistant_action")
 }
 
-/// Conversational instructions about unsolicited help (pause, category opt-out, quiet hours).
+/// Conversational instructions about unsolicited help (pause, category opt-out).
 model AssistancePreference {
   userId               String    @id
   pausedAll            Boolean   @default(false)
   pausedUntil          DateTime?
   pausedBehaviors      String[]  @default([])
-  quietStart           String?
-  quietEnd             String?
   instructionMessageId String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
